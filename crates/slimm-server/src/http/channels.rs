@@ -415,6 +415,7 @@ async fn delete(
             // Only a genuine delete is worth publishing; a retry changes nothing.
             if deleted {
                 state.hub.publish(Event::ChannelDeleted { channel_id });
+                forget_transcripts_in_background(&state, channel_id);
             }
             Ok(StatusCode::NO_CONTENT)
         }
@@ -423,6 +424,12 @@ async fn delete(
         )),
         Err(DeleteChannelError::Internal(e)) => Err(e.into()),
     }
+}
+
+/// Purges a deleted channel's transcripts after the response; the sweep covers a failure.
+pub(super) fn forget_transcripts_in_background(state: &AppState, channel_id: ChannelId) {
+    let store = state.store.clone();
+    tokio::spawn(async move { store.forget_call_transcripts(channel_id).await });
 }
 
 /// Ends any voice room the deleted channel was still hosting.

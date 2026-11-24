@@ -204,7 +204,9 @@ impl Client {
                     held.z = *z_index;
                 }
             }
-            CanvasOpBody::Edit { object_id, props } => {
+            CanvasOpBody::Edit {
+                object_id, props, ..
+            } => {
                 if let Some(held) = self.held.get_mut(object_id) {
                     held.props.clone_from(props);
                 }

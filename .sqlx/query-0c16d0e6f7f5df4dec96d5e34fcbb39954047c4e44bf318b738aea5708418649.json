@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO sweep_attempts (name, attempted_at) VALUES (?, ?)\n             ON CONFLICT (name) DO UPDATE SET attempted_at = excluded.attempted_at",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "0c16d0e6f7f5df4dec96d5e34fcbb39954047c4e44bf318b738aea5708418649"
+}

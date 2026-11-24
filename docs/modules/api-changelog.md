@@ -28,6 +28,7 @@ The policy behind the levels is decision [0100](../decisions/0100-module-safety-
 - From the audit of 2026-11-23, module runs and their posts are held to the member who ran them: a command naming a channel the member cannot view answers 403 before the module runs, and a member who has not accepted the rules or is timed out is refused with 403 on `POST /modules/{id}/commands/{command}` and on a canvas tile press, with the `timed_out` code other routes use for a timeout.
 - A `run_after` timer keeps `context.channel_id` only when the member (or, for a run nobody started, the module's principal) may view and send there when it is armed; otherwise it is stored with no channel and posts nowhere.
 - A `message.post` made during a member's run reaches `@everyone`, `@here` and roles only when both the member and the module's principal hold `mention_everyone`, the rule a posted command answer already had, and the `message.send` permission hook is asked for it and for a posted answer.
+- `kv.store` gains `cas` (`{key, expect, value}` answers `{swapped}`, with `expect` left out meaning the key must be absent), so a read-modify-write no longer races. A `data.store` reply larger than 1 MiB is refused with `result is too large`. A bare `net.fetch` host entry admits only https on 443; plain http needs `host:80`.
 - A module whose principal was removed from the Space runs no schedules, timers or events until it is restored.
 
 ## Level 6

@@ -21,6 +21,7 @@ struct World {
     store: Store,
     pool: SqlitePool,
     media: Media,
+    db_path: String,
     _db: support::TestDbGuard,
     _dir: support::TestDirGuard,
 }
@@ -29,7 +30,7 @@ async fn world(name: &str) -> World {
     let (path, db) = support::TestDbGuard::new(name);
     let config = Config {
         port: 0,
-        database_path: path,
+        database_path: path.clone(),
         hash_concurrency: 2,
         ..Config::default()
     };
@@ -40,6 +41,7 @@ async fn world(name: &str) -> World {
         store: Store::new(pool.clone()),
         pool,
         media,
+        db_path: path,
         _db: db,
         _dir: dir,
     }
@@ -148,4 +150,30 @@ async fn the_retention_pass_announces_each_pruned_message_and_frees_its_file() {
         "the pruned message's file survived"
     );
     assert_eq!(last_reclaimed(&w.pool, "message_retention").await, Some(1));
+}
+
+#[tokio::test]
+async fn a_sweep_pass_shrinks_the_wal_a_large_transaction_grew() {
+    let w = world("slimm-pass-wal").await;
+    let wal = std::path::PathBuf::from(format!("{}-wal", w.db_path));
+    sqlx::query("CREATE TABLE wal_probe (blob BLOB)")
+        .execute(&w.pool)
+        .await
+        .unwrap();
+    let mut tx = w.pool.begin().await.unwrap();
+    for _ in 0..40 {
+        sqlx::query("INSERT INTO wal_probe VALUES (zeroblob(1048576))")
+            .execute(&mut *tx)
+            .await
+            .unwrap();
+    }
+    tx.commit().await.unwrap();
+    assert!(
+        std::fs::metadata(&wal).unwrap().len() > 8 << 20,
+        "the transaction grew the wal"
+    );
+
+    run_token_sweep_pass(&w.store).await;
+
+    assert_eq!(std::fs::metadata(&wal).unwrap().len(), 0);
 }

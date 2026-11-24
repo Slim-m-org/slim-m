@@ -1,0 +1,21 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT MAX(at) AS \"at: i64\" FROM (\n                   SELECT last_run_at AS at FROM sweep_status WHERE name = ?1\n                   UNION ALL\n                   SELECT attempted_at AS at FROM sweep_attempts WHERE name = ?1)",
+  "describe": {
+    "columns": [
+      {
+        "name": "at: i64",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "a8dad7175de1794cdb9626fcc820ed5343e87eb5edc6911ba69564d24ba99840"
+}

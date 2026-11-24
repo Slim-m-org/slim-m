@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE module_health SET hook_failures = 0 WHERE module_id = ? AND hook_failures > 0",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "e77b8b2816d5870a863c943ccaecd42d07647664323fb255b87cfca7f00c73d0"
+}

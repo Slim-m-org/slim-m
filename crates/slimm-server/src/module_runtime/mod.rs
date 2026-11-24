@@ -10,6 +10,7 @@ mod contracts;
 mod data;
 mod data_migrate;
 mod data_purge;
+mod data_rows;
 mod data_schema;
 mod data_sql;
 mod data_sql_write;

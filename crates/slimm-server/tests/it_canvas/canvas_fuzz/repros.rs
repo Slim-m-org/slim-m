@@ -308,7 +308,10 @@ async fn erased_objects_do_not_accumulate_forever() {
         .fetch_one(&pool)
         .await
         .unwrap();
-    assert_eq!(kept, 200, "nothing is deleted while retention is off");
+    assert_eq!(
+        kept, 200,
+        "nothing under the erased ceiling is deleted while retention is off"
+    );
     store.set_message_retention_days(30).await.unwrap();
     store.sweep_canvas_ops().await.unwrap();
 

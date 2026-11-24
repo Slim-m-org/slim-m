@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO call_transcript_lines\n                 (transcript_id, seq, speaker_id, at, end_at, language, text)\n             VALUES (?, ?, ?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 7
+    },
+    "nullable": []
+  },
+  "hash": "2b0153cae404f7f1d9600111af49470468a4795292add7a06e3391b71e5aecc5"
+}

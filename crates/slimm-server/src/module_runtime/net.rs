@@ -133,8 +133,8 @@ struct RawRequest {
 }
 
 /// Whether `url` names one of `hosts`, which are `host` or `host:port`
-/// entries. A bare host entry admits only the scheme's default port, and a
-/// `host:port` entry admits that port even when it is the scheme's default.
+/// entries. A bare host entry admits only https on 443, so plain http needs a
+/// spelled `host:80`; a `host:port` entry admits exactly that port.
 pub fn host_allowed(url: &Url, hosts: &[String]) -> bool {
     let Some(host) = url.host_str() else {
         return false;
@@ -146,10 +146,10 @@ pub fn host_allowed(url: &Url, hosts: &[String]) -> bool {
     let spelled = url
         .port_or_known_default()
         .map(|port| format!("{host}:{port}"));
-    let on_default_port = url.port().is_none();
+    let bare_admitted = url.port().is_none() && url.scheme() == "https";
     hosts
         .iter()
-        .any(|entry| (on_default_port && *entry == host) || spelled.as_ref() == Some(entry))
+        .any(|entry| (bare_admitted && *entry == host) || spelled.as_ref() == Some(entry))
 }
 
 /// Parses and gates one request: http or https only, an approved host, a

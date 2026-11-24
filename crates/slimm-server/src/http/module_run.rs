@@ -121,6 +121,15 @@ pub(crate) struct RunRequest<'a> {
     pub(crate) input: &'a str,
     pub(crate) kind: RunKind,
     pub(crate) context: RunContext,
+    /// Set for a hook run: where its stats are kept and whether a refusal stands in for a failure.
+    pub(crate) hook: Option<HookRun<'a>>,
+}
+
+/// What the host knows about the hook a run belongs to.
+#[derive(Clone, Copy)]
+pub(crate) struct HookRun<'a> {
+    pub(crate) stats_key: &'a str,
+    pub(crate) fail_closed: bool,
 }
 
 /// Runs an already-gated command on `module`, with `surface` as its
@@ -149,7 +158,7 @@ pub(crate) async fn run_installed(
     }
     let result = match &ran {
         Ok(outcome) if outcome.host_failed || (!outcome.ok && request.kind != RunKind::Command) => {
-            RunResult::Failed(outcome.payload.clone())
+            RunResult::Failed(failure_text(request.kind, outcome))
         }
         Ok(_) => RunResult::Ok,
         Err(_) => {
@@ -161,7 +170,7 @@ pub(crate) async fn run_installed(
         .store
         .record_module_run(
             &module.id,
-            request.command,
+            request.hook.map_or(request.command, |h| h.stats_key),
             &result,
             RunTiming {
                 at: now_ms(),
@@ -177,9 +186,20 @@ pub(crate) async fn run_installed(
         request.kind,
         RunKind::Background | RunKind::Hook | RunKind::Room
     ) {
-        super::module_breaker::note_background_run(state, module, &result, ran.as_ref().ok()).await;
+        let keep_on = request.hook.is_some_and(|h| h.fail_closed);
+        let outcome = ran.as_ref().ok();
+        super::module_breaker::note_background_run(state, module, &result, (outcome, keep_on))
+            .await;
     }
     ran
+}
+
+/// What is stored for a failed run; a hook sees every member's text, so it never keeps the module's own words.
+fn failure_text(kind: RunKind, outcome: &CommandOutcome) -> String {
+    if kind == RunKind::Hook {
+        return super::module_hooks::failure_category(outcome).to_owned();
+    }
+    outcome.payload.clone()
 }
 
 /// The run and the fuel it burned, when that could be read.
@@ -331,6 +351,7 @@ mod tests {
             command: "run",
             input: "",
             kind,
+            hook: None,
             context: RunContext::default(),
         })
     }

@@ -8,6 +8,7 @@ use axum::http::request::Parts;
 use axum::routing::{get, put};
 use serde::{Deserialize, Serialize};
 
+use super::stats_key;
 use crate::http::AppState;
 use crate::http::dock::PHASES;
 use crate::http::error::ApiError;
@@ -50,7 +51,7 @@ async fn list(
     enforce(&state, &parts, Some(&ctx), Class::AuthedRead)?;
     require_manage_server(&state, ctx.user_id).await?;
     let modules = state.store.list_installed_modules().await?;
-    let mut stats = state.store.module_run_stats().await?;
+    let stats = state.store.module_run_stats().await?;
     let live = state.dock.hooks().active(&state.store).await;
     let mut hooks = state.store.module_hooks().await?;
     hooks.sort_by_key(|h| {
@@ -66,9 +67,10 @@ async fn list(
             HookKind::Interceptor => "@intercept",
             HookKind::Permission => "@allow",
         };
+        let key = stats_key(command, &hook.decl);
         let stat = stats
-            .get_mut(&hook.module_id)
-            .and_then(|all| all.iter().find(|s| s.command == command).cloned());
+            .get(&hook.module_id)
+            .and_then(|all| all.iter().find(|s| s.command == key).cloned());
         let in_chain = live.as_ref().is_some_and(|snapshot| {
             snapshot
                 .interceptors
@@ -124,7 +126,10 @@ async fn update(
         "permission" => HookKind::Permission,
         _ => return Err(ApiError::BadRequest("kind is interceptor or permission")),
     };
-    if req.priority.is_some_and(|p| p.abs() > MAX_PRIORITY) {
+    if req
+        .priority
+        .is_some_and(|p| p.unsigned_abs() > MAX_PRIORITY.unsigned_abs())
+    {
         return Err(ApiError::BadRequest("priority is out of range"));
     }
     let change = HookChange {

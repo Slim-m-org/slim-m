@@ -11,6 +11,7 @@ mod clear_scope;
 mod convergence;
 mod edit;
 mod emoji_objects;
+mod erased_bounds;
 mod export_feed;
 mod feed;
 mod feed_budget;

@@ -9,6 +9,7 @@
 //! installed the cost is one atomic load, see [`Registry`].
 
 mod chain;
+mod failure;
 mod guard;
 mod module_hooks_admin;
 mod permission;
@@ -16,6 +17,7 @@ mod registry;
 mod runner;
 
 pub(crate) use chain::{Draft, HookPoint, intercept};
+pub(crate) use failure::{failure_category, stats_key};
 pub(crate) use guard::{Field, guard_write};
 pub(super) use module_hooks_admin::routes;
 pub(crate) use permission::{Action, check_permission};

@@ -205,7 +205,9 @@ async fn every_effective_op_publishes_one_frame_that_matches_the_feed() {
                 }),
             ) => assert_eq!((object_id, z_index), (o, z), "reorder at {}", op.seq),
             (
-                CanvasOpBody::Edit { object_id, props },
+                CanvasOpBody::Edit {
+                    object_id, props, ..
+                },
                 Event::Canvas(CanvasEvent::ObjectEdited {
                     object_id: o,
                     props: p,

@@ -106,7 +106,8 @@ async fn incoming(
 /// personal space (a DM with themself) has nobody on the other end to ring.
 /// A group rings everyone else on its roster; the first to join answers for all.
 /// With anyone already in the call the ring ends at once as answered and nobody
-/// is rung: the caller is joining a live call. Nobody on Do not disturb is told;
+/// is rung: the caller is joining a live call. Nobody who blocked the caller, or whom
+/// the caller blocked, is rung or told, and the caller sees nothing of why. Nobody on Do not disturb is told;
 /// with only connected ones left it ends at once as a missed call. One offline on
 /// Do not disturb rings silently until the timeout, as anyone offline would.
 ///
@@ -165,11 +166,16 @@ async fn ring(
         let ring_id = ended_at_once(&state, channel_id, CallRingOutcome::Answered);
         return Ok(Json(RingResponse::ended(ring_id, Vec::new())));
     }
+    let (callees, blockers) = without_blocked_pairs(&state, ctx.user_id, callees).await?;
     let DoNotDisturb {
-        rung: callees,
-        quiet,
+        mut rung,
+        mut quiet,
         shown: do_not_disturb,
     } = split_off_do_not_disturb(&state, callees).await?;
+    // A blocker is rung silently, so the caller cannot tell a block from a quiet callee.
+    rung.extend(&blockers);
+    quiet.extend(&blockers);
+    let callees = rung;
     if callees.is_empty() {
         // Another participant's own pending ring is theirs to end.
         if let Some(own) = state.voice.rings().cancel(channel_id, ctx.user_id) {
@@ -218,6 +224,21 @@ impl RingResponse {
             do_not_disturb,
         }
     }
+}
+
+/// Splits off callees on either side of a block with the caller: those the caller blocked are dropped, and those who blocked the caller come back apart; a group keeps everyone's permissions after a block.
+async fn without_blocked_pairs(
+    state: &AppState,
+    caller: UserId,
+    callees: Vec<UserId>,
+) -> Result<(Vec<UserId>, Vec<UserId>), ApiError> {
+    let blockers = state.store.blockers_of(caller).await?;
+    let blocked = state.store.blocked_ids(caller).await?;
+    let (blocking, rest): (Vec<_>, Vec<_>) = callees
+        .into_iter()
+        .filter(|callee| !blocked.contains(callee))
+        .partition(|callee| blockers.contains(callee));
+    Ok((rest, blocking))
 }
 
 /// The callees split by Do not disturb, which blocks a ring on every device.

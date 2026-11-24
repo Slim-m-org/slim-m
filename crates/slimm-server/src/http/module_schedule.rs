@@ -185,6 +185,7 @@ async fn run_one(
         command,
         input: "",
         kind: RunKind::Background,
+        hook: None,
         context: RunContext {
             channel: Some(channel),
             voice_channel: None,

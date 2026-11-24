@@ -11,6 +11,8 @@ use crate::ids::UserId;
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ModuleHealth {
     pub consecutive_failures: i64,
+    /// Failures in a row of the module's fail-closed hooks, counted apart from the breaker's streak.
+    pub hook_failures: i64,
     pub disabled_reason: Option<String>,
     pub events_dropped: i64,
 }
@@ -26,7 +28,7 @@ impl Store {
     pub async fn module_health(&self) -> anyhow::Result<HashMap<String, ModuleHealth>> {
         let rows = sqlx::query!(
             r#"SELECT module_id AS "module_id!", consecutive_failures AS "consecutive_failures!",
-                      disabled_reason, events_dropped AS "events_dropped!"
+                      hook_failures AS "hook_failures!", disabled_reason, events_dropped AS "events_dropped!"
                FROM module_health"#
         )
         .fetch_all(&self.pool)
@@ -38,6 +40,7 @@ impl Store {
                     r.module_id,
                     ModuleHealth {
                         consecutive_failures: r.consecutive_failures,
+                        hook_failures: r.hook_failures,
                         disabled_reason: r.disabled_reason,
                         events_dropped: r.events_dropped,
                     },
@@ -82,6 +85,30 @@ impl Store {
         .execute(&self.pool)
         .await?;
         Ok(())
+    }
+
+    /// A fail-closed hook run succeeded: its own streak ends, the breaker's is untouched.
+    pub async fn record_module_hook_ok(&self, module_id: &str) -> anyhow::Result<()> {
+        sqlx::query!(
+            "UPDATE module_health SET hook_failures = 0 WHERE module_id = ? AND hook_failures > 0",
+            module_id
+        )
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    /// A fail-closed hook run failed; returns its streak, which never counts toward turning the module off.
+    pub async fn record_module_hook_failure(&self, module_id: &str) -> anyhow::Result<i64> {
+        let streak = sqlx::query_scalar!(
+            r#"INSERT INTO module_health (module_id, hook_failures) VALUES (?, 1)
+               ON CONFLICT (module_id) DO UPDATE SET hook_failures = hook_failures + 1
+               RETURNING hook_failures AS "streak!: i64""#,
+            module_id
+        )
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(streak)
     }
 
     /// A background run failed; returns the streak including this failure.

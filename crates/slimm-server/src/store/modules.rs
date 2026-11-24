@@ -35,7 +35,7 @@ pub(super) mod platform;
 use self::module_metadata::insert_module_metadata;
 pub use connector_host_run::{EgressHost, HostRun, HostRunSpec, TurnedOff};
 pub use connectors::{ConnectorInstall, InstalledConnector};
-pub use hooks::{HookChange, HookDecl, HookKind, ModuleHook};
+pub use hooks::{HookChange, HookDecl, HookKind, ModuleHook, hook_stats_key};
 pub use module_timers::{DueTimer, TimerSpec};
 use platform::write_platform;
 pub use platform::{ModulePlatform, ModuleSettingDef, ModuleSlot, SettingChoice, SettingKind};

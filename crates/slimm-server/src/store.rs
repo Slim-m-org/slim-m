@@ -171,7 +171,8 @@ pub use bot_token::{ReissueError, ReissuedToken};
 pub use bot_ui::VisibleBotUi;
 pub use bots::{BOT_TOKEN_PREFIX, Bot, CreateBotError, NewBot, UpdateBotPermissionsError};
 pub use call_transcript_marks::{
-    MAX_MARKS_PER_TRANSCRIPT, MarkKind, MarkSource, NewMark, PutMark, TranscriptMark,
+    MAX_MARKS_PER_AUTHOR, MAX_MARKS_PER_TRANSCRIPT, MarkKind, MarkSource, NewMark, PutMark,
+    TranscriptMark,
 };
 pub use call_transcripts::{
     CallTranscript, HIGHLIGHT_CLOSE, HIGHLIGHT_OPEN, MAX_TRANSCRIPT_RETENTION_DAYS, NewTranscript,
@@ -192,7 +193,7 @@ pub use canvas_object_locks::LockError;
 pub use canvas_ops::{
     CANVAS_OP_GAP, CANVAS_OP_PAGE_BYTES, CanvasOpBody, CanvasOpEntry, CanvasOpsPage,
 };
-pub use canvas_ops_sweep::{CANVAS_OP_RETENTION_MS, SweptCanvasOps};
+pub use canvas_ops_sweep::{CANVAS_AUDIT_RETENTION_MS, CANVAS_OP_RETENTION_MS, SweptCanvasOps};
 pub use canvas_ops_write::{
     CanvasOpRequest, ClearScope, MAX_REMOVE_IDS_PER_OP, SubmitOpError, SubmittedOp,
 };
@@ -259,7 +260,7 @@ pub use modules::{
     HostRun, HostRunSpec, InstallModuleRequest, InstalledConnector, InstalledModule,
     ModuleExtensionPoint, ModuleExtensionPointSpec, ModuleHook, ModulePermissionSpec,
     ModulePlatform, ModuleRuntimeLimits, ModuleSchedule, ModuleSettingDef, ModuleSlot,
-    SettingChoice, SettingKind, TimerSpec, TurnedOff,
+    SettingChoice, SettingKind, TimerSpec, TurnedOff, hook_stats_key,
 };
 pub use notification_schedule::{DaySetting, NotificationScheduleDetail};
 pub use overwrites_batch::OverwriteBatchEntry;

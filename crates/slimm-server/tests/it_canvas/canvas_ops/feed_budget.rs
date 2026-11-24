@@ -5,8 +5,8 @@
 
 use uuid::Uuid;
 
-use slimm_server::ids::{ChannelId, UserId};
-use slimm_server::store::{CANVAS_OP_PAGE_BYTES, CanvasOpBody};
+use slimm_server::ids::{CanvasObjectId, CanvasOpId, ChannelId, UserId};
+use slimm_server::store::{CANVAS_OP_PAGE_BYTES, CanvasOpBody, CanvasOpRequest, PlaceRequest};
 
 use crate::canvas_ops::fixtures::{new_store, new_store_and_pool, place, place_many};
 use crate::support::canvas::CanvasReads;
@@ -47,6 +47,61 @@ async fn a_page_stops_early_once_place_props_cross_the_byte_budget() {
         total_bytes <= CANVAS_OP_PAGE_BYTES + 4_100,
         "the page must not run far past the byte budget: {total_bytes} bytes"
     );
+}
+
+#[tokio::test]
+async fn an_edit_is_budgeted_by_the_props_a_reader_is_served() {
+    let (store, _guard) = new_store().await;
+    let author = store.create_user("ann", "Ann").await.unwrap().id;
+    let channel = store.create_channel("canvas", "voice").await.unwrap().id;
+    let mut notes = Vec::new();
+    for _ in 0..150 {
+        let note = CanvasObjectId::generate();
+        let request = PlaceRequest {
+            kind: "note",
+            bounds: (0.0, 0.0, 1.0, 1.0),
+            props: r#"{"text":"a"}"#,
+            attachment: None,
+        };
+        store
+            .place_canvas_object(channel, author, note, request)
+            .await
+            .unwrap();
+        notes.push(note);
+    }
+    let big = serde_json::to_string(&serde_json::json!({ "text": "x".repeat(3_900) })).unwrap();
+    for text in [r#"{"text":"b"}"#.to_owned(), big] {
+        for object_id in &notes {
+            let edit = CanvasOpRequest::Edit {
+                object_id: *object_id,
+                props: text.clone(),
+            };
+            store
+                .submit_canvas_op(channel, author, CanvasOpId::generate(), false, edit)
+                .await
+                .unwrap();
+        }
+    }
+
+    let page = store.list_canvas_ops(channel, 150, 500).await.unwrap();
+
+    let served: usize = page
+        .ops
+        .iter()
+        .map(|op| match &op.body {
+            CanvasOpBody::Edit {
+                current_props: Some(current),
+                ..
+            } => current.len(),
+            _ => 0,
+        })
+        .sum();
+    assert!(
+        served <= CANVAS_OP_PAGE_BYTES + 4_100,
+        "{served} bytes served over {} ops",
+        page.ops.len()
+    );
+    assert!(page.has_more, "{} ops", page.ops.len());
 }
 
 /// Closed residual: `restore`'s own `canvas_op_targets` rows now count
