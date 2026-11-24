@@ -106,7 +106,8 @@ async fn incoming(
 /// personal space (a DM with themself) has nobody on the other end to ring.
 /// A group rings everyone else on its roster; the first to join answers for all.
 /// With anyone already in the call the ring ends at once as answered and nobody
-/// is rung: the caller is joining a live call. Nobody on Do not disturb is told;
+/// is rung: the caller is joining a live call. Nobody who blocked the caller, or whom
+/// the caller blocked, is rung or told, and the caller sees nothing of why. Nobody on Do not disturb is told;
 /// with only connected ones left it ends at once as a missed call. One offline on
 /// Do not disturb rings silently until the timeout, as anyone offline would.
 ///
@@ -165,6 +166,7 @@ async fn ring(
         let ring_id = ended_at_once(&state, channel_id, CallRingOutcome::Answered);
         return Ok(Json(RingResponse::ended(ring_id, Vec::new())));
     }
+    let callees = without_blocked_pairs(&state, ctx.user_id, callees).await?;
     let DoNotDisturb {
         rung: callees,
         quiet,
@@ -218,6 +220,20 @@ impl RingResponse {
             do_not_disturb,
         }
     }
+}
+
+/// Drops callees on either side of a block with the caller; a group keeps everyone's permissions after a block.
+async fn without_blocked_pairs(
+    state: &AppState,
+    caller: UserId,
+    callees: Vec<UserId>,
+) -> Result<Vec<UserId>, ApiError> {
+    let blockers = state.store.blockers_of(caller).await?;
+    let blocked = state.store.blocked_ids(caller).await?;
+    Ok(callees
+        .into_iter()
+        .filter(|callee| !blockers.contains(callee) && !blocked.contains(callee))
+        .collect())
 }
 
 /// The callees split by Do not disturb, which blocks a ring on every device.
