@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.136.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.135.0...client-v0.136.0) (2026-11-24)
+
+
+### Features
+
+* audit batch 2, session revocation, participant guard and identity proof ([#2479](https://github.com/Slim-m-org/slim-m/issues/2479)) ([ad4ddf2](https://github.com/Slim-m-org/slim-m/commit/ad4ddf25128422df0af0740d44424d0bcedceb09))
+* group dm powers, sharper image tiles, and pre-1.0 audit and polish fixes ([#2475](https://github.com/Slim-m-org/slim-m/issues/2475)) ([67a0823](https://github.com/Slim-m-org/slim-m/commit/67a08237e4b4e0f810d0500cb6dcdf2bfcfb670c))
+
+
+### Bug Fixes
+
+* audit batch 1, sign-in, permissions, socket and network hardening ([#2478](https://github.com/Slim-m-org/slim-m/issues/2478)) ([2be55ad](https://github.com/Slim-m-org/slim-m/commit/2be55adbc6620ce75dcc5f901da343e1653b9b4a))
+* audit batch 3, credentials, module hooks, attachments, gifs and invites ([#2480](https://github.com/Slim-m-org/slim-m/issues/2480)) ([c9b26c0](https://github.com/Slim-m-org/slim-m/commit/c9b26c017bfe9ba76679a0bf4197dc5dbaa2a6a9))
+* audit batch 4, text rules, module rights, uploads, deletion and push ([#2481](https://github.com/Slim-m-org/slim-m/issues/2481)) ([b82291a](https://github.com/Slim-m-org/slim-m/commit/b82291a448bfb3f2b9826d34f14b0a1c5f5b4a69))
+
 ## [0.135.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.134.0...client-v0.135.0) (2026-11-23)
 
 
