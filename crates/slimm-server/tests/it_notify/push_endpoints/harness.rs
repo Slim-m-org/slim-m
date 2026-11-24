@@ -169,6 +169,10 @@ struct RelayState {
     fail_next_calls: usize,
     /// Kinds answered `error`, as a relay that predates them does.
     refused_kinds: Vec<String>,
+    /// Statuses a token is answered with once each, oldest first, before its steady one.
+    queued_statuses: HashMap<String, Vec<String>>,
+    /// The next calls refused with this HTTP status and `Retry-After` seconds.
+    refuse_next_with: Vec<(u16, Option<u64>)>,
 }
 
 #[derive(Clone)]
@@ -207,6 +211,26 @@ impl MockRelay {
             .insert(token.to_owned(), status.to_owned());
     }
 
+    /// Answers `token` with `status` once, then with whatever it is otherwise answered.
+    pub(crate) fn answer_once(&self, token: &str, status: &str) {
+        self.state
+            .lock()
+            .unwrap()
+            .queued_statuses
+            .entry(token.to_owned())
+            .or_default()
+            .push(status.to_owned());
+    }
+
+    /// Refuses the next call with an HTTP `status`, as a relay over its budget or restarting does.
+    pub(crate) fn refuse_next_call(&self, status: u16, retry_after_seconds: Option<u64>) {
+        self.state
+            .lock()
+            .unwrap()
+            .refuse_next_with
+            .push((status, retry_after_seconds));
+    }
+
     /// Answers `error` for every message of `kind`, as a relay that predates it does.
     pub(crate) fn refuse_kind(&self, kind: &str) {
         self.state
@@ -238,7 +262,8 @@ async fn handle_send(
     State(mock): State<MockRelay>,
     headers: axum::http::HeaderMap,
     Json(body): Json<Value>,
-) -> Result<Json<Value>, axum::http::StatusCode> {
+) -> Result<Json<Value>, axum::response::Response> {
+    use axum::response::IntoResponse;
     let auth_header = headers
         .get("authorization")
         .and_then(|v| v.to_str().ok())
@@ -248,30 +273,47 @@ async fn handle_send(
     state.attempts += 1;
     if state.fail_next_calls > 0 {
         state.fail_next_calls -= 1;
-        return Err(axum::http::StatusCode::INTERNAL_SERVER_ERROR);
+        return Err(axum::http::StatusCode::INTERNAL_SERVER_ERROR.into_response());
+    }
+    if !state.refuse_next_with.is_empty() {
+        let (status, retry_after) = state.refuse_next_with.remove(0);
+        let mut response = axum::http::StatusCode::from_u16(status)
+            .unwrap()
+            .into_response();
+        if let Some(seconds) = retry_after {
+            response
+                .headers_mut()
+                .insert("retry-after", seconds.to_string().parse().unwrap());
+        }
+        return Err(response);
     }
 
     let messages = body["messages"].as_array().cloned().unwrap_or_default();
-    let results: Vec<Value> = messages
-        .iter()
-        .map(|m| {
-            let token = m["token"].as_str().unwrap_or_default().to_owned();
-            let refused = state
-                .refused_kinds
-                .iter()
-                .any(|k| m["kind"].as_str() == Some(k.as_str()));
-            let status = if refused {
-                "error".to_owned()
-            } else {
+    let mut results: Vec<Value> = Vec::new();
+    for m in &messages {
+        let token = m["token"].as_str().unwrap_or_default().to_owned();
+        let queued = state
+            .queued_statuses
+            .get_mut(&token)
+            .filter(|queue| !queue.is_empty())
+            .map(|queue| queue.remove(0));
+        let refused = state
+            .refused_kinds
+            .iter()
+            .any(|k| m["kind"].as_str() == Some(k.as_str()));
+        let status = if refused {
+            "error".to_owned()
+        } else {
+            queued.unwrap_or_else(|| {
                 state
                     .status_overrides
                     .get(&token)
                     .cloned()
                     .unwrap_or_else(|| "delivered".to_owned())
-            };
-            json!({ "token": token, "status": status })
-        })
-        .collect();
+            })
+        };
+        results.push(json!({ "token": token, "status": status }));
+    }
     state.calls.push(body);
     state.auth_headers.push(auth_header);
     Ok(Json(json!({ "results": results })))

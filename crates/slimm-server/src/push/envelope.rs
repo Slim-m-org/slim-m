@@ -44,6 +44,7 @@
 use std::collections::HashSet;
 
 use serde::Serialize;
+use unicode_segmentation::UnicodeSegmentation;
 
 use crate::ids::{ChannelId, DeviceId, MessageId, Seq, UserId};
 use crate::store::PushTarget;
@@ -151,16 +152,25 @@ impl MessagePreview {
     }
 }
 
-/// Truncates to `max_chars` on a character boundary, appending [`ELISION`]
-/// when `elide` and something was actually cut. Counted in characters rather
-/// than bytes so a name in a non-Latin script is not cut to a fraction of the
-/// length a Latin one keeps; the byte ceiling that actually matters is
-/// enforced separately, against the encoded plaintext, in
-/// [`seal_for_message`].
+/// Truncates to at most `max_chars` characters on a grapheme cluster boundary, appending
+/// [`ELISION`] when `elide` and something was actually cut. A cluster that would cross the
+/// limit is dropped whole, so an emoji sequence or a combining run is never left half-drawn.
+/// Counted in characters rather than bytes so a name in a non-Latin script is not cut to a
+/// fraction of the length a Latin one keeps; the byte ceiling that actually matters is
+/// enforced separately, against the encoded plaintext, in [`seal_for_message`].
 pub(super) fn truncate(value: &str, max_chars: usize, elide: bool) -> String {
-    let mut kept: String = value.chars().take(max_chars).collect();
-    if elide && value.chars().nth(max_chars).is_some() {
-        kept.push(ELISION);
+    let mut kept = String::new();
+    let mut kept_chars = 0;
+    for cluster in value.graphemes(true) {
+        let width = cluster.chars().count();
+        if kept_chars + width > max_chars {
+            if elide {
+                kept.push(ELISION);
+            }
+            return kept;
+        }
+        kept.push_str(cluster);
+        kept_chars += width;
     }
     kept
 }
@@ -329,6 +339,17 @@ mod tests {
         let body = "\u{3053}".repeat(MAX_PREVIEW_BODY_CHARS + 10);
         let preview = MessagePreview::new("Ada", "general", &body);
         assert_eq!(preview.body.chars().count(), MAX_PREVIEW_BODY_CHARS + 1);
+    }
+
+    #[test]
+    fn a_joined_emoji_sequence_is_dropped_whole_not_cut_in_half() {
+        let family = "\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F467}";
+        let body = format!("{}{family}tail", "a".repeat(MAX_PREVIEW_BODY_CHARS - 2));
+        let preview = MessagePreview::new("Ada", "general", &body);
+        assert_eq!(
+            preview.body,
+            format!("{}{ELISION}", "a".repeat(MAX_PREVIEW_BODY_CHARS - 2))
+        );
     }
 
     #[test]

@@ -132,15 +132,25 @@ async fn a_relay_that_cannot_deliver_right_now_does_not_downgrade_the_kind() {
         world.mock.set_status("root-apns", status);
 
         world.notifier.raise(AlertKind::DiskLow, "", "low").await;
-        assert!(wait_until(|| world.mock.all_messages().len() == 1, WAIT_TIMEOUT).await);
+        let sends = if status == "retry" { 3 } else { 1 };
+        assert!(wait_until(|| world.mock.all_messages().len() == sends, WAIT_TIMEOUT).await);
         assert!(
-            !wait_until(|| world.mock.all_messages().len() > 1, QUIET).await,
+            !wait_until(|| world.mock.all_messages().len() > sends, QUIET).await,
             "{status}: the alert was sent again under another kind"
         );
         world.notifier.raise(AlertKind::Backup, "", "failed").await;
-        assert!(wait_until(|| world.mock.all_messages().len() == 2, WAIT_TIMEOUT).await);
+        assert!(
+            wait_until(
+                || world.mock.all_messages().len() == 2 * sends,
+                WAIT_TIMEOUT
+            )
+            .await
+        );
 
-        assert_eq!(kinds(&world), ["admin_alert", "admin_alert"], "{status}");
+        assert!(
+            kinds(&world).iter().all(|kind| kind == "admin_alert"),
+            "{status}"
+        );
     }
 }
 
