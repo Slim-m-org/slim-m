@@ -269,7 +269,6 @@ class CanvasPaneSurface extends StatelessWidget {
           onPointerMoved: actions.onPointerMoved,
           readOnly: readOnly,
         ),
-        ?noteEditor,
         // Topmost and non-interactive - see its own doc for why a pan or a tile drag stopping at worldLimit otherwise looks like nothing happened.
         CanvasWorldEdgeGlow(
           document: document,
@@ -284,6 +283,8 @@ class CanvasPaneSurface extends StatelessWidget {
           onBringIn: actions.onBringIntoBoard,
           truncated: truncated,
         ),
+        // Above the readouts: a style bar slid to the top left would otherwise sit under them.
+        ?noteEditor,
       ],
     ),
   );

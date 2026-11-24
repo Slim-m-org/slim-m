@@ -5,6 +5,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/features/canvas/widgets/canvas_selection_bar.dart';
 import 'package:slimm_design_system/design_system.dart' show AppTokens;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
@@ -125,6 +126,34 @@ void main() {
       await pumpFrames(tester);
 
       expect(find.text('L'), findsNothing);
+    });
+
+    testWidgets('a bar slid to the top left sits above the view and zoom '
+        'readouts', (tester) async {
+      await openPane(
+        tester,
+        objects: [
+          {...textBoxJson('box'), 'x': 20.0, 'y': 60.0},
+        ],
+      );
+      await tester.tap(find.bySemanticsLabel('Pan'));
+      await tester.pump();
+      await fingerTapTwice(tester, const Offset(40, 75));
+
+      final bar = tester.getRect(find.byType(CanvasSelectionBar));
+      final chip = tester.getRect(
+        find.bySemanticsLabel(RegExp('^Shared view')),
+      );
+      final overlap = bar.intersect(chip);
+      expect(overlap.isEmpty, isFalse, reason: 'the fixture must collide');
+      final hit = tester.hitTestOnBinding(overlap.center);
+      expect(
+        hit.path.any(
+          (e) =>
+              e.target is RenderBox && (e.target as RenderBox).size == bar.size,
+        ),
+        isTrue,
+      );
     });
   });
 }
