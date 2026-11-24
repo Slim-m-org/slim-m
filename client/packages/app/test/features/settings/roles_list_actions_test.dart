@@ -86,6 +86,7 @@ void main() {
     expect(h.writes.single.path, '/roles/reorder');
     expect(h.writes.single.body, {
       'role_ids': ['b', 'a'],
+      'expected_role_ids': ['a', 'b'],
     });
   });
 }
