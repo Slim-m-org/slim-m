@@ -47,6 +47,7 @@ class _Rig {
   List<Map<String, Object?>> roster = [_member('u1'), _member('u2')];
   int rosterPages = 0;
   final presenceAsked = <List<String>>[];
+  int meFetches = 0;
 
   late final SlimmDatabase db;
   late final SyncTestServer server;
@@ -65,6 +66,17 @@ class _Rig {
       ..on('GET', '/presence', (request) {
         presenceAsked.add(request.url.queryParameters['ids']!.split(','));
         return jsonResponse(<Object>[]);
+      })
+      ..on('GET', '/me', (_) {
+        meFetches++;
+        return jsonResponse({
+          'id': 'self',
+          'username': 'self',
+          'display_name': 'Self',
+          'created_at': 0,
+          'permissions': 0,
+          'presence_visibility': 'online',
+        });
       })
       ..on('GET', '/channels', (_) => jsonResponse(<dynamic>[]))
       ..on('POST', '/sync', (_) => jsonResponse({'scopes': <dynamic>[]}))
@@ -280,4 +292,27 @@ void main() {
       expect(status(), 'newer');
     },
   );
+
+  testWidgets('a reconnect re-reads the own visibility stored on the server', (
+    tester,
+  ) async {
+    final rig = _Rig(tester);
+    await rig.start();
+    try {
+      await tester.runAsync(() async {
+        rig.container.read(sessionProvider).set(_tokens);
+        rig.container.listen(presenceSeedProvider(null), (_, __) {});
+        await rig.container.read(presenceSeedProvider(null).future);
+      });
+      await rig.connect();
+      final afterConnect = rig.meFetches;
+      expect(afterConnect, greaterThan(0));
+
+      await rig.dropAndReconnect();
+
+      expect(rig.meFetches, greaterThan(afterConnect));
+    } finally {
+      await rig.close();
+    }
+  });
 }

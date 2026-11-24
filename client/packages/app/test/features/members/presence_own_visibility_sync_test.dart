@@ -64,4 +64,28 @@ void main() {
 
     expect(container.read(ownVisibilityProvider), PresenceVisibility.hidden);
   });
+
+  test(
+    'a malformed /me answer is reported, not thrown as an async error',
+    () async {
+      final container = ProviderContainer(
+        overrides: [
+          keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+          sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
+          liveEventsProvider.overrideWithValue(const Stream.empty()),
+          mockApiOverride(
+            (request) async => http.Response(
+              '[]',
+              200,
+              headers: {'content-type': 'application/json'},
+            ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      final controller = container.read(presenceControllerProvider.notifier);
+
+      await expectLater(controller.refreshOwnVisibility(), completes);
+    },
+  );
 }

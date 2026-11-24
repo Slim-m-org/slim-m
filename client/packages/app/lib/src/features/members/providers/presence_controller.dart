@@ -75,7 +75,7 @@ class PresenceController extends StateNotifier<Map<String, api.PresenceState>> {
     _ref.invalidate(meProvider);
     try {
       await _ref.read(meProvider.future);
-    } on api.ApiException catch (error, stack) {
+    } on Object catch (error, stack) {
       api.reportFailure(api.LogTag.ui, 'refresh own visibility', error, stack);
       return;
     }
