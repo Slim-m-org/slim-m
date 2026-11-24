@@ -13,6 +13,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/features/voice/providers/voice_join_muted.dart';
 import 'package:slimm_app/src/features/first_run/providers/first_run_rules.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
@@ -113,6 +114,7 @@ Future<VoiceShell> pumpVoiceShell(
     extraOverrides: [
       chosenServerProvider.overrideWith(VoiceTestServer.new),
       voiceRosterProvider(voiceId).overrideWith((ref) => const Stream.empty()),
+      channelJoinMutedProvider.overrideWithValue((_) async => false),
       voiceControllerProvider.overrideWith(
         (ref) => VoiceController(ref, session: FakeSession()),
       ),
