@@ -69,15 +69,25 @@ class _ServerLoggingSectionState extends ConsumerState<ServerLoggingSection>
     final api = ref.read(apiProvider);
     final save = ref.read(themeFileSaverProvider);
     var noFiles = false;
-    await guard(
-      whatFailed: 'download the server logs',
-      action: () async {
-        final log = await api.serverLogs();
-        noFiles = log == null;
-        if (log == null) return;
-        await save(_fileName(DateTime.now()), log);
-      },
-    );
+    try {
+      await guard(
+        whatFailed: 'download the server logs',
+        action: () async {
+          final log = await api.serverLogs();
+          noFiles = log == null;
+          if (log == null) return;
+          await save(_fileName(DateTime.now()), log);
+        },
+      );
+    } catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.ui,
+        'Saving the server logs failed',
+        error,
+        stack,
+      );
+      setActionError('Could not save the server logs.');
+    }
     if (!mounted) return;
     setState(() {
       _downloading = false;
