@@ -20,6 +20,8 @@ path = "src/main.rs"
 # Resource limits (setrlimit) for the PDF worker child; already in the lockfile through tokio.
 libc = "0.2"
 lopdf = { version = "0.42.0", default-features = false }
+# NFKC folding for role-name uniqueness; already in the lockfile through url.
+unicode-normalization = "0.1"
 axum.workspace = true
 tokio.workspace = true
 tower-http.workspace = true
@@ -29,6 +31,7 @@ serde.workspace = true
 serde_json.workspace = true
 envy.workspace = true
 uuid.workspace = true
+unicode-segmentation = "1"
 sqlx.workspace = true
 anyhow.workspace = true
 argon2.workspace = true

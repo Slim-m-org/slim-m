@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM voice_call_events WHERE rowid IN\n           (SELECT rowid FROM voice_call_events WHERE user_id = ? LIMIT 500)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "f6e7cc5fff608b8df24d1f55487f688b808cdbce090406784ec69c95713d56a9"
+}

@@ -101,11 +101,10 @@ async fn deleting_an_account_takes_its_poll_votes() {
     );
 }
 
-/// Both directions. Their own list is plainly theirs; their id sitting in
-/// somebody else's list is a reference to a person who no longer exists, and
-/// a deleted account cannot come back to be blocked again.
+/// Their own list is plainly theirs and goes. A block on them is the
+/// blocker's, and stays: it is what keeps hiding what they left behind.
 #[tokio::test]
-async fn deleting_an_account_takes_its_blocks_in_both_directions() {
+async fn deleting_an_account_takes_its_own_blocks_and_keeps_blocks_on_it() {
     let (store, pool, _guard) = new_store().await;
     let admin = store
         .create_account("root", "Root", "not-a-real-hash")
@@ -129,12 +128,17 @@ async fn deleting_an_account_takes_its_blocks_in_both_directions() {
     assert_eq!(
         count(
             &pool,
-            "SELECT COUNT(*) FROM user_blocks WHERE blocker_id = ? OR blocked_id = ?",
+            "SELECT COUNT(*) FROM user_blocks WHERE blocker_id = ?",
             leaver.id,
         )
         .await,
         0,
-        "neither their own list nor their id in somebody else's survives"
+        "their own list does not survive them"
+    );
+    assert_eq!(
+        store.blocked_users(other.id).await.unwrap(),
+        vec![leaver.id],
+        "the blocker's own choice survives the account it names"
     );
 }
 

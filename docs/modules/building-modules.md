@@ -582,8 +582,9 @@ For a moment that is not a redraw, answer with `"run_after": {"command": "phase_
 `"cancel": true` with the same command and key removes it.
 This needs `schedule` approved, and a module may have 32 timers waiting.
 A timer runs at most once: it is not retried when its run fails, when the server restarts during the run, or when the module is disabled at the time it comes due.
-A timer armed from a channel (add-on API 7) runs against that channel: `context.channel_id` is that channel, and `message.post` posts there, as the module's own principal, only where that principal may view and send, the same check an interactive run in the channel gets.
+A timer armed from a channel (add-on API 7) runs against that channel: `context.channel_id` is that channel, and `message.post` posts there, as the module's own principal, only where that principal may view and send.
 Where it may not, the post is refused and nothing is posted anywhere else.
+A timer keeps that channel only when the member whose run armed it may view and send there at that moment; otherwise it is stored with no channel and its run posts nowhere.
 If the channel was deleted by then the timer is dropped without running.
 A timer armed from a thread posts in that thread.
 A DM or group DM has no module principal among its participants, so a post there is refused.
@@ -686,6 +687,8 @@ Posts a message as the person who ran the module, into the channel they ran it f
 ```
 
 - The invoker needs view and send permission there, and slow mode and rate limits apply as for any send.
+  A command run from a channel the invoker cannot view is refused before the module runs.
+- A post made during a member's run reaches `@everyone`, `@here` and roles only when both that member and the module's principal hold `mention_everyone` there, and a `message.send` permission hook is asked about it as for the member's own send.
 - A run may attempt three posts, and the host marks the message with your module's installed name (`via_module`), which you can neither choose nor remove, and refuses text that hides characters (bidi overrides, zero-width marks).
 - `{{mention:<caller id>}}` in `content` (add-on API 7) is written as a real `@username` mention of the member that id stands for.
   The id is the 64 hex characters of a `caller.id` this module was handed in an earlier run; the host can recognise only those, so a module cannot mention a member it has not been given.

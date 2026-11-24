@@ -8,11 +8,17 @@
 use std::collections::HashMap;
 
 use super::mention_grammar::{mentioned_usernames, rewrite_mentions};
-use crate::ids::MessageId;
-use crate::store::{AttachmentSummary, Embed, Store};
+use super::spoiler_mask::mask_spoilers;
+use crate::ids::{MessageId, UserId};
+use crate::store::{AttachmentSummary, Embed, ForwardSummary, Store};
 
 /// The text a preview shows: the message's own, or else what it carries.
-pub(super) async fn preview_text(store: &Store, message_id: MessageId, content: &str) -> String {
+async fn preview_text(
+    store: &Store,
+    message_id: MessageId,
+    viewer: UserId,
+    content: &str,
+) -> String {
     if !content.trim().is_empty() {
         return content.to_owned();
     }
@@ -30,19 +36,58 @@ pub(super) async fn preview_text(store: &Store, message_id: MessageId, content: 
         .and_then(|rows| rows.into_iter().next())
         .map(|(_, attachments)| attachments)
         .unwrap_or_default();
-    describe(&embeds, &attachments)
+    let described = describe(&embeds, &attachments);
+    if !described.is_empty() {
+        return described;
+    }
+    carried_kind(store, message_id, viewer).await
 }
 
-/// [`preview_text`] with each `@username` of a live member written as the name
+/// What a call record, a poll or a forward says when the message has no text of its own.
+async fn carried_kind(store: &Store, message_id: MessageId, viewer: UserId) -> String {
+    if let Ok(calls) = store.calls_for_messages(&[message_id]).await
+        && let Some((_, record)) = calls.into_iter().next()
+    {
+        return describe_call(&record.outcome);
+    }
+    if let Ok(Some(poll)) = store.poll_for_message(message_id, viewer).await {
+        return poll.question;
+    }
+    if let Ok(forwards) = store.forwards_for_messages(&[message_id]).await
+        && let Some((_, forward)) = forwards.into_iter().next()
+    {
+        return describe_forward(&forward);
+    }
+    String::new()
+}
+
+fn describe_call(outcome: &str) -> String {
+    match outcome {
+        "canceled" | "timed_out" => "Missed call".to_owned(),
+        _ => "Call ended".to_owned(),
+    }
+}
+
+fn describe_forward(forward: &ForwardSummary) -> String {
+    let said = forward.origin.content.trim();
+    if forward.removed || said.is_empty() {
+        "Forwarded a message".to_owned()
+    } else {
+        said.to_owned()
+    }
+}
+
+/// [`preview_text`] with spoilers hidden and each `@username` of a live member written as the name
 /// the member list shows (nickname, else account name).
 ///
 /// A lookup failure leaves the text as typed: a preview is a nicety.
 pub(super) async fn preview_with_names(
     store: &Store,
     message_id: MessageId,
+    viewer: UserId,
     content: &str,
 ) -> String {
-    let text = preview_text(store, message_id, content).await;
+    let text = mask_spoilers(&preview_text(store, message_id, viewer, content).await);
     let usernames: Vec<String> = mentioned_usernames(&text).into_iter().collect();
     match mention_names(store, &usernames).await {
         Ok(names) if !names.is_empty() => rewrite_mentions(&text, &names),
@@ -93,6 +138,7 @@ pub(super) fn describe(embeds: &[Embed], attachments: &[AttachmentSummary]) -> S
         [one] if one.content_type.starts_with("image/") => "Sent an image".to_owned(),
         [one] if one.content_type.starts_with("video/") => "Sent a video".to_owned(),
         [one] if one.voice.is_some() => "Sent a voice message".to_owned(),
+        [one] if one.spoiler => "Sent a spoiler file".to_owned(),
         [one] => format!("Sent {}", one.filename),
         many if many.iter().all(|a| a.content_type.starts_with("image/")) => {
             format!("Sent {} images", many.len())
@@ -164,5 +210,43 @@ mod tests {
         let two = [file("a.png", "image/png"), file("b.jpg", "image/jpeg")];
         assert_eq!(describe(&[], &two), "Sent 2 images");
         assert_eq!(describe(&[], &[]), "");
+    }
+
+    #[test]
+    fn a_spoiler_file_does_not_give_its_name() {
+        let mut hidden = file("the-ending.pdf", "application/pdf");
+        hidden.spoiler = true;
+        assert_eq!(describe(&[], &[hidden]), "Sent a spoiler file");
+    }
+
+    fn forward(content: &str, removed: bool) -> ForwardSummary {
+        ForwardSummary {
+            origin: crate::store::ForwardOrigin {
+                message_id: MessageId::generate(),
+                channel_id: crate::ids::ChannelId::generate(),
+                author_id: None,
+                created_at: 0,
+                content: content.to_owned(),
+            },
+            author_display_name: None,
+            author_avatar_updated_at: None,
+            removed,
+        }
+    }
+
+    #[test]
+    fn a_forward_previews_what_it_carries() {
+        assert_eq!(describe_forward(&forward(" see this ", false)), "see this");
+        assert_eq!(describe_forward(&forward("", false)), "Forwarded a message");
+        assert_eq!(
+            describe_forward(&forward("gone", true)),
+            "Forwarded a message"
+        );
+    }
+
+    #[test]
+    fn a_missed_call_says_so() {
+        assert_eq!(describe_call("canceled"), "Missed call");
+        assert_eq!(describe_call("timed_out"), "Missed call");
     }
 }

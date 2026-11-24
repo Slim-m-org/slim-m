@@ -169,7 +169,7 @@ async fn deliver(
     let carries_more = embeds::any_visible(&embeds);
     let content = &*validate_content(body.content.as_deref().unwrap_or(""), carries_more)?;
     let mut username = match body.username.as_deref().map(str::trim) {
-        Some(name) if !name.is_empty() => {
+        Some(name) if !super::hidden_chars::draws_nothing(name) => {
             if name.chars().count() > USERNAME_MAX_CHARS {
                 return Err(ApiError::BadRequestDetail(format!(
                     "username is {}",

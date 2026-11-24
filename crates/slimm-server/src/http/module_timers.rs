@@ -3,9 +3,9 @@
 //! modules/building-modules.md): the host runs one of the module's commands
 //! once, no sooner than [`MIN_DELAY_MS`] later, as the module's own principal.
 //! Schedules answer "every N minutes"; this answers "at the end of this
-//! phase". It needs the same approved `schedule` capability. A timer armed from
-//! a channel posts into that channel, as the module's principal, under the
-//! same permission check an interactive run there gets.
+//! phase". It needs the same approved `schedule` capability. A timer keeps the
+//! channel it was armed from only when whoever started that run may view and
+//! send there; it then posts into that channel as the module's principal.
 
 use std::time::Duration;
 
@@ -15,6 +15,9 @@ use serde_json::Value;
 use super::AppState;
 use super::module_host::{background_surface, schedule_approved, scheduled_surface};
 use super::module_run::{RunContext, RunKind, RunRequest, run_installed};
+use super::module_schedule::principal_may_act;
+use crate::ids::ChannelId;
+use crate::permissions::Permissions;
 use crate::store::{DueTimer, InstalledModule, TimerSpec, now_ms};
 
 /// A timer fires no sooner than this after it was asked for, whatever the module wrote.
@@ -44,7 +47,7 @@ struct RunAfter {
 pub(super) async fn apply(
     state: &AppState,
     module: &InstalledModule,
-    context: RunContext,
+    request: &RunRequest<'_>,
     answer: &[u8],
 ) {
     if !String::from_utf8_lossy(answer).contains("\"run_after\"") {
@@ -81,7 +84,7 @@ pub(super) async fn apply(
             command: &asked.command,
             key: &asked.key,
             input: &asked.input,
-            channel_id: context.channel,
+            channel_id: postable_channel(state, request).await,
             run_at: now_ms() + delay,
         };
         state
@@ -93,6 +96,24 @@ pub(super) async fn apply(
         Ok(true) => {}
         Ok(false) => tracing::info!(module = %module.id, "module timer refused: too many pending"),
         Err(err) => tracing::warn!(%err, module = %module.id, "could not store a module timer"),
+    }
+}
+
+/// The run's channel, when its caller may view and send there; the timer later posts as the principal.
+async fn postable_channel(state: &AppState, request: &RunRequest<'_>) -> Option<ChannelId> {
+    let channel = request.context.channel?;
+    let needed = Permissions::VIEW_CHANNEL.union(Permissions::SEND_MESSAGES);
+    match state
+        .store
+        .has_permission(request.caller, channel, needed)
+        .await
+    {
+        Ok(true) => Some(channel),
+        Ok(false) => None,
+        Err(err) => {
+            tracing::warn!(%err, "could not check a timer's channel; storing it without one");
+            None
+        }
     }
 }
 
@@ -164,6 +185,9 @@ async fn run_claimed(state: &AppState, timer: &DueTimer) -> anyhow::Result<bool>
     };
     if !module.enabled || !schedule_approved(&module) || !declares_command(&module, &timer.command)
     {
+        return Ok(false);
+    }
+    if !principal_may_act(state, bot).await? {
         return Ok(false);
     }
     let surface = match timer.channel_id {

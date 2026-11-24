@@ -103,7 +103,7 @@ fn parse_body(body: &PutMarkDto) -> Result<(MarkKind, Option<&str>), ApiError> {
     match (body.kind.as_str(), body.text.as_deref().map(str::trim)) {
         ("mark", None) => Ok((MarkKind::Mark, None)),
         ("mark", Some(_)) => Err(ApiError::BadRequest("a mark has no text; send kind note")),
-        ("note", Some(text)) if !text.is_empty() => {
+        ("note", Some(text)) if !crate::hidden_chars::draws_nothing(text) => {
             if text.chars().count() > MAX_NOTE_CHARS {
                 return Err(ApiError::BadRequest(
                     "a note must be 500 characters or fewer",

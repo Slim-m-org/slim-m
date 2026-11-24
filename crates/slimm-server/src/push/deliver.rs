@@ -58,12 +58,13 @@ pub(super) async fn deliver(
 ) {
     let channel_id = sent.channel_id;
     let mut skips = SkipSummary::default();
-    deliver_inner(enabled, debounce, store, sent, &mut skips).await;
-    log_skips(channel_id, &skips);
+    deliver_inner(enabled, debounce, store.clone(), sent, &mut skips).await;
+    log_skips(&store, channel_id, &skips).await;
 }
 
-/// One info line per push event naming who was left out and why, so "no notification" is diagnosable from the log.
-fn log_skips(channel_id: ChannelId, skips: &SkipSummary) {
+/// One info line of counts per push event in a channel, so "no notification" is diagnosable from
+/// the log; who was left out stays at debug, and a DM gets no info line at all.
+async fn log_skips(store: &Store, channel_id: ChannelId, skips: &SkipSummary) {
     if skips.is_empty() {
         return;
     }
@@ -73,11 +74,20 @@ fn log_skips(channel_id: ChannelId, skips: &SkipSummary) {
         .iter()
         .map(|(device, age_ms)| format!("{device}:{}ms", age_ms.unwrap_or(-1)))
         .collect();
-    tracing::info!(
-        %channel_id, %skips, users = %users.join(","), foreground = %foreground.join(","),
+    tracing::debug!(
+        %channel_id, users = %users.join(","), foreground = %foreground.join(","),
         devices = %skips.signal_devices.join(","),
-        "push: recipients skipped"
+        "push: recipients skipped, by id"
     );
+    let is_dm = store
+        .channel(channel_id)
+        .await
+        .ok()
+        .flatten()
+        .is_none_or(|channel| channel.kind == "dm");
+    if !is_dm {
+        tracing::info!(%channel_id, %skips, "push: recipients skipped");
+    }
 }
 
 fn log_skip_detail(channel_id: ChannelId, user_id: UserId, reasons: &[SkipReason]) {
@@ -190,7 +200,8 @@ async fn deliver_inner(
 
     // Only when a device actually asked, so nobody opting in costs nothing.
     let preview = if targets.iter().any(|target| target.include_content) {
-        let text = super::preview_text::preview_with_names(&store, message_id, &content).await;
+        let text =
+            super::preview_text::preview_with_names(&store, message_id, author_id, &content).await;
         message_preview(&store, channel_id, author_id, &text).await
     } else {
         None

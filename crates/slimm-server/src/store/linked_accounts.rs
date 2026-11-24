@@ -156,21 +156,25 @@ impl Store {
         Ok(code)
     }
 
-    /// Spends a handoff, whoever presents it: the pending link, once, while it
-    /// is still valid. An unknown, replayed or expired code answers `None`.
+    /// Spends `user_id`'s handoff: the pending link, once, while it is still
+    /// valid. An unknown, replayed, expired or another member's code answers
+    /// `None`, and the last leaves the code for its owner.
     pub async fn take_link_handoff(
         &self,
+        user_id: UserId,
         code: &str,
         provider: &str,
     ) -> anyhow::Result<Option<PendingLink>> {
         let hash = hash_secret(&normalize_handoff(code));
         let row = sqlx::query!(
-            r#"DELETE FROM link_handoffs WHERE handoff_hash = ? AND provider = ?
+            r#"DELETE FROM link_handoffs
+               WHERE handoff_hash = ? AND provider = ? AND user_id = ?
                RETURNING user_id AS "user_id!: UserId", external_id AS "external_id!",
                          username AS "username!", display_name, avatar_hash,
                          expires_at AS "expires_at!""#,
             hash,
-            provider
+            provider,
+            user_id
         )
         .fetch_optional(&self.pool)
         .await?;

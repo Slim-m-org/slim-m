@@ -36,6 +36,7 @@ impl fmt::Debug for Config {
             modules_dir,
             attachment_max_bytes,
             max_total_attachment_bytes,
+            min_free_disk_bytes,
             gif_provider,
             gif_api_key,
             link_previews,
@@ -78,6 +79,7 @@ impl fmt::Debug for Config {
             .field("modules_dir", modules_dir)
             .field("attachment_max_bytes", attachment_max_bytes)
             .field("max_total_attachment_bytes", max_total_attachment_bytes)
+            .field("min_free_disk_bytes", min_free_disk_bytes)
             .field("gif_provider", gif_provider)
             .field("gif_api_key", &Redacted(gif_api_key))
             .field("link_previews", link_previews)

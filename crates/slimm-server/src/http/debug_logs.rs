@@ -15,6 +15,7 @@ use super::AppState;
 use super::device_client_info::validate_client_info;
 use super::error::ApiError;
 use super::extract::{Authed, AuthedLimited, Json, UPLOAD, enforce, require_manage_server};
+use super::hidden_chars::is_hidden_in_prose;
 use super::participant::require_admitted;
 use crate::ratelimit::Class;
 use crate::store::{DebugLogFull, DebugLogSummary, NewDebugLog};
@@ -121,6 +122,11 @@ async fn submit(
     let note = req.note.trim();
     if note.chars().count() > MAX_NOTE_CHARS {
         return Err(ApiError::BadRequest("the note is over 500 characters"));
+    }
+    if note.chars().any(is_hidden_in_prose) {
+        return Err(ApiError::BadRequest(
+            "the note must not contain control or invisible characters",
+        ));
     }
     let app_version = label(&req.app_version, "app_version must be 1 to 64 characters")?;
     let platform = label(&req.platform, "platform must be 1 to 64 characters")?;

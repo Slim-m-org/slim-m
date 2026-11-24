@@ -18,7 +18,7 @@ use uuid::Uuid;
 use super::AppState;
 use super::channel_slow_mode::enforce_slow_mode;
 use super::messages::validate_content;
-use super::module_hooks::{Draft, HookPoint, intercept};
+use super::module_hooks::{Action, Draft, HookPoint, check_permission, intercept};
 use crate::hub::{Event, MessageEvent};
 use crate::ids::{ChannelId, MessageId, UserId};
 use crate::module_runtime::{
@@ -205,11 +205,6 @@ pub(crate) async fn post_command_output(
     (user_id, channel): (UserId, ChannelId),
     (content, reply_to): (&str, Option<MessageId>),
 ) -> Result<MessageId, PostRefused> {
-    let member_may = state
-        .store
-        .has_permission(user_id, channel, Permissions::MENTION_EVERYONE)
-        .await
-        .unwrap_or(false);
     ChannelPoster {
         state: state.clone(),
         handle: Handle::current(),
@@ -217,7 +212,7 @@ pub(crate) async fn post_command_output(
         module_name: module.name.clone(),
         background: false,
         user_id,
-        mass_authority: module.bot_user_id.filter(|_| member_may),
+        mass_authority: module.bot_user_id,
         channel,
         reply_to,
     }
@@ -313,7 +308,7 @@ struct ChannelPoster {
     /// No person invoked the run, so the post is the module's own.
     background: bool,
     user_id: UserId,
-    /// Whose `MENTION_EVERYONE` the module's text is judged by: its own principal, never the invoker's.
+    /// Whose `MENTION_EVERYONE` the module's text is judged by besides the poster's: its own principal.
     mass_authority: Option<UserId>,
     /// The one channel this run may post into: where the command was invoked.
     channel: ChannelId,
@@ -360,6 +355,11 @@ impl ChannelPoster {
             Ok(false) => return Err(PostRefused("not permitted to post in that channel")),
             Err(_) => return Err(PostRefused("message.post is unavailable")),
         }
+        if !self.background {
+            check_permission(state, self.user_id, (Action::MessageSend, Some(channel_id)))
+                .await
+                .map_err(|_| PostRefused("a hook on this server refused that message"))?;
+        }
         self.charge_rate_limits()?;
         if hides_text(content) {
             return Err(PostRefused("content contains hidden characters"));
@@ -404,12 +404,30 @@ impl ChannelPoster {
 
         intercepted.save_annotations(state, id).await;
         // Committed with its attribution; nothing below may fail the call, or a retry duplicates it.
-        self.fan_out(&sent.message, &tokened).await;
+        let mass_authority = self.mass_authority_in(channel_id).await;
+        self.fan_out(&sent.message, &tokened, mass_authority).await;
         Ok(id)
     }
 
+    /// The module's principal as mass authority, only while the poster also holds `MENTION_EVERYONE` there.
+    async fn mass_authority_in(&self, channel_id: ChannelId) -> Option<UserId> {
+        let principal = self.mass_authority?;
+        let poster_may = self
+            .state
+            .store
+            .has_permission(self.user_id, channel_id, Permissions::MENTION_EVERYONE)
+            .await
+            .unwrap_or(false);
+        poster_may.then_some(principal)
+    }
+
     /// Best-effort delivery of a message that is already stored and attributed.
-    async fn fan_out(&self, message: &crate::store::Message, tokened: &[UserId]) {
+    async fn fan_out(
+        &self,
+        message: &crate::store::Message,
+        tokened: &[UserId],
+        mass_authority: Option<UserId>,
+    ) {
         let state = &self.state;
         let id = message.id;
         let embeds = match state.store.embeds_for_messages(&[id]).await {
@@ -422,7 +440,7 @@ impl ChannelPoster {
         if let Err(err) = super::message_mentions::resolve_and_store_under(
             state,
             message.channel_id,
-            (self.user_id, self.mass_authority),
+            (self.user_id, mass_authority),
             id,
             &message.content,
             (None, tokened),
@@ -454,7 +472,7 @@ impl ChannelPoster {
                 content: message.content.clone(),
                 presence: state.hub.presence(),
                 reply_ping: None,
-                mass_authority: self.mass_authority,
+                mass_authority,
             },
         );
         super::threads::notify_reply(state, message.channel_id).await;

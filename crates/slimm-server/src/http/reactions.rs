@@ -84,6 +84,7 @@ async fn add(
     if !super::reaction_emoji::is_reaction(&emoji) {
         return Err(ApiError::BadRequest("that is not a usable emoji"));
     }
+    super::reaction_emoji::require_known_shortcode(&state, &emoji).await?;
     let emoji = canonical(&emoji).into_owned();
 
     let added = match state
@@ -167,7 +168,7 @@ pub async fn rekey_stored_reactions(store: &crate::store::Store) -> anyhow::Resu
 ///
 /// `reacted` is likewise absent from the wire and derived per client, so one
 /// connection is never told what another user reacted with beyond the count.
-async fn publish(
+pub(in crate::http) async fn publish(
     state: &AppState,
     (channel_id, message_id): (crate::ids::ChannelId, MessageId),
     moved: Option<ReactionMoved>,

@@ -2,10 +2,6 @@
 //! Every column that points at a user must have been thought about for a member's export: the file that carries it is named here, or the reason it stays out.
 //! Schema-driven like `account_deletion_coverage.rs`, so a new table fails until someone decides; each file is also checked against a real archive.
 
-use slimm_server::config::Config;
-use slimm_server::db;
-use sqlx::{AssertSqlSafe, Row};
-
 use crate::support;
 use support::exports::{account, world};
 
@@ -28,10 +24,28 @@ const CANVAS: &str =
 const SPACE_RECORD: &str = "a space-level record the member merely appears in";
 const SOMEONE_ELSE: &str = "belongs to somebody else or to a conversation, so exporting it would hand over another person's data";
 
+const KEPT_FOR_BLOCKERS: &str =
+    "kept only for the members who blocked a deleted account, never the member's own data";
+
 const DECISIONS: &[(&str, &str, Fate)] = &[
+    (
+        "account_purges",
+        "user_id",
+        Fate::Excluded("a deletion still running, about an account that can no longer export"),
+    ),
     ("access_tokens", "user_id", Fate::Excluded(CREDENTIAL)),
     ("admin_audit_log", "actor_id", Fate::Excluded(STAFF_RECORD)),
     ("app_surfaces", "created_by", Fate::Excluded(BOT_CONFIG)),
+    (
+        "blocked_author_canvas_objects",
+        "author_id",
+        Fate::Excluded(KEPT_FOR_BLOCKERS),
+    ),
+    (
+        "blocked_author_messages",
+        "author_id",
+        Fate::Excluded(KEPT_FOR_BLOCKERS),
+    ),
     (
         "attachment_uploaders",
         "uploaded_by",
@@ -67,6 +81,7 @@ const DECISIONS: &[(&str, &str, Fate)] = &[
     ("canvas_object_locks", "locked_by", Fate::Excluded(CANVAS)),
     ("canvas_objects", "author_id", Fate::Excluded(CANVAS)),
     ("canvas_ops", "actor_id", Fate::Excluded(CANVAS)),
+    ("canvas_ops", "clear_author_id", Fate::Excluded(CANVAS)),
     ("canvas_tile_scenes", "ran_by", Fate::Excluded(CANVAS)),
     ("category_mutes", "user_id", Fate::Exported("settings.json")),
     (
@@ -114,6 +129,8 @@ const DECISIONS: &[(&str, &str, Fate)] = &[
         "bot_user_id",
         Fate::Excluded(BOT_CONFIG),
     ),
+    ("interactions", "bot_id", Fate::Excluded(DERIVED)),
+    ("interactions", "clicker_id", Fate::Excluded(DERIVED)),
     ("invite_redemptions", "user_id", Fate::Excluded(DERIVED)),
     ("invites", "created_by", Fate::Excluded(STAFF_RECORD)),
     (
@@ -175,6 +192,11 @@ const DECISIONS: &[(&str, &str, Fate)] = &[
         Fate::Exported("settings.json"),
     ),
     (
+        "notification_schedule_days",
+        "user_id",
+        Fate::Exported("settings.json"),
+    ),
+    (
         "notification_schedules",
         "user_id",
         Fate::Exported("settings.json"),
@@ -191,6 +213,13 @@ const DECISIONS: &[(&str, &str, Fate)] = &[
     ),
     ("pending_members", "user_id", Fate::Excluded(DERIVED)),
     ("pinned_messages", "pinned_by", Fate::Excluded(SPACE_RECORD)),
+    (
+        "poll_rankings",
+        "user_id",
+        Fate::Excluded(
+            "a ranked ballot's later choices are not in the first format; its first choice is in poll_votes.jsonl",
+        ),
+    ),
     ("poll_votes", "user_id", Fate::Exported("poll_votes.jsonl")),
     ("polls", "created_by", Fate::Excluded(BOT_CONFIG)),
     ("reactions", "user_id", Fate::Exported("reactions.jsonl")),
@@ -272,39 +301,7 @@ const DECISIONS: &[(&str, &str, Fate)] = &[
 ];
 
 async fn user_references() -> Vec<(String, String)> {
-    let (path, _guard) = support::TestDbGuard::new("slimm-export-coverage");
-    let config = Config {
-        port: 0,
-        database_path: path,
-        hash_concurrency: 2,
-        ..Config::default()
-    };
-    let pool = db::connect(&config).await.expect("connect + migrate");
-    let tables: Vec<String> = sqlx::query(
-        "SELECT name FROM sqlite_master WHERE type = 'table' \
-         AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_sqlx%' ORDER BY name",
-    )
-    .fetch_all(&pool)
-    .await
-    .expect("list tables")
-    .into_iter()
-    .map(|row| row.get::<String, _>("name"))
-    .collect();
-    let mut found = Vec::new();
-    for table in tables {
-        let fks = sqlx::query(AssertSqlSafe(format!("PRAGMA foreign_key_list({table})")))
-            .fetch_all(&pool)
-            .await
-            .expect("foreign keys");
-        for fk in fks {
-            if fk.get::<String, _>("table") == "users" {
-                found.push((table.clone(), fk.get::<String, _>("from")));
-            }
-        }
-    }
-    found.push(("users".to_owned(), "id".to_owned()));
-    found.sort();
-    found
+    crate::user_columns::user_columns("slimm-export-coverage").await
 }
 
 #[tokio::test]

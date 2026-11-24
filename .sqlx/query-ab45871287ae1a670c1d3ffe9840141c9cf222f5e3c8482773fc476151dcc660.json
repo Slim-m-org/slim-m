@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE channels SET room_owner_id = NULL, name = ?\n           WHERE room_owner_id = ? RETURNING id AS \"id!: ChannelId\"",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: ChannelId",
+        "ordinal": 0,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "channels",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "ab45871287ae1a670c1d3ffe9840141c9cf222f5e3c8482773fc476151dcc660"
+}

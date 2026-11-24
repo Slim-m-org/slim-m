@@ -3,29 +3,30 @@
 //! The callback's browser has no session, so it only holds the identity under a
 //! handoff code; the app links it with its own bearer, and only for the starter.
 
-use axum::extract::State;
-use axum::http::request::Parts;
+use axum::extract::{DefaultBodyLimit, State};
 use axum::routing::post;
 use axum::{Extension, Router};
 use serde::Deserialize;
 
 use super::AppState;
 use super::error::ApiError;
-use super::extract::{Authed, Json, enforce};
+use super::extract::{AuthedLimited, Json, WRITE};
 use super::linked_accounts::{DISCORD, DiscordLinks, LinkedAccountDto, STEAM, store_avatar};
 use super::page_shell::{WEB_PROBE, percent_encode, shell};
 use crate::ids::UserId;
-use crate::ratelimit::Class;
 use crate::store::{AccountLinkError, LinkedAccount, PendingLink, now_ms};
 
 /// A code that is wrong, expired, spent or another member's all read the same.
 const REFUSED: &str = "that link code is not valid, or it has expired";
 const MAX_CODE_CHARS: usize = 64;
+/// Room for a code of at most [`MAX_CODE_CHARS`] in a JSON object, with slack for escapes.
+const BODY_LIMIT: usize = 1024;
 
 pub(super) fn routes() -> Router<AppState> {
     Router::new()
         .route("/me/links/discord/complete", post(complete_discord))
         .route("/me/links/steam/complete", post(complete_steam))
+        .layer(DefaultBodyLimit::max(BODY_LIMIT))
 }
 
 #[derive(Deserialize)]
@@ -35,12 +36,10 @@ struct CompleteBody {
 
 async fn complete_discord(
     State(state): State<AppState>,
-    parts: Parts,
-    Authed(ctx): Authed,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     discord: Option<Extension<DiscordLinks>>,
     Json(body): Json<CompleteBody>,
 ) -> Result<Json<LinkedAccountDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let pending = take_pending(&state, ctx.user_id, DISCORD, &body.code).await?;
     let avatar = match (discord, pending.avatar_hash.as_deref()) {
         (Some(Extension(discord)), Some(hash)) => {
@@ -56,11 +55,9 @@ async fn complete_discord(
 
 async fn complete_steam(
     State(state): State<AppState>,
-    parts: Parts,
-    Authed(ctx): Authed,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Json(body): Json<CompleteBody>,
 ) -> Result<Json<LinkedAccountDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let pending = take_pending(&state, ctx.user_id, STEAM, &body.code).await?;
     let account = account_from(STEAM, pending, false);
     save(&state, ctx.user_id, &account).await?;
@@ -78,9 +75,8 @@ async fn take_pending(
     }
     state
         .store
-        .take_link_handoff(code, provider)
+        .take_link_handoff(user_id, code, provider)
         .await?
-        .filter(|pending| pending.user_id == user_id)
         .ok_or(ApiError::NotFound(REFUSED))
 }
 

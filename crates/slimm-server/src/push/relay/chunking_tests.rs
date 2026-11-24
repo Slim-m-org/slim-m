@@ -63,6 +63,7 @@ fn sealed(count: usize) -> Vec<SealedMessage> {
             slot: TokenSlot::Push,
             kind: "message",
             payload: "sealed".to_owned(),
+            ring_id: None,
         })
         .collect()
 }
@@ -104,4 +105,38 @@ async fn every_chunk_failing_is_an_error() {
             .await
             .is_err()
     );
+}
+
+async fn spawn_fixed(body: Value) -> String {
+    let app = Router::new().route(
+        "/v1/send",
+        post(move || {
+            let body = body.clone();
+            async move { Json(body) }
+        }),
+    );
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!("http://{}/v1/send", listener.local_addr().unwrap());
+    tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+    url
+}
+
+#[tokio::test]
+async fn an_oversized_answer_is_refused_without_being_read_whole() {
+    let padding = "x".repeat(MAX_RESPONSE_BYTES * 2);
+    let url = spawn_fixed(json!({ "results": [], "padding": padding })).await;
+    let outcome = send(&reqwest::Client::new(), &url, "key", &sealed(1)).await;
+    assert!(matches!(outcome, Err(ref err) if !err.retryable));
+}
+
+#[tokio::test]
+async fn results_past_the_number_sent_are_dropped() {
+    let results: Vec<Value> = (0..50)
+        .map(|i| json!({ "token": format!("token-{i}"), "status": "delivered" }))
+        .collect();
+    let url = spawn_fixed(json!({ "results": results })).await;
+    let answered = send(&reqwest::Client::new(), &url, "key", &sealed(2))
+        .await
+        .unwrap();
+    assert_eq!(answered.len(), 2);
 }

@@ -5,6 +5,7 @@
 //! one endpoint. Everything it carries is already sealed by [`super::envelope`],
 //! so nothing here ever sees plaintext content, and nothing here logs a token.
 
+use std::borrow::Borrow;
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
@@ -94,16 +95,56 @@ impl RelayResult {
     }
 }
 
+/// The largest relay answer read for one chunk: a result is about a token and a status word,
+/// so this is several times what [`MAX_BATCH`] results need.
+const MAX_RESPONSE_BYTES: usize = 64 * 1024;
+
+/// Why one chunk got no answer, and whether asking again could help.
+#[derive(Debug)]
+pub(super) struct RelayFailure {
+    /// A transport error, 429 or 5xx; a 4xx refusal or a malformed answer would only repeat.
+    pub(super) retryable: bool,
+    /// What a 429 or 503 asked for through `Retry-After` in whole seconds.
+    pub(super) retry_after: Option<Duration>,
+    reason: String,
+}
+
+impl RelayFailure {
+    fn permanent(reason: impl Into<String>) -> Self {
+        Self {
+            retryable: false,
+            retry_after: None,
+            reason: reason.into(),
+        }
+    }
+
+    fn transport(err: reqwest::Error) -> Self {
+        Self {
+            retryable: true,
+            retry_after: None,
+            reason: err.without_url().to_string(),
+        }
+    }
+}
+
+impl std::fmt::Display for RelayFailure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.reason)
+    }
+}
+
+impl std::error::Error for RelayFailure {}
+
 /// Posts `messages` to the relay's `/v1/send` in chunks of [`MAX_BATCH`] and returns the
-/// per-token results. A rejected chunk loses only its own devices; the call fails only when
-/// every chunk did. `messages` is expected non-empty; the caller filters out targets with
-/// nothing sealed to send before calling this.
-pub(super) async fn send(
+/// per-token results. A rejected chunk loses only its own devices, which then have no result;
+/// the call fails only when every chunk did. `messages` is expected non-empty; the caller
+/// filters out targets with nothing sealed to send before calling this.
+pub(super) async fn send<M: Borrow<SealedMessage>>(
     http: &reqwest::Client,
     send_url: &str,
     key: &str,
-    messages: &[SealedMessage],
-) -> anyhow::Result<Vec<RelayResult>> {
+    messages: &[M],
+) -> Result<Vec<RelayResult>, RelayFailure> {
     let mut results = Vec::with_capacity(messages.len());
     let mut first_error = None;
     let mut failed_chunks = 0usize;
@@ -127,32 +168,76 @@ pub(super) async fn send(
     Ok(results)
 }
 
-async fn send_chunk(
+async fn send_chunk<M: Borrow<SealedMessage>>(
     http: &reqwest::Client,
     send_url: &str,
     key: &str,
-    messages: &[SealedMessage],
-) -> anyhow::Result<Vec<RelayResult>> {
+    messages: &[M],
+) -> Result<Vec<RelayResult>, RelayFailure> {
     let body = SendRequest {
         messages: messages
             .iter()
-            .map(|m| RelayMessage {
-                platform: &m.platform,
-                token: &m.token,
-                kind: m.kind,
-                payload: &m.payload,
+            .map(|m| {
+                let m = m.borrow();
+                RelayMessage {
+                    platform: &m.platform,
+                    token: &m.token,
+                    kind: m.kind,
+                    payload: &m.payload,
+                }
             })
             .collect(),
     };
-    let response = http
+    let mut response = http
         .post(send_url)
         .bearer_auth(key)
         .json(&body)
         .send()
-        .await?
-        .error_for_status()?;
-    let parsed: SendResponse = response.json().await?;
-    Ok(parsed.results)
+        .await
+        .map_err(RelayFailure::transport)?;
+    let status = response.status();
+    if !status.is_success() {
+        return Err(RelayFailure {
+            retryable: status.as_u16() == 429 || status.is_server_error(),
+            retry_after: retry_after(&response),
+            reason: format!("relay answered {status}"),
+        });
+    }
+    let bytes = read_capped(&mut response).await?;
+    let parsed: SendResponse = serde_json::from_slice(&bytes).map_err(|err| {
+        RelayFailure::permanent(format!("relay answer was not understood: {err}"))
+    })?;
+    Ok(parsed.results.into_iter().take(messages.len()).collect())
+}
+
+fn retry_after(response: &reqwest::Response) -> Option<Duration> {
+    let seconds = response
+        .headers()
+        .get(reqwest::header::RETRY_AFTER)?
+        .to_str()
+        .ok()?
+        .trim()
+        .parse::<u64>()
+        .ok()?;
+    Some(Duration::from_secs(seconds))
+}
+
+async fn read_capped(response: &mut reqwest::Response) -> Result<Vec<u8>, RelayFailure> {
+    let too_large = || RelayFailure::permanent("relay answer was larger than this server reads");
+    if response
+        .content_length()
+        .is_some_and(|len| len > MAX_RESPONSE_BYTES as u64)
+    {
+        return Err(too_large());
+    }
+    let mut bytes = Vec::new();
+    while let Some(chunk) = response.chunk().await.map_err(RelayFailure::transport)? {
+        if bytes.len() + chunk.len() > MAX_RESPONSE_BYTES {
+            return Err(too_large());
+        }
+        bytes.extend_from_slice(&chunk);
+    }
+    Ok(bytes)
 }
 
 #[cfg(test)]

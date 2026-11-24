@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM poll_votes WHERE user_id = ? AND message_id IN\n             (SELECT message_id FROM poll_votes WHERE user_id = ? LIMIT 500)\n           RETURNING (SELECT channel_id FROM messages WHERE id = message_id) AS \"channel_id?: ChannelId\",\n                     message_id AS \"message_id!: MessageId\"",
+  "describe": {
+    "columns": [
+      {
+        "name": "channel_id?: ChannelId",
+        "ordinal": 0,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "messages",
+            "name": "channel_id"
+          }
+        }
+      },
+      {
+        "name": "message_id!: MessageId",
+        "ordinal": 1,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "poll_votes",
+            "name": "message_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "4bff58ab87b4b0538b425cf6bb71cafb336a8230553ff8343b8d5bb1c87c7560"
+}

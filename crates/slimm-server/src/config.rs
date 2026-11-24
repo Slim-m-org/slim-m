@@ -102,6 +102,11 @@ pub struct Config {
     #[serde(default, deserialize_with = "empty_as_none")]
     pub max_total_attachment_bytes: Option<u64>,
 
+    /// Free space uploads must leave on the media volume; past it they are a 507.
+    /// Unset is the larger of 2 GiB and 2% of the volume, and 0 turns the floor off.
+    #[serde(default, deserialize_with = "empty_as_none")]
+    pub min_free_disk_bytes: Option<u64>,
+
     /// Which third-party GIF search provider this deployment proxies to:
     /// `tenor` or `klipy`, case-insensitively. Unset or empty means no GIF
     /// search at all - empty is read the same as unset because Compose's
@@ -332,6 +337,7 @@ impl Default for Config {
             modules_dir: None,
             attachment_max_bytes: default_attachment_max_bytes(),
             max_total_attachment_bytes: None,
+            min_free_disk_bytes: None,
             gif_provider: None,
             gif_api_key: None,
             link_previews: false,

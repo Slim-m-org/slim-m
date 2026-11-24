@@ -22,8 +22,9 @@ macro_rules! community_channel {
     () => {
         concat!(
             $crate::store::export_scope::live_channel!(),
-            " AND c.kind <> 'dm' AND c.room_owner_id IS NULL AND (c.parent_message_id IS NULL \
-             OR (tpc.kind <> 'dm' AND tpc.room_owner_id IS NULL))"
+            " AND c.kind <> 'dm' AND c.room_owner_id IS NULL AND c.room_lobby_id IS NULL \
+             AND (c.parent_message_id IS NULL \
+             OR (tpc.kind <> 'dm' AND tpc.room_owner_id IS NULL AND tpc.room_lobby_id IS NULL))"
         )
     };
 }

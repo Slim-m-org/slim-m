@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM interactions WHERE clicker_id = ? OR bot_id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "a74d2dcf01ceb82f69daae9b6dc2f675b7ee86329480411c7c39850b3a6e79c8"
+}

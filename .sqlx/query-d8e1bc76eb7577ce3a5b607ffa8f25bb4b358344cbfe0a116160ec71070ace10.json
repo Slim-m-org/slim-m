@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE message_forwards SET origin_author_id = NULL WHERE rowid IN\n           (SELECT rowid FROM message_forwards WHERE origin_author_id = ? LIMIT 500)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "d8e1bc76eb7577ce3a5b607ffa8f25bb4b358344cbfe0a116160ec71070ace10"
+}

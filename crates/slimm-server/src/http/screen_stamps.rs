@@ -80,6 +80,9 @@ async fn place(
     enforce(&state, &parts, Some(&ctx), Class::ScreenStamp)?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
     let stamp = check(req).map_err(ApiError::BadRequest)?;
+    if let Content::Emoji(key) = &stamp.content {
+        super::reaction_emoji::require_known_shortcode(&state, key).await?;
+    }
     if let Content::Emoji(key) = &stamp.content
         && let Some(emoji_id) = custom_emoji_id(key)
         && state.store.custom_emoji_sha256(emoji_id).await?.is_none()

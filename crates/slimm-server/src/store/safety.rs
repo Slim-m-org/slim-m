@@ -209,13 +209,16 @@ impl Store {
     }
 
     pub async fn unblock_user(&self, blocker: UserId, blocked: UserId) -> anyhow::Result<()> {
+        let mut tx = self.begin_write().await?;
         sqlx::query!(
             "DELETE FROM user_blocks WHERE blocker_id = ? AND blocked_id = ?",
             blocker,
             blocked
         )
-        .execute(&self.pool)
+        .execute(&mut *tx)
         .await?;
+        super::account_deletion::forget_unblocked_author(&mut tx, blocked).await?;
+        tx.commit().await?;
         Ok(())
     }
 

@@ -280,3 +280,18 @@ async fn a_call_end_is_never_sent_to_ios() {
 
     assert!(with_kind(&call.mock.all_messages(), "call_end").is_empty());
 }
+
+#[tokio::test]
+async fn a_ring_the_relay_asked_to_retry_is_not_resent_after_the_call_ended() {
+    let call = call_setup().await;
+    register_device(&call.app, &call.bob_token, "android", "bob-fcm", None).await;
+    call.mock.answer_once("bob-fcm", "retry");
+    call.ring().await;
+    call.wait_for_kind("call").await;
+
+    call.send("POST", "ring/decline", &call.bob_token).await;
+    tokio::time::sleep(std::time::Duration::from_millis(1_500)).await;
+
+    let rings = with_kind(&call.mock.all_messages(), "call").len();
+    assert_eq!(rings, 1, "the ring was sent again after its call ended");
+}

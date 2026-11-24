@@ -40,6 +40,42 @@ pub(crate) fn canonical(text: &str) -> Cow<'_, str> {
     }
 }
 
+/// The picker's shortcodes, sorted; generated from `tests/fixtures/picker_emoji.json`.
+static PICKER_SHORTCODES: LazyLock<std::collections::HashSet<&str>> =
+    LazyLock::new(|| include_str!("picker_shortcodes.txt").lines().collect());
+
+/// Standard shortcodes bots send that the picker spells differently.
+const SHORTCODE_ALIASES: [&str; 3] = ["+1", "-1", "t-rex"];
+
+/// Whether `name` is a shortcode the app ships, as opposed to one a server's custom emoji may own.
+pub(super) fn is_standard_shortcode(name: &str) -> bool {
+    PICKER_SHORTCODES.contains(name) || SHORTCODE_ALIASES.contains(&name)
+}
+
+/// Refuses a new `:shortcode:` that names neither a shipped emoji nor a live custom one.
+///
+/// Checked on add only, so a reaction on an emoji deleted since keeps drawing.
+pub(super) async fn require_known_shortcode(
+    state: &super::AppState,
+    text: &str,
+) -> Result<(), super::error::ApiError> {
+    let Some(ReactionEmoji::Shortcode(name)) = parse(text) else {
+        return Ok(());
+    };
+    if is_standard_shortcode(name)
+        || state
+            .store
+            .custom_emoji_sha256_by_name(name)
+            .await?
+            .is_some()
+    {
+        return Ok(());
+    }
+    Err(super::error::ApiError::BadRequest(
+        "that is not a usable emoji",
+    ))
+}
+
 /// Longer than a custom emoji's name may be: the standard set runs to 67.
 const MAX_SHORTCODE_LEN: usize = 80;
 
@@ -208,6 +244,31 @@ mod tests {
             listed, expected,
             "regenerate picker_vs16_forms.txt from the fixture"
         );
+    }
+
+    #[test]
+    fn the_shortcode_list_matches_the_picker_fixture() {
+        let fixture: serde_json::Value =
+            serde_json::from_str(include_str!("../../tests/fixtures/picker_emoji.json")).unwrap();
+        let mut expected: Vec<&str> = fixture["names"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|n| n.as_str())
+            .collect();
+        expected.sort_unstable();
+        let listed: Vec<&str> = include_str!("picker_shortcodes.txt").lines().collect();
+        assert_eq!(
+            listed, expected,
+            "regenerate picker_shortcodes.txt from the fixture"
+        );
+    }
+
+    #[test]
+    fn a_sentence_shortcode_is_not_a_shipped_one() {
+        assert!(super::is_standard_shortcode("thumbsup"));
+        assert!(super::is_standard_shortcode("+1"));
+        assert!(!super::is_standard_shortcode("this_user_scams_people"));
     }
 
     #[test]

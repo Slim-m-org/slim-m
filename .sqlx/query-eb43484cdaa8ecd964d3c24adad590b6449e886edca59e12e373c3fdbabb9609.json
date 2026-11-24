@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM blocked_author_messages WHERE author_id = ?\n           AND NOT EXISTS (SELECT 1 FROM user_blocks WHERE blocked_id = ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "eb43484cdaa8ecd964d3c24adad590b6449e886edca59e12e373c3fdbabb9609"
+}

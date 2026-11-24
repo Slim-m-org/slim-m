@@ -381,7 +381,18 @@ pub fn query_literal_containing(source: &str, anchor: &str) -> String {
     panic!("no sqlx query literal contains {anchor:?}; has the query itself changed?")
 }
 
-/// Offsets just past the `(` of every `query*!(` macro call and `QueryBuilder::new(` call, in source order.
+/// Every sqlx query literal in `source`, in order, read past comments the way
+/// [`query_literal_containing`] is.
+#[allow(dead_code)]
+pub fn query_literals(source: &str) -> Vec<String> {
+    let code = code_only(source);
+    query_call_args(&code)
+        .into_iter()
+        .filter_map(|args| literal_at(source, args))
+        .collect()
+}
+
+/// Offsets of the SQL literal in every `query*!(` call, `QueryBuilder::new(` call and `exec!(tx, ` statement, in source order.
 fn query_call_args(code: &str) -> Vec<usize> {
     const BUILDER: &str = "QueryBuilder::new(";
     let mut found: Vec<usize> = code
@@ -402,6 +413,13 @@ fn query_call_args(code: &str) -> Vec<usize> {
                 .all(|c| c.is_alphanumeric() || c == '_');
         if macro_call {
             found.push(at + paren + 1);
+        }
+    }
+    const EXEC: &str = "exec!(";
+    for (at, _) in code.match_indices(EXEC) {
+        let after = at + EXEC.len();
+        if let Some(comma) = code[after..].find(',') {
+            found.push(after + comma + 1);
         }
     }
     found.sort_unstable();

@@ -152,6 +152,29 @@ async fn a_thread_in_a_temporary_room_stays_out_of_the_space_export() {
 }
 
 #[tokio::test]
+async fn a_deleted_owners_temporary_room_stays_out_of_the_space_export() {
+    let f = fixture("slimm-export-orphan-room").await;
+    let lobby: Uuid = general_channel_id(&f.w.store).await.parse().unwrap();
+    let room = channel_row(&f.pool, "text", None).await;
+    sqlx::query("UPDATE channels SET room_lobby_id = ? WHERE id = ?")
+        .bind(lobby)
+        .bind(room)
+        .execute(&f.pool)
+        .await
+        .unwrap();
+    f.thread_with(room, "ORPHAN-ROOM-SECRET").await;
+
+    let (space, _) = f.archives().await;
+
+    let channels = space.lines("channels.jsonl");
+    assert!(channels.iter().all(|c| c["id"] != room.to_string()));
+    assert!(
+        !space.contains("ORPHAN-ROOM-SECRET"),
+        "an orphaned room leaked"
+    );
+}
+
+#[tokio::test]
 async fn a_thread_left_in_a_deleted_channel_is_in_no_export() {
     let f = fixture("slimm-export-thread-channel").await;
     let gone = channel_row(&f.pool, "text", None).await;

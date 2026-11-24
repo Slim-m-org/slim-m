@@ -75,6 +75,7 @@ mod token_sweep;
 mod trace_span_redaction;
 mod unauthenticated_body_charge;
 mod unauthenticated_refusal;
+mod upload_completion;
 mod username_collision_migration;
 mod version;
 mod version_canvas_scoped_clear;

@@ -151,7 +151,12 @@ fn seal_for_call_ring(
                 (true, Some(with_content)) => with_content,
                 _ => &bare,
             };
-            seal_to(target, ring_slot(target), PushKind::Call, plaintext)
+            seal_to(target, ring_slot(target), PushKind::Call, plaintext).map(|message| {
+                SealedMessage {
+                    ring_id: Some(ring_id),
+                    ..message
+                }
+            })
         })
         .collect()
 }

@@ -20,9 +20,7 @@ use super::extract::{
     limit_key,
 };
 use super::invites::invite_code_key;
-use super::session_revocation::{
-    account_sessions_revoked, sessions_revoked, sessions_revoked_by_id,
-};
+use super::session_revocation::{sessions_revoked, sessions_revoked_by_id};
 use crate::hub::Event;
 use crate::ids::UserId;
 use crate::ratelimit::Class;
@@ -473,8 +471,12 @@ async fn delete_account(
 ) -> Result<StatusCode, ApiError> {
     super::reauth::require_password(&state, ctx.user_id, req.password.as_deref()).await?;
     super::reauth::require_current_code(&state, ctx.user_id, req.code.as_deref()).await?;
-    let deleted = match state.store.delete_account(ctx.user_id).await {
-        Ok(deleted) => deleted,
+    let closed = match state
+        .store
+        .close_account_for_deletion(ctx.user_id, None)
+        .await
+    {
+        Ok(closed) => closed,
         // A refusal is the caller's situation, not a server fault, so it must
         // not surface as a 500.
         Err(DeleteAccountError::WouldStrandDeployment) => {
@@ -485,21 +487,7 @@ async fn delete_account(
         Err(DeleteAccountError::UserNotFound) => return Err(ApiError::NotFound("no such account")),
         Err(DeleteAccountError::Internal(e)) => return Err(e.into()),
     };
-    account_sessions_revoked(&state, ctx.user_id, None);
-    if let Err(err) = state.media.delete_avatar(&ctx.user_id.to_string()).await {
-        tracing::warn!(error = %err, "failed to delete an account's avatar file");
-    }
-    if let Err(err) = state
-        .media
-        .delete_user_banner(&ctx.user_id.to_string())
-        .await
-    {
-        tracing::warn!(error = %err, "failed to delete an account's banner file");
-    }
-    super::linked_accounts::purge_avatar_files(&state, ctx.user_id).await;
-    super::dock::purge_module_member_data(&state, ctx.user_id).await;
-    super::members::announce_member_gone(&state, ctx.user_id).await;
-    super::space_owner::announce_handoff(&state, deleted.handoff);
+    super::members::deleted_account::finish_closed_account(&state, ctx.user_id, closed).await;
     Ok(StatusCode::NO_CONTENT)
 }
 

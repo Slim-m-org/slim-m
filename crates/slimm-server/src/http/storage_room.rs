@@ -9,8 +9,10 @@
 //! gate, so the last bytes go to exactly one caller.
 //!
 //! Not a per-account quota: that needs a policy answer nobody has asked for.
-//! There is deliberately no default ceiling, since a guess would either refuse
-//! legitimate uploads on a large volume or do nothing on a small one.
+//! There is no default ceiling, since a guess would either refuse legitimate
+//! uploads on a large volume or do nothing on a small one. What every
+//! deployment gets instead is a free-space floor on the media volume, so
+//! uploads stop before the disk fills and SQLite can still write.
 
 use uuid::Uuid;
 
@@ -28,9 +30,10 @@ pub(super) async fn ensure_room(
     incoming: i64,
     exclude: Option<Uuid>,
 ) -> Result<(), ApiError> {
-    let Some(ceiling) = state.media.max_total_attachment_bytes() else {
+    let ceiling = state.media.max_total_attachment_bytes();
+    if ceiling.is_none() && !state.media.has_free_floor() {
         return Ok(());
-    };
+    }
     // Claims first: one released after its row lands is then seen in the total, never in neither.
     let pending = state
         .media
@@ -40,10 +43,17 @@ pub(super) async fn ensure_room(
             tracing::error!(error = %err, "could not total pending uploads");
             ApiError::Internal
         })?;
+    let incoming = incoming.max(0) as u64;
+    // A session being completed already sits on the volume, so only the ceiling charges its bytes.
+    let on_disk = if exclude.is_some() { 0 } else { incoming };
+    if state.media.below_free_floor(on_disk, pending) {
+        return Err(ApiError::InsufficientStorage);
+    }
+    let Some(ceiling) = ceiling else {
+        return Ok(());
+    };
     let held = state.store.total_attachment_bytes().await?.max(0) as u64;
-    let total = held
-        .saturating_add(pending)
-        .saturating_add(incoming.max(0) as u64);
+    let total = held.saturating_add(pending).saturating_add(incoming);
     if total > ceiling {
         return Err(ApiError::InsufficientStorage);
     }
@@ -61,7 +71,7 @@ pub(super) async fn reserve_room(
     incoming: i64,
     exclude: Option<Uuid>,
 ) -> Result<media::Reservation, ApiError> {
-    if state.media.max_total_attachment_bytes().is_none() {
+    if state.media.max_total_attachment_bytes().is_none() && !state.media.has_free_floor() {
         return Ok(media::Reservation::none());
     }
     let _gate = state.media.admission_gate().await;

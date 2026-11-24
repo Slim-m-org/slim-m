@@ -58,7 +58,7 @@ pub use names::{from_hex, rfc5987_encode, sanitize_display_filename, sanitize_fi
 pub use stream::{PendingAttachment, StreamError};
 pub use upload_session::{
     AppendError, FinishedUpload, MAX_OPEN_SESSIONS_PER_USER, UPLOAD_PART_MAX_BYTES,
-    UPLOAD_SESSION_TTL, UploadMeta, Uploads,
+    UPLOAD_SESSION_IDLE, UPLOAD_SESSION_TTL, UploadMeta, Uploads,
 };
 
 /// Largest attachment a single upload may store, for [`Media::for_tests`],
@@ -93,6 +93,7 @@ pub struct Media {
     /// read out of `Config` already lives, and because `AppState` is built by
     /// hand in dozens of test files that have no opinion about it.
     max_total_attachment_bytes: Option<u64>,
+    free_floor: FreeFloor,
     upload_timeout: Duration,
     uploads: Uploads,
     /// Serializes ceiling checks, so two uploads cannot both read the same stale total.
@@ -107,6 +108,17 @@ pub struct Media {
     /// whose media root outlives the process on purpose.
     temp_root: Option<Arc<TempRoot>>,
 }
+
+/// How much of the volume uploads must leave free.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum FreeFloor {
+    Off,
+    /// The larger of [`AUTO_FREE_FLOOR_MIN_BYTES`] and 2% of the volume.
+    Auto,
+    Bytes(u64),
+}
+
+const AUTO_FREE_FLOOR_MIN_BYTES: u64 = 2 * 1024 * 1024 * 1024;
 
 /// Removes the tree it names once the last [`Media`] clone holding it drops.
 ///
@@ -152,6 +164,7 @@ impl Media {
             previews: preview::Previews::new(previews_dir, memory.clone()),
             max_attachment_bytes,
             max_total_attachment_bytes: None,
+            free_floor: FreeFloor::Off,
             upload_timeout: DEFAULT_UPLOAD_TIMEOUT,
             temp_root: None,
         })
@@ -198,6 +211,33 @@ impl Media {
 
     pub fn max_total_attachment_bytes(&self) -> Option<u64> {
         self.max_total_attachment_bytes
+    }
+
+    /// Sets the free-space floor: `None` is the automatic floor, `Some(0)` turns it off.
+    pub fn with_min_free_bytes(mut self, min_free: Option<u64>) -> Self {
+        self.free_floor = match min_free {
+            None => FreeFloor::Auto,
+            Some(0) => FreeFloor::Off,
+            Some(bytes) => FreeFloor::Bytes(bytes),
+        };
+        self
+    }
+
+    pub fn has_free_floor(&self) -> bool {
+        self.free_floor != FreeFloor::Off
+    }
+
+    /// True when storing `incoming` more bytes would leave the volume under its free-space floor.
+    pub fn below_free_floor(&self, incoming: u64, pending: u64) -> bool {
+        let Some((free, total)) = crate::capacity::host::disk_bytes(&self.attachments_dir) else {
+            return false;
+        };
+        let floor = match self.free_floor {
+            FreeFloor::Off => return false,
+            FreeFloor::Auto => (total / 50).max(AUTO_FREE_FLOOR_MIN_BYTES),
+            FreeFloor::Bytes(bytes) => bytes,
+        };
+        free.saturating_sub(pending) < floor.saturating_add(incoming)
     }
 
     /// Held across a ceiling check and the step that makes it count.

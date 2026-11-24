@@ -247,7 +247,7 @@ async fn prepare_and_run(
     .await;
     let outcome = match ran {
         Ok(bytes) => {
-            super::module_timers::apply(state, module, request.context, &bytes).await;
+            super::module_timers::apply(state, module, request, &bytes).await;
             interpret(&bytes)
         }
         Err(err) => CommandOutcome::host_failure(describe(&err)),

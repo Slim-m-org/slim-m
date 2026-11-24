@@ -8,6 +8,7 @@ use super::queue::{Job, Queues};
 use crate::http::AppState;
 use crate::http::module_host::background_surface;
 use crate::http::module_run::{RunContext, RunKind, RunRequest, run_installed};
+use crate::http::module_schedule::principal_may_act;
 use crate::ids::UserId;
 use crate::permissions::Permissions;
 use crate::store::InstalledModule;
@@ -111,7 +112,9 @@ async fn deliver(state: &AppState, module: &InstalledModule, job: &Job) {
     let Some(bot) = module.bot_user_id else {
         return;
     };
-    if !still_visible(state, bot, job).await {
+    if !principal_may_act(state, bot).await.unwrap_or(false)
+        || !still_visible(state, bot, job).await
+    {
         return;
     }
     let request = RunRequest {
