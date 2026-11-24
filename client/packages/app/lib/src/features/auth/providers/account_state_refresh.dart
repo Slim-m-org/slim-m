@@ -64,3 +64,18 @@ void refreshAccountNotificationState(Ref ref, {required bool reconnect}) {
     ref.invalidate(spaceThemesProvider);
   }
 }
+
+/// Refetches what another of this account's devices just changed: the notification
+/// schedule and snooze, or the account default. A scope this client does not know is ignored.
+void refreshAccountNotificationScope(Ref ref, String scope) {
+  switch (scope) {
+    case 'schedule':
+      if (ref.exists(notificationScheduleProvider)) {
+        ref.invalidate(notificationScheduleProvider);
+      }
+    case 'preference':
+      if (ref.exists(notificationPreferenceProvider)) {
+        ref.invalidate(notificationPreferenceProvider);
+      }
+  }
+}

@@ -161,6 +161,8 @@ ServerEvent? overlayFrame(Map<String, dynamic> decoded) {
             ? NotificationPreference.parse(decoded['preference'] as String)
             : null,
       ),
+    'account_notifications.changed' when decoded['scope'] is String =>
+      AccountNotificationsChanged(scope: decoded['scope'] as String),
     'category_mute.changed'
         when decoded['category_id'] is String && decoded['muted'] is bool =>
       CategoryMuteChanged(

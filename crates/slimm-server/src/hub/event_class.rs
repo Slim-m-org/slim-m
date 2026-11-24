@@ -90,6 +90,7 @@ pub(crate) fn moves_permissions(event: &Event) -> bool {
         | Event::ReadStateChanged { .. }
         | Event::NotificationOverrideChanged { .. }
         | Event::CategoryMuteChanged { .. }
+        | Event::AccountNotificationsChanged { .. }
         | Event::EphemeralMessage { .. }
         | Event::InteractionCreated { .. }
         | Event::InteractionAnswered { .. }
@@ -211,6 +212,7 @@ pub(super) fn is_ephemeral(event: &Event) -> bool {
         | Event::ReadStateChanged { .. }
         | Event::NotificationOverrideChanged { .. }
         | Event::CategoryMuteChanged { .. }
+        | Event::AccountNotificationsChanged { .. }
         | Event::NewDeviceSignIn { .. }
         | Event::VoiceMoved { .. }
         | Event::VoiceRemoved { .. }

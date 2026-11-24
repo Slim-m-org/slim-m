@@ -466,6 +466,42 @@ void main() {
     }
   });
 
+  testWidgets('an account frame refetches what another device changed', (
+    tester,
+  ) async {
+    final rig = _Rig(tester);
+    await rig.start();
+    try {
+      await rig.signInAndConnect();
+      rig
+        ..snoozeUntil = DateTime.now().millisecondsSinceEpoch + 3600 * 1000
+        ..preference = 'mentions';
+
+      await tester.runAsync(() async {
+        rig.server.pushEvent({
+          'type': 'account_notifications.changed',
+          'scope': 'schedule',
+        });
+        rig.server.pushEvent({
+          'type': 'account_notifications.changed',
+          'scope': 'preference',
+        });
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+
+      expect(
+        rig.container.read(notificationScheduleProvider).valueOrNull?.isSnoozed,
+        isTrue,
+      );
+      expect(
+        rig.container.read(notificationPreferenceProvider).valueOrNull,
+        api.NotificationPreference.mentions,
+      );
+    } finally {
+      await rig.close();
+    }
+  });
+
   testWidgets('a first fetch of either that worked is not repeated', (
     tester,
   ) async {

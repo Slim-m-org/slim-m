@@ -427,6 +427,10 @@ pub(super) enum ServerFrame {
     /// [`crate::hub::Event::CategoryMuteChanged`].
     #[serde(rename = "category_mute.changed")]
     CategoryMuteChanged { category_id: String, muted: bool },
+    /// The account's notification schedule or default changed on some device; see
+    /// [`crate::hub::Event::AccountNotificationsChanged`].
+    #[serde(rename = "account_notifications.changed")]
+    AccountNotificationsChanged { scope: &'static str },
     /// A bot's private answer to this account; see
     /// [`crate::hub::Event::EphemeralMessage`]. Carries no `seq`.
     #[serde(rename = "message.ephemeral")]
