@@ -161,6 +161,7 @@ ServerEvent? overlayFrame(Map<String, dynamic> decoded) {
             ? NotificationPreference.parse(decoded['preference'] as String)
             : null,
       ),
+    'blocks.changed' => const BlocksChanged(),
     'category_mute.changed'
         when decoded['category_id'] is String && decoded['muted'] is bool =>
       CategoryMuteChanged(

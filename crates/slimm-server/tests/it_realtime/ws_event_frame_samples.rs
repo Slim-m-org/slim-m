@@ -184,6 +184,7 @@ pub fn more_events(channel: ChannelId, alice: UserId, bob: UserId) -> Vec<Event>
             category_id: slimm_server::ids::ChannelCategoryId(id(20)),
             muted: true,
         },
+        Event::BlocksChanged { user_id: alice },
         Event::NewDeviceSignIn {
             user_id: alice,
             device_id: slimm_server::ids::DeviceId(id(12)),

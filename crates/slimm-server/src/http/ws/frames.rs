@@ -427,6 +427,10 @@ pub(super) enum ServerFrame {
     /// [`crate::hub::Event::CategoryMuteChanged`].
     #[serde(rename = "category_mute.changed")]
     CategoryMuteChanged { category_id: String, muted: bool },
+    /// The account's block list changed on some device; see
+    /// [`crate::hub::Event::BlocksChanged`]. Names nobody: read `/blocks` back.
+    #[serde(rename = "blocks.changed")]
+    BlocksChanged {},
     /// A bot's private answer to this account; see
     /// [`crate::hub::Event::EphemeralMessage`]. Carries no `seq`.
     #[serde(rename = "message.ephemeral")]

@@ -68,8 +68,15 @@ class _ThreadScreenState extends ConsumerState<ThreadScreen> {
       // Best effort: the title stays "Thread" and the read marker stays unfixed for this session, same as today.
       return;
     }
-    if (!parent.isThread || !mounted) return;
+    if (!mounted) return;
     final store = await ref.read(storeProvider.future);
+    if (!parent.isThread) {
+      // The masked answer means this account cannot read the thread, so nothing cached for it may stay.
+      if ((await store.channelRow(channelId))?.parentMessageId != null) {
+        await store.removeChannel(channelId);
+      }
+      return;
+    }
     await store.upsertChannels([
       api.Channel(
         id: channelId,

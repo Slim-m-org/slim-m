@@ -48,6 +48,7 @@ pub(super) fn authorize(ctx: &SessionContext, event: &Event) -> Option<Authoriza
                 muted: *muted,
             },
         ),
+        Event::BlocksChanged { user_id } => (*user_id, ServerFrame::BlocksChanged {}),
         Event::VoiceMoved {
             user_id,
             from_channel_id,

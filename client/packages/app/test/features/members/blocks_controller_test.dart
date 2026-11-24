@@ -111,4 +111,48 @@ void main() {
 
     expect(container.read(blocksProvider).ids, {'a'});
   });
+
+  test('a block sent while a refresh is in flight survives the refresh '
+      'answering without it', () async {
+    final staleList = Completer<http.Response>();
+    final blockReply = Completer<http.Response>();
+    var gets = 0;
+    final container = _container((request) async {
+      if (request.method == 'GET') {
+        return ++gets == 1 ? _json(<String>[]) : staleList.future;
+      }
+      return blockReply.future;
+    });
+    await pumpEventQueue();
+    final controller = container.read(blocksProvider.notifier);
+
+    final block = controller.block('a');
+    final refresh = controller.refresh();
+    await pumpEventQueue();
+    blockReply.complete(http.Response('', 204));
+    await block;
+    staleList.complete(_json(<String>[]));
+    await refresh;
+
+    expect(container.read(blocksProvider).ids, {'a'});
+  });
+
+  test(
+    'a later refresh drops a settled edit and takes the server list',
+    () async {
+      var listed = <String>[];
+      final container = _container((request) async {
+        if (request.method == 'GET') return _json(listed);
+        return http.Response('', 204);
+      });
+      await pumpEventQueue();
+      final controller = container.read(blocksProvider.notifier);
+
+      await controller.block('a');
+      listed = [];
+      await controller.refresh();
+
+      expect(container.read(blocksProvider).ids, isEmpty);
+    },
+  );
 }

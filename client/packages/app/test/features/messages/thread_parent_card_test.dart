@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/features/members/providers/blocks_controller.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/features/messages/screens/thread_screen.dart';
@@ -20,6 +21,7 @@ import 'package:slimm_app/src/features/messages/widgets/thread_parent_card.dart'
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
+import '../../support/fake_blocks.dart';
 import '../../support/fake_sync.dart';
 import '../../support/fake_api.dart';
 
@@ -109,6 +111,7 @@ Future<ProviderContainer> _pumpThread(
   WidgetTester tester,
   Size size, {
   http.Response? threadParentResponse,
+  Set<String> blocked = const {},
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -133,6 +136,9 @@ Future<ProviderContainer> _pumpThread(
       sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
       storeProvider.overrideWith((ref) async => store),
       syncControllerProvider.overrideWith((ref) => NoopSyncController(ref)),
+      blocksProvider.overrideWith(
+        (ref) => FixedBlocksController(ref, BlocksState(ids: blocked)),
+      ),
       mockApiOverride((request) async {
         if (request.method == 'GET' && request.url.path == '/me') {
           return http.Response(
@@ -194,6 +200,43 @@ Future<void> _settle(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets('a blocked author\'s parent shows a stub, not their text', (
+    tester,
+  ) async {
+    await _pumpThread(
+      tester,
+      const Size(1400, 900),
+      blocked: {'alice'},
+      threadParentResponse: _threadParentJson(
+        parentChannelId: 'parent-channel',
+        parentChannelName: 'general',
+        parentMessageId: 'parent-1',
+        parentContent: 'the original question',
+        parentAuthorId: 'alice',
+        parentAuthorDisplayName: 'Alice',
+      ),
+    );
+
+    expect(find.text('Message from someone you blocked.'), findsOneWidget);
+    expect(find.text('the original question'), findsNothing);
+    expect(find.text('Alice'), findsNothing);
+
+    await _settle(tester);
+  });
+
+  testWidgets('a masked answer drops the thread cached for it', (tester) async {
+    final container = await _pumpThread(
+      tester,
+      const Size(1400, 900),
+      threadParentResponse: _threadParentJson(),
+    );
+
+    final store = await container.read(storeProvider.future);
+    expect(await store.channelRow('c1'), isNull);
+
+    await _settle(tester);
+  });
+
   testWidgets('a thread with a known parent renders it above the transcript', (
     tester,
   ) async {

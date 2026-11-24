@@ -14,10 +14,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/channels/providers/channel_by_id_provider.dart';
+import 'package:slimm_app/src/features/members/providers/blocks_controller.dart';
 import 'package:slimm_app/src/features/members/providers/user_profiles.dart';
 import 'package:slimm_app/src/features/messages/widgets/forwarded_message_card.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
+
+import '../../support/fake_blocks.dart';
 
 const _forwarded = ForwardedMessage(
   messageId: 'm-origin',
@@ -46,10 +49,17 @@ Channel _channel({required String name, String? dmParticipantId}) => Channel(
 
 /// [origin] is what this client's channel cache holds for the forward's
 /// origin - null for a channel it does not hold at all.
-Future<void> _pump(WidgetTester tester, {Channel? origin}) async {
+Future<void> _pump(
+  WidgetTester tester, {
+  Channel? origin,
+  Set<String> blocked = const {},
+}) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        blocksProvider.overrideWith(
+          (ref) => FixedBlocksController(ref, BlocksState(ids: blocked)),
+        ),
         channelByIdProvider(
           'c-origin',
         ).overrideWith((ref) => Stream.value(origin)),
@@ -71,6 +81,20 @@ Future<void> _pump(WidgetTester tester, {Channel? origin}) async {
 }
 
 void main() {
+  testWidgets('a blocked original author shows a stub, not their content', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      origin: _channel(name: 'general'),
+      blocked: {'u-alice'},
+    );
+
+    expect(find.text('Message from someone you blocked'), findsOneWidget);
+    expect(find.text('Alice'), findsNothing);
+    expect(find.text('the original text'), findsNothing);
+  });
+
   testWidgets('draws the original author, its own text, and where it came '
       'from', (tester) async {
     await _pump(tester, origin: _channel(name: 'general'));

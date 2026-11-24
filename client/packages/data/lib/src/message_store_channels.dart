@@ -76,14 +76,11 @@ Future<void> upsertChannels(
 /// single-channel call (a rename, a freshly created channel) would wipe
 /// every other row.
 ///
-/// A thread is deliberately spared this pruning: `GET /channels` never lists
-/// one (see [MessageStore.watchChannels]), so it can never appear in
-/// [channels] even while its parent is still fully visible, and pruning on
-/// that absence alone would wipe a thread's cached messages on every routine
-/// refresh (any role or overwrite edit anywhere in the deployment triggers
-/// one). A thread already known locally is kept until an explicit
-/// `ChannelDeleted` event removes it - the same event any other channel's
-/// deletion is learned through.
+/// A thread is spared the absence test: `GET /channels` never lists one (see
+/// [MessageStore.watchChannels]), so pruning on that absence alone would wipe
+/// a thread's cached messages on every routine refresh. It goes with its
+/// parent instead: a thread whose parent message sits in a pruned channel is
+/// deleted too, since access to the thread is access to the parent's channel.
 Future<void> replaceChannels(MessageStore store, List<api.Channel> channels,
     {Set<String> alsoKeep = const {}}) async {
   final db = store.db;
@@ -96,10 +93,27 @@ Future<void> replaceChannels(MessageStore store, List<api.Channel> channels,
     final keep = {...channels.map((c) => c.id), ...threadIds, ...alsoKeep};
     final stale =
         await (db.select(db.channels)..where((c) => c.id.isNotIn(keep))).get();
-    for (final row in stale) {
-      await deleteChannelRows(db, row.id);
+    final staleIds = stale.map((c) => c.id).toList();
+    for (final threadId in await threadIdsUnder(db, staleIds)) {
+      await deleteChannelRows(db, threadId);
+    }
+    for (final id in staleIds) {
+      await deleteChannelRows(db, id);
     }
   });
+}
+
+/// The held threads whose parent message sits in one of [channelIds].
+Future<List<String>> threadIdsUnder(
+    SlimmDatabase db, List<String> channelIds) async {
+  if (channelIds.isEmpty) return const [];
+  final parents = db.selectOnly(db.messages)
+    ..addColumns([db.messages.id])
+    ..where(db.messages.channelId.isIn(channelIds));
+  return (db.select(db.channels)
+        ..where((c) => c.parentMessageId.isInQuery(parents)))
+      .map((c) => c.id)
+      .get();
 }
 
 /// A channel's row and everything keyed to it: its messages, its draft and its

@@ -329,6 +329,7 @@ pub(super) fn to_frame(
         | Event::ReadStateChanged { .. }
         | Event::NotificationOverrideChanged { .. }
         | Event::CategoryMuteChanged { .. }
+        | Event::BlocksChanged { .. }
         | Event::EphemeralMessage { .. }
         | Event::InteractionCreated { .. }
         | Event::InteractionAnswered { .. }

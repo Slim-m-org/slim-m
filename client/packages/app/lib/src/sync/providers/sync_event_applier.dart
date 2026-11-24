@@ -13,6 +13,7 @@ import '../../features/channels/providers/channel_notification_overrides_control
 import '../../features/channels/providers/channel_refresher.dart';
 import '../../features/channels/providers/last_text_channel.dart';
 import '../../features/channels/providers/open_channel_rehydrate.dart';
+import '../../features/members/providers/blocks_controller.dart';
 import '../../features/settings/providers/theme_store.dart';
 import '../../providers/op_adjacency.dart';
 
@@ -102,6 +103,10 @@ class SyncEventApplier {
           _ref
               .read(channelNotificationOverridesProvider.notifier)
               .applyRemoteCategory(categoryId, muted: muted);
+        }
+      case BlocksChanged():
+        if (_ref.exists(blocksProvider)) {
+          unawaited(_ref.read(blocksProvider.notifier).refresh());
         }
       case ChannelCreated(:final channel):
       case ChannelUpdated(:final channel):
@@ -253,7 +258,8 @@ class SyncEventApplier {
   /// deleted message back: its delete is behind the op cursor by then, which a
   /// second tab on the same database reaches without ever applying it.
   ///
-  /// Also true for a run superseded while the cursor was being read.
+  /// Also true for a channel this device holds no row for, which catch-up never
+  /// asks about, and for a run superseded while the cursor was being read.
   Future<bool> _cannotPlace(
     String channelId,
     ({String id, int seq}) message,
@@ -262,7 +268,11 @@ class SyncEventApplier {
   ) async {
     final cursor = await store.cursorFor(channelId);
     if (!isCurrent()) return true;
-    if (cursor == null) return false;
+    if (cursor == null) {
+      // No row means no cursor will ever cover it; the thread backfills from REST when opened.
+      final held = await store.hasChannel(channelId);
+      return !held || !isCurrent();
+    }
     if (message.seq <= cursor) {
       return store.cursorCovers(channelId, cursor, message.seq) &&
           !await store.hasMessage(channelId, message.id);

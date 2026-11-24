@@ -21,6 +21,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../message_preview.dart';
 import '../../channels/providers/threads.dart';
 import '../../settings/providers/display_density.dart';
+import '../../members/providers/blocks_controller.dart';
 import '../../members/providers/user_profiles.dart';
 import '../../../routing/breakpoints.dart';
 import 'attachment_view.dart';
@@ -68,9 +69,27 @@ class ThreadParentCard extends ConsumerWidget {
     final gutter = paneGutterOf(context);
     final density = ref.watch(messageDensityControllerProvider);
 
+    final blocked = ref.watch(
+      blocksProvider.select((s) => s.contains(parent.parentAuthorId)),
+    );
     final Widget body;
     final String semanticLabel;
-    if (parent.parentDeleted) {
+    if (blocked) {
+      body = Row(
+        children: [
+          Icon(AppIcons.shieldOff, size: 13, color: tokens.textSecondary),
+          const SizedBox(width: AppSpacing.s4),
+          Text(
+            'Message from someone you blocked.',
+            style: AppText.caption.copyWith(
+              color: tokens.textSecondary,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
+      );
+      semanticLabel = 'Thread on a message from someone you blocked';
+    } else if (parent.parentDeleted) {
       body = Row(
         children: [
           Icon(AppIcons.delete, size: 13, color: tokens.textSecondary),
@@ -153,6 +172,7 @@ class ThreadParentCard extends ConsumerWidget {
     }
 
     final canJump =
+        !blocked &&
         !parent.parentDeleted &&
         parent.parentChannelId != null &&
         parent.parentMessageId != null;

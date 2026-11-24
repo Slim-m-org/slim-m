@@ -78,6 +78,10 @@ class BlocksController extends StateNotifier<BlocksState> {
   /// answering after it cannot undo it.
   final Map<String, bool> _edits = {};
 
+  /// How many requests are in flight per user, so a load beginning mid-request
+  /// keeps that user's edit rather than dropping a change the server may yet take.
+  final Map<String, int> _inFlight = {};
+
   /// Sign-out empties the set: the local database is one file for the whole
   /// app, so a block list outliving a sign-out would hide messages from
   /// whoever signs in next on this device.
@@ -113,7 +117,7 @@ class BlocksController extends StateNotifier<BlocksState> {
   /// and it must not take the app down on the way.
   Future<void> refresh() async {
     final generation = ++_generation;
-    _edits.clear();
+    _edits.removeWhere((userId, _) => !_inFlight.containsKey(userId));
     try {
       final ids = (await _ref.read(apiProvider).listBlocks()).toSet();
       if (!mounted || generation != _generation) return;
@@ -151,6 +155,7 @@ class BlocksController extends StateNotifier<BlocksState> {
       settled: state.settled,
     );
     final client = _ref.read(apiProvider);
+    _inFlight.update(userId, (n) => n + 1, ifAbsent: () => 1);
     try {
       if (blocked) {
         await client.blockUser(userId);
@@ -167,6 +172,12 @@ class BlocksController extends StateNotifier<BlocksState> {
         );
       }
       rethrow;
+    } finally {
+      if (_inFlight[userId] == 1) {
+        _inFlight.remove(userId);
+      } else {
+        _inFlight[userId] = _inFlight[userId]! - 1;
+      }
     }
   }
 

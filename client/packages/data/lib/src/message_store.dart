@@ -286,8 +286,13 @@ class MessageStore {
   /// channel removed on the server would otherwise sit in the local list
   /// forever; this is the direct path for one already-known id.
   /// [replaceChannels] is the other, for a full server refresh.
-  Future<void> removeChannel(String channelId) =>
-      db.transaction(() => channels_impl.deleteChannelRows(db, channelId));
+  Future<void> removeChannel(String channelId) => db.transaction(() async {
+        for (final threadId
+            in await channels_impl.threadIdsUnder(db, [channelId])) {
+          await channels_impl.deleteChannelRows(db, threadId);
+        }
+        await channels_impl.deleteChannelRows(db, channelId);
+      });
 
   /// Drops everything this device has cached: every channel, every message,
   /// every cursor and read marker, including pending sends.

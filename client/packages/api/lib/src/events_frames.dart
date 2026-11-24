@@ -508,6 +508,11 @@ class NotificationOverrideChanged extends ServerEvent {
   final NotificationPreference? preference;
 }
 
+/// This account's block list changed on some device; the list is read back from the server.
+class BlocksChanged extends ServerEvent {
+  const BlocksChanged();
+}
+
 /// This account muted or unmuted a category on some device. Delivered only to the account's own sockets.
 class CategoryMuteChanged extends ServerEvent {
   const CategoryMuteChanged({required this.categoryId, required this.muted});
