@@ -4676,7 +4676,8 @@ paths:
         else edits a message, a member with MANAGE_MESSAGES or ADMINISTRATOR
         included: they can delete it instead. A caller who can see the
         channel but did not write the message gets a 403 with
-        `code: not_author`.
+        `code: not_author`. A call record, poll or app launch answers 400:
+        only a text message can be edited.
       requestBody:
         required: true
         content:

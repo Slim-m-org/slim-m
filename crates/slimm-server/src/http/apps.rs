@@ -31,6 +31,7 @@ use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce};
 use super::message_validation::validate_content;
 use super::messages::{MessageDto, parse_uuid};
 use super::module_commands::{ModuleInfoDto, reachable_extension_points};
+use super::module_hooks::{Draft, HookPoint, guard_write};
 use super::post_commit::{after_commit, run_to_completion};
 use crate::hub::{Event, MessageEvent};
 use crate::ids::{ChannelId, MessageId, UserId};
@@ -156,6 +157,17 @@ async fn create(
         true => None,
         false => enforce_slow_mode(&state, channel_id, ctx.user_id).await?,
     };
+    let draft = Draft {
+        point: HookPoint::PreSend,
+        channel_id,
+        actor: ctx.user_id,
+        reply_to: None,
+        content: (!stored_already).then_some(content),
+        carries_more: true,
+        own_module: None,
+    };
+    let intercepted = guard_write(&state, &draft, &mut []).await?;
+    let content = intercepted.text(content);
     let sent = match state
         .store
         .send_app_message(
@@ -195,6 +207,7 @@ async fn create(
     }
 
     if sent.fresh {
+        intercepted.save_annotations(&state, id).await;
         // An app message's caption can carry a mention like any other message's content.
         after_commit(
             "its mentions",

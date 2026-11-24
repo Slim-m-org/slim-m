@@ -15,6 +15,7 @@ use super::super::AppState;
 use super::super::error::ApiError;
 use super::super::extract::{Authed, Json, enforce};
 use super::super::interactions::{answer, own_interaction};
+use super::super::module_hooks::{Draft, Field, HookPoint, guard_write};
 use super::parse_uuid;
 use crate::components::{self, ComponentRow};
 use crate::hub::{Event, MessageEvent};
@@ -50,6 +51,30 @@ pub(in crate::http) async fn honored_for_send(
     }
     components::validate(raw, super::super::hidden_chars::is_hidden_char)
         .map_err(ApiError::BadRequest)
+}
+
+/// Every label and placeholder on `rows`, for the interceptor chain to read and rewrite.
+pub(in crate::http) fn label_fields(rows: &mut [ComponentRow]) -> Vec<Field<'_>> {
+    use crate::components::select::{MAX_DESCRIPTION_CHARS, MAX_PLACEHOLDER_CHARS};
+    let mut fields = Vec::new();
+    for row in rows {
+        for button in &mut row.buttons {
+            fields.push(Field::new(&mut button.label, components::MAX_LABEL_CHARS));
+        }
+        let Some(select) = &mut row.select else {
+            continue;
+        };
+        if let Some(placeholder) = &mut select.placeholder {
+            fields.push(Field::new(placeholder, MAX_PLACEHOLDER_CHARS));
+        }
+        for option in &mut select.options {
+            fields.push(Field::new(&mut option.label, components::MAX_LABEL_CHARS));
+            if let Some(description) = &mut option.description {
+                fields.push(Field::new(description, MAX_DESCRIPTION_CHARS));
+            }
+        }
+    }
+    fields
 }
 
 /// Stores `rows` on a fresh send, or on a retry whose first attempt stored
@@ -105,7 +130,7 @@ async fn set_components(
         .as_deref()
         .map(|raw| parse_uuid(raw).map(InteractionId))
         .transpose()?;
-    let rows = components::validate(req.components, super::super::hidden_chars::is_hidden_char)
+    let mut rows = components::validate(req.components, super::super::hidden_chars::is_hidden_char)
         .map_err(ApiError::BadRequest)?;
     let needed = Permissions::VIEW_CHANNEL.union(Permissions::SEND_MESSAGES);
     if !state.store.is_bot(ctx.user_id).await?
@@ -136,6 +161,16 @@ async fn set_components(
     {
         return Err(ApiError::NotFound("interaction not found"));
     }
+    let draft = Draft {
+        point: HookPoint::PreEdit,
+        channel_id,
+        actor: ctx.user_id,
+        reply_to: message.reply_to_id,
+        content: None,
+        carries_more: true,
+        own_module: None,
+    };
+    guard_write(&state, &draft, &mut label_fields(&mut rows)).await?;
     state
         .store
         .set_message_components(message_id, &rows)

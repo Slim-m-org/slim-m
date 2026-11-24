@@ -13,7 +13,7 @@ use super::super::channel_slow_mode::enforce_slow_mode;
 use super::super::embeds;
 use super::super::error::ApiError;
 use super::super::extract::{Authed, Json, enforce};
-use super::super::module_hooks::{Action, Draft, HookPoint, check_permission, intercept};
+use super::super::module_hooks::{Draft, HookPoint, guard_write};
 use super::super::post_commit::after_commit;
 use super::message_requests::SendRequest;
 use super::{AttachmentDto, MessageDto, parse_uuid, validate_content};
@@ -73,14 +73,13 @@ pub(super) async fn send(
         needed = needed.union(Permissions::ATTACH_FILES);
     }
     super::super::write_refusal::require(&state, ctx.user_id, channel_id, needed).await?;
-    check_permission(&state, ctx.user_id, (Action::MessageSend, Some(channel_id))).await?;
 
     // A forward with no note of its own is a complete message; so is one that is only attachments.
     let carries_more = !attachment_ids.is_empty() || req.forwarded_from_id.is_some();
     let content = &*validate_content(&req.content, carries_more)?;
     let id = MessageId(parse_uuid(&req.id)?);
-    let embeds = embeds::honored_for_send(&state, ctx.user_id, req.embeds).await?;
-    let components =
+    let mut embeds = embeds::honored_for_send(&state, ctx.user_id, req.embeds).await?;
+    let mut components =
         super::message_components::honored_for_send(&state, ctx.user_id, req.components).await?;
     let reply_to_id = req
         .reply_to_id
@@ -106,20 +105,20 @@ pub(super) async fn send(
         }
         None => None,
     };
-    let intercepted = match stored_already {
-        true => Default::default(),
-        false => {
-            let draft = Draft {
-                point: HookPoint::PreSend,
-                channel_id,
-                actor: ctx.user_id,
-                reply_to: reply_to_id,
-                content,
-                carries_more,
-                own_module: None,
-            };
-            intercept(&state, &draft).await?
-        }
+    // A retry stores no new text, but may still store the embeds or buttons its first attempt did not.
+    let draft = Draft {
+        point: HookPoint::PreSend,
+        channel_id,
+        actor: ctx.user_id,
+        reply_to: reply_to_id,
+        content: (!stored_already).then_some(content),
+        carries_more,
+        own_module: None,
+    };
+    let intercepted = {
+        let mut fields = embeds::text_fields(&mut embeds);
+        fields.extend(super::message_components::label_fields(&mut components));
+        guard_write(&state, &draft, &mut fields).await?
     };
     let content = intercepted.text(content);
     let sent = state
