@@ -163,6 +163,10 @@ class CanvasEdgeGesture {
     if (id == null || box == null) return false;
     final side = sideDotAt(box, world, zoom: zoom, touch: touch());
     if (side == null) return false;
+    // A press in the body of an object is a move; a dot is grabbed on or outside the border.
+    if (!connect && box.deflate(sideDotSizePx / 2 / zoom).contains(world)) {
+      return false;
+    }
     _beginDraw(id, side, world);
     return true;
   }

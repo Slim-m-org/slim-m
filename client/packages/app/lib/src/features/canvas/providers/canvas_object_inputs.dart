@@ -221,7 +221,8 @@ void applyEditedProps(
   Map<String, dynamic> props,
 ) {
   if (document.edges.knows(objectId)) {
-    document.edges.applyEdited(objectId, props);
+    // The frame carries the whole merged props, so a key it lacks was deleted.
+    document.edges.replaceProps(objectId, props);
     return;
   }
   if (document.kindOf(objectId) != CanvasObjectKind.text) {

@@ -189,7 +189,7 @@ void main() {
   });
 
   test(
-    'an edit frame merges onto the held connection and a stray text prop is ignored',
+    'an edit frame is the whole spec: a label or colour it lacks is cleared',
     () {
       dispatch(
         const api.CanvasObjectEdited(
@@ -197,21 +197,33 @@ void main() {
           seq: 1,
           opId: 'op',
           objectId: 'ab',
-          props: {'label': 'needs', 'arrow': 'both'},
+          props: {
+            'from': {'object_id': 'a'},
+            'to': {'object_id': 'b'},
+            'arrow': 'both',
+            'label': 'needs',
+            'color': 'teal',
+          },
         ),
       );
       final spec = document.edges.liveEdge('ab')!.spec;
       expect((spec.label, spec.arrow), ('needs', EdgeArrow.both));
+      expect(spec.colorKey, 'teal');
       dispatch(
         const api.CanvasObjectEdited(
           channelId: 'c1',
           seq: 2,
           opId: 'op2',
           objectId: 'ab',
-          props: {'label': null},
+          props: {
+            'from': {'object_id': 'a'},
+            'to': {'object_id': 'b'},
+            'arrow': 'both',
+          },
         ),
       );
-      expect(document.edges.liveEdge('ab')!.spec.label, isNull);
+      final cleared = document.edges.liveEdge('ab')!.spec;
+      expect((cleared.label, cleared.colorKey), (null, null));
     },
   );
 

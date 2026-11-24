@@ -253,6 +253,16 @@ class CanvasEdges {
     return true;
   }
 
+  /// Replaces the spec of [id] with the whole props a server frame carries; a key it lacks is gone.
+  bool replaceProps(String id, Map<String, Object?> props) {
+    final edge = liveEdge(id);
+    final next = edge == null ? null : CanvasEdgeSpec.fromProps(props);
+    if (edge == null || next == null || next == edge.spec) return false;
+    _setSpec(edge, next);
+    _document.refresh();
+    return true;
+  }
+
   /// Sets the paint order of [id]; false when it is not a live edge.
   bool setZIndex(String id, int zIndex) {
     final edge = liveEdge(id);
