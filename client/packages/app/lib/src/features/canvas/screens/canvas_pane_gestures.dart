@@ -92,35 +92,6 @@ extension _CanvasPaneGestures on _CanvasPaneState {
     return KeyEventResult.ignored;
   }
 
-  /// Opens the note sheet and places the note only once it comes back with
-  /// text; a cancelled or blank sheet sends and shows nothing.
-  Future<void> _onNotePlace(Offset world, [Size? draggedSize]) async {
-    if (_spectating) return;
-    final startedWith = _tool;
-    var text = await showCanvasNoteSheet(context);
-    if (!_mounted) return;
-    _boardFocusNode.requestFocus();
-    while (text != null && _mounted) {
-      final placed = await _quickPlacement.placeNote(
-        world,
-        text,
-        draggedSize: draggedSize,
-        onError: _engine.reportError,
-      );
-      if (placed != null) {
-        _selectPlaced(placed.id, startedWith: startedWith);
-        return;
-      }
-      // Typed text outlives a failed placement: the sheet reopens with it.
-      text = await _reopenNoteSheet(text);
-    }
-  }
-
-  Future<String?> _reopenNoteSheet(String text) async {
-    if (!context.mounted) return null;
-    return showCanvasNoteSheet(context, initialText: text);
-  }
-
   /// Places a shape of the picked kind at once and selects it; the tool stays
   /// armed so several can be drawn in a row (see `CanvasSurface.grabsHandleAt`).
   Future<void> _onShapePlace(
@@ -196,22 +167,14 @@ extension _CanvasPaneGestures on _CanvasPaneState {
     const SingleActivator(LogicalKeyboardKey.backspace): _onDeleteKey,
   });
 
-  /// Opens the in-place editor, unless the note is locked or the canvas is
-  /// refusing writes; the select tool and the menu only ever offer notes this
-  /// person may edit.
+  /// Opens the in-place editor, unless the note is locked or the canvas is refusing writes.
   void _onEditNote(String id) {
+    if (_document.textBoxOf(id) == null) return _notes.edit(id);
     final error = ref.read(canvasEngineProvider(widget.channelId)).error;
     if (_spectating || _ops.isLocked(id) || canvasErrorBlocksDrawing(error)) {
       return;
     }
     _refresh(() => _editingNoteId = id);
-  }
-
-  Future<void> _onNoteEditSave(String id, String text) async {
-    _refresh(() => _editingNoteId = null);
-    _boardFocusNode.requestFocus();
-    await _ops.editNote(id, text);
-    _refresh();
   }
 
   void _onNoteEditCancel() {
@@ -220,6 +183,33 @@ extension _CanvasPaneGestures on _CanvasPaneState {
       _text.cancelDraft();
     });
     _boardFocusNode.requestFocus();
+  }
+
+  /// The text box's own editor while one is open.
+  Widget? _textEditor() => _text.editor(
+    _editingNoteId,
+    onCancel: _onNoteEditCancel,
+    onEditClosed: () => _refresh(() => _editingNoteId = null),
+  );
+
+  /// Whether any note or text box is being typed in.
+  bool get _typing =>
+      _editingNoteId != null || _text.draft != null || _notes.active;
+
+  bool _mayRestyleHere(String id) => _mayRestyle(
+    id,
+    ref
+        .read(myChannelPermissionsProvider(widget.channelId))
+        .hasPermission(Perm.manageCanvas),
+    ref.read(meProvider).valueOrNull?.id,
+  );
+
+  /// Whether the note [id] takes a style from this person: their own, or any with MANAGE_CANVAS.
+  bool _mayRestyle(String id, bool manageCanvas, String? selfId) {
+    final author = _document.authorIdOf(id);
+    return !_spectating &&
+        _document.kindOf(id) == CanvasObjectKind.note &&
+        (manageCanvas || (author != null && author == selfId));
   }
 
   NoteSpanStyle _noteSpanStyle(BuildContext context) {

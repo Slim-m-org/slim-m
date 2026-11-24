@@ -90,6 +90,8 @@ void main() {
       (w) =>
           w is DecoratedBox &&
           w.decoration is BoxDecoration &&
+          // A selected swatch in the style bar is a circle; the board's ring is not.
+          (w.decoration as BoxDecoration).shape == BoxShape.rectangle &&
           (w.decoration as BoxDecoration).border is Border &&
           ((w.decoration as BoxDecoration).border! as Border).top.color ==
               tokens.focusRing &&

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The five tool buttons in decision 0047's order. The selected pen or shape
+/// The five tool buttons in decision 0047's order. The selected pen, note or shape
 /// gains a caret (and a long-press) for its options, through the same
 /// controls-with-options pattern the call dock's share button uses.
 library;
@@ -12,8 +12,10 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 import '../../../widgets/control_options_menu.dart';
 import '../../../widgets/control_swatch_row.dart';
 import '../providers/armed_stamp.dart';
+import '../providers/canvas_note_style.dart';
 import '../providers/canvas_pen_style.dart';
 import '../widgets/canvas_custom_colours.dart';
+import '../widgets/canvas_note_style_options.dart';
 import '../widgets/stamp_picker.dart';
 import '../widgets/stamp_tool_button.dart';
 import 'canvas_shape_icons.dart';
@@ -85,6 +87,15 @@ class CanvasToolButtons extends ConsumerWidget {
   ) {
     if (tool != forTool || !forTool.isAvailable(canDraw: canDraw)) {
       return const [];
+    }
+    if (forTool == CanvasTool.note) {
+      return canvasNoteStyleOptions(
+        context: context,
+        ref: ref,
+        style: ref.watch(canvasLastNoteStyleProvider),
+        onChanged: (next) =>
+            ref.read(canvasLastNoteStyleProvider.notifier).state = next,
+      );
     }
     void choose(String key) => onPenChanged(pen.copyWith(colorKey: key));
     return canvasToolOptions(
@@ -168,14 +179,20 @@ class CanvasToolButtons extends ConsumerWidget {
           ),
         ),
         gap,
-        AppIconButton(
-          icon: AppIcons.note,
-          semanticLabel: 'Note',
-          tooltip: canDraw ? 'Note (N)' : _cannotDrawTooltip,
-          active: tool == CanvasTool.note,
-          onPressed: CanvasTool.note.isAvailable(canDraw: canDraw)
-              ? () => _pick(CanvasTool.note)
-              : null,
+        _withOptions(
+          context,
+          ref,
+          CanvasTool.note,
+          'Note options',
+          AppIconButton(
+            icon: AppIcons.note,
+            semanticLabel: 'Note',
+            tooltip: canDraw ? 'Note (N)' : _cannotDrawTooltip,
+            active: tool == CanvasTool.note,
+            onPressed: CanvasTool.note.isAvailable(canDraw: canDraw)
+                ? () => _pick(CanvasTool.note)
+                : null,
+          ),
         ),
         gap,
         AppIconButton(

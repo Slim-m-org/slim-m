@@ -41,10 +41,28 @@ const int kMaxListDepth = 3;
 /// per level. [ordered] is the item's own marker kind, since a bullet can nest
 /// under a number (and the reverse) without ending the list it sits in.
 class ListItem {
-  const ListItem(this.depth, this.text, {this.ordered = false});
+  const ListItem(
+    this.depth,
+    this.text, {
+    this.ordered = false,
+    this.checked,
+    this.line = -1,
+  });
   final int depth;
   final String text;
   final bool ordered;
+
+  /// Null for a plain item; a task item is ticked or not. Only parsed when notes ask for it.
+  final bool? checked;
+
+  /// The source line holding the item, so a ticked box can be written back.
+  final int line;
+}
+
+/// A fenced code block, which only notes recognise; [text] is everything between the fences.
+class FenceBlock extends MarkdownBlock {
+  const FenceBlock(this.text);
+  final String text;
 }
 
 class ListBlock extends MarkdownBlock {
@@ -53,6 +71,8 @@ class ListBlock extends MarkdownBlock {
   final List<ListItem> items;
 }
 
+final RegExp _fenceMark = RegExp(r'^\s*```');
+final RegExp _task = RegExp(r'^\[([ xX])\][ \t]+(.*)$');
 final RegExp _heading = RegExp(r'^(#{1,3})[ \t]+(.*)$');
 
 /// `(?:>[ \t]?)+` rather than one `>`: quotes nest, and stripping only the
@@ -74,8 +94,10 @@ int _depthOf(String indent) => (indent.length ~/ 2).clamp(0, kMaxListDepth - 1);
 /// A run of lines with none of the leading markers becomes one
 /// [ParagraphBlock]: a plain message with no markdown at all still becomes
 /// exactly one block. Its blank lines are tidied by [tidyBlankLines].
-List<MarkdownBlock> splitMarkdownBlocks(String text) {
-  final splitter = _BlockSplitter();
+///
+/// With [notes], fenced code and `- [ ]` task items are recognised too: messages have their own fences and no tasks.
+List<MarkdownBlock> splitMarkdownBlocks(String text, {bool notes = false}) {
+  final splitter = _BlockSplitter(notes: notes);
   text.split('\n').forEach(splitter.addLine);
   return splitter.finish();
 }
@@ -104,6 +126,11 @@ List<String> tidyBlankLines(List<String> lines) {
 }
 
 class _BlockSplitter {
+  _BlockSplitter({required this.notes});
+
+  final bool notes;
+  int _line = -1;
+  List<String>? _fence;
   final List<MarkdownBlock> _blocks = [];
   final List<String> _paragraph = [];
   final List<String> _quote = [];
@@ -111,6 +138,8 @@ class _BlockSplitter {
   bool _listOrdered = false;
 
   void addLine(String line) {
+    _line++;
+    if (notes && _takeFence(line)) return;
     if (_takeHeading(line) || _takeQuote(line)) return;
     _flushQuote();
     if (_takeListItem(line)) return;
@@ -119,10 +148,36 @@ class _BlockSplitter {
   }
 
   List<MarkdownBlock> finish() {
+    _closeFence();
     _flushParagraph();
     _flushQuote();
     _flushList();
     return _blocks;
+  }
+
+  bool _takeFence(String line) {
+    final open = _fence;
+    if (open != null) {
+      if (_fenceMark.hasMatch(line)) {
+        _closeFence();
+      } else {
+        open.add(line);
+      }
+      return true;
+    }
+    if (!_fenceMark.hasMatch(line)) return false;
+    _flushParagraph();
+    _flushQuote();
+    _flushList();
+    _fence = [];
+    return true;
+  }
+
+  void _closeFence() {
+    final lines = _fence;
+    if (lines == null) return;
+    _blocks.add(FenceBlock(lines.join('\n')));
+    _fence = null;
   }
 
   bool _takeHeading(String line) {
@@ -157,7 +212,16 @@ class _BlockSplitter {
       _flushList();
     }
     if (_listItems.isEmpty) _listOrdered = isOrdered;
-    _listItems.add(ListItem(depth, item.group(2)!, ordered: isOrdered));
+    final task = notes && !isOrdered ? _task.firstMatch(item.group(2)!) : null;
+    _listItems.add(
+      ListItem(
+        depth,
+        task == null ? item.group(2)! : task.group(2)!,
+        ordered: isOrdered,
+        checked: task == null ? null : task.group(1) != ' ',
+        line: _line,
+      ),
+    );
     return true;
   }
 

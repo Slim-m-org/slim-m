@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/canvas/widgets/canvas_note_field.dart';
 import 'package:slimm_app/src/features/canvas/widgets/canvas_note_limits.dart';
+import 'package:slimm_app/src/features/canvas/widgets/canvas_note_blocks.dart';
 import 'package:slimm_app/src/features/canvas/widgets/canvas_note_spans.dart';
 import 'package:slimm_app/src/providers/admin_providers.dart';
 import 'package:slimm_app/src/features/members/providers/member_presence.dart'

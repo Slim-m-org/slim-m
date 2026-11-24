@@ -9,7 +9,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../providers/canvas_text_props.dart';
-import '../widgets/canvas_note_editor.dart';
 import '../widgets/canvas_text_editor.dart';
 import 'canvas_engine.dart';
 import 'canvas_forbidden_message.dart';
@@ -63,24 +62,15 @@ class CanvasTextTool {
 
   void cancelDraft() => draft = null;
 
-  /// The editor for the open draft, for the text box [editingId], or the note editor for any other object being edited; null when none is open.
+  /// The editor for the open draft, or for the text box [editingId]; null when none is open.
   Widget? editor(
     String? editingId, {
     required VoidCallback onCancel,
     required VoidCallback onEditClosed,
-    required void Function(String id, String text) onNoteSave,
   }) {
     if (editingId != null) {
       final box = document.textBoxOf(editingId);
-      if (box == null) {
-        return CanvasNoteEditor(
-          key: ValueKey(editingId),
-          document: document,
-          objectId: editingId,
-          onSave: (text) => onNoteSave(editingId, text),
-          onCancel: onCancel,
-        );
-      }
+      if (box == null) return null;
       return CanvasTextEditor(
         key: ValueKey(editingId),
         document: document,

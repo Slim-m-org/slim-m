@@ -8243,8 +8243,13 @@ paths:
         its ceiling is a 409, refused inside the same transaction that counts.
 
 
-        `edit` replaces a live note's props wholesale; it is refused under a
-        timeout and with 409 for a locked note, and only a note or a text box can be edited. A text box's new props are checked the same way a placement's are.
+        `edit` changes a live note's or text box's props; it is refused under a
+        timeout and with 409 for a locked note, and only those two kinds can be edited.
+        A text box's props are replaced wholesale and checked the way a placement's are.
+        A note's props are merged: a key left out keeps its stored value and a `null` deletes it.
+        The merged props are checked again, and what the op, the response and `canvas.object.edited` carry is the merged result.
+        A note's known props are `text` (a string), `fill` and `color` (a palette key or `#rrggbb`; `color` may also be `auto`), `fill_opacity` (0 to 1) and `size` (`small`, `medium` or `large`);
+        any other key, `font_size` included, is stored as sent.
 
 
         An object locked in place (`lockCanvasObject`) refuses `move`,
@@ -20326,7 +20331,8 @@ components:
         props:
           type: object
           description: >-
-            Kind-specific fields, opaque to the server. An object it cannot
+            Kind-specific fields, opaque to the server apart from the
+            checks its kind's placement and edit make. An object it cannot
             parse is reported as an empty one rather than failing the read.
         author_id:
           type: [string, "null"]
@@ -20639,9 +20645,10 @@ components:
           type: object
           additionalProperties: true
           description: >-
-            Required for `edit`: the note's or text box's whole new props, replacing the old
-            ones. Only those two can be edited (400 otherwise); the same 4 KiB
-            limit as a placement applies, and a locked note answers 409.
+            Required for `edit`. A text box's props replace the old ones; a note's are
+            merged over them, a key left out keeping its value and a `null` deleting it.
+            Only those two kinds can be edited (400 otherwise); the same 4 KiB
+            limit as a placement applies, to the merged props, and a locked note answers 409.
 
     CanvasOpResult:
       type: object
@@ -23705,8 +23712,8 @@ components:
       type: object
       required: [type, channel_id, seq, op_id, object_id, props]
       description: >-
-        A note's props were replaced by an `edit` op, gated the same way
-        `canvas.object.placed` is. Carries the whole new props, so a receiver
+        A note's or text box's props changed by an `edit` op, gated the same way
+        `canvas.object.placed` is. Carries the whole props now stored, merged for a note, so a receiver
         repaints the note without a refetch. The actor is absent, matching
         `canvas.object.moved`. Delivered only for a fresh, effective edit.
       properties:

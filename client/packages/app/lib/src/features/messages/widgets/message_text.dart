@@ -209,7 +209,8 @@ Widget _buildMarkdownBlock(
   Widget? trailing,
 }) {
   switch (block) {
-    case ParagraphBlock(:final text):
+    // Only a note's splitter yields a fence; a message's own fences were taken out before this.
+    case ParagraphBlock(:final text) || FenceBlock(:final text):
       return _MessageTextRun(
         text: text,
         knownUsernames: knownUsernames,

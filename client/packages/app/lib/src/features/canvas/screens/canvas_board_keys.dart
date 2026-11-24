@@ -38,6 +38,7 @@ class CanvasBoardKeys extends StatefulWidget {
     required this.document,
     required this.tool,
     required this.onOpenActions,
+    this.onEditObject,
     required this.onOpenToolWheel,
     required this.onPlaceNote,
     this.onPlaceText,
@@ -54,6 +55,9 @@ class CanvasBoardKeys extends StatefulWidget {
 
   /// Opens the selected object's own menu, the same one a right-click opens.
   final ValueChanged<String> onOpenActions;
+
+  /// Enter on a selected note or text box types in it, as a double click does.
+  final ValueChanged<String>? onEditObject;
 
   /// Opens the tool wheel, the keyboard's way to what a right-click hold opens.
   final VoidCallback onOpenToolWheel;
@@ -242,7 +246,14 @@ class _CanvasBoardKeysState extends State<CanvasBoardKeys> {
           null:
         final selected = _document.selectedObjectId.value;
         if (selected == null) return _step(1);
-        widget.onOpenActions(selected);
+        final kind = _document.kindOf(selected);
+        final typable =
+            kind == CanvasObjectKind.note || kind == CanvasObjectKind.text;
+        if (typable && widget.onEditObject != null) {
+          widget.onEditObject!(selected);
+        } else {
+          widget.onOpenActions(selected);
+        }
         return true;
     }
   }

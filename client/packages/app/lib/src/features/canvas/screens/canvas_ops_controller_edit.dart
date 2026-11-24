@@ -17,13 +17,33 @@ class _RedoEdit extends _RedoEntry {
   final String toText;
 }
 
+/// One note restyle and the style it replaced, which an undo puts back.
+class _StyleEntry extends _UndoEntry {
+  _StyleEntry(this.objectId, this.from);
+
+  final String objectId;
+  final CanvasNoteStyle from;
+}
+
+/// The style an undone restyle left, which a redo writes again.
+class _RedoStyle extends _RedoEntry {
+  _RedoStyle(this.objectId, this.to);
+
+  final String objectId;
+  final CanvasNoteStyle to;
+}
+
 /// Editing a placed note, sharing the undo ledger the other gestures use.
 extension CanvasOpsControllerEdit on CanvasOpsController {
   /// Replaces [objectId]'s text, shown at once and pushed onto the undo
   /// stack once the server accepts it. Returns whether the text changed.
   Future<bool> editNote(String objectId, String text) async {
     final before = document.noteTextOf(objectId);
-    if (before == null || before == text || isLocked(objectId)) return false;
+    if (before == null || before == text) return false;
+    if (isLocked(objectId)) {
+      onError('That note is locked.');
+      return false;
+    }
     final submitted = await _editTo(
       objectId,
       text,
@@ -33,6 +53,100 @@ extension CanvasOpsControllerEdit on CanvasOpsController {
     _pushUndo(_EditEntry(objectId, submitted));
     return true;
   }
+
+  /// Ticks or clears the task box on source line [line] of [objectId]'s text: one edit like any other.
+  Future<bool> toggleTask(String objectId, int line) async {
+    final text = document.noteTextOf(objectId);
+    final next = text == null ? null : toggleNoteTask(text, line);
+    return next != null && await editNote(objectId, next);
+  }
+
+  /// Restyles [objectId], shown at once and pushed onto the undo stack once the server accepts it.
+  ///
+  /// [from] is the style to undo back to when the caller already previewed [next] on the board.
+  Future<bool> styleNote(
+    String objectId,
+    CanvasNoteStyle next, {
+    CanvasNoteStyle? from,
+  }) async {
+    final before = from ?? document.noteStyleOf(objectId);
+    if (before == null || before == next || isLocked(objectId)) return false;
+    document.setNoteStyle(objectId, before);
+    final replaced = await _styleTo(
+      objectId,
+      next,
+      'That note could not be restyled.',
+    );
+    if (replaced == null) return false;
+    _pushUndo(_StyleEntry(objectId, replaced));
+    return true;
+  }
+
+  /// Shows [style] on the board without sending anything, for a control still being dragged.
+  void previewNoteStyle(String objectId, CanvasNoteStyle style) {
+    if (document.setNoteStyle(objectId, style)) document.refresh();
+  }
+
+  Future<_RedoEntry?> _undoStyle(String objectId, CanvasNoteStyle style) async {
+    final replaced = await _styleTo(
+      objectId,
+      style,
+      'That could not be undone.',
+    );
+    return replaced == null ? null : _RedoStyle(objectId, replaced);
+  }
+
+  Future<_UndoEntry?> _redoStyle(String objectId, CanvasNoteStyle style) async {
+    final replaced = await _styleTo(
+      objectId,
+      style,
+      'That could not be redone.',
+    );
+    return replaced == null ? null : _StyleEntry(objectId, replaced);
+  }
+
+  /// Writes [style] locally first and returns the style it replaced, or null when the request failed (old style restored) or the note is gone.
+  Future<CanvasNoteStyle?> _styleTo(
+    String objectId,
+    CanvasNoteStyle style,
+    String errorMessage,
+  ) async {
+    final before = document.noteStyleOf(objectId);
+    if (before == null) return null;
+    document
+      ..setNoteStyle(objectId, style)
+      ..refresh();
+    try {
+      await _sendObjectOp(
+        objectId,
+        (id) => client.submitCanvasOp(
+          channelId,
+          id: id,
+          kind: 'edit',
+          objectId: objectId,
+          props: _noteProps(objectId, style: true),
+        ),
+      );
+    } on api.ApiException catch (error) {
+      if (document.noteStyleOf(objectId) == style) {
+        document
+          ..setNoteStyle(objectId, before)
+          ..refresh();
+      }
+      _settleUnknownOutcome(error);
+      onError(errorMessage);
+      return null;
+    }
+    await _regrowNote(objectId, document.noteTextOf(objectId) ?? '');
+    return before;
+  }
+
+  /// What an edit of a note says: its text and size, and for a restyle the whole style, null where it was reset, which the server merge deletes.
+  Map<String, Object?> _noteProps(String objectId, {bool style = false}) => {
+    'text': document.noteTextOf(objectId),
+    'font_size': ?document.noteFontSizeOf(objectId),
+    if (style) ...?document.noteStyleOf(objectId)?.toWire(),
+  };
 
   Future<_RedoEntry?> _undoEdit(String objectId, String text) async {
     final before = await _editTo(objectId, text, 'That could not be undone.');
@@ -62,11 +176,7 @@ extension CanvasOpsControllerEdit on CanvasOpsController {
           id: id,
           kind: 'edit',
           objectId: objectId,
-          props: {
-            'text': text,
-            // An edit replaces the props wholesale, so the size has to travel with it.
-            'font_size': ?document.noteFontSizeOf(objectId),
-          },
+          props: _noteProps(objectId),
         ),
       );
     } on api.ApiException catch (error) {
@@ -86,11 +196,13 @@ extension CanvasOpsControllerEdit on CanvasOpsController {
   Future<void> _regrowNote(String objectId, String text) async {
     final bounds = document.objectBounds(objectId);
     if (bounds == null) return;
+    final style = document.noteStyleOf(objectId) ?? const CanvasNoteStyle();
     final box = noteBoxFor(
       text,
       width: bounds.w,
       minHeight: bounds.h,
-      fontSize: noteFontSizeForWidth(bounds.w),
+      fontSize: noteTextSizeOf(noteFontSizeForWidth(bounds.w), style),
+      spans: noteSpans,
     );
     if (box.height <= bounds.h) return;
     final to = document.boxOnBoard(

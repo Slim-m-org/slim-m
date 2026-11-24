@@ -386,10 +386,8 @@ void main() {
     },
   );
 
-  /// A note has no other way to be corrected or withdrawn once placed - see
-  /// `canvas_note_sheet.dart`'s own doc for why there is no in-place edit -
-  /// so selecting it and deleting it is the only route to fixing a mistake
-  /// short of clearing the whole canvas.
+  /// A note can be withdrawn once placed, so selecting it and deleting it
+  /// is the way to fix a mistake short of clearing the whole canvas.
   testWidgets(
     'selecting a note and choosing Delete deletes it for good, and undo '
     'places it again',

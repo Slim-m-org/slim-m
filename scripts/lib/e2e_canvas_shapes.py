@@ -61,7 +61,7 @@ def place_note_and_see_it_live(a, b, admin_api, channel_id):
     a.gestures(False)
 
     a.type_into(L.NOTE_TEXT_FIELD, "a note from alice")
-    a.click(L.ADD_NOTE)
+    a.press_ctrl_enter()
 
     wait_for_summary(a, "1 note")
     wait_for_summary(b, "1 note")
