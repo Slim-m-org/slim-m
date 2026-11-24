@@ -104,18 +104,21 @@ It first verifies that the tag's commit passed the same client checks `release.y
 ### A missing manifest on its own
 
 `update-manifest.yml` takes `tag` and `require`.
-`require` is the comma-separated list of platforms that must already be attached, and defaults to `windows-x64,macos,linux-x64`.
+`require` is the comma-separated list of platforms that must already be attached, and defaults to `windows-x64,linux-x64`.
+macOS is signed in when its zip is attached and never waited for.
+Each producer records the sha256 and size of what it built, and the signer refuses an attached asset that differs.
+For a release cut before producers recorded digests, add `-f trust_release_assets=true`.
 Both `release.yml` and `desktop-clients.yml` call it with `defer: true`, so whichever attaches the last archive signs the manifest, and a backfill should not normally be needed.
 A run by hand without `defer` fails when a required archive is missing.
 
 ```bash
-gh workflow run update-manifest.yml --ref main -f tag=client-v<version> -f require=windows-x64,macos,linux-x64
+gh workflow run update-manifest.yml --ref main -f tag=client-v<version> -f require=windows-x64,linux-x64
 ```
 
 A release known to be short and already superseded is listed in `scripts/release-asset-exempt.txt` so the watchdog stops reporting it ([CHANGING-CI.md](CHANGING-CI.md)).
 The release-asset watchdog also reports a release whose `manifest.json` omits a platform whose archive is attached (client 0.88.0 omits `linux-x64`); the same command, from a ref with this change, re-signs it.
 
-It needs the `UPDATE_SIGNING_KEY` secret.
+It needs the `UPDATE_SIGNING_KEY` secret, which lives in the `release` environment only (deployment rules: `main` and `client-v*` tags), so a run from any other ref cannot read it.
 While the secret is unset the job passes with a warning and attaches nothing, so a green run with no `manifest.json` on the release means the secret is missing.
 
 ### Anything `release.yml` publishes

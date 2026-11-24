@@ -284,6 +284,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ needs.release-please.outputs.client_ref }}
+          persist-credentials: false
 
       - uses: ./.github/actions/release-linux-client
         with:
@@ -354,22 +355,19 @@ jobs:
       tag: ${{ needs.release-please.outputs.client_tag }}
     secrets:
       RELEASE_PLEASE_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
-      GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-      GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
-  # Re-signs the manifest after the tarball and the apk attach (desktop-clients may have signed without them), deferring while the Windows or macOS archive is missing; always() so a failed apk never costs the desktops their update.
+  # Re-signs the manifest after the tarball and the apk attach (desktop-clients may have signed without them), deferring while the Windows archive is missing; always() so a failed apk never costs the desktops their update.
   update-manifest:
     name: signed update manifest
     needs: [release-please, linux-client, android-client, verify-client-ci]
     if: always() && needs.verify-client-ci.result == 'success' && needs.linux-client.result == 'success'
     permissions:
+      actions: read
       contents: write
     uses: ./.github/workflows/update-manifest.yml
     with:
       tag: ${{ needs.release-please.outputs.client_tag }}
       defer: true
-    secrets:
-      UPDATE_SIGNING_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}
 
   # Submits the Fedora package to COPR. Inert without COPR_CONFIG or the spec,
   # and best effort: the .rpm is on the release, so a failure only warns.
@@ -440,6 +438,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ needs.release-please.outputs.client_ref }}
+          persist-credentials: false
         if: steps.gate.outputs.ready == 'true'
 
       - uses: ./.github/actions/release-android-client

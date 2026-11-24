@@ -68,6 +68,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ inputs.tag || github.ref }}
+          persist-credentials: false
 
       - name: set up flutter (stable channel)
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
@@ -130,6 +131,12 @@ jobs:
           iscc "/DAppVersion=$version" "/DSourceDir=$PWD/client/packages/app/build/windows/x64/runner/Release" "/O$PWD" packaging/windows/slim-m.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      - uses: ./.github/actions/record-asset-digests
+        with:
+          tag: ${{ inputs.tag || github.ref_name }}
+          label: windows
+          files: slim-m-client-*-windows-x64.zip
+
       - name: attach to the github release
         shell: bash
         env:
@@ -159,6 +166,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ inputs.tag || github.ref }}
+          persist-credentials: false
       - uses: ./.github/actions/select-xcode
 
       - name: set up flutter (stable channel)
@@ -188,6 +196,12 @@ jobs:
           VERSION="${TAG#client-v}"
           ditto -c -k --keepParent "client/packages/app/build/macos/Build/Products/Release/slimm_app.app" "slim-m-client-$VERSION-macos.zip"
 
+      - uses: ./.github/actions/record-asset-digests
+        with:
+          tag: ${{ inputs.tag || github.ref_name }}
+          label: macos
+          files: slim-m-client-*-macos.zip
+
       - name: attach to the github release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -201,23 +215,24 @@ jobs:
 
       - {if: failure(), uses: ./.github/actions/native-hooks-diagnose}
 
-  # Signs the manifest once every platform is attached, so it defers when release.yml's Linux tarball is not there yet; a no-op with a warning until UPDATE_SIGNING_KEY exists.
+  # Signs the manifest once the Windows zip and the Linux tarball are attached, so it defers when release.yml's tarball is not there yet; macOS is signed in when its zip made it and never waited for. Runs after a failed macOS build; a no-op with a warning until UPDATE_SIGNING_KEY exists.
   update-manifest:
     name: signed update manifest
     needs: [windows-client, macos-client]
+    if: always() && needs.windows-client.result == 'success'
     permissions:
+      actions: read
       contents: write
     uses: ./.github/workflows/update-manifest.yml
     with:
       tag: ${{ inputs.tag || github.ref_name }}
       defer: true
-    secrets:
-      UPDATE_SIGNING_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}
 
-  # Rewrites SHA256SUMS to list the Windows and macOS downloads too; defers inside the workflow until the Linux tarball is attached, and release's own call then writes it.
+  # Rewrites SHA256SUMS to list the Windows downloads (and the macOS zip when it built); defers inside the workflow until the Linux tarball is attached, and release's own call then writes it.
   client-checksums:
     name: client checksums
     needs: [windows-client, macos-client]
+    if: always() && needs.windows-client.result == 'success'
     permissions:
       contents: write
     uses: ./.github/workflows/client-checksums.yml
@@ -225,5 +240,3 @@ jobs:
       tag: ${{ inputs.tag || github.ref_name }}
     secrets:
       RELEASE_PLEASE_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
-      GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-      GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}

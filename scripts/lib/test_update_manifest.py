@@ -16,6 +16,10 @@ import unittest
 from pathlib import Path
 
 SCRIPT = Path(__file__).resolve().parent.parent / "update-manifest.py"
+REPO = SCRIPT.parent.parent
+_spec = importlib.util.spec_from_file_location("update_manifest", SCRIPT)
+update_manifest = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(update_manifest)
 TAG = "client-v0.90.0"
 
 
@@ -60,8 +64,19 @@ class UpdateManifestTest(unittest.TestCase):
         self.pub = run("pubkey", key=self.key).stdout.strip()
 
     def build(self, *extra):
+        source = [] if "--expected" in extra else ["--trust-release-assets"]
         return run("build", "--tag", TAG, "--dir", self.assets, "--repo", "o/r",
-                   "--out", "manifest.json", *extra)
+                   "--out", "manifest.json", *source, *extra)
+
+    def record(self, *names):
+        out = self.tmp / "expected"
+        out.mkdir(exist_ok=True)
+        done = run("digest", "--out", out, *[self.assets / n for n in names])
+        self.assertEqual(done.returncode, 0, done.stderr)
+        return out
+
+    def all_names(self):
+        return [p.name for p in self.assets.iterdir() if p.name != "SHA256SUMS"]
 
     def signed(self):
         self.assertEqual(self.build().returncode, 0)
@@ -112,10 +127,77 @@ class UpdateManifestTest(unittest.TestCase):
         self.assertEqual(first, self.manifest.read_bytes())
 
     def test_build_refuses_a_missing_required_platform(self):
-        (self.assets / "slim-m-client-0.90.0-macos.zip").unlink()
+        (self.assets / "slim-m-client-0.90.0-windows-x64.zip").unlink()
         done = self.build()
         self.assertEqual(done.returncode, 1)
-        self.assertIn("macos", done.stderr)
+        self.assertIn("windows-x64", done.stderr)
+
+    def test_a_release_with_windows_and_linux_and_no_macos_zip_signs(self):
+        (self.assets / "slim-m-client-0.90.0-macos.zip").unlink()
+        self.signed()
+        done = self.verify("--dir", self.assets)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertNotIn("macos", done.stdout)
+
+    def test_macos_is_listed_when_it_is_attached(self):
+        self.assertEqual(self.build().returncode, 0)
+        self.assertIn("macos", json.loads(self.manifest.read_text())["artifacts"])
+
+    def test_build_from_producer_digests_matches_the_attached_assets(self):
+        expected = self.record(*self.all_names())
+        done = self.build("--expected", expected)
+        self.assertEqual(done.returncode, 0, done.stderr)
+
+    def test_a_swapped_release_asset_is_refused(self):
+        expected = self.record(*self.all_names())
+        (self.assets / "slim-m-client-0.90.0-windows-x64.zip").write_bytes(b"evil" * 10)
+        done = self.build("--expected", expected)
+        self.assertEqual(done.returncode, 1)
+        self.assertIn("differs from the digest its producer recorded", done.stderr)
+        self.assertFalse(self.manifest.exists())
+
+    def test_a_swapped_asset_of_the_same_size_is_refused(self):
+        expected = self.record(*self.all_names())
+        (self.assets / "slim-m-client-0.90.0-linux-amd64.tar.gz").write_bytes(b"xyz")
+        self.assertEqual(self.build("--expected", expected).returncode, 1)
+
+    def test_an_asset_no_producer_recorded_is_refused(self):
+        names = [n for n in self.all_names() if "macos" not in n]
+        expected = self.record(*names)
+        done = self.build("--expected", expected)
+        self.assertEqual(done.returncode, 1)
+        self.assertIn("no producer recorded", done.stderr)
+
+    def test_build_needs_a_digest_source(self):
+        done = run("build", "--tag", TAG, "--dir", self.assets, "--repo", "o/r", "--out", "manifest.json")
+        self.assertEqual(done.returncode, 2)
+
+    def dart_keys(self, *keys):
+        body = "".join(f"  '{k}',\n" for k in keys)
+        path = self.tmp / "update_keys.dart"
+        path.write_text(f"/// keys\nconst trustedUpdateKeys = <String>[\n{body}];\n")
+        return path
+
+    def test_the_committed_client_keys_are_parsed(self):
+        dart = REPO / "client/packages/app/lib/src/desktop/self_update/update_keys.dart"
+        keys = update_manifest.client_keys(dart.read_text())
+        self.assertTrue(keys)
+        self.assertTrue(all(len(base64.b64decode(k)) == 32 for k in keys))
+
+    def test_a_manifest_signed_with_a_client_key_verifies_against_the_dart_keys(self):
+        self.signed()
+        other = run("pubkey", key=new_key()).stdout.strip()
+        dart = self.dart_keys(other, self.pub)
+        done = run("verify", "--manifest", self.manifest, "--sig", self.sig, "--keys-dart", dart)
+        self.assertEqual(done.returncode, 0, done.stderr)
+
+    def test_a_manifest_signed_with_a_non_client_key_is_rejected(self):
+        self.signed()
+        client = run("pubkey", key=new_key()).stdout.strip()
+        dart = self.dart_keys(client)
+        done = run("verify", "--manifest", self.manifest, "--sig", self.sig, "--keys-dart", dart)
+        self.assertEqual(done.returncode, 1)
+        self.assertIn("does not match any key the client trusts", done.stderr)
 
     def test_build_tolerates_a_missing_optional_platform(self):
         (self.assets / "slim-m-client-0.90.0-linux-amd64.tar.gz").unlink()
@@ -140,12 +222,12 @@ class UpdateManifestTest(unittest.TestCase):
 
     def test_defer_does_not_swallow_a_bad_tag(self):
         done = run("build", "--tag", "v1", "--dir", self.assets, "--repo", "o/r",
-                   "--out", "manifest.json", "--defer-if-missing")
+                   "--out", "manifest.json", "--trust-release-assets", "--defer-if-missing")
         self.assertEqual(done.returncode, 1)
 
     def test_build_refuses_a_bad_tag(self):
         done = run("build", "--tag", "v1", "--dir", self.assets, "--repo", "o/r",
-                   "--out", "manifest.json")
+                   "--out", "manifest.json", "--trust-release-assets")
         self.assertEqual(done.returncode, 1)
 
     def test_signed_manifest_verifies_with_artifacts(self):
@@ -248,7 +330,7 @@ class UpdateManifestTest(unittest.TestCase):
         done = run("verify", "--manifest", self.tmp, "--sig", self.sig, "--pubkey", self.pub)
         self.assertEqual(done.returncode, 1)
         done = run("build", "--tag", TAG, "--dir", self.manifest, "--repo", "o/r",
-                   "--out", self.tmp / "nodir" / "m.json")
+                   "--trust-release-assets", "--out", self.tmp / "nodir" / "m.json")
         self.assertEqual(done.returncode, 1)
 
     def test_paths_with_directory_components_stay_inside_the_named_directory(self):
@@ -270,7 +352,8 @@ class UpdateManifestTest(unittest.TestCase):
         self.assertEqual(sorted(p.name for p in self.tmp.iterdir()), before)
 
     def build_to(self, out):
-        return run("build", "--tag", TAG, "--dir", self.assets, "--repo", "o/r", "--out", out)
+        return run("build", "--tag", TAG, "--dir", self.assets, "--repo", "o/r",
+                   "--trust-release-assets", "--out", out)
 
     def test_sign_without_a_key_fails_cleanly(self):
         self.build()

@@ -88,6 +88,15 @@ runs:
           "dist/slim-m-client-android.aab"
         (cd dist && sha256sum -- slim-m-client-android-*.apk > SHA256SUMS.android)
 
+    - uses: ./.github/actions/record-asset-digests
+      with:
+        tag: ${{ inputs.tag }}
+        label: android
+        files: |
+          client/packages/app/dist/slim-m-client-android-arm64-v8a.apk
+          client/packages/app/dist/slim-m-client-android-armeabi-v7a.apk
+          client/packages/app/dist/slim-m-client-android-x86_64.apk
+
     # No aab: a Play upload format testers download by mistake; docs/INSTALL.md.
     - name: attach to the github release
       shell: "bash -e {0}"

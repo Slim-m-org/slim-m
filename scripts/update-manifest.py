@@ -11,10 +11,12 @@ key (base64), which `pubkey` prints for the owner's one-time setup.
 Stdlib only, with openssl (3.x, ed25519 raw signing) as the one external tool,
 since python has no ed25519 in its standard library.
 
-  build   --tag T --dir D --repo R [--require a,b] [--defer-if-missing] --out manifest.json
+  digest  --out D FILE...                 (a producer records what it built)
+  build   --tag T --dir D --repo R [--require a,b] [--defer-if-missing]
+          (--expected D | --trust-release-assets) --out manifest.json
   sign    --manifest M --sig S            (key in $UPDATE_SIGNING_KEY)
   pubkey                                  (key in $UPDATE_SIGNING_KEY)
-  verify  --manifest M --sig S --pubkey B64 [--dir D] [--newer-than V]
+  verify  --manifest M --sig S (--pubkey B64 | --keys-dart FILE) [--dir D] [--newer-than V]
 """
 
 import argparse
@@ -43,7 +45,10 @@ PLATFORMS = {
 }
 # Clients that predate the split look up "android"; it keeps working as the arm64-v8a apk.
 ANDROID_ALIAS = ("android", "android-arm64-v8a")
-DEFAULT_REQUIRE = "windows-x64,macos,linux-x64"
+# macOS is out of scope for self-update: signed when attached, never waited for.
+DEFAULT_REQUIRE = "windows-x64,linux-x64"
+DIGEST_SUFFIX = ".digest"
+DART_KEY = re.compile(r"'([A-Za-z0-9+/]{43}=)'")
 MANIFEST_NAME = "manifest.json"
 SIGNATURE_NAME = "manifest.json.sig"
 
@@ -71,7 +76,36 @@ def version_tuple(version: str) -> tuple[int, ...]:
     return tuple(int(part) for part in core.split("."))
 
 
-def build_manifest(tag: str, directory: Path, repo: str, require: list[str]) -> dict:
+def record_digests(files: list[Path], out: Path) -> None:
+    """What a trusted producer job built, written before the file is attached to the release."""
+    target = existing_dir(out)
+    for file in files:
+        path = existing_file(file)
+        record = {"name": path.name, "sha256": sha256_of(path), "size": path.stat().st_size}
+        (target / f"{path.name}{DIGEST_SUFFIX}").write_text(json.dumps(record, sort_keys=True) + "\n")
+
+
+def load_expected(directory: Path) -> dict[str, dict]:
+    expected = {}
+    for path in sorted(existing_dir(directory).iterdir()):
+        if not path.name.endswith(DIGEST_SUFFIX):
+            continue
+        record = json.loads(path.read_text())
+        expected[record["name"]] = record
+    return expected
+
+
+def check_against_producer(path: Path, digest: str, expected: dict[str, dict]) -> None:
+    record = expected.get(path.name)
+    if record is None:
+        raise ManifestError(f"{path.name} is attached but no producer recorded its digest")
+    if record["sha256"] != digest or record["size"] != path.stat().st_size:
+        raise ManifestError(f"{path.name} differs from the digest its producer recorded")
+
+
+def build_manifest(
+    tag: str, directory: Path, repo: str, require: list[str], expected: dict[str, dict] | None = None
+) -> dict:
     if not tag.startswith("client-v"):
         raise ManifestError(f"tag must look like client-vX.Y.Z, got {tag!r}")
     version = tag.removeprefix("client-v")
@@ -83,9 +117,12 @@ def build_manifest(tag: str, directory: Path, repo: str, require: list[str]) -> 
                 continue
             if platform in artifacts:
                 raise ManifestError(f"two files match {platform}: {path.name}")
+            digest = sha256_of(path)
+            if expected is not None:
+                check_against_producer(path, digest, expected)
             artifacts[platform] = {
                 "url": f"https://github.com/{repo}/releases/download/{tag}/{path.name}",
-                "sha256": sha256_of(path),
+                "sha256": digest,
                 "size": path.stat().st_size,
             }
     alias, target = ANDROID_ALIAS
@@ -159,6 +196,25 @@ def verify_signature(data: bytes, signature: bytes, pubkey_b64: str) -> None:
             raise ManifestError("signature does not match the manifest") from err
 
 
+def client_keys(dart_source: str) -> list[str]:
+    """The base64 keys of trustedUpdateKeys, the only keys an installed client accepts."""
+    body = dart_source.split("trustedUpdateKeys", 1)[-1].split("];", 1)[0]
+    keys = DART_KEY.findall(re.sub(r"//[^\n]*", "", body))
+    if not keys:
+        raise ManifestError("no trusted update key found in the dart source")
+    return keys
+
+
+def verify_with_any(data: bytes, signature: bytes, keys: list[str]) -> None:
+    for key in keys:
+        try:
+            verify_signature(data, signature, key)
+            return
+        except ManifestError:
+            continue
+    raise ManifestError("signature does not match any key the client trusts")
+
+
 def listed(directory: Path, name: str) -> Path | None:
     """Return the entry called `name` from a listing of `directory`, never a path built from `name`."""
     entries = {entry.name: entry for entry in directory.iterdir()}
@@ -211,10 +267,10 @@ def output_file(path: Path, expected: str) -> Path:
     return target
 
 
-def verify(manifest_path: Path, sig_path: Path, pubkey: str, directory, newer_than) -> dict:
+def verify(manifest_path: Path, sig_path: Path, keys: list[str], directory, newer_than) -> dict:
     data = existing_file(manifest_path).read_bytes()
     encoded = existing_file(sig_path).read_text().strip()
-    verify_signature(data, base64.b64decode(encoded, validate=True), pubkey)
+    verify_with_any(data, base64.b64decode(encoded, validate=True), keys)
     manifest = json.loads(data)
     if manifest.get("schema") != SCHEMA:
         raise ManifestError(f"unsupported manifest schema {manifest.get('schema')!r}")
@@ -235,6 +291,12 @@ def main(argv: list[str]) -> int:
     build.add_argument("--require", default=DEFAULT_REQUIRE)
     build.add_argument("--out", type=Path, required=True)
     build.add_argument("--defer-if-missing", action="store_true")
+    source = build.add_mutually_exclusive_group(required=True)
+    source.add_argument("--expected", type=Path, help="directory of producer digests; an attached asset must match")
+    source.add_argument("--trust-release-assets", action="store_true", help="backfill of a release cut before producers recorded digests")
+    digest = sub.add_parser("digest")
+    digest.add_argument("--out", type=Path, required=True)
+    digest.add_argument("files", type=Path, nargs="+")
     sign = sub.add_parser("sign")
     sign.add_argument("--manifest", type=Path, required=True)
     sign.add_argument("--sig", type=Path, required=True)
@@ -242,7 +304,9 @@ def main(argv: list[str]) -> int:
     check = sub.add_parser("verify")
     check.add_argument("--manifest", type=Path, required=True)
     check.add_argument("--sig", type=Path, required=True)
-    check.add_argument("--pubkey", required=True)
+    key_source = check.add_mutually_exclusive_group(required=True)
+    key_source.add_argument("--pubkey")
+    key_source.add_argument("--keys-dart", type=Path, help="update_keys.dart; accept any key the client trusts")
     check.add_argument("--dir", type=Path)
     check.add_argument("--newer-than")
     args = parser.parse_args(argv)
@@ -250,20 +314,24 @@ def main(argv: list[str]) -> int:
         if args.cmd == "build":
             require = [name for name in args.require.split(",") if name]
             try:
-                manifest = build_manifest(args.tag, existing_dir(args.dir), args.repo, require)
+                expected = None if args.trust_release_assets else load_expected(args.expected)
+                manifest = build_manifest(args.tag, existing_dir(args.dir), args.repo, require, expected)
             except MissingPlatforms as err:
                 if not args.defer_if_missing:
                     raise
                 print(f"deferred: {err}")
                 return 0
             output_file(args.out, MANIFEST_NAME).write_bytes(canonical(manifest))
+        elif args.cmd == "digest":
+            record_digests(args.files, args.out)
         elif args.cmd == "sign":
             signature = sign_bytes(existing_file(args.manifest).read_bytes())
             output_file(args.sig, SIGNATURE_NAME).write_text(base64.b64encode(signature).decode() + "\n")
         elif args.cmd == "pubkey":
             print(public_key_b64())
         else:
-            manifest = verify(args.manifest, args.sig, args.pubkey, args.dir, args.newer_than)
+            keys = [args.pubkey] if args.pubkey else client_keys(existing_file(args.keys_dart).read_text())
+            manifest = verify(args.manifest, args.sig, keys, args.dir, args.newer_than)
             print(f"ok: {manifest['version']} ({', '.join(sorted(manifest['artifacts']))})")
     except (ManifestError, ValueError, KeyError, OSError) as err:
         print(f"error: {err}", file=sys.stderr)

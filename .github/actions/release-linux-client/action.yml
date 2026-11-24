@@ -128,6 +128,12 @@ runs:
         gpg --batch --pinentry-mode loopback --passphrase-fd 0 <<< "$GPG_PASSPHRASE" \
           --armor --detach-sign --output SHA256SUMS.asc SHA256SUMS
 
+    - uses: ./.github/actions/record-asset-digests
+      with:
+        tag: ${{ inputs.tag }}
+        label: linux
+        files: dist/slim-m-client-*-linux-amd64.tar.gz
+
     - name: attach to the github release
       shell: "bash -e {0}"
       env:
