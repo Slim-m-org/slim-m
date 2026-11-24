@@ -16,6 +16,8 @@ import 'package:slimm_app/src/features/settings/screens/admin/media_compression_
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
+
+import '../../support/async_wait.dart';
 import '../../support/toast_host.dart';
 
 const _tokens = api.TokenPair(
@@ -136,6 +138,24 @@ void main() {
       {'metadata': 'remove_all'},
       {'keep_original': true},
     ]);
+  });
+
+  testWidgets('saving another option keeps unsaved typed file types', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_app(_server(enabled: true)));
+    await pumpFrames(tester);
+
+    await tester.enterText(
+      find.byWidgetPredicate((w) => w is EditableText),
+      'png',
+    );
+    await pumpFrames(tester);
+    await tester.tap(find.byWidgetPredicate((w) => w is AppToggle).last);
+    await pumpFrames(tester);
+
+    expect(find.text('Save types'), findsOneWidget);
+    expect(find.text('png'), findsOneWidget);
   });
 
   testWidgets(

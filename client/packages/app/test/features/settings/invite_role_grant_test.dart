@@ -74,6 +74,8 @@ Future<void> _pump(
   int myPermissions, {
   bool rolesFetchFails = false,
   RoleLadder? ladder,
+  String? selected,
+  ValueChanged<String?>? onChanged,
 }) async {
   final client = MockClient((request) async {
     if (rolesFetchFails && request.url.path == '/roles') {
@@ -112,7 +114,10 @@ Future<void> _pump(
       child: MaterialApp(
         theme: buildTheme(Brightness.dark, AppTokens.dark),
         home: Scaffold(
-          body: InviteRoleGrantPicker(selected: null, onChanged: (_) {}),
+          body: InviteRoleGrantPicker(
+            selected: selected,
+            onChanged: onChanged ?? (_) {},
+          ),
         ),
       ),
     ),
@@ -121,6 +126,20 @@ Future<void> _pump(
 }
 
 void main() {
+  testWidgets('a selected role the caller can no longer grant is cleared', (
+    tester,
+  ) async {
+    final changes = <String?>[];
+    await _pump(
+      tester,
+      Perm.manageRoles | Perm.manageMessages,
+      selected: 'r-gone',
+      onChanged: changes.add,
+    );
+
+    expect(changes, [null]);
+  });
+
   testWidgets('a caller without MANAGE_ROLES is offered nothing at all', (
     tester,
   ) async {

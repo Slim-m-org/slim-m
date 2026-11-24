@@ -29,6 +29,8 @@ import '../features/members/providers/member_presence.dart'
     show channelMembersProvider;
 import 'providers.dart';
 
+export 'invites_provider.dart';
+
 /// The caller's own base (deployment-level) permission bitmask, every bit for
 /// the Space owner, or 0 while [meProvider] is loading or failed: every gate
 /// here reads as "show nothing" rather than "show everything" until proven
@@ -44,56 +46,6 @@ final roleLadderProvider = Provider<RoleLadder>(
     permissions: ref.watch(myPermissionsProvider),
   ),
 );
-
-/// The invites loaded so far, newest first, and whether the server has more.
-class InviteList {
-  const InviteList(this.items, {this.hasMore = false, this.moreFailed = false});
-
-  final List<api.Invite> items;
-  final bool hasMore;
-
-  /// The last "load more" failed; the list keeps what it had.
-  final bool moreFailed;
-}
-
-/// Invites per request, matching the server's default page.
-const invitePageSize = 50;
-
-class InvitesNotifier extends AutoDisposeAsyncNotifier<InviteList> {
-  @override
-  Future<InviteList> build() async {
-    final page = await ref
-        .watch(apiProvider)
-        .listInvites(limit: invitePageSize);
-    return InviteList(page, hasMore: page.length >= invitePageSize);
-  }
-
-  Future<void> loadMore() async {
-    final current = state.valueOrNull;
-    if (current == null || !current.hasMore || current.items.isEmpty) return;
-    try {
-      final page = await ref
-          .read(apiProvider)
-          .listInvites(limit: invitePageSize, before: current.items.last.code);
-      state = AsyncData(
-        InviteList([
-          ...current.items,
-          ...page,
-        ], hasMore: page.length >= invitePageSize),
-      );
-    } on api.ApiException catch (e, stack) {
-      api.reportFailure(api.LogTag.ui, 'load more invites', e, stack);
-      state = AsyncData(
-        InviteList(current.items, hasMore: true, moreFailed: true),
-      );
-    }
-  }
-}
-
-final invitesProvider =
-    AsyncNotifierProvider.autoDispose<InvitesNotifier, InviteList>(
-      InvitesNotifier.new,
-    );
 
 /// Everyone removed from the Space, newest first. The only list that still
 /// names them: `GET /members` deliberately drops them.

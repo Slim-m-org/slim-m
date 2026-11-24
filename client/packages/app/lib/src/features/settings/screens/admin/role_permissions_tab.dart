@@ -18,6 +18,7 @@ import '../../../modules/providers/module_panels.dart';
 import '../../../modules/providers/code_block_runner.dart';
 import '../../../../providers/providers.dart';
 import '../../../composer/providers/slash_command.dart';
+import '../../../../widgets/load_error_block.dart';
 import '../../../../widgets/run_guarded.dart';
 import '../../widgets/settings_empty.dart';
 import '../../widgets/settings_draft_guard.dart';
@@ -164,16 +165,17 @@ class _RolePermissionsTabState extends ConsumerState<RolePermissionsTab>
   @override
   Widget build(BuildContext context) {
     widget.draft?.reportAfterFrame(() => _pendingCount > 0);
-    final granted = ref
-        .watch(roleModulePermissionsProvider(widget.role.id))
-        .valueOrNull;
+    final grantedAsync = ref.watch(
+      roleModulePermissionsProvider(widget.role.id),
+    );
+    final catalogAsync = ref.watch(modulePermissionsProvider);
+    final granted = grantedAsync.valueOrNull;
     final showAdministrator = _matchesFilter(
       'Administrator',
       _administratorDescription,
     );
     final groups = _matchingGroups();
-    final catalog =
-        ref.watch(modulePermissionsProvider).valueOrNull ?? const [];
+    final catalog = catalogAsync.valueOrNull ?? const [];
     final modules = _matchingModules(granted, catalog);
     final nothingMatches =
         !showAdministrator && groups.isEmpty && modules.isEmpty;
@@ -222,6 +224,21 @@ class _RolePermissionsTabState extends ConsumerState<RolePermissionsTab>
                   children: [
                     for (final perm in modules) _moduleRow(perm, grantedKeys),
                   ],
+                )
+              else if (_modulesFailed(grantedAsync, catalogAsync))
+                LoadErrorBlock(
+                  message: 'Could not load module permissions.',
+                  onRetry: () {
+                    ref.invalidate(
+                      roleModulePermissionsProvider(widget.role.id),
+                    );
+                    ref.invalidate(modulePermissionsProvider);
+                  },
+                )
+              else if (grantedAsync.isLoading || catalogAsync.isLoading)
+                const Padding(
+                  padding: EdgeInsets.all(AppSpacing.s16),
+                  child: Center(child: AppSpinner()),
                 ),
             ],
           ),
@@ -244,6 +261,13 @@ class _RolePermissionsTabState extends ConsumerState<RolePermissionsTab>
       ],
     );
   }
+
+  bool _modulesFailed(
+    AsyncValue<Object?> granted,
+    AsyncValue<Object?> catalog,
+  ) =>
+      (granted.hasError && !granted.isLoading) ||
+      (catalog.hasError && !catalog.isLoading);
 
   List<(PermGroup, List<PermSpec>)> _matchingGroups() => [
     for (final group in Perm.groups)

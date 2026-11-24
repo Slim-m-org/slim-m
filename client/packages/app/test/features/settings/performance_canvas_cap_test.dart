@@ -149,8 +149,8 @@ void main() {
         ),
       );
 
-  testWidgets('an off-preset cap selects no preset and states the real '
-      'number', (tester) async {
+  testWidgets('an off-preset cap gets its own selected segment and states the '
+      'real number', (tester) async {
     final client = MockClient((request) async {
       if (request.url.path == '/space/retention') {
         return _json({'retention_days': 0});
@@ -167,7 +167,8 @@ void main() {
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('5,000'));
 
-    expect(capControl(tester).selectedIndex, -1);
+    final control = capControl(tester);
+    expect(control.options[control.selectedIndex].label, '1,000');
     expect(find.textContaining('1,000 objects'), findsOneWidget);
   });
 

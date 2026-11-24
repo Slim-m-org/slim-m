@@ -24,7 +24,11 @@ const _tokens = api.TokenPair(
   accessExpiresAt: 0,
 );
 
-Future<AppSegmentedControl> _pump(WidgetTester tester, int days) async {
+Future<AppSegmentedControl> _pump(
+  WidgetTester tester,
+  int days, {
+  int status = 200,
+}) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
@@ -37,7 +41,7 @@ Future<AppSegmentedControl> _pump(WidgetTester tester, int days) async {
             httpClient: MockClient(
               (_) async => http.Response(
                 jsonEncode({'retention_days': days}),
-                200,
+                status,
                 headers: {'content-type': 'application/json'},
               ),
             ),
@@ -66,6 +70,18 @@ Future<AppSegmentedControl> _pump(WidgetTester tester, int days) async {
 }
 
 void main() {
+  testWidgets(
+    'a failed load shows an error, not Never, and disables the control',
+    (tester) async {
+      final control = await _pump(tester, 30, status: 500);
+
+      expect(control.selectedIndex, -1);
+      expect(control.options.every((o) => o.disabled), isTrue);
+      expect(find.textContaining('Nothing is pruned'), findsNothing);
+      expect(find.byWidgetPredicate((w) => w is AppErrorState), findsOneWidget);
+    },
+  );
+
   testWidgets('a window outside the presets gets its own selected segment', (
     tester,
   ) async {

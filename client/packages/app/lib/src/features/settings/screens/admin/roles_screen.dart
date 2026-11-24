@@ -15,6 +15,8 @@ library;
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart' show CustomSemanticsAction;
+import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' as api;
@@ -330,11 +332,19 @@ class _RoleNavState extends ConsumerState<_RoleNav>
                     for (var i = 0; i < reorderable.length; i++)
                       KeyedSubtree(
                         key: ValueKey(reorderable[i].id),
-                        child: HoverReveal(
-                          builder: (context, hovered, _, focused) => _roleRow(
-                            reorderable[i],
-                            ladder.reachesRole(reorderable[i]) ? i : null,
-                            showHandle: hovered || focused,
+                        child: _MoveByKeyboard(
+                          enabled: ladder.reachesRole(reorderable[i]),
+                          onMove: (step) {
+                            final to = i + step;
+                            if (to < 0 || to >= reorderable.length) return;
+                            unawaited(_drop(reorderable, i, to));
+                          },
+                          child: HoverReveal(
+                            builder: (context, hovered, _, focused) => _roleRow(
+                              reorderable[i],
+                              ladder.reachesRole(reorderable[i]) ? i : null,
+                              showHandle: hovered || focused,
+                            ),
                           ),
                         ),
                       ),
@@ -398,6 +408,39 @@ class _RoleNavState extends ConsumerState<_RoleNav>
           size: AppSizes.icon16,
           color: Theme.of(context).extension<AppTokens>()!.textSecondary,
         ),
+      ),
+    );
+  }
+}
+
+/// Alt+Up and Alt+Down, and the screen reader's Move up and Move down, move the focused role one place.
+class _MoveByKeyboard extends StatelessWidget {
+  const _MoveByKeyboard({
+    required this.enabled,
+    required this.onMove,
+    required this.child,
+  });
+
+  final bool enabled;
+  final ValueChanged<int> onMove;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!enabled) return child;
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.arrowUp, alt: true): () =>
+            onMove(-1),
+        const SingleActivator(LogicalKeyboardKey.arrowDown, alt: true): () =>
+            onMove(1),
+      },
+      child: Semantics(
+        customSemanticsActions: {
+          const CustomSemanticsAction(label: 'Move up'): () => onMove(-1),
+          const CustomSemanticsAction(label: 'Move down'): () => onMove(1),
+        },
+        child: child,
       ),
     );
   }

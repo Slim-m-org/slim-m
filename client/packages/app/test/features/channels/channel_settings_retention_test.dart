@@ -10,6 +10,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_rail_sections.dart';
+import 'package:slimm_app/src/features/channels/widgets/channel_settings_retention_row.dart';
+import 'package:slimm_design_system/design_system.dart';
 
 import 'channel_management_harness.dart';
 import '../../support/menu_gestures.dart';
@@ -60,6 +62,30 @@ Future<List<http.Request>> _open(
 }
 
 void main() {
+  testWidgets('a failed retention load shows an error with a retry', (
+    tester,
+  ) async {
+    var fail = true;
+    await tester.pumpWidget(
+      harness(
+        const ChannelRetentionRow(channelId: 'c1'),
+        handler: (request) => fail
+            ? http.Response('{}', 500)
+            : _json({'retention_days': null, 'space_retention_days': 0}),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byWidgetPredicate((w) => w is AppErrorState), findsOneWidget);
+
+    fail = false;
+    await tester.tap(find.text('Retry'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byWidgetPredicate((w) => w is AppErrorState), findsNothing);
+    expect(find.text('Message retention'), findsOneWidget);
+  });
+
   testWidgets('a shorter window counts what goes and asks first', (
     tester,
   ) async {
