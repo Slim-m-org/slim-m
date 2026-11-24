@@ -275,6 +275,7 @@ async fn run_slot(
         command: SLOT_COMMAND,
         input: &input,
         kind: RunKind::Slot,
+        hook: None,
         context: RunContext::default(),
     };
     let outcome = match run_installed(state, module, &request, surface).await {

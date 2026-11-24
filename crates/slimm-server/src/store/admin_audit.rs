@@ -26,6 +26,18 @@ impl Store {
         target_id: Option<&str>,
         detail: &str,
     ) -> anyhow::Result<()> {
+        self.record_admin_change_by(Some(actor_id), action, target_id, detail)
+            .await
+    }
+
+    /// [`Self::record_admin_change`] for a change nobody made, such as the server turning a module off.
+    pub async fn record_admin_change_by(
+        &self,
+        actor_id: Option<UserId>,
+        action: &str,
+        target_id: Option<&str>,
+        detail: &str,
+    ) -> anyhow::Result<()> {
         let created_at = now_ms();
         sqlx::query!(
             "INSERT INTO admin_audit_log (actor_id, action, target_id, detail, created_at)

@@ -2,6 +2,8 @@
 //! Turning a hub event into the module events it stands for, and minting
 //! their ids; an id is minted once per delivered event.
 
+use std::sync::atomic::{AtomicU64, Ordering};
+
 use super::wire::{EventData, PollOptionCount};
 use crate::hub::{Event, MessageEvent};
 use crate::ids::{ChannelId, MessageId, UserId};
@@ -154,7 +156,7 @@ pub(super) async fn build(store: &Store, event: &Event, now_ms: i64) -> anyhow::
             runoff,
             ..
         }) => vec![Built {
-            id: format!("poll-vote:{message_id}:{now_ms}"),
+            id: format!("poll-vote:{message_id}:{now_ms}:{}", next_sequence()),
             created: None,
             at_ms: now_ms,
             actor: None,
@@ -281,4 +283,10 @@ fn member(prefix: &str, user: UserId, now_ms: i64) -> Built {
             user_id: user.to_string(),
         },
     }
+}
+
+/// A process-wide counter that keeps two ids minted in the same millisecond apart.
+fn next_sequence() -> u64 {
+    static NEXT: AtomicU64 = AtomicU64::new(0);
+    NEXT.fetch_add(1, Ordering::Relaxed)
 }

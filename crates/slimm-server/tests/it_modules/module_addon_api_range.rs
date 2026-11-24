@@ -131,6 +131,13 @@ async fn the_start_up_check_turns_off_only_the_modules_outside_their_range() {
     let health = w.store.module_health().await.unwrap();
     let reason = health["stale"].disabled_reason.clone().unwrap();
     assert!(reason.contains("update the module"), "{reason}");
+    let audit = w.store.admin_changes(None, 10).await.unwrap();
+    let row = audit
+        .iter()
+        .find(|e| e.action == "module.incompatible_disable")
+        .expect("the server's own disable is audited");
+    assert_eq!(row.target_id.as_deref(), Some("stale"));
+    assert_eq!(row.actor_id, None);
 }
 
 #[tokio::test(flavor = "multi_thread")]

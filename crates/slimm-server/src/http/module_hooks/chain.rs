@@ -200,7 +200,7 @@ enum Step {
 fn verdict_step(verdict: Verdict, phase: &str, target: Target) -> Result<Step, String> {
     match verdict {
         Verdict::Unavailable => Err("no time left to run it".into()),
-        Verdict::Failed(why) => Err(why),
+        Verdict::Failed(why) => Err(why.into()),
         Verdict::Reply(reply) => {
             let value: Value = serde_json::from_str(&reply).map_err(|_| "reply is not JSON")?;
             match phase {

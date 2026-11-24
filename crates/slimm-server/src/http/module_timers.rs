@@ -205,6 +205,7 @@ async fn run_claimed(state: &AppState, timer: &DueTimer) -> anyhow::Result<bool>
         command: &timer.command,
         input: &timer.input,
         kind: RunKind::Background,
+        hook: None,
         context: RunContext {
             channel: timer.channel_id,
             voice_channel: None,

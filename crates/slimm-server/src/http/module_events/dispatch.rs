@@ -29,7 +29,7 @@ pub(super) async fn work(state: AppState, queues: Arc<Queues>) {
         }
         queues.finish(&job.module_id);
         match standing {
-            Standing::Receives(_) => {}
+            Standing::Receives(_) | Standing::Unknown => {}
             Standing::Unsubscribed => queues.clear_kind(&job.module_id, job.kind),
             Standing::Gone => queues.clear(&job.module_id),
         }
@@ -55,17 +55,23 @@ enum Standing {
     /// Enabled and approved, but no longer subscribed to this kind.
     Unsubscribed,
     Gone,
+    /// The lookup failed, so this job is skipped and the module's other events stay queued.
+    Unknown,
 }
 
 async fn standing(state: &AppState, job: &Job) -> Standing {
-    let Some(module) = state
-        .store
-        .installed_module(&job.module_id)
-        .await
-        .ok()
-        .flatten()
-    else {
-        return Standing::Gone;
+    let found = state.store.installed_module(&job.module_id).await;
+    if let Err(err) = &found {
+        tracing::warn!(%err, module = %job.module_id, "could not read a module to deliver an event");
+    }
+    judge(found, job)
+}
+
+fn judge(found: anyhow::Result<Option<InstalledModule>>, job: &Job) -> Standing {
+    let module = match found {
+        Ok(Some(module)) => module,
+        Ok(None) => return Standing::Gone,
+        Err(_) => return Standing::Unknown,
     };
     if super::call_audio::is_call_audio(job.kind) {
         let hears = module.enabled
@@ -122,6 +128,7 @@ async fn deliver(state: &AppState, module: &InstalledModule, job: &Job) {
         command: EVENT_COMMAND,
         input: &job.body,
         kind: RunKind::Background,
+        hook: None,
         context: RunContext::default(),
     };
     let surface = background_surface(state, module, bot);
@@ -131,5 +138,26 @@ async fn deliver(state: &AppState, module: &InstalledModule, job: &Job) {
             tracing::info!(module = %module.id, event = job.kind, error = %outcome.payload, "module event run failed");
         }
         Err(_) => tracing::warn!(module = %module.id, event = job.kind, "module event run refused"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::http::module_events::queue::Origin;
+
+    #[test]
+    fn a_failed_lookup_skips_one_job_and_clears_nothing() {
+        let job = Job {
+            module_id: "m".into(),
+            kind: "member.joined",
+            body: Arc::from("{}"),
+            origin: Origin::default(),
+        };
+        assert!(matches!(
+            judge(Err(anyhow::anyhow!("database is locked")), &job),
+            Standing::Unknown
+        ));
+        assert!(matches!(judge(Ok(None), &job), Standing::Gone));
     }
 }
