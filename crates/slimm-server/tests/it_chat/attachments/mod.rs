@@ -21,6 +21,7 @@ mod compression;
 mod filenames;
 mod fixtures;
 mod forward_links;
+mod location_strip;
 mod message_filenames;
 mod overwrite_allow;
 mod pdf_worker;

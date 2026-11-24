@@ -3,7 +3,7 @@
 //! the file without re-encoding a pixel.
 
 use super::Metadata;
-use super::exif::{self, Rewrite};
+use super::exif;
 
 const EXIF_ID: &[u8] = b"Exif\0\0";
 const XMP_ID: &[u8] = b"http://ns.adobe.com/xap/1.0/\0";
@@ -113,18 +113,8 @@ pub fn strip(bytes: &[u8], policy: Metadata) -> Option<Vec<u8>> {
         return None;
     }
     let source_exif = app1_with(&chunks, EXIF_ID);
-    let rewritten = source_exif.and_then(|block| match policy {
-        Metadata::RemoveLocation => exif::without_location(
-            block,
-            Rewrite {
-                orientation: None,
-                dimensions: None,
-            },
-        ),
-        _ => exif::orientation(block)
-            .filter(|o| *o != 1)
-            .map(exif::orientation_only),
-    });
+    let rewritten =
+        source_exif.and_then(|block| super::container_strip::cleaned_exif(block, policy));
     let mut out = vec![0xFF, 0xD8];
     let mut exif_done = false;
     for chunk in &chunks {
