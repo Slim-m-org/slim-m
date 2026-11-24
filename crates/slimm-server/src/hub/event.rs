@@ -385,6 +385,11 @@ pub enum Event {
         category_id: crate::ids::ChannelCategoryId,
         muted: bool,
     },
+    /// One account's block list changed, from any of its devices.
+    ///
+    /// Private to `user_id`, delivered like [`Event::CategoryMuteChanged`]. It names no
+    /// target: the other devices read the list back.
+    BlocksChanged { user_id: UserId },
     /// A bot answered a member privately.
     ///
     /// Private to `recipient_id`: `http::ws::authorization` delivers it only to

@@ -12,12 +12,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart';
+import 'package:slimm_app/src/features/members/providers/blocks_controller.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/routing/routes.dart';
 import 'package:slimm_app/src/features/messages/widgets/threads_sheet.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
+import '../../support/async_wait.dart';
 import '../../support/fake_api.dart';
+import '../../support/fake_blocks.dart';
 
 const _tokens = TokenPair(
   userId: 'self',
@@ -67,10 +70,14 @@ Future<void> _pump(
 }
 
 ProviderContainer _containerAnswering(
-  Future<http.Response> Function(http.Request) handler,
-) {
+  Future<http.Response> Function(http.Request) handler, {
+  Set<String> blocked = const {},
+}) {
   final container = ProviderContainer(
     overrides: [
+      blocksProvider.overrideWith(
+        (ref) => FixedBlocksController(ref, BlocksState(ids: blocked)),
+      ),
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
       mockApiOverride(handler),
@@ -207,5 +214,42 @@ void main() {
       reason: 'the sheet must close on the way to the thread',
     );
     expect(find.text('thread t1'), findsOneWidget);
+  });
+
+  testWidgets('a thread on a blocked author\'s message is not listed', (
+    tester,
+  ) async {
+    final container = _containerAnswering((request) async {
+      final body = request.url.path == '/users'
+          ? <Map<String, dynamic>>[]
+          : [
+              for (final (id, author) in [('t1', 'pest'), ('t2', 'friend')])
+                {
+                  'id': id,
+                  'parent_message_id': 'm-$id',
+                  'parent_content': 'message from $author',
+                  'parent_author_id': author,
+                  'parent_author_display_name': author,
+                  'created_at': 0,
+                  'reply_count': 2,
+                  'last_reply_at': 1,
+                  'unread_count': 0,
+                },
+            ];
+      return http.Response(
+        jsonEncode(body),
+        200,
+        headers: {'content-type': 'application/json'},
+      );
+    }, blocked: {'pest'});
+    addTearDown(container.dispose);
+
+    await _pump(tester, container, 'c1');
+    await tester.tap(find.text('open'));
+    await pumpFrames(tester);
+
+    expect(find.text('message from friend'), findsOneWidget);
+    expect(find.text('message from pest'), findsNothing);
+    expect(find.text('pest'), findsNothing);
   });
 }

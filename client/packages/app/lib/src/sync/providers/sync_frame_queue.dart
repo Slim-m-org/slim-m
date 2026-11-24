@@ -49,6 +49,7 @@ bool isAppliedToStore(api.ServerEvent event) => switch (event) {
   api.ReadStateChanged() ||
   api.NotificationOverrideChanged() ||
   api.CategoryMuteChanged() ||
+  api.BlocksChanged() ||
   api.ChannelCreated() ||
   api.ChannelUpdated() ||
   api.ChannelDeleted() ||

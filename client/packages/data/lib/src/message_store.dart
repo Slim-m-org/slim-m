@@ -291,8 +291,15 @@ class MessageStore {
   /// forever; this is the direct path for one already-known id.
   /// [replaceChannels] is the other, for a full server refresh.
   Future<void> removeChannel(String channelId) async {
-    final dropped = await db
-        .transaction(() => channels_impl.deleteChannelRows(db, channelId));
+    final dropped = await db.transaction(() async {
+      final ids = <String>[];
+      for (final threadId
+          in await channels_impl.threadIdsUnder(db, [channelId])) {
+        ids.addAll(await channels_impl.deleteChannelRows(db, threadId));
+      }
+      ids.addAll(await channels_impl.deleteChannelRows(db, channelId));
+      return ids;
+    });
     onMessagesDropped?.call(dropped);
   }
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! Account-scoped changes reach the account's other open sockets live and
-//! nobody else's: "Mark as unread", a per-channel notification override and a category mute.
+//! nobody else's: "Mark as unread", a per-channel notification override, a category mute and a block.
 
 use std::time::Duration;
 
@@ -277,4 +277,44 @@ async fn a_category_mute_reaches_the_other_device_and_nobody_else() {
             .await
             .is_none()
     );
+}
+
+#[tokio::test]
+async fn a_block_reaches_the_other_device_and_nobody_else() {
+    let (store, _guard) = support::new_store("slimm-account-sync-blocks").await;
+    seed_everyone(&store).await;
+    let state = support::app::state(store.clone());
+    let (alice, phone_token, _ticket) = account(&store, "alice").await;
+    let (_desktop_token, desktop_ticket) = device(&store, alice).await;
+    let (pest, _pest_token, pest_ticket) = account(&store, "pest").await;
+    let (_bob, _bob_token, bob_ticket) = account(&store, "bob").await;
+    let addr = serve(state.clone()).await;
+    let mut desktop = connect(addr, &desktop_ticket).await;
+    let mut pest_ws = connect(addr, &pest_ticket).await;
+    let mut bob_ws = connect(addr, &bob_ticket).await;
+    let uri = format!("/blocks/{pest}");
+
+    for method in ["POST", "DELETE"] {
+        let answer = http::router(state.clone())
+            .oneshot(request(method, &uri, &phone_token, json!({})))
+            .await
+            .unwrap();
+        assert!(
+            answer.status().is_success(),
+            "{method}: {}",
+            answer.status()
+        );
+        assert!(
+            frame_of_kind(&mut desktop, "blocks.changed")
+                .await
+                .is_some(),
+            "{method}: the other device must hear about the change"
+        );
+    }
+    for ws in [&mut pest_ws, &mut bob_ws] {
+        assert!(
+            frame_within(ws, Duration::from_millis(300)).await.is_none(),
+            "a block list change is private to its owner"
+        );
+    }
 }

@@ -202,6 +202,9 @@ async fn block(
     }
     state.store.block_user(ctx.user_id, target).await?;
     state.hub.blocks_changed();
+    state.hub.publish(Event::BlocksChanged {
+        user_id: ctx.user_id,
+    });
     evict_blocked_from_shared_call(&state, ctx.user_id, target).await;
     Ok(StatusCode::NO_CONTENT)
 }
@@ -249,6 +252,9 @@ async fn unblock(
     let target = UserId(parse_uuid(&user_id)?);
     state.store.unblock_user(ctx.user_id, target).await?;
     state.hub.blocks_changed();
+    state.hub.publish(Event::BlocksChanged {
+        user_id: ctx.user_id,
+    });
     Ok(StatusCode::NO_CONTENT)
 }
 

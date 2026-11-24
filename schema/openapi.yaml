@@ -23213,6 +23213,7 @@ components:
         - $ref: "#/components/schemas/ReadStateChanged"
         - $ref: "#/components/schemas/NotificationOverrideChanged"
         - $ref: "#/components/schemas/CategoryMuteChanged"
+        - $ref: "#/components/schemas/BlocksChanged"
         - $ref: "#/components/schemas/MessageEphemeral"
         - $ref: "#/components/schemas/MessageComponents"
         - $ref: "#/components/schemas/MessageEmbeds"
@@ -24804,6 +24805,18 @@ components:
           format: uuid
         muted:
           type: boolean
+
+    BlocksChanged:
+      type: object
+      required: [type]
+      description: >
+        This account's block list changed from one of its devices, by a block
+        or an unblock. Delivered only to the account's own connections. It
+        names nobody: read the list back with `GET /blocks`.
+      properties:
+        type:
+          type: string
+          enum: [blocks.changed]
 
     NewDeviceSignIn:
       type: object
