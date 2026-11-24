@@ -6,3 +6,4 @@ library;
 
 export 'src/code_only.dart';
 export 'src/repo_root.dart';
+export 'src/source_scan.dart';

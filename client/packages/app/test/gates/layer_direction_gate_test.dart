@@ -7,6 +7,7 @@ library;
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_test_support/source_gates.dart';
 
 /// Each is `importer -> imported`, relative to lib/src. Fix one by moving the
 /// shared piece down a layer, then delete its line.
@@ -31,9 +32,6 @@ const _knownExceptions = {
   'features/voice/providers/voice_video_controls.dart -> features/voice/widgets/video_health_overlay.dart',
   'desktop/providers/desktop_notification_text.dart -> features/messages/widgets/reply_target_summary.dart',
 };
-
-/// Directives start a line, so a commented-out import never matches.
-final _directive = RegExp(r"^(?:import|export) '([^']+)'", multiLine: true);
 
 String? _layer(String path) {
   final parts = path.split('/');
@@ -65,8 +63,7 @@ Set<String> _wrongWayImports(String srcRoot) {
     final dir = from.contains('/')
         ? from.substring(0, from.lastIndexOf('/'))
         : '';
-    for (final match in _directive.allMatches(file.readAsStringSync())) {
-      final uri = match.group(1)!;
+    for (final uri in directiveUris(file.readAsStringSync())) {
       final String to;
       if (uri.startsWith('package:slimm_app/src/')) {
         to = uri.substring('package:slimm_app/src/'.length);
@@ -99,4 +96,28 @@ void main() {
       reason: 'fixed: delete these lines from _knownExceptions',
     );
   });
+
+  test(
+    'the scan reads double-quoted and conditional imports, not comments',
+    () {
+      final tmp = Directory.systemTemp.createTempSync('layer_gate_test_');
+      addTearDown(() => tmp.deleteSync(recursive: true));
+      final widgets = Directory('${tmp.path}/features/a/widgets')
+        ..createSync(recursive: true);
+      File(
+        '${widgets.path}/double.dart',
+      ).writeAsStringSync('import "../screens/x.dart";\n');
+      File('${widgets.path}/conditional.dart').writeAsStringSync(
+        "import 'a_stub.dart' if (dart.library.io) '../screens/y.dart';\n",
+      );
+      File('${widgets.path}/commented.dart').writeAsStringSync(
+        "/*\nimport '../screens/z.dart';\n*/\n// import '../screens/w.dart';\n",
+      );
+
+      expect(_wrongWayImports(tmp.path), {
+        'features/a/widgets/double.dart -> features/a/screens/x.dart',
+        'features/a/widgets/conditional.dart -> features/a/screens/y.dart',
+      });
+    },
+  );
 }

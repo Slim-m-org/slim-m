@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Four Flutter-owned widgets each drive their own entrance or expansion
+/// Flutter-owned widgets each drive their own entrance or expansion
 /// with a plain `AnimationController` the framework creates internally, keyed
 /// to the platform's own reduce-motion accessibility feature - never to this
 /// app's [MotionOverride], which only ever reaches `MediaQuery` and cannot
@@ -14,12 +14,8 @@
 /// did not leave behind anywhere else, the same shape
 /// `type_scale_literal_test.dart` already keeps for an off-scale font size.
 ///
-/// A per-file occurrence count, not a per-call parse: cheap, and every rule
-/// here already holds file-wide today, so a call that carries the override
-/// and a sibling call in the same file that does not would pass this gate
-/// undetected. That trade is the one `type_scale_literal_test.dart` already
-/// made for the same reason - a real parser is a second thing to maintain
-/// and drift from the grammar it parses.
+/// Each call's own balanced argument list must carry its override, so a
+/// sibling call in the same file cannot vouch for one that does not.
 ///
 /// The `ScaffoldMessenger.showSnackBar` rule closes the same gap for a
 /// SnackBar, one layer later: fourteen call sites once reached
@@ -28,13 +24,8 @@
 /// only keeps a future raw call from reintroducing the original bug (no
 /// override at all); a raw call carrying `snackBarAnimationStyle:` still passes.
 ///
-/// Counts run over `codeOnly`'s (`slimm_test_support`) comment/string-stripped text,
-/// not the raw file: a per-file count comparison is exactly the shape a
-/// comment can defeat by inflating one side without touching the other,
-/// and reproduced directly - a genuine `showDialog(...)` call with no real
-/// override, plus a `// TODO: this should carry animationStyle:
-/// AnimationStyle.noAnimation` comment anywhere else in the same file,
-/// passed silently before this existed.
+/// Sources are read through `codeOnly` (`slimm_test_support`), so a comment
+/// or string naming a call or its override is neither.
 library;
 
 import 'dart:io';
@@ -59,7 +50,7 @@ class _Rule {
 final _rules = [
   _Rule(
     'showInWindowDialog',
-    RegExp(r'\bshowInWindowDialog(<[^>]*>)?\('),
+    RegExp(r'(?<!\?>\s)\bshowInWindowDialog(<[^>]*>)?\('),
     'animationStyle:',
   ),
   _Rule(
@@ -71,6 +62,21 @@ final _rules = [
     'showGeneralDialog',
     RegExp(r'\bshowGeneralDialog(<[^>]*>)?\('),
     'transitionDuration:',
+  ),
+  _Rule(
+    'showDialog',
+    RegExp(r'\bshowDialog(<[^>]*>)?\('),
+    'animationStyle:',
+  ),
+  _Rule(
+    'showMenu',
+    RegExp(r'\bshowMenu(<[^>]*>)?\('),
+    'popUpAnimationStyle:',
+  ),
+  _Rule(
+    'PopupMenuButton',
+    RegExp(r'\bPopupMenuButton(<[^>]*>)?\('),
+    'popUpAnimationStyle:',
   ),
   _Rule('ExpansionTile', RegExp(r'\bExpansionTile\('),
       'expansionAnimationStyle:'),
@@ -92,41 +98,42 @@ final _rules = [
 /// `type_scale_literal_test.dart` already holds everyone else to.
 const _exceptions = <String>{};
 
+Iterable<File> _clientSources() sync* {
+  for (final pkg in Directory('..').listSync().whereType<Directory>()) {
+    final lib = Directory('${pkg.path}/lib');
+    if (!lib.existsSync()) continue;
+    for (final file in lib.listSync(recursive: true).whereType<File>()) {
+      if (file.path.endsWith('.dart')) yield file;
+    }
+  }
+}
+
+/// One entry per call in [source] whose own argument list lacks its override.
+List<String> _unguardedCalls(String source) {
+  final code = codeOnly(source);
+  return [
+    for (final rule in _rules)
+      for (final match in rule.call.allMatches(code))
+        if (rule.override
+            .allMatches(
+              callArguments(code, match.end - 1) ?? code.substring(match.end),
+            )
+            .isEmpty)
+          '${rule.name} on line '
+              '${'\n'.allMatches(code.substring(0, match.start)).length + 1}',
+  ];
+}
+
 void main() {
   test(
     'every Flutter-owned dialog, sheet or expansion carries this app\'s own '
     'reduce-motion override',
     () {
-      final designSystemLib = Directory('lib');
-      expect(
-        designSystemLib.existsSync(),
-        isTrue,
-        reason: 'run this from the design_system package root',
-      );
-      final appLib = Directory('../app/lib');
-      expect(
-        appLib.existsSync(),
-        isTrue,
-        reason: 'expected a sibling app package at ../app',
-      );
-
       final offenders = <String>[];
-      for (final dir in [designSystemLib, appLib]) {
-        for (final file in dir.listSync(recursive: true).whereType<File>()) {
-          if (!file.path.endsWith('.dart')) continue;
-          if (_exceptions.contains(file.path)) continue;
-          final source = codeOnly(file.readAsStringSync());
-          for (final rule in _rules) {
-            final calls = rule.call.allMatches(source).length;
-            if (calls == 0) continue;
-            final overrides = rule.override.allMatches(source).length;
-            if (calls > overrides) {
-              offenders.add(
-                '${file.path}: ${rule.name} appears $calls time(s) but '
-                'its override only $overrides time(s)',
-              );
-            }
-          }
+      for (final file in _clientSources()) {
+        if (_exceptions.contains(file.path)) continue;
+        for (final call in _unguardedCalls(file.readAsStringSync())) {
+          offenders.add('${file.path}: $call');
         }
       }
 
@@ -141,4 +148,33 @@ void main() {
       );
     },
   );
+
+  test('a call is judged by its own arguments, not by its file', () {
+    const guarded = 'showModalBottomSheet(sheetAnimationStyle: x, builder: b);';
+    const bare = 'showModalBottomSheet(builder: b);';
+    expect(_unguardedCalls(guarded), isEmpty);
+    expect(_unguardedCalls(bare), hasLength(1));
+    expect(_unguardedCalls('$guarded\n$bare'), hasLength(1));
+  });
+
+  test('a comment naming a call or its override is neither', () {
+    expect(
+        _unguardedCalls('// showDialog(x) and sheetAnimationStyle:'), isEmpty);
+    expect(
+      _unguardedCalls('showDialog(builder: b); // animationStyle: x'),
+      hasLength(1),
+    );
+  });
+
+  test('showDialog, showMenu and PopupMenuButton are rules', () {
+    expect(_unguardedCalls('showDialog<void>(builder: b);'), hasLength(1));
+    expect(_unguardedCalls('showMenu<int>(items: i);'), hasLength(1));
+    expect(
+        _unguardedCalls('PopupMenuButton<int>(itemBuilder: b);'), hasLength(1));
+    expect(
+      _unguardedCalls(
+          'PopupMenuButton(popUpAnimationStyle: s, itemBuilder: b);'),
+      isEmpty,
+    );
+  });
 }

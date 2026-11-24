@@ -53,6 +53,7 @@ Future<T?> showSearchableChoiceMenu<T>(
   final tokens = Theme.of(context).extension<AppTokens>()!;
   return showMenu<T>(
     context: context,
+    popUpAnimationStyle: AppMotion.popup(context),
     position: position,
     color: tokens.surfaceRaised,
     surfaceTintColor: Colors.transparent,
