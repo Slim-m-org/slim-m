@@ -39,6 +39,7 @@ mod dock_install_atomic;
 mod dock_network;
 mod dock_official_fallback;
 mod dock_package;
+mod dock_serialized_changes;
 mod dock_sources;
 mod embed_caps_shared;
 mod member_permissions_in_channel;

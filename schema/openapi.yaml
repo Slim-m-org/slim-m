@@ -16657,6 +16657,14 @@ components:
           description: >
             True when another source already owns this id, so it cannot be
             installed from the source being listed.
+        withdrawn:
+          type: array
+          items:
+            type: string
+          description: Versions the registry withdrew, for example after a security fix.
+        withdrawn_reason:
+          type: string
+          description: The registry's reason for withdrawing those versions.
     DockSource:
       type: object
       required: [id, repo, official]
@@ -17480,6 +17488,11 @@ components:
           description: >
             The fuel one run may burn, which `last_fuel_used` and
             `max_fuel_used` on its run stats are read against.
+        withdrawn_reason:
+          type: string
+          description: >
+            Why the registry withdrew the installed version. Only the
+            installed listing carries it, and only for the official source.
     DockRunStat:
       type: object
       required:
