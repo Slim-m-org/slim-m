@@ -28,6 +28,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../permissions.dart';
 import '../../../providers/providers.dart';
 import '../../../routing/routes.dart';
+import '../../canvas/providers/canvas_open.dart';
 import '../screens/channel_settings_screen.dart';
 import '../providers/channel_notification_overrides_controller.dart';
 import 'channel_rail.dart' show selectedChannelId;
@@ -82,6 +83,7 @@ List<Widget> channelRowMenuItems(
   final lead = [
     if (channel.kind == 'voice' && !isLobby) ...[
       _openChatItem(context, channel, close),
+      _openCanvasItem(context, channel, close),
       _viewDetailsItem(context, channel, close),
     ],
     ?markRead,
@@ -170,6 +172,23 @@ AppMenuItem _openChatItem(
   onTap: () {
     close();
     context.go(Routes.channel(channel.id, openChat: true));
+  },
+);
+
+/// Opens a voice channel's canvas as a spectator, like the header's `CanvasOpenButton`, without joining its call.
+AppMenuItem _openCanvasItem(
+  BuildContext context,
+  Channel channel,
+  VoidCallback close,
+) => AppMenuItem(
+  label: 'Open canvas',
+  leading: AppIcons.canvas,
+  onTap: () {
+    final container = ProviderScope.containerOf(context, listen: false);
+    close();
+    // Routed as looking, so closing the canvas lands on the idle call page rather than auto-joining.
+    context.go(Routes.channel(channel.id, openDetails: true));
+    container.read(canvasOpenProvider.notifier).state = channel.id;
   },
 );
 
