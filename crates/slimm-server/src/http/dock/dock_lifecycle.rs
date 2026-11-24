@@ -160,6 +160,7 @@ async fn apply_enabled(
     state.dock.slot_cache().invalidate_module(id);
     if !enabled {
         crate::http::module_rooms::end_module(state, id);
+        close_principal_sockets(state, id).await;
     }
     super::dock_host_run::after_enabled(state, id, enabled).await?;
     let installed = state
@@ -174,6 +175,25 @@ async fn apply_enabled(
             .with_health(health.unwrap_or_default())
             .with_hooks(&hooks),
     ))
+}
+
+/// Closes the sockets a disabled module's principal holds, so the off switch cuts its live feed.
+async fn close_principal_sockets(state: &AppState, id: &str) {
+    let principal = match state.store.installed_module(id).await {
+        Ok(Some(module)) => module.bot_user_id,
+        _ => None,
+    };
+    let Some(principal) = principal else {
+        return;
+    };
+    match state.store.live_session_ids(principal).await {
+        Ok(sessions) => super::dock_connector::close_sessions(state, sessions),
+        Err(err) => tracing::warn!(
+            ?err,
+            module = id,
+            "could not list a disabled module's sessions"
+        ),
+    }
 }
 
 pub(in crate::http) async fn list_installed(
