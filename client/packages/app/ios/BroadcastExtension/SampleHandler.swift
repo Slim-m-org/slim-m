@@ -28,6 +28,7 @@ class SampleHandler: RPBroadcastSampleHandler {
   private var clientConnection: SocketConnection?
   private var uploader: SampleUploader?
   private var connectTimer: DispatchSourceTimer?
+  private var heartbeatTimer: DispatchSourceTimer?
 
   private var socketFilePath: String? {
     let container = FileManager.default.containerURL(
@@ -54,12 +55,15 @@ class SampleHandler: RPBroadcastSampleHandler {
     }
     DarwinNotificationCenter.shared.postNotification(.broadcastStarted)
     observeStopRequest()
+    startHeartbeat()
     openConnection()
   }
 
   override func broadcastFinished() {
     connectTimer?.cancel()
     connectTimer = nil
+    heartbeatTimer?.cancel()
+    heartbeatTimer = nil
     DarwinNotificationCenter.shared.removeObserver(
       Unmanaged.passUnretained(self).toOpaque(), for: .broadcastRequestStop)
     DarwinNotificationCenter.shared.postNotification(.broadcastStopped)
@@ -89,6 +93,19 @@ private extension SampleHandler {
     ) { _, _, _, _, _ in
       SampleHandler.current?.finishRequestedByApp()
     }
+  }
+
+  /// A memory kill never reaches `broadcastFinished`, so the app learns the
+  /// extension is gone from these beats stopping rather than from a stop event.
+  func startHeartbeat() {
+    let timer = DispatchSource.makeTimerSource(
+      queue: DispatchQueue(label: "top.npcserver.slimm.broadcast.heartbeat"))
+    timer.schedule(deadline: .now(), repeating: .seconds(2), leeway: .milliseconds(500))
+    timer.setEventHandler {
+      DarwinNotificationCenter.shared.postNotification(.broadcastHeartbeat)
+    }
+    heartbeatTimer = timer
+    timer.resume()
   }
 
   /// ReplayKit offers no way to end a broadcast without an error, so this
