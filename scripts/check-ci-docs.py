@@ -40,6 +40,10 @@ def main() -> int:
         print(f"::error file=docs/ci.md::{DOC} is missing")
         return 1
 
+    stray = sorted(p.name for p in WORKFLOWS.iterdir() if p.is_file() and p.suffix != ".yml")
+    for name in stray:
+        print(f"::error file=.github/workflows/{name}::workflows must end in .yml, the one suffix every gate globs")
+
     on_disk = {p.stem for p in sorted(WORKFLOWS.glob("*.yml"))}
     documented = set(ROW.findall(DOC.read_text(encoding="utf-8")))
 
@@ -62,7 +66,7 @@ def main() -> int:
         f"ci docs: {len(on_disk)} workflows, {len(undocumented)} undocumented, "
         f"{len(stale)} stale row(s)"
     )
-    return 1 if undocumented or stale else 0
+    return 1 if undocumented or stale or stray else 0
 
 
 if __name__ == "__main__":
