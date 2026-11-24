@@ -20,6 +20,7 @@ import 'package:slimm_app/src/desktop/self_update/android_apk_update.dart';
 import 'package:slimm_app/src/desktop/update_available_banner.dart';
 import 'package:slimm_app/src/desktop/update_check.dart';
 import 'package:slimm_app/src/desktop/update_watch.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
@@ -35,6 +36,7 @@ Future<void> _pump(
   ClientUpdate? update, {
   bool restartApplies = true,
   Future<ApkInstallOutcome?> Function(String)? runApkUpdate,
+  bool inCall = false,
 }) async {
   SharedPreferences.setMockInitialValues({});
   await tester.pumpWidget(
@@ -53,6 +55,10 @@ Future<void> _pump(
             buildNumber: '1',
           ),
         ),
+        if (inCall)
+          voiceFlagsProvider.overrideWithValue(
+            const VoiceFlags(channelId: 'c1'),
+          ),
         if (runApkUpdate != null)
           apkUpdateRunnerProvider.overrideWithValue(runApkUpdate),
       ],
@@ -141,6 +147,41 @@ void main() {
     await tester.pump();
     await tester.pump();
     expect(find.text('Update'), findsOneWidget);
+  });
+
+  testWidgets('Update during a call asks first and waits for a yes', (
+    tester,
+  ) async {
+    final started = <String>[];
+    await _pump(
+      tester,
+      _update,
+      restartApplies: false,
+      inCall: true,
+      runApkUpdate: (version) async {
+        started.add(version);
+        return ApkInstallOutcome.started;
+      },
+    );
+
+    await tester.tap(find.text('Update'));
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('Update during a call?'), findsOneWidget);
+    expect(started, isEmpty);
+
+    await tester.tap(find.text('Not now'));
+    await tester.pump();
+    await tester.pump();
+    expect(started, isEmpty, reason: 'declining leaves the call alone');
+
+    await tester.tap(find.text('Update'));
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.text('Update now'));
+    await tester.pump();
+    await tester.pump();
+    expect(started, ['1.0.0']);
   });
 
   testWidgets('a build that restarts into its update is told to restart', (

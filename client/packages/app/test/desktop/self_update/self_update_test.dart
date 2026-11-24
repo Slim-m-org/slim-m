@@ -382,7 +382,7 @@ void main() {
   test('a server that ignores Range restarts the file', () async {
     final release = _Release(key: key);
     await File(
-      '${staging.path}/slim-m-client-0.90.0-linux-amd64.tar.gz.part',
+      '${staging.path}/slim-m-client-0.90.0-linux-amd64.tar.gz.${_sha(release.payload).substring(0, 16)}.part',
     ).writeAsBytes(release.payload.sublist(0, 100));
     final client = await _server(release);
     final update = await run(client);
