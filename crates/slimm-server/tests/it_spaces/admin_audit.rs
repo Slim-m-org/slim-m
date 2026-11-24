@@ -14,73 +14,11 @@ use slimm_server::permissions::Permissions;
 use slimm_server::store::{Store, User};
 use tower::ServiceExt;
 
+use crate::admin_audit_exempt as exempt_routes;
 use crate::support;
 use support::app::{app, json_body};
 
 use support::openapi::{Method, extract_router_routes};
-
-/// Mutating routes that are not admin changes to the space. Member moderation
-/// is in `moderation_audit_log`; the rest act on the caller's own things or on
-/// content, never on how the space is set up.
-const EXEMPT_PREFIXES: &[&str] = &[
-    "/account",
-    "/admin/",
-    "/apps",
-    "/attachments",
-    "/auth/",
-    "/blocks",
-    "/bots",
-    "/calls",
-    "/favorites",
-    "/identity/",
-    "/channels/{channel_id}/canvas",
-    "/channels/{channel_id}/messages",
-    "/channels/{channel_id}/module-rooms",
-    "/channels/{channel_id}/notification",
-    "/channels/{channel_id}/pins",
-    "/channels/{channel_id}/read",
-    "/channels/{channel_id}/threads",
-    "/channels/{channel_id}/typing",
-    "/space/alerts",
-    "/space/themes",
-    "/channels/{channel_id}/voice",
-    "/channels/{channel_id}/unread",
-    "/channels/{channelId}/",
-    // A connector answering a member's run with its own token, never an admin change.
-    "/connectors/me/runs/",
-    "/debug-logs",
-    "/devices",
-    "/diagnostics/",
-    "/dms",
-    "/exports/member",
-    "/exports/{export_id}",
-    "/gifs",
-    "/interactions",
-    "/invites/{code}/redeem",
-    "/me",
-    "/notification",
-    "/members/bulk",
-    "/members/{user_id}/account",
-    "/members/{user_id}/nickname",
-    "/members/{user_id}/removal",
-    "/members/{user_id}/timeout",
-    "/messages",
-    "/modules/",
-    "/polls",
-    "/presence",
-    "/push",
-    "/read-states",
-    "/reports",
-    "/saved",
-    "/space/dock/packages/preview",
-    "/space/rules/accept",
-    "/sync",
-    "/totp",
-    "/uploads",
-    "/users",
-    "/voice",
-    "/webhooks",
-];
 
 #[test]
 fn every_mutating_route_is_audited_or_exempt() {
@@ -93,16 +31,38 @@ fn every_mutating_route_is_audited_or_exempt() {
         let audited = AUDITED_ROUTES
             .iter()
             .any(|a| a.method.as_str() == route.method.as_str() && a.path == route.path);
-        let exempt = EXEMPT_PREFIXES.iter().any(|p| route.path.starts_with(p));
+        let exempt = exempt_routes::EXEMPT_ROUTES
+            .iter()
+            .any(|(method, path, _)| *method == route.method.as_str() && *path == route.path);
         if !audited && !exempt {
             missing.push(format!("{} {}", route.method.as_str(), route.path));
         }
     }
     assert!(
         missing.is_empty(),
-        "add these to AUDITED_ROUTES (http/admin_audit.rs) or EXEMPT_PREFIXES here:\n{}",
+        "add these to AUDITED_ROUTES (http/admin_audit.rs) or admin_audit_exempt.rs with a note:\n{}",
         missing.join("\n")
     );
+}
+
+#[test]
+fn every_exempt_entry_is_a_real_unaudited_route() {
+    let routes = extract_router_routes(Path::new(env!("CARGO_MANIFEST_DIR")));
+    for (method, path, note) in exempt_routes::EXEMPT_ROUTES {
+        assert!(!note.is_empty(), "{method} {path} needs a note");
+        assert!(
+            routes
+                .iter()
+                .any(|r| r.method.as_str() == *method && r.path == *path),
+            "{method} {path} is exempt but not served"
+        );
+        assert!(
+            !AUDITED_ROUTES
+                .iter()
+                .any(|a| a.method.as_str() == *method && a.path == *path),
+            "{method} {path} is both audited and exempt"
+        );
+    }
 }
 
 #[test]

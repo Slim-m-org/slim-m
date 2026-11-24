@@ -151,6 +151,13 @@ enum AuditLogAction {
 
   /// The subject's timeout ended because they became the owner; the actor is null.
   ownerTimeoutEnded,
+
+  /// A moderator pinned or unpinned someone else's message; the reason says which.
+  messagePinChanged,
+
+  /// A moderator removed the link previews of someone else's message.
+  messagePreviewRemoved,
+  webhookRename,
   unknown;
 
   static AuditLogAction parse(String wire) => switch (wire) {
@@ -174,6 +181,9 @@ enum AuditLogAction {
         'voice_move' => AuditLogAction.voiceMove,
         'owner_handoff' => AuditLogAction.ownerHandoff,
         'owner_timeout_ended' => AuditLogAction.ownerTimeoutEnded,
+        'message_pin_changed' => AuditLogAction.messagePinChanged,
+        'message_preview_removed' => AuditLogAction.messagePreviewRemoved,
+        'webhook_rename' => AuditLogAction.webhookRename,
         _ => AuditLogAction.unknown,
       };
 }

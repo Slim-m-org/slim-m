@@ -40,11 +40,14 @@ pub(crate) enum ModerationAction {
     VoiceMove,
     OwnerHandoff,
     OwnerTimeoutEnded,
+    MessagePinChanged,
+    MessagePreviewRemoved,
+    WebhookRename,
 }
 
 impl ModerationAction {
     #[cfg(test)]
-    pub(crate) const ALL: [Self; 20] = [
+    pub(crate) const ALL: [Self; 23] = [
         Self::Remove,
         Self::Restore,
         Self::Timeout,
@@ -65,6 +68,9 @@ impl ModerationAction {
         Self::VoiceMove,
         Self::OwnerHandoff,
         Self::OwnerTimeoutEnded,
+        Self::MessagePinChanged,
+        Self::MessagePreviewRemoved,
+        Self::WebhookRename,
     ];
 
     pub(crate) fn as_str(self) -> &'static str {
@@ -89,6 +95,9 @@ impl ModerationAction {
             Self::VoiceMove => "voice_move",
             Self::OwnerHandoff => "owner_handoff",
             Self::OwnerTimeoutEnded => "owner_timeout_ended",
+            Self::MessagePinChanged => "message_pin_changed",
+            Self::MessagePreviewRemoved => "message_preview_removed",
+            Self::WebhookRename => "webhook_rename",
         }
     }
 }
@@ -154,7 +163,7 @@ pub(super) async fn record_system_moderation_audit(
 }
 
 impl Store {
-    /// Writes down that `actor` moved `subject` between two calls; `route` reads like "lobby to games".
+    /// Writes down that `actor` moved `subject` between two calls; `route` is "<from id> to <to id>".
     pub async fn record_voice_move(
         &self,
         actor: UserId,
@@ -212,6 +221,9 @@ mod tests {
                 ModerationAction::BotTokenReissue => 17,
                 ModerationAction::OwnerHandoff => 18,
                 ModerationAction::OwnerTimeoutEnded => 19,
+                ModerationAction::MessagePinChanged => 20,
+                ModerationAction::MessagePreviewRemoved => 21,
+                ModerationAction::WebhookRename => 22,
             }
         }
         let mut seen = vec![false; ModerationAction::ALL.len()];

@@ -222,7 +222,11 @@ async fn rename(
     validate_label(label, "label must be 1 to 64 characters")?;
     reachable(&state, ctx.user_id, webhook_id).await?;
 
-    match state.store.rename_webhook(webhook_id, label).await? {
+    match state
+        .store
+        .rename_webhook(webhook_id, label, ctx.user_id)
+        .await?
+    {
         Some(webhook) => Ok(Json(webhook.into())),
         None => Err(ApiError::NotFound("no such webhook")),
     }

@@ -74,6 +74,23 @@ impl Store {
         Ok(written.rows_affected() == 1)
     }
 
+    /// Deletes both audit logs' rows older than `cutoff_ms`; answers how many went.
+    pub async fn prune_audit_logs(&self, cutoff_ms: i64) -> anyhow::Result<u64> {
+        let admin = sqlx::query!(
+            "DELETE FROM admin_audit_log WHERE created_at < ?",
+            cutoff_ms
+        )
+        .execute(&self.pool)
+        .await?;
+        let moderation = sqlx::query!(
+            "DELETE FROM moderation_audit_log WHERE created_at < ?",
+            cutoff_ms
+        )
+        .execute(&self.pool)
+        .await?;
+        Ok(admin.rows_affected() + moderation.rows_affected())
+    }
+
     /// Up to `limit` changes older than `before` (an entry id), newest first.
     pub async fn admin_changes(
         &self,

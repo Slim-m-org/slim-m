@@ -181,6 +181,7 @@ impl Store {
         &self,
         webhook_id: WebhookId,
         label: &str,
+        renamed_by: UserId,
     ) -> anyhow::Result<Option<Webhook>> {
         let mut tx = self.begin_write().await?;
         let user_id = sqlx::query_scalar!(
@@ -205,6 +206,18 @@ impl Store {
             user_id
         )
         .execute(&mut *tx)
+        .await?;
+        record_moderation_audit(
+            &mut tx,
+            ModerationAudit {
+                actor_id: renamed_by,
+                subject_id: user_id,
+                action: ModerationAction::WebhookRename,
+                reason: Some(label),
+                until: None,
+                created_at: now_ms(),
+            },
+        )
         .await?;
         tx.commit().await?;
         self.webhook_by_id(webhook_id).await

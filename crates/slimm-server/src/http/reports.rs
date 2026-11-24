@@ -29,6 +29,7 @@ pub(in crate::http) use self::reports_guards::report_visible_in;
 use self::reports_guards::{missing_or_closed, require_manage_messages};
 use self::reports_mine::my_report_status;
 use self::reports_pictures::Viewer;
+use self::reports_voice_move::resolve_voice_moves;
 use super::AppState;
 use super::error::ApiError;
 use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, Query, enforce};
@@ -43,6 +44,7 @@ pub(super) mod reports_cursor;
 pub(super) mod reports_guards;
 pub(super) mod reports_mine;
 mod reports_pictures;
+mod reports_voice_move;
 
 const BODY_LIMIT: usize = 4 * 1024;
 
@@ -338,10 +340,11 @@ async fn history(
         let hidden = hidden_channels(&state, ctx.user_id, &report_channel_ids).await?;
         (hidden, Viewer::Moderator(ctx.user_id))
     };
-    let items = state
+    let mut items = state
         .store
         .moderation_history(after, &hidden, limit)
         .await?;
+    resolve_voice_moves(&state, ctx.user_id, &mut items).await?;
 
     let mut dtos: Vec<_> = items
         .into_iter()
