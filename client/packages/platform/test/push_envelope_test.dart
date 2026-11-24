@@ -140,6 +140,18 @@ void main() {
       expect(envelope.channelId, 'c1');
     });
 
+    test('a call ring exposes its ring id and caller name', () {
+      final envelope = decode({
+        ..._message(),
+        'kind': 'call',
+        'ring_id': 'r1',
+        'caller_name': 'Ana',
+      })!;
+      expect(envelope.ringId, 'r1');
+      expect(envelope.callerName, 'Ana');
+      expect(decode({..._message(), 'ring_id': 5}), isNull);
+    });
+
     test('a fresh or absent sent_at is not stale', () {
       final fresh = now.subtract(const Duration(minutes: 9));
       expect(

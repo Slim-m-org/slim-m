@@ -20,6 +20,7 @@ import 'dart:convert';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:slimm_platform/platform.dart';
 
+import '../features/accounts/providers/notification_target.dart';
 import '../ids.dart';
 
 /// Mirrors the relay's own `genericAlert` map (see
@@ -41,6 +42,8 @@ const _genericAlerts = <String, ({String text, LocalAlertChannel channel})>{
     text: 'New sign-in to your account',
     channel: LocalAlertChannel.security,
   ),
+  'voice': (text: 'Voice channel activity', channel: LocalAlertChannel.voice),
+  'admin_alert': (text: 'Server alert', channel: LocalAlertChannel.security),
 };
 
 /// The fixed, content-free text to show for a push of this `kind`, or null
@@ -80,6 +83,25 @@ String callerNameFor(Map<String, dynamic> data) {
 String callIdFor(Map<String, dynamic> data) {
   final raw = data['call_id'];
   return raw is String && raw.isNotEmpty ? raw : newMessageId();
+}
+
+/// The incoming-call action for [data], taking the caller and ring id from
+/// the sealed envelope in `payload` and keeping [actionFor]'s fallbacks
+/// whenever it does not open.
+Future<PushActionIncomingCall> incomingCallFor(
+  Map<String, dynamic> data,
+  KeyStore keys,
+) async {
+  final envelope = await _openEnvelope(data, keys);
+  final callerName = envelope?.callerName;
+  final ringId = envelope?.ringId;
+  final fallback = actionFor(data) as PushActionIncomingCall;
+  return PushActionIncomingCall(
+    callId: ringId != null && ringId.isNotEmpty ? ringId : fallback.callId,
+    callerName: callerName != null && callerName.isNotEmpty
+        ? callerName
+        : fallback.callerName,
+  );
 }
 
 /// What one push should do to this device's notification shade: nothing, the
@@ -149,17 +171,30 @@ Future<OpenedPreview?> openPreview(
   KeyStore keys, {
   DateTime? now,
 }) async {
-  final payload = data['payload'];
-  final envelope = await openPushPayload(
-    payload is String ? payload : null,
-    keys,
-  );
-  final text = envelope?.preview(now ?? DateTime.now());
+  return previewOf(await _openEnvelope(data, keys), now ?? DateTime.now());
+}
+
+/// [envelope]'s preview and the id it shows under, or null when it has none.
+OpenedPreview? previewOf(PushEnvelope? envelope, DateTime now) {
+  final text = envelope?.preview(now);
   if (envelope == null || text == null) return null;
   return (
     text: text,
     notificationId: previewNotificationId(envelope.channelId),
   );
+}
+
+Future<PushEnvelope?> _openEnvelope(Map<String, dynamic> data, KeyStore keys) {
+  final payload = data['payload'];
+  return openPushPayload(payload is String ? payload : null, keys);
+}
+
+/// The tap payload that opens the channel a push came from, or null when the
+/// envelope names none.
+String? tapPayloadFor(PushEnvelope? envelope) {
+  final channelId = envelope?.channelId;
+  if (channelId == null || channelId.isEmpty) return null;
+  return NotificationTarget(channelId: channelId).encode();
 }
 
 /// One notification per conversation: two chats stack, one chat shows its
@@ -201,20 +236,24 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     case PushActionNone():
       return;
     case PushActionGenericAlert(:final text, :final channel):
-      final preview = await openPreview(
-        message.data,
-        createPersistentKeyStore(),
-      );
+      final keys = createPersistentKeyStore();
+      final envelope = await _openEnvelope(message.data, keys);
+      final preview = previewOf(envelope, DateTime.now());
       await LocalNotifications().show(
         preview?.text.body ?? text,
         channel: channel,
         title: preview == null ? null : previewTitle(preview.text),
         id: preview?.notificationId,
+        payload: tapPayloadFor(envelope),
       );
-    case PushActionIncomingCall(:final callId, :final callerName):
+    case PushActionIncomingCall():
+      final call = await incomingCallFor(
+        message.data,
+        createPersistentKeyStore(),
+      );
       await CallNotifications().showIncomingCall(
-        callId: callId,
-        callerName: callerName,
+        callId: call.callId,
+        callerName: call.callerName,
       );
     case PushActionEndCall():
       await CallNotifications().endIncomingCalls();

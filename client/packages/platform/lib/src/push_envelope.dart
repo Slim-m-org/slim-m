@@ -33,6 +33,8 @@ const _optionalStrings = [
   'event',
   'device_name',
   'title',
+  'ring_id',
+  'caller_name',
 ];
 
 /// Title, body and optional channel to show instead of the generic line.
@@ -86,6 +88,8 @@ class PushEnvelope {
 
   String? get channelId => _json['channel_id'] as String?;
   int? get sentAt => _json['sent_at'] as int?;
+  String? get ringId => _json['ring_id'] as String?;
+  String? get callerName => _json['caller_name'] as String?;
 
   /// An envelope with no `sent_at` is never stale: the field is additive.
   bool isStale(DateTime now) {

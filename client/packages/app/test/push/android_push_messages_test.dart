@@ -130,6 +130,23 @@ void main() {
       expect(alert.channel, LocalAlertChannel.security);
     });
 
+    test('voice becomes a generic alert on the voice channel', () {
+      final action = actionFor({'kind': 'voice', 'payload': 'sealed'});
+      expect(action, isA<PushActionGenericAlert>());
+      expect(
+        (action as PushActionGenericAlert).channel,
+        LocalAlertChannel.voice,
+      );
+    });
+
+    test('admin_alert becomes a generic alert on the security channel', () {
+      final action = actionFor({'kind': 'admin_alert', 'payload': 'sealed'});
+      expect(action, isA<PushActionGenericAlert>());
+      final alert = action as PushActionGenericAlert;
+      expect(alert.text, 'Server alert');
+      expect(alert.channel, LocalAlertChannel.security);
+    });
+
     test('call_end becomes an end-call action, not an alert or a ring', () {
       expect(actionFor({'kind': 'call_end'}), isA<PushActionEndCall>());
       expect(

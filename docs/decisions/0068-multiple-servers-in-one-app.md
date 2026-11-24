@@ -192,5 +192,5 @@ Diagnostics write to one log shared by every account, and every account's sessio
 Left, each a real gap rather than a deferral for its own sake:
 
 - A push for a channel the device has never synced cannot name its server, so it opens on the account on screen. Naming the server in the push envelope needs a server and native change.
-- Android background notifications are still sealed and carry no channel, so a tap only raises the app.
+- Android background notifications carry the channel in their payload, so a tap while the app runs opens it; a tap that cold-starts the app only raises it.
 - Real-device behaviour of several sockets and push registrations on mobile has not been measured.
