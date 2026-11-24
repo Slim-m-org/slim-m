@@ -53,7 +53,7 @@ class InputLevelMeter extends StatelessWidget {
   final bool compact;
 
   static const _barHeight = 14.0;
-  static const _hitHeight = 32.0;
+  static const _lineHeight = 32.0;
 
   @override
   Widget build(BuildContext context) {
@@ -116,6 +116,9 @@ class InputLevelMeter extends StatelessWidget {
       builder: (context, box) {
         final width = box.maxWidth;
         final adjustable = onChanged != null;
+        final hitHeight = AppTouchTargets.of(context)
+            ? AppSizes.rowTouch
+            : _lineHeight;
         return Semantics(
           label: semanticLabel,
           value: auto
@@ -136,8 +139,8 @@ class InputLevelMeter extends StatelessWidget {
                 onHorizontalDragUpdate: (d) =>
                     _dragTo(d.localPosition.dx, width),
                 child: SizedBox(
-                  height: _hitHeight,
-                  child: _trackWithLine(tokens, width),
+                  height: hitHeight,
+                  child: _trackWithLine(tokens, width, hitHeight),
                 ),
               ),
             ),
@@ -147,7 +150,7 @@ class InputLevelMeter extends StatelessWidget {
     );
   }
 
-  Widget _trackWithLine(AppTokens tokens, double width) {
+  Widget _trackWithLine(AppTokens tokens, double width, double hitHeight) {
     final lineX = inputLevelFraction(thresholdDb) * width;
     return Stack(
       alignment: Alignment.centerLeft,
@@ -163,8 +166,8 @@ class InputLevelMeter extends StatelessWidget {
           duration: AppMotion.fast,
           curve: Curves.easeOut,
           left: lineX - 2,
-          top: 0,
-          bottom: 0,
+          top: (hitHeight - _lineHeight) / 2,
+          bottom: (hitHeight - _lineHeight) / 2,
           child: Container(
             key: const ValueKey('input-threshold-line'),
             width: 4,

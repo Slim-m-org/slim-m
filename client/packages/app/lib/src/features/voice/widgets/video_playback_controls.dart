@@ -106,6 +106,7 @@ class _VideoPlaybackControlsState extends State<VideoPlaybackControls>
     with WidgetsBindingObserver {
   bool _visible = true;
   bool _visibilityChosen = false;
+  bool _focusInside = false;
 
   /// The level unmuting returns to, so mute then unmute keeps a chosen volume.
   double _unmutedVolume = 100;
@@ -196,11 +197,17 @@ class _VideoPlaybackControlsState extends State<VideoPlaybackControls>
   /// paused or already-hidden never schedules one.
   void _syncAutoHide() {
     _hideTimer?.cancel();
-    if (_playing && _visible) {
+    if (_playing && _visible && !_focusInside) {
       _hideTimer = Timer(widget.autoHideDelay, () {
         if (mounted) setState(() => _visible = false);
       });
     }
+  }
+
+  void _onFocusChange(bool focused) {
+    _focusInside = focused;
+    if (focused) _showControls();
+    _syncAutoHide();
   }
 
   void _showControls() {
@@ -210,7 +217,7 @@ class _VideoPlaybackControlsState extends State<VideoPlaybackControls>
 
   void _onExit() {
     // A scrub drag can leave the frame; hiding mid-drag would drop the thumb.
-    if (_scrubMs != null) return;
+    if (_scrubMs != null || _focusInside) return;
     _hideTimer?.cancel();
     setState(() => _visible = false);
   }
@@ -268,58 +275,64 @@ class _VideoPlaybackControlsState extends State<VideoPlaybackControls>
   @override
   Widget build(BuildContext context) {
     final fade = AppMotion.reduced(context, AppMotion.fast);
-    return MouseRegion(
-      onEnter: (_) => _showControls(),
-      onHover: (_) => _showControls(),
-      onExit: (_) => _onExit(),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          widget.child,
-          Positioned.fill(
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: _handleTap,
+    return Focus(
+      onFocusChange: _onFocusChange,
+      child: MouseRegion(
+        onEnter: (_) => _showControls(),
+        onHover: (_) => _showControls(),
+        onExit: (_) => _onExit(),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            widget.child,
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _handleTap,
+              ),
             ),
-          ),
-          // Forced dark: see the class doc for why this ignores the app theme.
-          Theme(
-            data: forcedDarkTheme,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                if (!_visible && !_playing)
-                  Center(child: _CenterPlayButton(onPressed: _togglePlay)),
-                AnimatedOpacity(
-                  opacity: _visible ? 1 : 0,
-                  duration: fade,
-                  curve: AppMotion.entrance,
-                  child: IgnorePointer(
-                    ignoring: !_visible,
-                    child: Align(
-                      alignment: Alignment.bottomCenter,
-                      child: VideoControlsBar(
-                        playing: _playing,
-                        position: _position,
-                        duration: _duration,
-                        scrubMs: _scrubMs,
-                        volume: _volume,
-                        isFullscreen: widget.isFullscreen,
-                        saving: widget.saving,
-                        onPlayPause: _togglePlay,
-                        onScrub: _scrub,
-                        onToggleMute: _toggleMute,
-                        onVolume: _setVolume,
-                        onToggleFullscreen: widget.onToggleFullscreen,
-                        onSave: widget.onSave,
+            // Forced dark: see the class doc for why this ignores the app theme.
+            Theme(
+              data: forcedDarkTheme,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (!_visible && !_playing)
+                    Center(child: _CenterPlayButton(onPressed: _togglePlay)),
+                  AnimatedOpacity(
+                    opacity: _visible ? 1 : 0,
+                    duration: fade,
+                    curve: AppMotion.entrance,
+                    child: IgnorePointer(
+                      ignoring: !_visible,
+                      child: ExcludeFocus(
+                        excluding: !_visible,
+                        child: Align(
+                          alignment: Alignment.bottomCenter,
+                          child: VideoControlsBar(
+                            playing: _playing,
+                            position: _position,
+                            duration: _duration,
+                            scrubMs: _scrubMs,
+                            volume: _volume,
+                            isFullscreen: widget.isFullscreen,
+                            saving: widget.saving,
+                            onPlayPause: _togglePlay,
+                            onScrub: _scrub,
+                            onToggleMute: _toggleMute,
+                            onVolume: _setVolume,
+                            onToggleFullscreen: widget.onToggleFullscreen,
+                            onSave: widget.onSave,
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

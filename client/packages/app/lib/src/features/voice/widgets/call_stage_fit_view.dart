@@ -125,11 +125,12 @@ class _CallStageFitViewState extends State<CallStageFitView> {
           clipBehavior: Clip.none,
           children: [
             for (final item in content.items)
-              place(
-                item.id,
-                fit.items[item.id]!,
-                _contentTile(context, item, byId, content),
-              ),
+              if (fit.items[item.id] case final rect?)
+                place(
+                  item.id,
+                  rect,
+                  _contentTile(context, item, byId, content),
+                ),
             ..._peopleTiles(context, content, fit),
           ],
         );

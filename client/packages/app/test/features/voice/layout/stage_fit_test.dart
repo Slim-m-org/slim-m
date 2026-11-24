@@ -8,6 +8,7 @@ import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/voice/layout/stage_fit.dart';
+import 'package:slimm_app/src/features/voice/layout/stage_fit_candidates.dart';
 
 const _gap = 12.0;
 const _w1280 = Size(992, 632);
@@ -48,6 +49,18 @@ void _expectClear(StageFit fit) {
 }
 
 void main() {
+  test('a box with no height fits nothing, whatever is in the call', () {
+    final fit = _fit(const Size(400, 0), [..._shares(2), ..._cams(3)], 4);
+    expect(fit.items, isEmpty);
+    expect(fit.people, isEmpty);
+  });
+
+  test('one fit scores a region once however many plans share it', () {
+    final fits = ContentFits(_cams(12), _gap);
+    const region = Rect.fromLTWH(0, 0, 900, 500);
+    expect(identical(fits.best(region), fits.best(region)), isTrue);
+  });
+
   final scenarios = <String, (Size, List<StageItem>, int)>{
     'six shares 1280': (_w1280, _shares(6), 0),
     'six shares 1920': (_w1920, _shares(6), 0),

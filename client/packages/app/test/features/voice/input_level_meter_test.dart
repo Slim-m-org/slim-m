@@ -19,6 +19,27 @@ void main() {
   const above = ValueKey('input-level-above');
   const below = ValueKey('input-level-below');
 
+  testWidgets('on a phone the bar is a full touch target tall', (tester) async {
+    await tester.pumpWidget(
+      AppTouchTargets(
+        enabled: true,
+        child: _harness(
+          InputLevelMeter(
+            key: inputLevelMeterKey,
+            thresholdDb: -40,
+            status: InputLevelStatus.waiting,
+            compact: true,
+            onChanged: (_) {},
+          ),
+        ),
+      ),
+    );
+    expect(
+      tester.getSize(find.byKey(inputLevelMeterKey)).height,
+      greaterThanOrEqualTo(AppSizes.rowTouch),
+    );
+  });
+
   testWidgets('a level past the line draws accent beyond it', (tester) async {
     await tester.pumpWidget(
       _harness(

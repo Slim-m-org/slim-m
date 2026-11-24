@@ -224,6 +224,40 @@ void main() {
     expect(ids.first, ids.last, reason: 'a retry is the same mark');
   });
 
+  testWidgets('a note is counted in code points, as the server counts it', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      Consumer(
+        builder: (context, ref, _) => TextButton(
+          onPressed: () => unawaited(showCallNoteSheet(context)),
+          child: const Text('open'),
+        ),
+      ),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    const family = '\u{1F468}\u200D\u{1F469}\u200D\u{1F467}\u200D\u{1F466}';
+    bool saveDisabled() =>
+        tester.widget<AppButton>(find.byKey(callNoteSaveKey)).disabled;
+
+    await tester.enterText(
+      find.byKey(callNoteFieldKey),
+      '${family * 71}${'a' * 3}',
+    );
+    await tester.pump();
+    expect(saveDisabled(), isFalse, reason: '500 code points, 74 graphemes');
+
+    await tester.enterText(
+      find.byKey(callNoteFieldKey),
+      '${family * 71}${'a' * 4}',
+    );
+    await tester.pump();
+    expect(saveDisabled(), isTrue, reason: '501 code points, 75 graphemes');
+  });
+
   testWidgets('no button without VIEW_TRANSCRIPTS or a running transcript', (
     tester,
   ) async {
