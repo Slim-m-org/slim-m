@@ -2,7 +2,10 @@
 //! What a failing hook leaves behind: no module text, no unchecked sends past a
 //! fail-closed hook, an audit row for the server's own disables, per-hook stats.
 
+use std::time::Duration;
+
 use serde_json::{Value, json};
+use slimm_server::admin_alerts::{Monitor, MonitorSettings};
 use slimm_server::ids::ChannelId;
 use slimm_server::permissions::Permissions;
 use slimm_server::store::{HookChange, HookKind};
@@ -111,6 +114,46 @@ async fn a_fail_closed_hook_that_keeps_failing_keeps_refusing_and_alerts() {
         alerts.iter().any(|a| a.kind == "module_breaker"
             && a.subject == "strict"
             && a.resolved_at.is_none()),
+        "{alerts:?}"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_monitor_keeps_a_kept_on_hooks_alert_open_while_it_still_fails() {
+    let w = world("slimm-hooks-closed-monitor").await;
+    let channel = general(&w).await;
+    w.install_hook_module(HookModule {
+        id: "strict",
+        wasm: trapping(),
+        hooks: vec![interceptor(SEND, "reject", &["content"])],
+    })
+    .await;
+    let closed = HookChange {
+        priority: None,
+        fail_closed: Some(true),
+    };
+    let key = (HookKind::Interceptor, SEND, "reject");
+    w.store
+        .update_module_hook("strict", key, closed)
+        .await
+        .unwrap();
+    for n in 0..6 {
+        w.say(channel, &format!("message {n}")).await;
+    }
+    let (path, _guard) = support::TestDirGuard::new("slimm-hooks-monitor-status");
+    std::fs::create_dir_all(&path).unwrap();
+    let settings = MonitorSettings {
+        data_dir: std::env::temp_dir(),
+        backup_status_dir: Some(path.to_string_lossy().into_owned()),
+        min_disk_free_mb: 0,
+    };
+    let mut monitor = Monitor::new(&w.state, settings);
+    monitor.tick(0, Duration::from_secs(60)).await;
+    let alerts = w.store.list_admin_alerts(0).await.unwrap();
+    assert!(
+        alerts
+            .iter()
+            .any(|a| a.kind == "module_breaker" && a.resolved_at.is_none()),
         "{alerts:?}"
     );
 }

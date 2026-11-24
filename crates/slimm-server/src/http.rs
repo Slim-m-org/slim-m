@@ -120,6 +120,7 @@ mod module_slot_nodes;
 mod module_slots;
 pub(crate) mod module_timers;
 pub(crate) mod scene_refresh;
+pub(crate) use module_breaker::FAILURE_LIMIT;
 pub use module_events::{EventConsumer, spawn_module_events};
 pub use module_schedule::run_due as run_scheduled_modules;
 pub use module_timers::run_due as run_module_timers;
