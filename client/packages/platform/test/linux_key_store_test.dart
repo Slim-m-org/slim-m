@@ -80,12 +80,13 @@ void main() {
   });
 
   test('the probe leaves nothing behind in the Secret Service', () async {
-    final keyring = InMemoryKeyStore();
+    final keyring = _Recording();
     final store = LinuxKeyStore(file: file, secretService: keyring);
 
     await store.read('anything');
 
-    expect(await keyring.read(LinuxKeyStore.probeHandle), isNull);
+    expect(keyring.written, hasLength(1));
+    expect(await keyring.read(keyring.written.single), isNull);
   });
 
   test('delete and clear reach the store in use', () async {
@@ -98,6 +99,12 @@ void main() {
     expect(await keyring.read('a'), isNull);
     await store.clear();
     expect(await keyring.read('b'), isNull);
+  });
+
+  testWidgets('an answered probe leaves no timer pending', (tester) async {
+    final store = LinuxKeyStore(file: file, secretService: InMemoryKeyStore());
+
+    await tester.runAsync(() => store.read('anything'));
   });
 
   test('createPersistentKeyStore picks this store on Linux', () {
@@ -118,6 +125,16 @@ class _Unavailable extends InMemoryKeyStore {
       throw StateError('org.freedesktop.secrets was not provided');
 }
 
+class _Recording extends InMemoryKeyStore {
+  final written = <String>[];
+
+  @override
+  Future<KeyHandle> put(String name, String secret) {
+    written.add(name);
+    return super.put(name, secret);
+  }
+}
+
 class _Hanging extends InMemoryKeyStore {
   @override
   Future<KeyHandle> put(String name, String secret) =>
@@ -128,7 +145,9 @@ class _Hanging extends InMemoryKeyStore {
 class _ProbeOnly extends InMemoryKeyStore {
   @override
   Future<KeyHandle> put(String name, String secret) async {
-    if (name != LinuxKeyStore.probeHandle) throw StateError('refused');
+    if (!name.startsWith(LinuxKeyStore.probeHandle)) {
+      throw StateError('refused');
+    }
     return super.put(name, secret);
   }
 }

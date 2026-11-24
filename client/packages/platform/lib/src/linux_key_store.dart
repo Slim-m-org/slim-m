@@ -27,10 +27,6 @@ class LinuxKeyStore implements KeyStore {
   })  : _file = file ?? FileKeyStore(),
         _secretService = secretService;
 
-  /// One instance for the process, so every caller shares one choice and one
-  /// file queue.
-  static final LinuxKeyStore shared = LinuxKeyStore();
-
   @visibleForTesting
   static const probeHandle = 'slimm.secret-service.probe';
 
@@ -53,7 +49,7 @@ class LinuxKeyStore implements KeyStore {
 
   Future<bool> _answers(KeyStore keyring) async {
     try {
-      return await _roundTrip(keyring).timeout(probeTimeout);
+      return await _withDeadline(_roundTrip(keyring));
     } catch (error, stack) {
       AppLog.swallowed(
           LogTag.auth,
@@ -64,10 +60,31 @@ class LinuxKeyStore implements KeyStore {
     }
   }
 
+  /// Waits on the wall clock: a native call that never returns must not be
+  /// able to stall on, or be held open by, a fake clock.
+  Future<bool> _withDeadline(Future<bool> attempt) {
+    final result = Completer<bool>();
+    final deadline = Zone.root.createTimer(probeTimeout, () {
+      if (!result.isCompleted) result.complete(false);
+    });
+    attempt.then<void>(
+      (answered) {
+        deadline.cancel();
+        if (!result.isCompleted) result.complete(answered);
+      },
+      onError: (Object error, StackTrace stack) {
+        deadline.cancel();
+        if (!result.isCompleted) result.completeError(error, stack);
+      },
+    );
+    return result.future;
+  }
+
   Future<bool> _roundTrip(KeyStore keyring) async {
-    await keyring.put(probeHandle, 'probe');
-    final back = await keyring.read(probeHandle);
-    await keyring.delete(probeHandle);
+    final handle = '$probeHandle.${identityHashCode(this)}';
+    await keyring.put(handle, 'probe');
+    final back = await keyring.read(handle);
+    await keyring.delete(handle);
     return back == 'probe';
   }
 

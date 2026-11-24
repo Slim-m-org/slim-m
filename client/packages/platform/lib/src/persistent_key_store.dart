@@ -382,7 +382,7 @@ KeyStore createPersistentKeyStore({HostPlatformKind? platform}) {
     );
   }
   if (kind.usesSecureBackend) return SecureKeyStore();
-  return LinuxKeyStore.shared;
+  return LinuxKeyStore();
 }
 
 /// Moves secrets an earlier build left in [FileKeyStore] into
