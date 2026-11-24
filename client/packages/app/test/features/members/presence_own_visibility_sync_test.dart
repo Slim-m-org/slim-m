@@ -66,6 +66,63 @@ void main() {
   });
 
   test(
+    'an own frame that names the stored visibility does not refetch /me',
+    () async {
+      final events = StreamController<ServerEvent>.broadcast();
+      addTearDown(events.close);
+      var meRequests = 0;
+      final container = ProviderContainer(
+        overrides: [
+          keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+          sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
+          liveEventsProvider.overrideWithValue(events.stream),
+          mockApiOverride((request) async {
+            meRequests++;
+            return http.Response(
+              jsonEncode({
+                'id': 'self',
+                'username': 'self',
+                'display_name': 'Self',
+                'created_at': 0,
+                'permissions': 0,
+                'presence_visibility': 'online',
+              }),
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.listen(presenceControllerProvider, (_, _) {});
+      container.listen(ownVisibilityProvider, (_, _) {});
+      await container.read(meProvider.future);
+      await pumpEventQueue();
+      final before = meRequests;
+
+      events.add(
+        const PresenceChanged(
+          userId: 'self',
+          status: PresenceState.online,
+          visibility: 'online',
+        ),
+      );
+      await pumpEventQueue();
+      expect(meRequests, before);
+
+      events.add(
+        const PresenceChanged(
+          userId: 'self',
+          status: PresenceState.online,
+          visibility: 'hidden',
+        ),
+      );
+      await pumpEventQueue();
+      expect(meRequests, greaterThan(before));
+    },
+  );
+
+  test(
     'a malformed /me answer is reported, not thrown as an async error',
     () async {
       final container = ProviderContainer(

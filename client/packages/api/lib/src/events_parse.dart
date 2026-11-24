@@ -243,6 +243,7 @@ ServerEvent? rosterFrame(Map<String, dynamic> decoded) {
         status: presenceStateOf(decoded['status'])!,
         activity: PresenceActivity.tryFromJson(decoded['activity']),
         devices: PresenceDevice.parseAll(decoded['devices']),
+        visibility: decoded['visibility'] as String?,
       ),
     'member.timeout' when decoded['user_id'] is String => MemberTimeoutChanged(
         userId: decoded['user_id'] as String,

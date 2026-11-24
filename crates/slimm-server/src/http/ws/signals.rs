@@ -159,13 +159,13 @@ pub(super) async fn change_status(
     hub: &Hub,
     viewer: UserId,
     change: &PresenceChange,
-) -> anyhow::Result<Option<Status>> {
+) -> anyhow::Result<Option<(Status, Visibility)>> {
     let target = change.user_id;
     let visibility = match hub.presence().visibility(target) {
         Some(cached) => Some(cached),
         None => change.stored_visibility(store).await?,
     };
-    Ok(visibility.map(|v| status_given(hub, viewer, target, v)))
+    Ok(visibility.map(|v| (status_given(hub, viewer, target, v), v)))
 }
 
 fn status_given(hub: &Hub, viewer: UserId, target: UserId, visibility: Visibility) -> Status {
@@ -219,10 +219,16 @@ pub(super) async fn may_hear_typing_stop(
 }
 
 /// The frame telling a viewer `target`'s resolved status, and the activity
-/// that status permits them to see.
-pub(super) fn presence_frame(hub: &Hub, target: UserId, status: Status) -> ServerFrame {
+/// that status permits them to see. `visibility` is told only to the account it belongs to.
+pub(super) fn presence_frame(
+    hub: &Hub,
+    viewer: UserId,
+    target: UserId,
+    (status, visibility): (Status, Visibility),
+) -> ServerFrame {
     ServerFrame::PresenceChanged {
         user_id: target.to_string(),
+        visibility: (viewer == target).then(|| visibility.as_str()),
         status: status.as_str().to_owned(),
         activity: hub.presence().activity_visible_at(target, status),
         devices: hub.presence().device_names_visible_at(target, status),

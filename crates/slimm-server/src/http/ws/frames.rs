@@ -175,6 +175,9 @@ pub(super) enum ServerFrame {
     PresenceChanged {
         user_id: String,
         status: String,
+        /// The account's own chosen visibility, sent only to its own sockets.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        visibility: Option<&'static str>,
         #[serde(skip_serializing_if = "Option::is_none")]
         activity: Option<crate::presence_activity::Activity>,
         #[serde(skip_serializing_if = "Vec::is_empty")]

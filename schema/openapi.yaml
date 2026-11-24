@@ -24316,6 +24316,10 @@ components:
         status:
           type: string
           enum: [online, away, dnd, offline]
+        visibility:
+          type: string
+          enum: [online, away, dnd, hidden]
+          description: The account's own chosen visibility. Present only on a frame about the receiving account itself, so its other devices need not refetch `/me`.
         activity:
           $ref: "#/components/schemas/PresenceActivity"
         devices:

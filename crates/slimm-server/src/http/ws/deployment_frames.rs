@@ -28,7 +28,7 @@ pub(super) async fn authorize(
         else {
             return Ok(Authorization::Withhold);
         };
-        let frame = signals::presence_frame(hub, change.user_id, status);
+        let frame = signals::presence_frame(hub, ctx.user_id, change.user_id, status);
         return Ok(Authorization::Deliver(Box::new(frame)));
     }
     if let Some(decision) = super::account_frames::authorize(ctx, &event) {

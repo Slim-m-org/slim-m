@@ -159,10 +159,15 @@ class PresenceChanged extends ServerEvent {
     required this.status,
     this.activity,
     this.devices = const {},
+    this.visibility,
   });
 
   final String userId;
   final PresenceState status;
+
+  /// The visibility the account chose, on a frame about the receiving account
+  /// itself from a server that says so; null everywhere else.
+  final String? visibility;
 
   /// What they are listening to or playing, when they share it and this
   /// viewer may see their presence.

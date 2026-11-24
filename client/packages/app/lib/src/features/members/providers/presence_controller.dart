@@ -25,7 +25,8 @@ class PresenceController extends StateNotifier<Map<String, api.PresenceState>> {
   PresenceController(this._ref) : super(const {}) {
     _sub = _ref.read(liveEventsProvider).listen((event) {
       if (event is api.PresenceChanged) {
-        if (event.userId == _ref.read(sessionProvider).tokens?.userId) {
+        if (event.userId == _ref.read(sessionProvider).tokens?.userId &&
+            _ownVisibilityMayHaveChanged(event.visibility)) {
           unawaited(refreshOwnVisibility());
         }
         _liveEventAt[event.userId] = ++_eventClock;
@@ -68,6 +69,13 @@ class PresenceController extends StateNotifier<Map<String, api.PresenceState>> {
     _askedAt.clear();
     _seeded.clear();
     if (mounted) state = const {};
+  }
+
+  /// An older server names no visibility, so every own frame must be treated as a possible change.
+  bool _ownVisibilityMayHaveChanged(String? announced) {
+    if (announced == null) return true;
+    final stored = _ref.read(effectiveMeProvider)?.presenceVisibility;
+    return announced != stored;
   }
 
   /// Re-reads the caller's stored visibility and drops this device's echo of an older choice, for a change made on another device.
