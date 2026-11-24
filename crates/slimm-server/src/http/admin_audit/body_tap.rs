@@ -85,7 +85,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_body_over_the_cap_reaches_the_reader_whole_and_is_unread() {
-        let big = vec![b'x'; 100];
+        let big = [b'x'; 100];
         let (body, tap) = tap(chunks(&[&big[..60], &big[60..]]), 64);
         assert_eq!(to_bytes(body, 1024).await.unwrap().len(), 100);
         assert!(matches!(tap.finish(), Seen::Unread));
