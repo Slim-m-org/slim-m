@@ -32,9 +32,11 @@ import 'package:slimm_platform/platform.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../providers/providers.dart';
+import '../widgets/confirm_dialog.dart';
 import 'self_update/android_apk_update.dart';
 import 'self_update/play_install.dart';
 import 'self_update/play_update.dart';
+import 'update_action.dart' show inACall;
 import 'update_check.dart';
 import 'update_watch.dart';
 
@@ -77,7 +79,9 @@ class UpdateAvailableBanner extends ConsumerWidget {
             AppButton(
               label: busy ? 'Downloading...' : 'Update',
               variant: AppButtonVariant.ghost,
-              onPressed: busy ? null : () => unawaited(_updateApk(ref, update)),
+              onPressed: busy
+                  ? null
+                  : () => unawaited(_updateApk(context, ref, update)),
             ),
           AppIconButton(
             icon: AppIcons.dismiss,
@@ -93,7 +97,12 @@ class UpdateAvailableBanner extends ConsumerWidget {
   /// Downloads, verifies and offers the apk to the installer; anything that
   /// stops it, an older release with no apk in its manifest included, opens
   /// the release page instead so the button always gets somewhere.
-  Future<void> _updateApk(WidgetRef ref, ClientUpdate update) async {
+  Future<void> _updateApk(
+    BuildContext context,
+    WidgetRef ref,
+    ClientUpdate update,
+  ) async {
+    if (inACall(ref) && !await _confirmDropCall(context)) return;
     final busy = ref.read(apkUpdateBusyProvider.notifier);
     final run = ref.read(apkUpdateRunnerProvider);
     busy.state = true;
@@ -107,6 +116,16 @@ class UpdateAvailableBanner extends ConsumerWidget {
       busy.state = false;
     }
   }
+
+  Future<bool> _confirmDropCall(BuildContext context) => confirmChoice(
+    context,
+    title: 'Update during a call?',
+    message:
+        'Installing the update restarts slim-m and ends your call. '
+        'Update now, or wait until the call is over.',
+    confirmLabel: 'Update now',
+    cancelLabel: 'Not now',
+  );
 
   /// Opens the release page, where the apk is attached. Best-effort like
   /// every other step in this path: a device with nothing registered for the
