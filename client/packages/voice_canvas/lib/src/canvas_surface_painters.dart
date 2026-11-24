@@ -7,6 +7,7 @@ library;
 
 import 'package:flutter/foundation.dart';
 
+import 'canvas_edge_painter.dart';
 import 'canvas_painters.dart';
 import 'canvas_surface.dart';
 import 'selection_painter.dart';
@@ -26,6 +27,8 @@ class CanvasSurfacePainters {
     _remoteDrafts = _buildRemoteDrafts(surface);
     _cursors = _buildCursors(surface);
     _selection = _buildSelection(surface);
+    _edges = _buildEdges(surface);
+    _edgeOverlay = _buildEdgeOverlay(surface);
   }
 
   final DraftStroke _draftStroke;
@@ -37,6 +40,9 @@ class CanvasSurfacePainters {
   late RemoteDraftPainter? _remoteDrafts;
   late CursorPainter? _cursors;
   late SelectionPainter? _selection;
+  late EdgePainter _edges;
+  late EdgeOverlayPainter? _edgeOverlay;
+  EdgeLabels? _edgeLabels;
   double? _devicePixelRatio;
 
   StrokePainter get strokes => _strokes;
@@ -51,6 +57,12 @@ class CanvasSurfacePainters {
 
   /// Null when the surface has no selection outline colour.
   SelectionPainter? get selection => _selection;
+
+  /// Edge lines and labels, under the committed ink.
+  EdgePainter get edges => _edges;
+
+  /// Edge handles, side dots and the edge being drawn; null without a selection outline colour.
+  EdgeOverlayPainter? get edgeOverlay => _edgeOverlay;
 
   /// Gives committed ink a texture at [ratio], as sharp as the live ink on the screen it is now on.
   void setDevicePixelRatio(CanvasSurface w, double ratio) {
@@ -102,15 +114,25 @@ class CanvasSurfacePainters {
       _cursors = _buildCursors(w);
     }
     if (documentChanged ||
+        o.ink != w.ink ||
+        o.edgeInk != w.edgeInk ||
+        !mapEquals(o.inkColors, w.inkColors) ||
+        o.edgeLabelFill != w.edgeLabelFill ||
+        o.cursorLabelFontFamily != w.cursorLabelFontFamily) {
+      _edges = _buildEdges(w);
+    }
+    if (documentChanged ||
         o.selectionOutline != w.selectionOutline ||
         o.selectionHandleFill != w.selectionHandleFill ||
         o.selectionHandleBorder != w.selectionHandleBorder ||
         o.touchHandles != w.touchHandles) {
       _selection = _buildSelection(w);
+      _edgeOverlay = _buildEdgeOverlay(w);
     }
   }
 
   void dispose() {
+    _edgeLabels?.dispose();
     _cursors?.disposeLabels();
     _strokes.dispose();
   }
@@ -175,6 +197,30 @@ class CanvasSurfacePainters {
       w.selectionOutline == null
           ? null
           : SelectionPainter(
+              document: w.document,
+              outline: w.selectionOutline!,
+              handleFill: w.selectionHandleFill ?? w.selectionOutline!,
+              handleBorder: w.selectionHandleBorder ?? w.selectionOutline!,
+              touchHandles: w.touchHandles,
+            );
+
+  EdgePainter _buildEdges(CanvasSurface w) {
+    _edgeLabels?.dispose();
+    final labels =
+        _edgeLabels = EdgeLabels(fontFamily: w.cursorLabelFontFamily);
+    return EdgePainter(
+      document: w.document,
+      ink: w.edgeInk ?? w.ink,
+      inkColors: w.inkColors,
+      labelFill: w.edgeLabelFill ?? w.placeholderFill,
+      labels: labels,
+    );
+  }
+
+  EdgeOverlayPainter? _buildEdgeOverlay(CanvasSurface w) =>
+      w.selectionOutline == null
+          ? null
+          : EdgeOverlayPainter(
               document: w.document,
               outline: w.selectionOutline!,
               handleFill: w.selectionHandleFill ?? w.selectionOutline!,

@@ -61,6 +61,7 @@ class CanvasPendingPlacement {
       case CanvasTool.pen:
       case CanvasTool.eraser:
       case CanvasTool.pan:
+      case CanvasTool.connect:
         break;
     }
   }
@@ -129,6 +130,7 @@ class CanvasPendingPlacement {
       case CanvasTool.pen:
       case CanvasTool.eraser:
       case CanvasTool.pan:
+      case CanvasTool.connect:
         break;
     }
   }

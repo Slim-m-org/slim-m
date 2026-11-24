@@ -24,6 +24,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../../widgets/context_menu_focus.dart';
+import 'canvas_edge_menu.dart';
 import 'canvas_object_locks.dart';
 import 'canvas_tool_wheel_layer.dart';
 import '../../../widgets/message_context_menu_layout.dart';
@@ -215,7 +216,7 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
   void _onSecondaryTapUp(TapUpDetails details) {
     if (widget.wheel?.suppressSecondaryTap ?? false) return;
     final world = _toWorld(details.localPosition);
-    final id = _hitTest(world);
+    final id = _hitTest(world) ?? edgeUnder(widget.document, world);
     if (id != null) {
       _openFor(id, pointerGlobal: details.globalPosition);
     } else if (widget.tool != CanvasTool.pan) {
@@ -230,7 +231,9 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
   void _onLongPress(Offset local, Offset global) {
     if (widget.tool != CanvasTool.pan) return;
     final world = _toWorld(local);
-    final id = _hitTest(world, touch: true);
+    final id =
+        _hitTest(world, touch: true) ??
+        edgeUnder(widget.document, world, touch: true);
     if (id != null) {
       _openFor(id, pointerGlobal: global);
     } else {
@@ -399,6 +402,17 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
   Widget _objectMenu() {
     final locks = CanvasObjectLocksScope.maybeOf(context);
     final id = _target;
+    if (id != null && widget.document.edges.isAlive(id)) {
+      return canvasEdgeMenu(
+        id: id,
+        canEdit: widget.canDraw && _mayLock(id),
+        onEditLabel: () {
+          _close();
+          widget.document.edges.labelEdit.value = id;
+        },
+        onDelete: _delete,
+      );
+    }
     final locked = id != null && (locks?.isLocked(id) ?? false);
     final mayLock = locks != null && id != null && _mayLock(id);
     final isNote = _isNote(id);

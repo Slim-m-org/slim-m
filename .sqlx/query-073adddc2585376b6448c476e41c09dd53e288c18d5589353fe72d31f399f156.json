@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM canvas_edge_ends WHERE edge_id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "073adddc2585376b6448c476e41c09dd53e288c18d5589353fe72d31f399f156"
+}

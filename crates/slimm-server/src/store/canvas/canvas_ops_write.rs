@@ -38,6 +38,7 @@
 use super::super::{PlaceError, Store};
 use super::canvas_audit::record_canvas_audit;
 use super::canvas_clear::apply_clear;
+use super::canvas_edges::record_cascades;
 use super::canvas_edit::apply_edit;
 use super::canvas_ops_apply::{
     affected_count_for, apply_move, apply_remove, apply_reorder, apply_restore, current_canvas_seq,
@@ -202,6 +203,8 @@ pub enum SubmitOpError {
     BadProps(&'static str),
     /// A `move` or `reorder` naming an object locked in place.
     Locked,
+    /// An `edge` placed or edited onto an object that already carries 64 of them.
+    EdgeLimit,
     Internal(anyhow::Error),
 }
 
@@ -284,6 +287,8 @@ impl Store {
         let mut reorder_z: Option<i64> = None;
         // Only a fresh, effective `edit` sets this.
         let mut edit_props: Option<String> = None;
+        // Edges a fresh `remove` or `clear` took with it, recorded once the op has a seq.
+        let mut cascaded_ids: Vec<CanvasObjectId> = Vec::new();
         // Only a fresh, effective `clear` sets these.
         let mut clear_scope: Option<ClearScope> = None;
         let mut spared_ids: Vec<CanvasObjectId> = Vec::new();
@@ -296,6 +301,7 @@ impl Store {
                     may_moderate,
                     &object_ids,
                     now,
+                    &mut cascaded_ids,
                 )
                 .await?
             }
@@ -307,6 +313,7 @@ impl Store {
                 let outcome = apply_clear(&mut tx, channel_id, before_seq, &scope, now).await?;
                 let touched = outcome.cleared;
                 spared_ids = outcome.spared;
+                cascaded_ids = outcome.cascaded;
                 let affected = touched.len() as i64;
                 clear_scope = Some(scope);
                 ("clear", affected, touched, Some(before_seq))
@@ -337,19 +344,16 @@ impl Store {
                 outcome
             }
             CanvasOpRequest::Edit { object_id, props } => {
-                let outcome = apply_edit(
+                apply_edit(
                     &mut tx,
                     channel_id,
                     actor_id,
                     may_moderate,
                     object_id,
                     &props,
+                    &mut edit_props,
                 )
-                .await?;
-                if outcome.1 > 0 {
-                    edit_props = Some(props);
-                }
-                outcome
+                .await?
             }
             CanvasOpRequest::Reorder { object_id, z_index } => {
                 let outcome = apply_reorder(
@@ -432,6 +436,7 @@ impl Store {
             &touched_ids
         };
         insert_targets_batch(&mut tx, channel_id, seq, target_ids).await?;
+        record_cascades(&mut tx, channel_id, seq, &cascaded_ids).await?;
         record_canvas_audit(&mut tx, channel_id, actor_id, kind, &touched_ids, now).await?;
 
         tx.commit().await?;

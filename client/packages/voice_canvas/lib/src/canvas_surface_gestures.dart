@@ -34,6 +34,7 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
       CanvasTool.note || CanvasTool.text => SystemMouseCursors.text,
       CanvasTool.eraser => SystemMouseCursors.none,
       CanvasTool.pan => SystemMouseCursors.grab,
+      CanvasTool.connect => SystemMouseCursors.precise,
     };
   }
 
@@ -124,6 +125,7 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
     final world = _toWorld(screen);
     final tool = switch (kind) {
       PointerDeviceKind.invertedStylus => CanvasTool.eraser,
+      _ when widget.tool == CanvasTool.connect => CanvasTool.pan,
       _
           when widget.tool == CanvasTool.shape &&
               (widget.grabsHandleAt?.call(world, kind) ?? false) =>
@@ -141,6 +143,7 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
       case CanvasTool.eraser:
         _pendingErasePoint = world;
       case CanvasTool.pan:
+      case CanvasTool.connect:
         _selectDownAt = screen;
         _ownCamera(() => widget.onSelectStart?.call(world));
       case CanvasTool.text:
@@ -215,6 +218,7 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
         }
         widget.onErase?.call(world);
       case CanvasTool.pan:
+      case CanvasTool.connect:
         if (_selectDownAt case final down? when _movedPastTap(down, event)) {
           _selectDownAt = null;
         }
@@ -290,6 +294,7 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
         _flushPendingErase();
         widget.onEraseEnd?.call();
       case CanvasTool.pan:
+      case CanvasTool.connect:
         final tapAt = _selectDownAt;
         _selectDownAt = null;
         _ownCamera(() => widget.onSelectEnd?.call());
@@ -328,6 +333,7 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
         _pendingErasePoint = null;
         widget.onEraseEnd?.call();
       case CanvasTool.pan:
+      case CanvasTool.connect:
         _selectDownAt = null;
         _ownCamera(() => widget.onSelectEnd?.call());
       case CanvasTool.pen:
@@ -352,6 +358,7 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
       case CanvasTool.eraser:
         widget.onEraseCancel?.call();
       case CanvasTool.pan:
+      case CanvasTool.connect:
         _selectDownAt = null;
         _ownCamera(() => widget.onSelectCancel?.call());
       case CanvasTool.pen:

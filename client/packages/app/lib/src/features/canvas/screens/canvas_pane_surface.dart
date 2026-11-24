@@ -9,6 +9,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import 'canvas_edge_layer.dart';
 import 'canvas_focused_fit.dart';
 import 'canvas_forbidden_message.dart';
 import 'canvas_board_keys.dart';
@@ -31,6 +32,7 @@ class CanvasPaneSurface extends StatelessWidget {
   const CanvasPaneSurface({
     super.key,
     required this.actions,
+    required this.channelId,
     required this.callParticipants,
     required this.canManage,
     required this.cursorColors,
@@ -59,6 +61,7 @@ class CanvasPaneSurface extends StatelessWidget {
   });
 
   final CanvasPaneSurfaceActions actions;
+  final String channelId;
   final List<VoiceParticipant> callParticipants;
   final bool canManage;
   final List<Color> cursorColors;
@@ -148,6 +151,8 @@ class CanvasPaneSurface extends StatelessWidget {
           selectionHandleBorder: tokens.accentFill,
           touchHandles: AppTouchTargets.of(context),
           noteColor: AppCanvasColors.note,
+          edgeInk: tokens.textSecondary,
+          edgeLabelFill: tokens.surfaceRaised,
           shapeColor: AppCanvasColors.shape,
           noteTextInk: tokens.textPrimary,
           noteSpans: noteSpans,
@@ -200,6 +205,13 @@ class CanvasPaneSurface extends StatelessWidget {
           onToolChanged: actions.onToolChanged,
           wheel: toolWheel,
         ),
+        if (!readOnly)
+          CanvasEdgeLayer(
+            channelId: channelId,
+            document: document,
+            canManage: canManage,
+            selfId: selfId,
+          ),
         // Above the menu's hit catcher, so a tile's scene takes its own taps; its header lets them through to the board.
         CanvasModuleTileLayer(document: document),
         if (actions.stamping case final stamping?)

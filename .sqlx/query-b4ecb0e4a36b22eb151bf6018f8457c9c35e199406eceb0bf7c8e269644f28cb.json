@@ -1,11 +1,22 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT author_id AS \"author_id: UserId\", deleted_at AS \"deleted_at: i64\"\n           FROM canvas_objects WHERE id = ? AND channel_id = ?",
+  "query": "SELECT kind AS \"kind!\", author_id AS \"author_id: UserId\", deleted_at AS \"deleted_at: i64\"\n           FROM canvas_objects WHERE id = ? AND channel_id = ?",
   "describe": {
     "columns": [
       {
-        "name": "author_id: UserId",
+        "name": "kind!",
         "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "canvas_objects",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "name": "author_id: UserId",
+        "ordinal": 1,
         "type_info": "Blob",
         "origin": {
           "Table": {
@@ -16,7 +27,7 @@
       },
       {
         "name": "deleted_at: i64",
-        "ordinal": 1,
+        "ordinal": 2,
         "type_info": "Integer",
         "origin": {
           "Table": {
@@ -30,9 +41,10 @@
       "Right": 2
     },
     "nullable": [
+      false,
       true,
       true
     ]
   },
-  "hash": "133ae7f7268a54543c8d0a7e5e06586a751ec404378e520557b4289488600661"
+  "hash": "b4ecb0e4a36b22eb151bf6018f8457c9c35e199406eceb0bf7c8e269644f28cb"
 }

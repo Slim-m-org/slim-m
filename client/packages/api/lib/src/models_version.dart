@@ -43,6 +43,7 @@ class Version {
     this.transcribeVoiceMessages = true,
     this.debugLogging = ServerLogMode.off,
     this.canvasScopedClear,
+    this.canvasEdges = false,
     this.maxAttachmentBytes,
     this.capabilities,
     this.identity,
@@ -136,6 +137,9 @@ class Version {
   /// Whether the canvas accepts a scoped clear. Null on a server older than this field, which [supportsPartialClear] answers from the version number.
   final bool? canvasScopedClear;
 
+  /// Whether the canvas accepts `edge` objects; false on a server older than this field, so the Connect tool stays hidden.
+  final bool canvasEdges;
+
   /// The largest single attachment the server accepts, in bytes. Null on a
   /// server older than this field, which a client treats as no known limit
   /// and lets the server refuse.
@@ -227,6 +231,7 @@ class Version {
             json['transcribe_voice_messages'] as bool? ?? true,
         debugLogging: ServerLogMode.parse(json['debug_logging'] as String?),
         canvasScopedClear: json['canvas_scoped_clear'] as bool?,
+        canvasEdges: json['canvas_edges'] as bool? ?? false,
         // A non-list here is a foreign or broken server, which is unknown
         // rather than a reason to crash sign-in.
         maxAttachmentBytes: json['max_attachment_bytes'] as int?,

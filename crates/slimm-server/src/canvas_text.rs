@@ -5,6 +5,9 @@ use serde_json::Value;
 
 use crate::hidden_chars::is_hidden_char;
 
+/// Largest serialized `props` one canvas object may carry, sized against the broadcast ring.
+pub const MAX_PROPS_BYTES: usize = 4 * 1024;
+
 /// Longest text box, in characters; the 4 KiB props ceiling bounds the bytes.
 pub const MAX_TEXT_CHARS: usize = 500;
 

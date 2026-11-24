@@ -245,3 +245,107 @@ extension CanvasOpsControllerTextEdit on CanvasOpsController {
     );
   }
 }
+
+/// One edge edit and the props it replaced, which an undo writes back.
+class _EdgeEditEntry extends _UndoEntry {
+  _EdgeEditEntry(this.objectId, this.inverse);
+
+  final String objectId;
+  final Map<String, Object?> inverse;
+}
+
+/// The props an undone edge edit left, which a redo writes again.
+class _RedoEdgeEdit extends _RedoEntry {
+  _RedoEdgeEdit(this.objectId, this.change);
+
+  final String objectId;
+  final Map<String, Object?> change;
+}
+
+/// Editing and erasing a placed edge (decision 0137), sharing the undo ledger the other gestures use.
+extension CanvasOpsControllerEdges on CanvasOpsController {
+  /// Applies [change] to the edge at once and sends it: an absent key keeps its value and null deletes it.
+  /// Returns whether anything changed; one undo entry per call.
+  Future<bool> editEdge(String objectId, Map<String, Object?> change) async {
+    if (isLocked(objectId)) return false;
+    final inverse = await _edgeEditTo(
+      objectId,
+      change,
+      'That connection could not be edited.',
+    );
+    if (inverse == null || inverse.isEmpty) return false;
+    _pushUndo(_EdgeEditEntry(objectId, inverse));
+    return true;
+  }
+
+  Future<_RedoEntry?> _undoEdgeEdit(
+    String objectId,
+    Map<String, Object?> inverse,
+  ) async {
+    final change = await _edgeEditTo(
+      objectId,
+      inverse,
+      'That could not be undone.',
+    );
+    return change == null ? null : _RedoEdgeEdit(objectId, change);
+  }
+
+  Future<_UndoEntry?> _redoEdgeEdit(
+    String objectId,
+    Map<String, Object?> change,
+  ) async {
+    final inverse = await _edgeEditTo(
+      objectId,
+      change,
+      'That could not be redone.',
+    );
+    return inverse == null ? null : _EdgeEditEntry(objectId, inverse);
+  }
+
+  /// Writes [change] locally first and returns the props that put it back, or null when the edge is gone or the request failed (old props restored).
+  Future<Map<String, Object?>?> _edgeEditTo(
+    String objectId,
+    Map<String, Object?> change,
+    String errorMessage,
+  ) async {
+    final edges = document.edges;
+    final held = edges.liveEdge(objectId)?.spec.toProps();
+    if (held == null) return null;
+    final inverse = {for (final key in change.keys) key: held[key]};
+    if (!edges.applyEdited(objectId, change)) return const {};
+    try {
+      await _sendObjectOp(
+        objectId,
+        (id) => client.submitCanvasOp(
+          channelId,
+          id: id,
+          kind: 'edit',
+          objectId: objectId,
+          props: change,
+        ),
+      );
+    } on api.ApiException catch (error) {
+      edges.applyEdited(objectId, inverse);
+      _settleUnknownOutcome(error);
+      onError(errorMessage);
+      return null;
+    }
+    return inverse;
+  }
+
+  /// Erases one edge for good measure of undo: hidden at once, removed on the server, restorable.
+  Future<bool> eraseEdge(String objectId) async {
+    if (isLocked(objectId) || !document.edges.isAlive(objectId)) return false;
+    document
+      ..removeObject(objectId)
+      ..refresh();
+    final removed = await _submitRemove([
+      objectId,
+    ], errorMessage: 'That connection could not be deleted.');
+    if (!removed.ok) return false;
+    if (removed.opIds.isNotEmpty) {
+      _pushUndo(_EraseEntry(removed.opIds, [objectId]));
+    }
+    return true;
+  }
+}

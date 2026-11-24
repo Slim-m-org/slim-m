@@ -5,13 +5,14 @@ library;
 import 'package:flutter/services.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-/// Left to right in the tool strip; decision 0047 point 5.
+/// Left to right in the tool strip; decision 0047 point 5, amended by 0137 with Connect after Shape.
 const canvasToolOrder = [
   CanvasTool.pan,
   CanvasTool.pen,
   CanvasTool.note,
   CanvasTool.text,
   CanvasTool.shape,
+  CanvasTool.connect,
   CanvasTool.stamp,
   CanvasTool.eraser,
 ];
@@ -26,6 +27,7 @@ extension CanvasToolInput on CanvasTool {
     CanvasTool.note => LogicalKeyboardKey.keyN,
     CanvasTool.text => LogicalKeyboardKey.keyT,
     CanvasTool.shape => LogicalKeyboardKey.keyS,
+    CanvasTool.connect => LogicalKeyboardKey.keyC,
     CanvasTool.stamp => LogicalKeyboardKey.keyM,
     CanvasTool.eraser => LogicalKeyboardKey.keyE,
   };
@@ -36,6 +38,7 @@ extension CanvasToolInput on CanvasTool {
       this == CanvasTool.note ||
       this == CanvasTool.text ||
       this == CanvasTool.shape ||
+      this == CanvasTool.connect ||
       this == CanvasTool.stamp;
 
   /// One rule for the button and the key, so the key never does what the button could not.

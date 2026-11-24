@@ -12,3 +12,11 @@ async fn version_advertises_the_scoped_clear() {
     let (_, version) = call(&router, "GET", "/version", None, None).await;
     assert_eq!(version["canvas_scoped_clear"], true);
 }
+
+#[tokio::test]
+async fn version_advertises_canvas_edges() {
+    let (store, _guard) = support::new_store("slimm-version-canvas-edges").await;
+    let router = support::app::router(store);
+    let (_, version) = call(&router, "GET", "/version", None, None).await;
+    assert_eq!(version["canvas_edges"], true);
+}

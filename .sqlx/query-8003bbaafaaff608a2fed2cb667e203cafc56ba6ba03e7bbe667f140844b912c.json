@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO canvas_edge_ends (edge_id, endpoint, object_id) VALUES (?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "8003bbaafaaff608a2fed2cb667e203cafc56ba6ba03e7bbe667f140844b912c"
+}

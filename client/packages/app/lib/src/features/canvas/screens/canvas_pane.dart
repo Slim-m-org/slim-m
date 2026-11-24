@@ -102,6 +102,7 @@ import '../providers/canvas_pen_style.dart';
 import 'canvas_quick_placement.dart';
 import 'canvas_stamp_placement.dart';
 import '../providers/armed_stamp.dart';
+import '../providers/canvas_edge_style.dart';
 import '../../screen_overlay/providers/stamp_images.dart';
 import 'canvas_stroke_preview_relay.dart';
 import 'canvas_tool_model.dart';
@@ -234,6 +235,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
   @override
   void dispose() {
     _imagePasteHelper?.stop();
+    _selectHelper?.dispose();
     _stampPlacementHelper?.dispose();
     _timeoutBanner.dispose();
     _boardFocusNode.dispose();

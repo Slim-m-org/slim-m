@@ -31,6 +31,9 @@ enum CanvasObjectKind {
   /// A rectangle the app fills with a live widget, named by [CanvasStrokeInput.tileKey].
   /// This package paints only a plain tile under it, which is what shows when the app has nothing to put there.
   tile,
+
+  /// A connection between objects (decision 0137). It is never a [CanvasStroke]: `CanvasEdges` holds it, routed from its ends.
+  edge,
 }
 
 /// Which primitive a [CanvasObjectKind.shape] object draws. A line and an

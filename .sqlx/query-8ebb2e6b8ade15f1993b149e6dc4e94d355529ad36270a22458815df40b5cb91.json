@@ -1,0 +1,74 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT kind AS \"kind!\", x AS \"x!: f64\", y AS \"y!: f64\",\n                              w AS \"w!: f64\", h AS \"h!: f64\"\n                       FROM canvas_objects\n                       WHERE id = ? AND channel_id = ? AND deleted_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "name": "kind!",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "canvas_objects",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "name": "x!: f64",
+        "ordinal": 1,
+        "type_info": "Float",
+        "origin": {
+          "Table": {
+            "table": "canvas_objects",
+            "name": "x"
+          }
+        }
+      },
+      {
+        "name": "y!: f64",
+        "ordinal": 2,
+        "type_info": "Float",
+        "origin": {
+          "Table": {
+            "table": "canvas_objects",
+            "name": "y"
+          }
+        }
+      },
+      {
+        "name": "w!: f64",
+        "ordinal": 3,
+        "type_info": "Float",
+        "origin": {
+          "Table": {
+            "table": "canvas_objects",
+            "name": "w"
+          }
+        }
+      },
+      {
+        "name": "h!: f64",
+        "ordinal": 4,
+        "type_info": "Float",
+        "origin": {
+          "Table": {
+            "table": "canvas_objects",
+            "name": "h"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "8ebb2e6b8ade15f1993b149e6dc4e94d355529ad36270a22458815df40b5cb91"
+}

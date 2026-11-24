@@ -348,6 +348,8 @@ class StrokePainter extends CustomPainter {
         case CanvasObjectKind.tile:
           _paintTile(canvas, stroke, camera, elevated: isElevated);
           continue;
+        case CanvasObjectKind.edge:
+          continue;
         case CanvasObjectKind.stroke:
           break;
       }

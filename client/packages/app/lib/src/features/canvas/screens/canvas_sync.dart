@@ -14,6 +14,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../widgets/canvas_clear_scope.dart' show clearDocumentScope;
+import '../providers/canvas_edge_inputs.dart';
 import '../providers/canvas_object_inputs.dart';
 import 'canvas_op_log.dart';
 
@@ -361,6 +362,10 @@ class CanvasSync {
       return CanvasPageOutcome.stale;
     }
     for (final object in page.objects) {
+      if (applyWireEdge(document, object, overwrite: true, snapshotSeq: head)) {
+        onObject?.call(object);
+        continue;
+      }
       final input = canvasStrokeInputFrom(object);
       if (input == null) continue;
       document.applyPlaced(input, overwrite: true, snapshotSeq: head);
@@ -388,6 +393,7 @@ class CanvasSync {
             region.overlaps(held.box) &&
             !listed.contains(held.id) &&
             !touched.contains(held.id) &&
+            !document.edges.endIdsOf(held.id).any(touched.contains) &&
             !(isShownOffPlace?.call(held.id) ?? false))
           held.id,
     ];
@@ -427,6 +433,7 @@ class CanvasSync {
   }
 
   void _applyPlaced(api.CanvasObject object) {
+    if (applyWireEdge(document, object)) return;
     final input = canvasStrokeInputFrom(object);
     if (input == null) return;
     document.applyPlaced(input);

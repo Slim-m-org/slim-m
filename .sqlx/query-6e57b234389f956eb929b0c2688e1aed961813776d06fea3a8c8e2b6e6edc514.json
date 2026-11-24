@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT o.id AS \"id!: CanvasObjectId\", p.props AS \"props!\"\n           FROM canvas_objects o JOIN canvas_object_props p ON p.object_id = o.id\n           WHERE o.channel_id = ? AND o.kind = 'edge' AND o.deleted_at = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: CanvasObjectId",
+        "ordinal": 0,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "canvas_objects",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "props!",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "canvas_object_props",
+            "name": "props"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "6e57b234389f956eb929b0c2688e1aed961813776d06fea3a8c8e2b6e6edc514"
+}
