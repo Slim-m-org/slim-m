@@ -92,3 +92,7 @@ It is a snapshot, not an identity: it is not stable, it is not unique, and a mod
 - Mentioning a caller back goes through the same opacity rule: a module writes `{{mention:<caller id>}}` in a `message.post`, and the host expands only ids it computed for this module (see docs/modules/building-modules.md), so the id still never reveals a user id or an `@username`.
 
 A run in a shared module room (decision 0131) never carries `name`: the room's state is shown to everyone in it, so seating players by name would be a way to learn who they are.
+
+## Amended 2026-11-24
+
+The slot input no longer carries the viewer's user id (decision 0091), which paired it with `caller.id` and made the id recoverable for any module with a slot.

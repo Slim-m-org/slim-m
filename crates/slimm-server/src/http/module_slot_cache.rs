@@ -14,7 +14,7 @@ const MAX_ENTRIES: usize = 20_000;
 /// How long a second fill waits for the viewer's running one before giving up.
 pub(crate) const FILL_WAIT: Duration = Duration::from_secs(2);
 
-/// Includes the viewer because a module sees `viewer_id` and may answer per viewer.
+/// Includes the viewer because a module sees their `caller.id` and may answer per viewer.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct SlotKey {
     pub(crate) module_id: String,

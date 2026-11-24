@@ -233,6 +233,14 @@ pub(super) async fn build(store: &Store, event: &Event, now_ms: i64) -> anyhow::
             joined_at_ms,
             left_at_ms,
             alone_ms,
+        } if is_hidden(store, *user_id).await? => Vec::new(),
+        Event::VoiceSessionClosed {
+            session_id,
+            user_id,
+            channel_id,
+            joined_at_ms,
+            left_at_ms,
+            alone_ms,
         } => vec![Built {
             id: format!("voice-session:{session_id}"),
             created: None,
@@ -251,6 +259,10 @@ pub(super) async fn build(store: &Store, event: &Event, now_ms: i64) -> anyhow::
     })
 }
 
+async fn is_hidden(store: &Store, user: UserId) -> anyhow::Result<bool> {
+    Ok(store.presence_visibility(user).await? == Some(Visibility::Hidden))
+}
+
 /// A voice event for `user`, held back when they chose to appear hidden, as the live frames do (decision 0032).
 async fn voice_event(
     store: &Store,
@@ -259,7 +271,7 @@ async fn voice_event(
     now_ms: i64,
     data: impl FnOnce() -> EventData,
 ) -> anyhow::Result<Vec<Built>> {
-    if store.presence_visibility(user).await? == Some(Visibility::Hidden) {
+    if is_hidden(store, user).await? {
         return Ok(Vec::new());
     }
     Ok(vec![Built {

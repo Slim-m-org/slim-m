@@ -175,7 +175,7 @@ Routes, both behind `MANAGE_SERVER`:
 
 ## Slots: `slot/1`
 
-The host asks a module for slot content by running it with `command: "@slot"` and `input` set to `{"slot","name","user_ids","viewer_id"}`, and `caller.id` is the viewer's.
+The host asks a module for slot content by running it with `command: "@slot"` and `input` set to `{"slot","name","user_ids","bot_ids"}`, and `caller.id` is the viewer's (see the amendment at the end).
 The module returns `{"$slim":"slot/1","items":{"<user_id>":{ "nodes":[...], "fallback":"..." }}}`.
 Responses are cached 30 seconds per module, slot, viewer and member, an empty answer included.
 Slot runs have a lane of their own (2 at a time, waiting at most 2 seconds, then showing nothing and caching nothing), one fill per viewer at a time (a second request from the same viewer waits up to 2 seconds for it, then reads what it cached), and never count toward the circuit breaker; a failed or malformed reply is a failed run in `module_run_stats` only.
@@ -207,3 +207,19 @@ There are no actions in phase 1.
 3. The event consumer, the lane and the breaker.
 4. The slot routes, then the client renderer, mounting and settings form.
 5. The XP module in the add-ons repository as the end-to-end proof.
+
+## Amended 2026-11-24
+
+The slot input no longer carries `viewer_id`.
+It named the viewer by user id beside the opaque `caller.id`, so a module with a slot could pair the two and undo decision 0038.
+A module that answered per viewer keys on `caller.id`, which the host already sends.
+The field was additive, so a module that ignores it keeps working and one that read it gets nothing.
+
+`voice.session.closed` and the `voice.sessions` log are held back for a member who chose to appear hidden, the same rule as the other voice events (decisions 0066 and 0109).
+A hidden member's session is still stored, and still counts toward the time others spent alone.
+A page of the log skips them but its cursor moves past them.
+
+A deleted member's module data is purged once the account is closed.
+A module that was busy is retried by the sweep until every module reports success, tracked in `module_data_purges`.
+Only columns the manifest marks `member` are purged.
+`module_kv` keys are chosen by the module and the host cannot tell which name a member, so they are not purged per member: a module that keeps member data should keep it in `data.store` member columns.

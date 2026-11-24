@@ -58,6 +58,11 @@ const STAMP_ROW: &str =
 const DECISIONS: &[(&str, &str, OnDelete)] = &[
     ("account_purges", "user_id", OnDelete::Purge),
     (
+        "module_data_purges",
+        "user_id",
+        OnDelete::Keep("pending until the modules' data is purged, then dropped by the sweep"),
+    ),
+    (
         "access_tokens",
         "user_id",
         OnDelete::CascadesFrom("devices"),

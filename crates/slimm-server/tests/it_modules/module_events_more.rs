@@ -21,11 +21,12 @@ use support::module_world::{World, world};
 use support::wait::wait_for;
 use support::wasm_fixtures::event_recorder_wasm;
 
-const NEW_EVENTS: [&str; 7] = [
+const NEW_EVENTS: [&str; 8] = [
     "message.edited",
     "voice.participant.joined",
     "voice.participant.left",
     "voice.screen_share.changed",
+    "voice.session.closed",
     "member.roles.changed",
     "poll.voted",
     "reaction.changed",
@@ -189,6 +190,35 @@ async fn voice_events_name_the_participant_and_skip_a_hidden_one() {
     settle().await;
     assert_eq!(count_of(&w, "voice.participant.joined").await, 1);
     assert_eq!(count_of(&w, "voice.screen_share.changed").await, 1);
+}
+
+#[tokio::test]
+async fn a_closed_voice_session_is_skipped_for_a_hidden_member() {
+    let w = world("slimm-modevents-session-hidden").await;
+    let _consumer = spawn_module_events(w.state.clone());
+    listener(&w).await;
+    let room = w.store.create_channel("room", "voice").await.unwrap();
+    let visible = w.store.create_user("vis", "Vis").await.unwrap().id;
+    let hidden = w.store.create_user("hid", "Hid").await.unwrap().id;
+    w.store
+        .set_presence_visibility(hidden, Visibility::Hidden)
+        .await
+        .unwrap();
+    let closed = |session_id, user_id| Event::VoiceSessionClosed {
+        session_id,
+        user_id,
+        channel_id: room.id,
+        joined_at_ms: 1_000,
+        left_at_ms: 2_000,
+        alone_ms: 0,
+    };
+    w.hub.publish(closed(1, hidden));
+    w.hub.publish(closed(2, visible));
+
+    let seen = &recorded_of(&w, "voice.session.closed", 1).await[0];
+    assert_eq!(seen["data"]["user_id"], json!(visible.to_string()));
+    settle().await;
+    assert_eq!(count_of(&w, "voice.session.closed").await, 1);
 }
 
 #[tokio::test]

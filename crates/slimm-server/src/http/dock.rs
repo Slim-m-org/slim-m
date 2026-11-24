@@ -28,6 +28,8 @@ pub(super) mod wire;
 
 pub(super) use manifest::hooks::{INTERCEPTOR_CAPABILITY, PERMISSION_CAPABILITY, PHASES};
 pub(super) use module_data::purge_member as purge_module_member_data;
+pub use module_data::retry_member_purges;
+pub(crate) use module_data::spawn_purge_sweep;
 
 use std::sync::Arc;
 
