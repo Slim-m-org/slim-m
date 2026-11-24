@@ -20,8 +20,6 @@ const kUploadPartBytes = 16 * 1024 * 1024;
 const _uploadSessionCapability = 'upload_sessions';
 const _partSendDeadline = Duration(minutes: 5);
 
-/// Finishing may hash the whole file when the server lost its running hash.
-const _completeDeadline = Duration(minutes: 10);
 const _discardFailedMessage =
     'Could not discard an unfinished upload on the server; it will expire on its own';
 
@@ -183,24 +181,15 @@ extension SlimmApiUploadSessions on SlimmApi {
         );
     final kept =
         resumeKey == null ? null : link.resumableUploads.remove(resumeKey);
-    final UploadSession first;
-    try {
-      first = await _resumeOrCreate(
-        kept,
-        length,
-        create,
-        cancel: cancel,
-        backoff: backoff,
-        stallLimit: stallLimit,
-      );
-    } on ApiException catch (e) {
-      if (resumeKey != null &&
-          kept != null &&
-          _classify(e) == _PartFailure.transient) {
-        link.resumableUploads[resumeKey] = kept;
-      }
-      rethrow;
-    }
+    final first = await _resumeOrCreate(
+      kept,
+      length,
+      create,
+      resumeKey: resumeKey,
+      cancel: cancel,
+      backoff: backoff,
+      stallLimit: stallLimit,
+    );
     var session = first;
     var restarted = false;
     try {
@@ -250,6 +239,7 @@ extension SlimmApiUploadSessions on SlimmApi {
     String? kept,
     int length,
     Future<UploadSession> Function() create, {
+    required String? resumeKey,
     required UploadCancelToken? cancel,
     required Duration Function(int attempt) backoff,
     required Duration stallLimit,
@@ -264,7 +254,10 @@ extension SlimmApiUploadSessions on SlimmApi {
         );
         if (held.size == length) return held;
       } on ApiException catch (error, stack) {
-        if (_classify(error) == _PartFailure.transient) rethrow;
+        if (_classify(error) == _PartFailure.transient) {
+          if (resumeKey != null) link.resumableUploads[resumeKey] = kept;
+          rethrow;
+        }
         AppLog.swallowed(
             LogTag.auth,
             'The earlier upload is gone or unusable; starting a fresh one',
@@ -443,7 +436,7 @@ extension SlimmApiUploadSessions on SlimmApi {
       'POST',
       '/attachments/uploads/$id/complete',
       query: channelId == null ? null : {'channel_id': channelId},
-      deadline: _completeDeadline,
+      deadline: uploadAnswerDeadline,
     );
     return decodeShape(
       json,
