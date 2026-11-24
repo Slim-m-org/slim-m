@@ -201,3 +201,56 @@ async fn oversized_raw_body_is_a_uniform_json_error() {
 
     assert_uniform_error(response, StatusCode::PAYLOAD_TOO_LARGE).await;
 }
+
+async fn admin_app(prefix: &str) -> (Router, support::TestDbGuard, String, Store) {
+    let (store, db) = support::new_store(prefix).await;
+    let admin = support::app::register_account(&store, "root").await;
+    (support::app::app(store.clone()), db, admin.token, store)
+}
+
+#[tokio::test]
+async fn a_bad_query_string_on_invites_and_debug_logs_is_a_uniform_json_error() {
+    let (app, _db, token, _store) = admin_app("slimm-malformed-query").await;
+    for uri in ["/debug-logs?limit=abc", "/invites?limit=x"] {
+        let response = app
+            .clone()
+            .oneshot(support::app::request("GET", uri, Some(&token), None))
+            .await
+            .unwrap();
+        assert_uniform_error(response, StatusCode::BAD_REQUEST).await;
+    }
+}
+
+#[tokio::test]
+async fn a_non_numeric_debug_log_id_is_a_uniform_json_error() {
+    let (app, _db, token, _store) = admin_app("slimm-malformed-path").await;
+    for method in ["GET", "DELETE"] {
+        let response = app
+            .clone()
+            .oneshot(support::app::request(
+                method,
+                "/debug-logs/not-a-number",
+                Some(&token),
+                None,
+            ))
+            .await
+            .unwrap();
+        assert_uniform_error(response, StatusCode::BAD_REQUEST).await;
+    }
+}
+
+#[tokio::test]
+async fn removing_a_member_with_no_body_means_no_reason() {
+    let (app, _db, token, store) = admin_app("slimm-malformed-removal").await;
+    let member = support::app::register_account(&store, "nia").await;
+    let response = app
+        .oneshot(support::app::request(
+            "PUT",
+            &format!("/members/{}/removal", member.id),
+            Some(&token),
+            None,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+}

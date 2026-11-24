@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use super::AppState;
 use super::device_client_info::validate_client_info;
 use super::error::ApiError;
-use super::extract::{Authed, AuthedLimited, Json, UPLOAD, enforce, require_manage_server};
+use super::extract::{Authed, AuthedLimited, Json, Query, UPLOAD, enforce, require_manage_server};
 use super::hidden_chars::is_hidden_in_prose;
 use super::participant::require_admitted;
 use crate::ratelimit::Class;
@@ -140,11 +140,16 @@ async fn submit(
     Ok((StatusCode::CREATED, Json(SubmittedDto { id, created_at })))
 }
 
+fn parse_id(raw: &str) -> Result<i64, ApiError> {
+    raw.parse()
+        .map_err(|_| ApiError::BadRequest("the debug log id must be a number"))
+}
+
 async fn list(
     Authed(ctx): Authed,
     parts: Parts,
     State(state): State<AppState>,
-    axum::extract::Query(query): axum::extract::Query<ListQuery>,
+    Query(query): Query<ListQuery>,
 ) -> Result<Json<Vec<DebugLogDto>>, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::AuthedRead)?;
     require_manage_server(&state, ctx.user_id).await?;
@@ -157,10 +162,11 @@ async fn read(
     Authed(ctx): Authed,
     parts: Parts,
     State(state): State<AppState>,
-    Path(id): Path<i64>,
+    Path(id): Path<String>,
 ) -> Result<Json<DebugLogTextDto>, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::AuthedRead)?;
     require_manage_server(&state, ctx.user_id).await?;
+    let id = parse_id(&id)?;
     let row = state
         .store
         .debug_log(id)
@@ -173,10 +179,11 @@ async fn remove(
     Authed(ctx): Authed,
     parts: Parts,
     State(state): State<AppState>,
-    Path(id): Path<i64>,
+    Path(id): Path<String>,
 ) -> Result<StatusCode, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_server(&state, ctx.user_id).await?;
+    let id = parse_id(&id)?;
     if !state.store.delete_debug_log(id).await? {
         return Err(ApiError::NotFound("debug log not found"));
     }

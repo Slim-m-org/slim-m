@@ -12,7 +12,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use axum::Router;
-use axum::extract::{Extension, Query, State};
+use axum::extract::{Extension, State};
 use axum::http::StatusCode;
 use axum::http::request::Parts;
 use axum::response::Response;
@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 
 use super::AppState;
 use super::error::ApiError;
-use super::extract::{Authed, Json, enforce};
+use super::extract::{Authed, Json, Query, enforce};
 use super::link_handoff::handoff_page;
 use super::linked_accounts::{MAX_NAME_CHARS, STATE_LIFETIME_MS, STEAM, page};
 use super::page_shell::respond;

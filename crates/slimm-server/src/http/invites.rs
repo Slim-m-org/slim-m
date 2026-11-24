@@ -13,7 +13,7 @@
 //! enforced.
 
 use axum::Router;
-use axum::extract::{DefaultBodyLimit, Path, Query, State};
+use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::StatusCode;
 use axum::http::request::Parts;
 use axum::routing::{get, post};
@@ -22,7 +22,7 @@ use serde::{Deserialize, Serialize};
 use super::AppState;
 use super::error::ApiError;
 use super::extract::{
-    AUTHED_READ, Authed, AuthedLimited, INVITE_CHECK, Json, RateLimited, WRITE, enforce,
+    AUTHED_READ, Authed, AuthedLimited, INVITE_CHECK, Json, Query, RateLimited, WRITE, enforce,
     require_manage_roles,
 };
 use super::participant::Participant;
