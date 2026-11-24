@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! Routes the client replays once after a dropped socket must answer a replay
-//! of a change that already landed as a no-op success: no second audit row, no
-//! second event, no failure shown for something that worked.
+//! of a change that already landed as a no-op success and no failure shown for
+//! something that worked; most write no second audit row or event, and a member
+//! removal repeats its announcement on purpose.
 
 use std::future::Future;
 use std::task::Poll;
