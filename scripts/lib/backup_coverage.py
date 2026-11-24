@@ -40,7 +40,7 @@ NOT_BACKED_UP_NAMES = {
 # Each `Media::write_*`, so a new one is noticed even when it reuses a known path builder.
 WRITERS = {
     "write_attachment", "write_avatar", "write_user_banner", "write_space_banner",
-    "write_space_icon", "write_linked_avatar",
+    "write_space_icon", "write_linked_avatar", "write_original",
 }
 
 # The server constants and literals the mirrored names are built from, and their copy here.
