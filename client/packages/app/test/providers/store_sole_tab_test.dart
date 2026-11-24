@@ -13,7 +13,7 @@ Future<MessageStore> _openStore({required bool sole}) async {
   final container = ProviderContainer(
     overrides: [
       databaseProvider.overrideWith((ref) => db),
-      soleTabClaimProvider.overrideWithValue(() async => sole),
+      soleTabClaimProvider.overrideWithValue((_) async => sole),
     ],
   );
   addTearDown(container.dispose);

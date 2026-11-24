@@ -2,4 +2,4 @@
 library;
 
 /// A native process owns its database file alone; recovery refuses a second.
-Future<bool> claimSoleTab() async => true;
+Future<bool> claimSoleTab(String database) async => true;

@@ -320,7 +320,7 @@ final databaseProvider = FutureProvider<SlimmDatabase>((ref) async {
 });
 
 /// Says whether this tab may sweep abandoned sends; see `claimSoleTab`.
-final soleTabClaimProvider = Provider<Future<bool> Function()>(
+final soleTabClaimProvider = Provider<Future<bool> Function(String database)>(
   (ref) => claimSoleTab,
 );
 
@@ -331,7 +331,8 @@ final storeProvider = FutureProvider<MessageStore>((ref) async {
   store.onMessagesDropped = (ids) => unawaited(pruneAttachmentCaches(ref, ids));
   try {
     // A pending row belongs to a dead run only if no other tab shares the database.
-    if (await ref.watch(soleTabClaimProvider)()) {
+    final database = ref.read(accountSlotProvider)?.databaseFile ?? 'default';
+    if (await ref.watch(soleTabClaimProvider)(database)) {
       await failInterruptedSends(store);
     }
   } catch (error, stack) {
