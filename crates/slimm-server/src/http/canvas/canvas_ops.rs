@@ -103,7 +103,8 @@ enum CanvasOpBodyDto {
     },
     Edit {
         object_id: String,
-        props: serde_json::Value,
+        /// Null for a reader without `MANAGE_CANVAS` once the object is erased.
+        props: Option<serde_json::Value>,
     },
 }
 
@@ -121,6 +122,11 @@ impl CanvasOpDto {
     /// same id is already public: `CanvasObject.author_id` is on the viewport
     /// read and documented in the schema, so withholding it here would hide
     /// nothing while making two reads of the same fact disagree.
+    ///
+    /// An `edit` answers with its target's current props for everyone but a
+    /// moderator, and with none once the target is erased, so superseded and
+    /// erased text is not served; a replay still converges because the
+    /// final edit carries the current props.
     ///
     /// `moderates` is the caller's own `MANAGE_CANVAS`, so a moderator still
     /// sees the full trail. That is the point of keeping the ops table
@@ -179,9 +185,18 @@ impl CanvasOpDto {
                 object_id: object_id.to_string(),
                 z_index,
             },
-            CanvasOpBody::Edit { object_id, props } => CanvasOpBodyDto::Edit {
+            CanvasOpBody::Edit {
+                object_id,
+                props,
+                current_props,
+            } => CanvasOpBodyDto::Edit {
                 object_id: object_id.to_string(),
-                props: serde_json::from_str(&props).unwrap_or(serde_json::Value::Null),
+                props: if moderates {
+                    Some(props)
+                } else {
+                    current_props
+                }
+                .map(|raw| serde_json::from_str(&raw).unwrap_or(serde_json::Value::Null)),
             },
         };
         Self {

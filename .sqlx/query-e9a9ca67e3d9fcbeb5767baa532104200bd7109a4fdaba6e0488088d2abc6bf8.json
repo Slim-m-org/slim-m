@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM canvas_ops WHERE id IN (\n                   SELECT o.id FROM canvas_ops o\n                   WHERE o.kind = 'remove'\n                     AND o.created_at < ?1\n                     AND (o.created_at, o.channel_id, o.seq) > (?3, ?4, ?5)\n                     AND NOT EXISTS (\n                         SELECT 1 FROM canvas_ops r\n                         WHERE r.kind = 'restore' AND r.target_op = o.id\n                     )\n                     AND NOT EXISTS (\n                         SELECT 1 FROM canvas_op_targets t\n                         JOIN canvas_objects obj\n                           ON obj.id = t.object_id AND obj.channel_id = t.channel_id\n                         WHERE t.channel_id = o.channel_id AND t.seq = o.seq\n                           AND obj.deleted_at = o.created_at\n                     )\n                   ORDER BY o.created_at, o.channel_id, o.seq\n                   LIMIT ?2\n               )\n               RETURNING created_at AS \"created_at!: i64\", channel_id AS \"channel_id!: ChannelId\", seq AS \"seq!: i64\"",
+  "describe": {
+    "columns": [
+      {
+        "name": "created_at!: i64",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "canvas_ops",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "name": "channel_id!: ChannelId",
+        "ordinal": 1,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "canvas_ops",
+            "name": "channel_id"
+          }
+        }
+      },
+      {
+        "name": "seq!: i64",
+        "ordinal": 2,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "canvas_ops",
+            "name": "seq"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": [
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "e9a9ca67e3d9fcbeb5767baa532104200bd7109a4fdaba6e0488088d2abc6bf8"
+}

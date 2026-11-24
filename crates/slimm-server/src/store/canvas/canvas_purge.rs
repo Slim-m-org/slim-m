@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! Removing erased canvas content for good (decision 0085): a moderator purge of one object, and the sweep that deletes objects erased longer ago than the space's message retention window (nothing when retention is off).
+//! Removing erased canvas content for good (decision 0085): a moderator purge of one object, and the sweep that deletes objects erased longer ago than their channel's message retention window, which is the channel's own override when it has one and the space's otherwise (nothing when that is off), and the eviction that keeps a channel's erased objects under its cap.
 //! A hard delete takes the object, its ops, targets, audit rows, lock and attachment link; the swept watermark rises to the highest seq removed so `list_canvas_ops` resets cursors behind it.
 
 use sqlx::QueryBuilder;
@@ -14,6 +14,9 @@ const DAY_MS: i64 = 24 * 60 * 60 * 1000;
 const PURGE_BATCH: usize = 200;
 /// Batches per tick, so a huge backlog drains over several ticks instead of stalling writers.
 const PURGE_BATCHES_PER_TICK: usize = 25;
+
+/// Erased objects a channel always keeps for undo, however low its object cap is set.
+const ERASED_KEPT_FLOOR: i64 = super::MAX_OBJECTS_PER_CHANNEL;
 
 /// Why a purge was refused.
 #[derive(Debug)]
@@ -52,7 +55,7 @@ async fn delete_where_in(
 }
 
 /// Hard-deletes erased `ids` of one channel inside the caller's write transaction.
-async fn hard_delete(
+pub(super) async fn hard_delete(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     channel_id: ChannelId,
     ids: &[CanvasObjectId],
@@ -129,21 +132,26 @@ impl Store {
         Ok(object)
     }
 
-    /// Deletes objects erased before the retention window; returns how many.
+    /// Deletes objects erased before their channel's retention window; returns how many.
     pub(super) async fn purge_erased_canvas_objects(&self) -> anyhow::Result<u64> {
-        let days = self.message_retention_days().await?;
-        if days <= 0 {
-            return Ok(0);
-        }
-        let cutoff = now_ms() - days * DAY_MS;
+        let space_days = self.message_retention_days().await?;
+        let now = now_ms();
         let mut purged = 0u64;
         for _ in 0..PURGE_BATCHES_PER_TICK {
             let mut tx = self.begin_write().await?;
             let due = sqlx::query!(
-                r#"SELECT id AS "id!: CanvasObjectId", channel_id AS "channel_id!: ChannelId"
-                   FROM canvas_objects WHERE deleted_at IS NOT NULL AND deleted_at < ?
-                   ORDER BY deleted_at LIMIT ?"#,
-                cutoff,
+                r#"SELECT obj.id AS "id!: CanvasObjectId", obj.channel_id AS "channel_id!: ChannelId"
+                   FROM canvas_objects obj
+                   JOIN channels c ON c.id = obj.channel_id
+                   LEFT JOIN messages pm ON pm.id = c.parent_message_id
+                   LEFT JOIN channel_retention cr ON cr.channel_id = COALESCE(pm.channel_id, c.id)
+                   WHERE obj.deleted_at IS NOT NULL
+                     AND COALESCE(cr.retention_days, ?1) > 0
+                     AND obj.deleted_at < ?2 - COALESCE(cr.retention_days, ?1) * ?3
+                   ORDER BY obj.deleted_at LIMIT ?4"#,
+                space_days,
+                now,
+                DAY_MS,
                 PURGE_BATCH as i64
             )
             .fetch_all(&mut *tx)
@@ -164,4 +172,39 @@ impl Store {
         }
         Ok(purged)
     }
+}
+
+/// Hard-deletes a channel's oldest erased objects (lowest seq first) until `adding` more fit under the erased ceiling, `cap` or [`ERASED_KEPT_FLOOR`] if higher.
+pub(super) async fn evict_erased_over_cap(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    channel_id: ChannelId,
+    adding: i64,
+    cap: i64,
+) -> Result<(), sqlx::Error> {
+    let erased = sqlx::query_scalar!(
+        r#"SELECT COUNT(*) AS "count!: i64" FROM canvas_objects
+           WHERE channel_id = ? AND deleted_at IS NOT NULL"#,
+        channel_id
+    )
+    .fetch_one(&mut **tx)
+    .await?;
+    let mut excess = erased + adding - cap.max(ERASED_KEPT_FLOOR);
+    while excess > 0 {
+        let batch = excess.min(PURGE_BATCH as i64);
+        let oldest = sqlx::query_scalar!(
+            r#"SELECT id AS "id!: CanvasObjectId" FROM canvas_objects
+               WHERE channel_id = ? AND deleted_at IS NOT NULL
+               ORDER BY seq LIMIT ?"#,
+            channel_id,
+            batch
+        )
+        .fetch_all(&mut **tx)
+        .await?;
+        if oldest.is_empty() {
+            break;
+        }
+        hard_delete(tx, channel_id, &oldest).await?;
+        excess -= oldest.len() as i64;
+    }
+    Ok(())
 }

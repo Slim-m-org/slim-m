@@ -113,7 +113,7 @@ pub(super) async fn existing_placement(
     }
 }
 
-/// Refuses when `adding` more live objects would pass the channel's cap.
+/// Refuses when `adding` more live objects would pass the channel's cap, and bounds the erased ones.
 pub(super) async fn ensure_room(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     channel_id: ChannelId,
@@ -131,6 +131,8 @@ pub(super) async fn ensure_room(
     if live + adding > cap {
         return Err(PlaceError::ChannelFull);
     }
+    // Erased objects stay restorable but never outgrow the cap either; the oldest go first.
+    super::canvas_purge::evict_erased_over_cap(tx, channel_id, adding, cap).await?;
     Ok(())
 }
 

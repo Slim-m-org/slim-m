@@ -20528,7 +20528,11 @@ components:
         props:
           type: object
           additionalProperties: true
-          description: The whole props an `edit` wrote to a note or text box.
+          nullable: true
+          description: >-
+            The note's or text box's props after an `edit`. A reader without
+            MANAGE_CANVAS gets the object's current props, and null once it
+            is erased; a moderator gets what the edit wrote.
 
     CanvasOpPage:
       type: object

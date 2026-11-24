@@ -227,6 +227,8 @@ pub(crate) fn spawn_canvas_op_sweep(store: store::Store) {
                             restores = swept.restores,
                             removes = swept.removes,
                             clears = swept.clears,
+                            edits = swept.edits,
+                            audit = swept.audit,
                             "compacted canvas op rows"
                         );
                     }

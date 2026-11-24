@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT obj.id AS \"id!: CanvasObjectId\", obj.channel_id AS \"channel_id!: ChannelId\"\n                   FROM canvas_objects obj\n                   JOIN channels c ON c.id = obj.channel_id\n                   LEFT JOIN messages pm ON pm.id = c.parent_message_id\n                   LEFT JOIN channel_retention cr ON cr.channel_id = COALESCE(pm.channel_id, c.id)\n                   WHERE obj.deleted_at IS NOT NULL\n                     AND COALESCE(cr.retention_days, ?1) > 0\n                     AND obj.deleted_at < ?2 - COALESCE(cr.retention_days, ?1) * ?3\n                   ORDER BY obj.deleted_at LIMIT ?4",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: CanvasObjectId",
+        "ordinal": 0,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "canvas_objects",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "channel_id!: ChannelId",
+        "ordinal": 1,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "canvas_objects",
+            "name": "channel_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "3758f6791799abc0192cc509be70586e3c493cdf5e2be2e08aa3324a8f444e0f"
+}

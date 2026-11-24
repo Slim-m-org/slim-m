@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!: CanvasObjectId\" FROM canvas_objects\n               WHERE channel_id = ? AND deleted_at IS NOT NULL\n               ORDER BY seq LIMIT ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: CanvasObjectId",
+        "ordinal": 0,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "canvas_objects",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "f87002760ee40fcfd1c50270314c84865fad66285065d67bb2c13fe08eb1a2b1"
+}
