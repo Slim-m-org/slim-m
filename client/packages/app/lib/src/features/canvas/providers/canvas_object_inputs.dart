@@ -219,6 +219,10 @@ void applyEditedProps(
   String objectId,
   Map<String, dynamic> props,
 ) {
+  if (document.edges.knows(objectId)) {
+    document.edges.applyEdited(objectId, props);
+    return;
+  }
   if (document.kindOf(objectId) != CanvasObjectKind.text) {
     final text = props['text'];
     if (text is String) document.setNoteText(objectId, text);

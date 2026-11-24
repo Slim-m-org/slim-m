@@ -91,6 +91,7 @@ extension _CanvasPaneHelpers on _CanvasPaneState {
     spectating: () => _spectating,
     editNote: _onEditNote,
     changed: _refresh,
+    tool: () => _tool,
   );
 
   CanvasStampPlacement get _stampPlacement =>

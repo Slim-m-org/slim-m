@@ -218,6 +218,10 @@ class CanvasOpsController {
   }) async {
     bool pinned(String id) => !manageCanvas && isLocked(id);
     if (pinned(objectId)) return;
+    if (document.edges.knows(objectId)) {
+      await eraseEdge(objectId);
+      return;
+    }
     final mark = document.groupOf(objectId);
     final members = mark.length > 1 ? mark : [objectId];
     final immediate = <String>[];
@@ -289,6 +293,10 @@ class CanvasOpsController {
       objectId,
       from,
     ),
+    _EdgeEditEntry(:final objectId, :final inverse) => _undoEdgeEdit(
+      objectId,
+      inverse,
+    ),
     _NoUndo() => Future.value(const _NoRedo()),
   };
 
@@ -330,6 +338,10 @@ class CanvasOpsController {
     ),
     _RedoEdit(:final objectId, :final toText) => _redoEdit(objectId, toText),
     _RedoTextEdit(:final objectId, :final to) => _redoTextEdit(objectId, to),
+    _RedoEdgeEdit(:final objectId, :final change) => _redoEdgeEdit(
+      objectId,
+      change,
+    ),
     _NoRedo() || _Skipped() => Future.value(const _NoUndo()),
   };
 

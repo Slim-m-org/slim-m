@@ -10,6 +10,8 @@ import 'package:flutter/widgets.dart';
 import 'package:slimm_design_system/design_system.dart' show AppSizes;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import 'canvas_edge_label.dart';
+
 /// More nodes than this in view is a wall of noise; the board's own label still counts them all.
 const int _maxNodes = 40;
 
@@ -107,6 +109,7 @@ class _CanvasBoardObjectSemanticsState
         CanvasObjectKind.tile => 'Module tile',
         CanvasObjectKind.shape => 'Shape',
         CanvasObjectKind.text => 'Text: ${document.textOf(id) ?? ''}',
+        CanvasObjectKind.edge => edgeSemanticLabel(document, id),
         CanvasObjectKind.stroke || null => 'Drawing',
       };
 }

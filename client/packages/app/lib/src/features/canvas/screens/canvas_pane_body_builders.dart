@@ -103,6 +103,7 @@ extension _CanvasPaneBodyBuilders on _CanvasPaneBodyState {
         cameraViewFor: widget.cameraViewFor,
         screenShareViewFor: widget.screenShareViewFor,
       ),
+      channelId: widget.channelId,
       callParticipants: widget.callParticipants,
       canManage: widget.canManage,
       cursorColors: widget.cursorColors,

@@ -238,10 +238,15 @@ class _CanvasBoardKeysState extends State<CanvasBoardKeys> {
       case CanvasTool.pen ||
           CanvasTool.eraser ||
           CanvasTool.pan ||
+          CanvasTool.connect ||
           CanvasTool.stamp ||
           null:
         final selected = _document.selectedObjectId.value;
         if (selected == null) return _step(1);
+        if (_document.edges.isAlive(selected)) {
+          _document.edges.labelEdit.value = selected;
+          return true;
+        }
         widget.onOpenActions(selected);
         return true;
     }

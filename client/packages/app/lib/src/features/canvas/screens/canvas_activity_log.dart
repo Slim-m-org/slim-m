@@ -342,6 +342,7 @@ const _clearedKindNames = {
   'note': 'notes',
   'shape': 'shapes',
   'text': 'text boxes',
+  'edge': 'connections',
 };
 
 String _describeCleared(api.CanvasClearScope? scope, String? who) {
@@ -364,6 +365,7 @@ String _describePlaced(CanvasActivityEntry entry, String? who) {
     'note' => 'a note',
     'shape' => 'a shape',
     'text' => 'a text box',
+    'edge' => 'a connection',
     _ => 'a stroke',
   };
   final detail = entry.detail == null ? '' : ': ${entry.detail}';

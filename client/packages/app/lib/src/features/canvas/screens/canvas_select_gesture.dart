@@ -16,6 +16,7 @@ import '../../../permissions.dart';
 import '../../../providers/effective_me.dart';
 import '../../channels/providers/channel_permissions.dart';
 import 'canvas_drag_pan.dart';
+import 'canvas_edge_gesture.dart';
 import 'canvas_engine.dart';
 import 'canvas_ops_controller.dart';
 
@@ -36,7 +37,26 @@ class CanvasSelectGesture {
     required this.spectating,
     required this.editNote,
     required this.changed,
-  });
+    required CanvasTool Function() tool,
+  }) : _tool = tool {
+    edges = CanvasEdgeGesture(
+      engine: engine,
+      ref: ref,
+      channelId: channelId,
+      tool: tool,
+      touch: touch,
+      manageCanvas: () => ref
+          .read(myChannelPermissionsProvider(channelId()))
+          .hasPermission(Perm.manageCanvas),
+    );
+  }
+
+  final CanvasTool Function() _tool;
+
+  /// Connections: the side dots, end handles and the Connect tool's drag.
+  late final CanvasEdgeGesture edges;
+
+  void dispose() => edges.dispose();
 
   final CanvasEngine engine;
   final WidgetRef ref;
@@ -71,6 +91,10 @@ class CanvasSelectGesture {
   /// a mouse, or a single tap with a finger or a pen, on the selected note.
   void tap(Offset world, PointerDeviceKind kind) {
     final id = _document.selectedObjectId.value;
+    if (id != null && _document.edges.isAlive(id)) {
+      edges.tap(world, kind, _selectedBeforeDown);
+      return;
+    }
     if (id == null && _followCursorAt(world)) return;
     final bounds = id == null ? null : _document.objectBounds(id);
     final onNote =
@@ -133,6 +157,12 @@ class CanvasSelectGesture {
     // A spectator moves nothing but the camera.
     if (spectating()) return _dragPan.begin(world);
     _selectedBeforeDown = _document.selectedObjectId.value;
+    if (edges.start(world)) {
+      // A press that only selected a connection is still a pan if it moves.
+      if (!edges.active) _dragPan.begin(world);
+      return;
+    }
+    if (_tool() == CanvasTool.connect) return _dragPan.begin(world);
     final me = ref.read(meProvider).valueOrNull;
     // A safe read, not a cold one: build() already watches this same family instance every frame.
     final manageCanvas = ref
@@ -151,6 +181,7 @@ class CanvasSelectGesture {
   /// Images keep their aspect and notes or shapes resize freely; Shift flips either, Alt moves freely, touch always snaps.
   /// Read on every drag point so releasing a key mid-drag takes effect at once.
   void drag(Offset world) {
+    if (edges.active) return edges.drag(world);
     if (_dragPan.active) {
       _dragPan.drag(world, _document);
       // A stroke is selected by a tap; a drag across it is a pan.
@@ -178,6 +209,11 @@ class CanvasSelectGesture {
 
   Future<void> cancel() async {
     _dragPan.end();
+    if (edges.active) {
+      edges.cancel();
+      changed();
+      return;
+    }
     final restored = _ops.cancelSelect();
     engine.objectPreviewRelay.endLocal(restored?.box);
     changed();
@@ -185,6 +221,11 @@ class CanvasSelectGesture {
 
   Future<void> end() async {
     _dragPan.end();
+    if (edges.active) {
+      await edges.end();
+      changed();
+      return;
+    }
     engine.objectPreviewRelay.endLocal(_ops.activeMove?.box);
     await _ops.endSelect();
     changed();

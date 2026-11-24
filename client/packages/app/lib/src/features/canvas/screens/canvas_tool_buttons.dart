@@ -12,7 +12,9 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 import '../../../widgets/control_options_menu.dart';
 import '../../../widgets/control_swatch_row.dart';
 import '../providers/armed_stamp.dart';
+import '../providers/canvas_edge_style.dart';
 import '../providers/canvas_pen_style.dart';
+import '../widgets/canvas_edge_controls.dart';
 import '../widgets/canvas_custom_colours.dart';
 import '../widgets/stamp_picker.dart';
 import '../widgets/stamp_tool_button.dart';
@@ -86,6 +88,7 @@ class CanvasToolButtons extends ConsumerWidget {
     if (tool != forTool || !forTool.isAvailable(canDraw: canDraw)) {
       return const [];
     }
+    if (forTool == CanvasTool.connect) return _edgeOptions(context, ref);
     void choose(String key) => onPenChanged(pen.copyWith(colorKey: key));
     return canvasToolOptions(
       forTool,
@@ -105,6 +108,25 @@ class CanvasToolButtons extends ConsumerWidget {
               onChoose: choose,
             )
           : null,
+    );
+  }
+
+  List<ControlOptionEntry> _edgeOptions(BuildContext context, WidgetRef ref) {
+    final style = ref.watch(canvasActiveEdgeStyleProvider);
+    void set(CanvasEdgeStyle next) =>
+        ref.read(canvasActiveEdgeStyleProvider.notifier).state = next;
+    return canvasEdgeControls(
+      context: context,
+      ref: ref,
+      tokens: Theme.of(context).extension<AppTokens>()!,
+      colorKey: style.colorKey,
+      arrow: style.arrow,
+      onColour: (key) => set(
+        key == null
+            ? style.copyWith(clearColor: true)
+            : style.copyWith(colorKey: key),
+      ),
+      onArrow: (arrow) => set(style.copyWith(arrow: arrow)),
     );
   }
 
@@ -204,6 +226,26 @@ class CanvasToolButtons extends ConsumerWidget {
                 : null,
           ),
         ),
+        if (ref.watch(canvasEdgesSupportedProvider)) ...[
+          gap,
+          _withOptions(
+            context,
+            ref,
+            CanvasTool.connect,
+            'Connection options',
+            AppIconButton(
+              icon: AppIcons.connect,
+              semanticLabel: 'Connect',
+              tooltip: canDraw
+                  ? 'Connect (C) \u00b7 drag from one object to another'
+                  : _cannotDrawTooltip,
+              active: tool == CanvasTool.connect,
+              onPressed: CanvasTool.connect.isAvailable(canDraw: canDraw)
+                  ? () => _pick(CanvasTool.connect)
+                  : null,
+            ),
+          ),
+        ],
         if (ref.watch(canvasStampsSupportedProvider)) ...[
           gap,
           _stampWithCaret(ref),

@@ -19,6 +19,8 @@ library;
 import 'package:flutter/widgets.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import 'canvas_edge_label.dart';
+
 class CanvasSelectionSemantics extends StatelessWidget {
   const CanvasSelectionSemantics({
     super.key,
@@ -81,6 +83,8 @@ class CanvasSelectionSemantics extends StatelessWidget {
       CanvasObjectKind.shape => 'Selected shape',
       CanvasObjectKind.text =>
         'Selected text: ${document.textOf(id) ?? '(empty)'}',
+      CanvasObjectKind.edge =>
+        'Selected ${edgeSemanticLabel(document, id).toLowerCase()}',
       CanvasObjectKind.stroke => 'Selected stroke',
     };
   }

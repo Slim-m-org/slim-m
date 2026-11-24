@@ -260,6 +260,9 @@ abstract final class AppIcons {
   static const IconData pen = LucideIcons.pencil300;
   static const IconData eraser = LucideIcons.eraser300;
 
+  /// The Connect tool (decision 0137): a curve drawn between two objects.
+  static const IconData connect = LucideIcons.spline300;
+
   /// The share option that keeps your mouse pointer in (or out of) a screen share.
   static const IconData sharedCursor = LucideIcons.mousePointer2300;
   static const IconData undo = LucideIcons.undo2300;

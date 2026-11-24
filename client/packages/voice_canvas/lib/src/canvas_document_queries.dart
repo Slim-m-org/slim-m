@@ -40,7 +40,7 @@ extension CanvasDocumentQueries on CanvasDocument {
     return (_strokes[slot]?.alive ?? false) ? slot : null;
   }
 
-  bool knows(String id) => _slotById.containsKey(id);
+  bool knows(String id) => _slotById.containsKey(id) || edges.knows(id);
 
   /// True if [id] names a stroke this document currently shows as alive: it
   /// landed (or was drawn locally) and has not since been killed or removed.
@@ -50,7 +50,8 @@ extension CanvasDocumentQueries on CanvasDocument {
   /// no further removal, unlike a genuinely committed one.
   bool isAlive(String id) {
     final slot = _slotById[id];
-    return slot != null && (_strokes[slot]?.alive ?? false);
+    if (slot == null) return edges.isAlive(id);
+    return _strokes[slot]?.alive ?? false;
   }
 
   /// True for a live image with no bitmap that has not failed to load: the
@@ -92,6 +93,14 @@ extension CanvasDocumentQueries on CanvasDocument {
         if ((stroke.kind != CanvasObjectKind.stroke) != boxes) continue;
         ids.add(stroke.id);
         if (ids.length == limit) return ids;
+      }
+    }
+    // Edges step last, so a keyboard user reaches a connection after the objects it joins.
+    final view = worldView;
+    for (final edge in edges.inPaintOrder) {
+      if (ids.length == limit) break;
+      if (edges.routeOf(edge) != null && edges.hullOf(edge).overlaps(view)) {
+        ids.add(edge.id);
       }
     }
     return ids;
@@ -229,6 +238,8 @@ extension CanvasDocumentQueries on CanvasDocument {
           tiles++;
         case CanvasObjectKind.stroke:
           strokes++;
+        case CanvasObjectKind.edge:
+          break;
       }
     }
     return (
@@ -304,6 +315,7 @@ extension CanvasDocumentQueries on CanvasDocument {
   /// read must refuse the id.
   void dropObjects(Iterable<String> ids) {
     for (final id in ids) {
+      edges.objectDropped(id);
       final slot = _slotById.remove(id);
       if (slot != null) _freeSlot(slot);
     }
@@ -318,6 +330,9 @@ extension CanvasDocumentQueries on CanvasDocument {
         seq: stroke.seq,
         box: ui.Rect.fromLTWH(stroke.x, stroke.y, stroke.w, stroke.h),
       );
+    }
+    for (final edge in edges.inPaintOrder) {
+      yield (id: edge.id, seq: edge.seq, box: edges.hullOf(edge));
     }
   }
 }

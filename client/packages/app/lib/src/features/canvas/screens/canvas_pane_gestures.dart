@@ -25,6 +25,7 @@ extension _CanvasPaneGestures on _CanvasPaneState {
     // A deliberate pick stays through leaving fullscreen.
     _toolBeforeFullscreen = null;
     _refresh(() => _tool = tool);
+    _select.edges.syncDots();
   }
 
   /// Folding the tools away puts the tool down too, so a drag pans rather than drawing unseen.
@@ -84,6 +85,10 @@ extension _CanvasPaneGestures on _CanvasPaneState {
       if (!tool.isAvailable(canDraw: canDraw)) return KeyEventResult.ignored;
       if (tool == CanvasTool.stamp &&
           !ref.read(canvasStampsSupportedProvider)) {
+        return KeyEventResult.ignored;
+      }
+      if (tool == CanvasTool.connect &&
+          !ref.read(canvasEdgesSupportedProvider)) {
         return KeyEventResult.ignored;
       }
       _onToolChanged(tool);
@@ -334,6 +339,7 @@ extension _CanvasPaneGestures on _CanvasPaneState {
 
   /// A spectator's pointer is not relayed: the server only relays one that may draw.
   void _onPointerMoved(Offset world) {
+    _select.edges.hover(world);
     if (!_spectating) _relay.reportLocalPointer(world);
   }
 

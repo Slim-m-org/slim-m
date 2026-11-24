@@ -19,6 +19,7 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 import '../../members/providers/blocks_controller.dart';
 import '../../screen_overlay/providers/stamp_content.dart';
 import '../../screen_overlay/providers/stamp_images.dart';
+import '../providers/canvas_edge_inputs.dart';
 import '../providers/canvas_grid_snap.dart';
 import '../providers/canvas_layout_store.dart';
 import '../../../providers/app_lifecycle.dart';
@@ -443,6 +444,7 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
   );
 
   void _apply(api.CanvasObject object) {
+    if (applyWireEdge(document, object)) return;
     final input = canvasStrokeInputFrom(object);
     if (input == null) return;
     if (sync.clearedSincePlacement(object)) {
