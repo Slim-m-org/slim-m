@@ -4,10 +4,12 @@
 /// The select gesture offers every press here first. A press claims it when it lands on a side dot, on an end handle of the selected connection, on a connection itself, or anywhere on an object while the Connect tool is armed.
 library;
 
+import 'dart:async';
 import 'dart:ui' show PointerDeviceKind;
 
 import 'package:clock/clock.dart';
 import 'package:flutter/painting.dart';
+import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart' show AppFonts;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
@@ -59,6 +61,9 @@ const _attachable = {
   CanvasObjectKind.tile,
 };
 
+/// Whether a connection may attach to an object of [kind].
+bool canvasEdgeAttachable(CanvasObjectKind? kind) => _attachable.contains(kind);
+
 class CanvasEdgeGesture {
   CanvasEdgeGesture({
     required this.engine,
@@ -69,6 +74,7 @@ class CanvasEdgeGesture {
     required this.manageCanvas,
   }) {
     document.selectedObjectId.addListener(syncDots);
+    document.edges.pickKey = pickKey;
   }
 
   final CanvasEngine engine;
@@ -100,6 +106,7 @@ class CanvasEdgeGesture {
 
   void dispose() {
     document.selectedObjectId.removeListener(syncDots);
+    document.edges.pickKey = null;
     _labels.dispose();
   }
 
@@ -135,6 +142,77 @@ class CanvasEdgeGesture {
     final mouse = document.lastPointerKind == PointerDeviceKind.mouse;
     _hovered = mouse && _supported ? _objectAt(world) : null;
     syncDots();
+  }
+
+  bool get picking => _edges.connectFrom.value != null;
+  String? _pickTarget;
+
+  /// Starts the keyboard route: [id] waits for a target, stepped with the bracket keys.
+  void beginPick(String id) {
+    _pickTarget = null;
+    _edges.connectFrom.value = id;
+  }
+
+  void cancelPick() {
+    _pickTarget = null;
+    _edges.connectFrom.value = null;
+    _edges.draft.value = null;
+  }
+
+  /// A key while a target is being picked: `[` and `]` step, Enter attaches, Escape cancels; true when it was taken.
+  bool pickKey(LogicalKeyboardKey key) {
+    final from = _edges.connectFrom.value;
+    if (from == null) return false;
+    if (key == LogicalKeyboardKey.escape) {
+      cancelPick();
+    } else if (key == LogicalKeyboardKey.bracketRight) {
+      _stepPick(from, 1);
+    } else if (key == LogicalKeyboardKey.bracketLeft) {
+      _stepPick(from, -1);
+    } else if (key == LogicalKeyboardKey.enter) {
+      unawaited(_finishPick(from));
+    } else {
+      return false;
+    }
+    return true;
+  }
+
+  void _stepPick(String from, int delta) {
+    final targets = [
+      for (final id in document.visibleIdsInReadingOrder())
+        if (id != from && _attachable.contains(document.kindOf(id))) id,
+    ];
+    if (targets.isEmpty) return;
+    final at = _pickTarget == null ? -1 : targets.indexOf(_pickTarget!);
+    final next = targets[(at + delta) % targets.length];
+    final box = _edges.boxOf(next);
+    _pickTarget = next;
+    _edges.draft.value = EdgeDraft(
+      fromObjectId: from,
+      fromSide: EdgeSide.auto,
+      pointer: box?.center ?? Offset.zero,
+      targetObjectId: next,
+    );
+  }
+
+  Future<void> _finishPick(String from) async {
+    final target = _pickTarget;
+    cancelPick();
+    if (target == null) return;
+    final style = ref.read(canvasActiveEdgeStyleProvider);
+    final placed = await _placement.place(
+      CanvasEdgeSpec(
+        from: AttachedEnd(from),
+        to: AttachedEnd(target),
+        arrow: style.arrow,
+        colorKey: style.colorKey,
+      ),
+      onError: engine.reportError,
+    );
+    if (placed != null) {
+      engine.ops.recordDraw([placed.id]);
+      document.selectedObjectId.value = placed.id;
+    }
   }
 
   /// A press at [world]; true when it belongs to a connection and the select gesture must stand down.

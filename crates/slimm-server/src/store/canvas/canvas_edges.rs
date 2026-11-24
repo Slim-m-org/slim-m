@@ -271,9 +271,10 @@ pub(in crate::store) async fn cascade_after_clear(
            WHERE channel_id = ? AND kind = 'edge' AND deleted_at IS NULL
              AND id IN (SELECT e.edge_id FROM canvas_edge_ends e
                         JOIN canvas_objects end_o ON end_o.id = e.object_id
-                        WHERE end_o.deleted_at IS NOT NULL)
+                        WHERE end_o.channel_id = ? AND end_o.deleted_at IS NOT NULL)
            RETURNING id AS "id!: CanvasObjectId""#,
         now,
+        channel_id,
         channel_id
     )
     .fetch_all(&mut **tx)

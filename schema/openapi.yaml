@@ -8243,11 +8243,12 @@ paths:
         its ceiling is a 409, refused inside the same transaction that counts.
 
 
-        `edit` changes a live note's or text box's props; it is refused under a
-        timeout and with 409 for a locked note, and only those two kinds can be edited.
+        `edit` changes a live note's, text box's or connection's props; it is refused under a
+        timeout and with 409 for a locked note, and only those three kinds can be edited.
         A text box's props are replaced wholesale and checked the way a placement's are.
         A note's props are merged: a key left out keeps its stored value and a `null` deletes it.
-        The merged props are checked again, and what the op, the response and `canvas.object.edited` carry is the merged result.
+        Only the keys an edit carries are checked, so a note stored with an odd key can still be edited, and what the op, the response and `canvas.object.edited` carry is the merged result.
+        A connection's props merge the same way and are checked as `CanvasEdgeProps` says.
         A note's known props are `text` (a string), `fill` and `color` (a palette key or `#rrggbb`; `color` may also be `auto`), `fill_opacity` (0 to 1) and `size` (`small`, `medium` or `large`);
         any other key, `font_size` included, is stored as sent.
 
@@ -20718,9 +20719,10 @@ components:
           type: object
           additionalProperties: true
           description: >-
-            Required for `edit`. A text box's props replace the old ones; a note's are
-            merged over them, a key left out keeping its value and a `null` deleting it.
-            Only those two kinds can be edited (400 otherwise); the same 4 KiB
+            Required for `edit`. A text box's props replace the old ones; a note's and a
+            connection's (`CanvasEdgeProps`) are merged over them, a key left out keeping its
+            value and a `null` deleting it.
+            Only those three kinds can be edited (400 otherwise); the same 4 KiB
             limit as a placement applies, to the merged props, and a locked note answers 409.
 
     CanvasOpResult:

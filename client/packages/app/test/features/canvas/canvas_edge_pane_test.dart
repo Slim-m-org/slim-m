@@ -402,4 +402,53 @@ void main() {
     expect(label.startsWith('ab'), isTrue);
     expect(label.runes.length, lessThanOrEqualTo(120));
   });
+
+  testWidgets('Connect to... from the object menu is finished with the keys', (
+    tester,
+  ) async {
+    final fixture = await _open(tester);
+    final document = surfaceDocument(tester);
+    final menu = await tester.startGesture(
+      _at(tester, const Offset(160, 130)),
+      kind: PointerDeviceKind.mouse,
+      buttons: kSecondaryButton,
+    );
+    await menu.up();
+    await pumpFrames(tester);
+    await tester.tap(find.text('Connect to...'));
+    await pumpFrames(tester);
+    expect(document.edges.connectFrom.value, 'a');
+
+    await tester.tapAt(_at(tester, const Offset(700, 500)));
+    await tester.sendKeyEvent(LogicalKeyboardKey.bracketRight);
+    await tester.sendKeyEvent(LogicalKeyboardKey.bracketRight);
+    await tester.pump();
+    expect(document.edges.draft.value?.targetObjectId, 'c');
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await waitUntil(
+      tester,
+      () => fixture.posted.any((p) => p['kind'] == 'edge'),
+    );
+
+    final props = fixture.posted.single['props'] as Map<String, dynamic>;
+    expect(props['from'], {'object_id': 'a'});
+    expect(props['to'], {'object_id': 'c'});
+    expect(document.edges.connectFrom.value, isNull);
+  });
+
+  testWidgets('Escape cancels a keyboard connection and sends nothing', (
+    tester,
+  ) async {
+    final fixture = await _open(tester);
+    final document = surfaceDocument(tester);
+    await tester.tapAt(_at(tester, const Offset(700, 500)));
+    document.edges.connectFrom.value = 'a';
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.bracketRight);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(document.edges.connectFrom.value, isNull);
+    expect(document.edges.draft.value, isNull);
+    expect(fixture.posted.where((p) => p['kind'] == 'edge'), isEmpty);
+  });
 }

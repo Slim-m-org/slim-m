@@ -156,6 +156,10 @@ class _CanvasBoardKeysState extends State<CanvasBoardKeys> {
       return KeyEventResult.ignored;
     }
     if (textInputHasFocus()) return KeyEventResult.ignored;
+    if (event is KeyDownEvent &&
+        _document.edges.pickKey?.call(event.logicalKey) == true) {
+      return KeyEventResult.handled;
+    }
     final keys = HardwareKeyboard.instance;
     if (keys.isControlPressed || keys.isMetaPressed || keys.isAltPressed) {
       return KeyEventResult.ignored;

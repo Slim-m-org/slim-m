@@ -27,7 +27,6 @@ fn edit_note(stored: &str, props: &str) -> Result<String, SubmitOpError> {
     let edit = parse(props)?;
     crate::canvas_text::check_note_props(&edit).map_err(SubmitOpError::BadProps)?;
     let merged = crate::canvas_text::merge_props(&parse(stored)?, &edit);
-    crate::canvas_text::check_note_props(&merged).map_err(SubmitOpError::BadProps)?;
     let merged = serde_json::to_string(&merged)
         .map_err(|_| SubmitOpError::BadProps("canvas props must be an object"))?;
     if merged.len() > crate::canvas_text::MAX_PROPS_BYTES {
@@ -135,4 +134,21 @@ async fn write_edge(
     write_ends(tx, edge_id, &resolved).await?;
     set_hull(tx, edge_id, resolved.hull).await?;
     Ok(text)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_note_stored_with_a_bad_key_can_still_be_edited() {
+        let stored = r#"{"text":"old","size":"huge","color":3}"#;
+        let merged = edit_note(stored, r#"{"text":"new"}"#).expect("the edit is valid");
+        assert!(merged.contains(r#""text":"new""#));
+    }
+
+    #[test]
+    fn an_edit_with_a_bad_key_is_refused() {
+        assert!(edit_note(r#"{"text":"old"}"#, r#"{"size":"huge"}"#).is_err());
+    }
 }

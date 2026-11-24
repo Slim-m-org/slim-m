@@ -39,7 +39,7 @@ Clients cascade locally from their end index.
 A restore revives the op's direct targets (author-checked as before) plus its cascade rows (not author-checked, since they fell with the actor's own erase), and an edge only when every attached end is live afterwards; the ends are read from props, never from row counts.
 Revived edges are in the restore's touched set, targets and frame.
 A clear records the edges its sweep took, including ones newer than its fence.
-Purging an object purges the dead edges attached to it.
+Purging an object purges the dead edges attached to it, so a deleter's undo after a purge brings the object back without its connections.
 
 ## Old clients
 
@@ -60,6 +60,8 @@ The Connect tool (key C, Lucide `spline`, after Shape in `canvasToolOrder`, amen
 Dropping on empty board leaves a free end; a drag that would free both ends snaps back; a click that goes nowhere draws nothing.
 The selected connection shows end handles and a bar: colour (neutral first), arrow as a segmented row, Edit label, Delete.
 `[` and `]` step through connections, Enter edits the label, Delete erases.
+A pointer is not needed to make one: the object menu's "Connect to..." starts a target pick, `[` and `]` step through the other objects in view, Enter attaches and Escape cancels.
+A dot is grabbed on or outside the object's border, never from its body, so a selected small object still moves.
 Layout follows desktop-vs-mobile Law 1 (width decides): at 600 and wider the bar floats above the connection; under 600 it docks full width above the dock and keyboard.
 Law 2 (30-38dp pointer, 44dp touch) sizes the controls, and Law 3 gives every hover a long-press: dots on select, the object menu on long-press.
 Surface rule 1 (context menu) covers the object menu and arrow is a segmented row, never a dropdown.

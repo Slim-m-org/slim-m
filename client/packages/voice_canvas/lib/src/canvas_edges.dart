@@ -9,6 +9,7 @@ library;
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show LogicalKeyboardKey;
 
 import 'canvas_document.dart';
 import 'canvas_edge_route.dart';
@@ -99,6 +100,12 @@ class CanvasEdges {
 
   /// The edge whose label is being edited in place, or null; the keyboard, a double click and the bar all set it.
   final ValueNotifier<String?> labelEdit = ValueNotifier<String?>(null);
+
+  /// The object a keyboard or menu connection starts from, while its target is being picked.
+  final ValueNotifier<String?> connectFrom = ValueNotifier<String?>(null);
+
+  /// Takes a key while [connectFrom] is set; the app wires the keys it means.
+  bool Function(LogicalKeyboardKey key)? pickKey;
 
   /// The object whose four side dots show, because it is hovered, selected or the Connect tool is armed.
   final ValueNotifier<String?> dotsOn = ValueNotifier<String?>(null);
@@ -342,11 +349,14 @@ class CanvasEdges {
     draft.value = null;
     dotsOn.value = null;
     labelEdit.value = null;
+    connectFrom.value = null;
   }
 
   void dispose() {
+    pickKey = null;
     draft.dispose();
     dotsOn.dispose();
     labelEdit.dispose();
+    connectFrom.dispose();
   }
 }

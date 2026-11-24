@@ -20,11 +20,14 @@ import 'dart:async';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../../widgets/context_menu_focus.dart';
+import '../providers/canvas_edge_style.dart';
 import 'canvas_edge_menu.dart';
+import 'canvas_edge_gesture.dart' show canvasEdgeAttachable;
 import 'canvas_object_locks.dart';
 import 'canvas_tool_wheel_layer.dart';
 import '../../../widgets/message_context_menu_layout.dart';
@@ -300,6 +303,18 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
     if (id != null) widget.onEditNote?.call(id);
   }
 
+  bool _mayConnect(String? id) =>
+      id != null &&
+      widget.canDraw &&
+      canvasEdgeAttachable(widget.document.kindOf(id)) &&
+      ProviderScope.containerOf(context).read(canvasEdgesSupportedProvider);
+
+  /// Hands the keyboard a connection to finish: the bracket keys pick the target.
+  void _connect(String id) {
+    _close();
+    widget.document.edges.connectFrom.value = id;
+  }
+
   void _style() {
     final id = _target;
     _close();
@@ -419,6 +434,12 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
                 : 'Edit note',
             leading: AppIcons.edit,
             onTap: locked || !widget.canDraw ? null : _editNote,
+          ),
+        if (_mayConnect(id))
+          AppMenuItem(
+            label: 'Connect to...',
+            leading: AppIcons.connect,
+            onTap: locked ? null : () => _connect(id!),
           ),
         if (isNote && widget.onStyleNote != null)
           AppMenuItem(
