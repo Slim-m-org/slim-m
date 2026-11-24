@@ -99,6 +99,28 @@ extension CanvasDocumentSelection on CanvasDocument {
     return true;
   }
 
+  /// A live note's style, or null when [id] is unknown, removed, or not a note.
+  CanvasNoteStyle? noteStyleOf(String id) {
+    final slot = _slotById[id];
+    final stroke = slot == null ? null : _strokes[slot];
+    if (stroke == null || !stroke.alive) return null;
+    return stroke.kind == CanvasObjectKind.note ? stroke.noteStyle : null;
+  }
+
+  /// Restyles a live note in place; false if [id] is not one. The caller repaints with [CanvasDocument.refresh].
+  bool setNoteStyle(String id, CanvasNoteStyle style) {
+    final slot = _slotById[id];
+    final stroke = slot == null ? null : _strokes[slot];
+    if (stroke == null ||
+        !stroke.alive ||
+        stroke.kind != CanvasObjectKind.note) {
+      return false;
+    }
+    stroke.noteStyle = style;
+    _changed(stroke);
+    return true;
+  }
+
   /// A live text box's content and style, or null if [id] is unknown, removed, or not a text box.
   ({String text, String size, String colorKey})? textBoxOf(String id) {
     final slot = _slotById[id];

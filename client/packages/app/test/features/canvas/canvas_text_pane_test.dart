@@ -7,60 +7,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/features/canvas/widgets/canvas_text_editor.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import 'canvas_pane_harness.dart';
 
-Map<String, dynamic> _textJson(String id, {String authorId = 'me'}) => {
-  'id': id,
-  'kind': 'text',
-  'z_index': 1,
-  'x': 400.0,
-  'y': 10.0,
-  'w': 240.0,
-  'h': 34.0,
-  'props': {'text': 'before', 'size': 'medium', 'color': 'ink'},
-  'author_id': authorId,
-  'seq': 1,
-  'created_at': 0,
-};
-
-Future<CanvasPaneFixture> _openPane(
-  WidgetTester tester, {
-  List<Map<String, dynamic>> objects = const [],
-  Widget? below,
-}) async {
-  final fixture = CanvasPaneFixture()..objects = [...objects];
-  final container = fixture.container();
-  addTearDown(container.dispose);
-  addTearDown(fixture.events.close);
-  await pumpCanvasPane(tester, container, below: below);
-  await tester.pumpAndSettle();
-  return fixture;
-}
-
-Finder get _field => find.descendant(
-  of: find.byType(CanvasTextEditor),
-  matching: find.byType(TextField),
-);
-
-Future<void> _placeWithTool(WidgetTester tester, Offset world) async {
-  await tester.tap(find.bySemanticsLabel('Text'));
-  await tester.pump();
-  final gesture = await tester.startGesture(screenFor(tester, world));
-  await gesture.up();
-  await tester.pumpAndSettle();
-}
-
-Future<void> _fingerTapTwice(WidgetTester tester, Offset world) async {
-  final at = screenFor(tester, world);
-  await tester.tapAt(at);
-  await tester.pump(const Duration(milliseconds: 100));
-  await tester.tapAt(at);
-  await tester.pumpAndSettle();
-}
+import 'canvas_text_pane_support.dart';
 
 Future<void> _longPress(WidgetTester tester, Offset world) async {
   final pointer = TestPointer(7);
@@ -74,109 +26,108 @@ Future<void> _longPress(WidgetTester tester, Offset world) async {
 }
 
 void main() {
-  testWidgets('the text tool opens an editor and sends nothing until Save', (
-    tester,
-  ) async {
-    final fixture = await _openPane(tester);
+  testWidgets(
+    'the text tool opens an editor and sends nothing until it is committed',
+    (tester) async {
+      final fixture = await openPane(tester);
 
-    await _placeWithTool(tester, const Offset(150, 150));
-    expect(find.byType(CanvasTextEditor), findsOneWidget);
-    expect(fixture.posted, isEmpty);
+      await placeWithTool(tester, const Offset(150, 150));
+      expect(editor, findsOneWidget);
+      expect(fixture.posted, isEmpty);
 
-    await tester.enterText(_field, 'hello board');
-    await tester.tap(find.text('Save'));
-    await tester.pumpAndSettle();
+      await tester.enterText(field, 'hello board');
+      await commit(tester);
 
-    final placed = fixture.posted.single;
-    expect(placed['kind'], 'text');
-    expect(placed['props'], {
-      'text': 'hello board',
-      'size': 'medium',
-      'color': 'ink',
-    });
-    expect(placed['x'], 150.0);
-    expect(placed['y'], 150.0);
-    final document = surfaceDocument(tester);
-    expect(document.textBoxOf(placed['id'] as String)?.text, 'hello board');
-    expect(document.selectedObjectId.value, placed['id']);
-  });
+      final placed = fixture.posted.single;
+      expect(placed['kind'], 'text');
+      expect(placed['props'], {
+        'text': 'hello board',
+        'size': 'medium',
+        'color': 'ink',
+      });
+      expect(placed['x'], 150.0);
+      expect(placed['y'], 150.0);
+      final document = surfaceDocument(tester);
+      expect(document.textBoxOf(placed['id'] as String)?.text, 'hello board');
+      expect(document.selectedObjectId.value, placed['id']);
+    },
+  );
 
   testWidgets('a press outside the editor, on the toolbar, saves the text', (
     tester,
   ) async {
-    final fixture = await _openPane(tester);
+    final fixture = await openPane(tester);
 
-    await _placeWithTool(tester, const Offset(150, 150));
-    await tester.enterText(_field, 'typed then clicked away');
+    await placeWithTool(tester, const Offset(150, 150));
+    await tester.enterText(field, 'typed then clicked away');
     await tester.tap(find.bySemanticsLabel('Pen'));
     await tester.pump(const Duration(milliseconds: 400));
 
-    expect(find.text('Save'), findsNothing);
+    expect(editor, findsNothing);
     expect(fixture.posted.single['props']['text'], 'typed then clicked away');
   });
 
   testWidgets('a press on the field\'s own selection menu keeps editing', (
     tester,
   ) async {
-    final fixture = await _openPane(tester);
+    final fixture = await openPane(tester);
 
-    await _placeWithTool(tester, const Offset(150, 150));
-    await tester.enterText(_field, 'pick a word');
-    await tester.longPress(_field);
+    await placeWithTool(tester, const Offset(150, 150));
+    await tester.enterText(field, 'pick a word');
+    await tester.longPress(field);
     await tester.pump(const Duration(milliseconds: 400));
     await tester.tap(find.text('Select all'));
     await tester.pump(const Duration(milliseconds: 400));
 
-    expect(find.text('Save'), findsOneWidget);
+    expect(editor, findsOneWidget);
     expect(fixture.posted, isEmpty);
   });
 
   testWidgets('a press on another text field saves the text', (tester) async {
     const elsewhere = Key('elsewhere');
-    final fixture = await _openPane(
+    final fixture = await openPane(
       tester,
       below: const SizedBox(height: 48, child: TextField(key: elsewhere)),
     );
 
-    await _placeWithTool(tester, const Offset(150, 150));
-    await tester.enterText(_field, 'typed then moved on');
+    await placeWithTool(tester, const Offset(150, 150));
+    await tester.enterText(field, 'typed then moved on');
     await tester.tap(find.byKey(elsewhere));
     await tester.pump(const Duration(milliseconds: 400));
 
-    expect(find.text('Save'), findsNothing);
+    expect(editor, findsNothing);
     expect(fixture.posted.single['props']['text'], 'typed then moved on');
   });
 
-  testWidgets('Cancel and an empty box place nothing', (tester) async {
-    final fixture = await _openPane(tester);
+  testWidgets('Escape and an empty box place nothing', (tester) async {
+    final fixture = await openPane(tester);
 
-    await _placeWithTool(tester, const Offset(150, 150));
-    await tester.tap(find.text('Cancel'));
+    await placeWithTool(tester, const Offset(150, 150));
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
     final again = await tester.startGesture(
       screenFor(tester, const Offset(150, 150)),
     );
     await again.up();
     await tester.pumpAndSettle();
-    await tester.enterText(_field, '   ');
-    await tester.tap(find.text('Save'));
-    await tester.pumpAndSettle();
+    await tester.enterText(field, '   ');
+    await commit(tester);
 
-    expect(find.byType(CanvasTextEditor), findsNothing);
+    expect(editor, findsNothing);
     expect(fixture.posted, isEmpty);
   });
 
   testWidgets('Escape cancels a new text box and keeps the tool armed', (
     tester,
   ) async {
-    final fixture = await _openPane(tester);
-    await _placeWithTool(tester, const Offset(150, 150));
-    await tester.enterText(_field, 'never sent');
+    final fixture = await openPane(tester);
+    await placeWithTool(tester, const Offset(150, 150));
+    await tester.enterText(field, 'never sent');
 
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pump(const Duration(milliseconds: 500));
 
-    expect(_field, findsNothing);
+    expect(field, findsNothing);
     expect(fixture.posted, isEmpty);
     final text = tester.widget<AppIconButton>(
       find.ancestor(
@@ -188,9 +139,9 @@ void main() {
   });
 
   testWidgets('Ctrl+Enter saves the text box', (tester) async {
-    final fixture = await _openPane(tester);
-    await _placeWithTool(tester, const Offset(150, 150));
-    await tester.enterText(_field, 'keys only');
+    final fixture = await openPane(tester);
+    await placeWithTool(tester, const Offset(150, 150));
+    await tester.enterText(field, 'keys only');
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.control);
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
@@ -201,12 +152,12 @@ void main() {
     expect((fixture.posted.single['props'] as Map)['text'], 'keys only');
   });
 
-  testWidgets('size and colour share one row of the editor', (tester) async {
-    await _openPane(tester);
-    await _placeWithTool(tester, const Offset(150, 150));
+  testWidgets('size and colour share one row of the bar', (tester) async {
+    await openPane(tester);
+    await placeWithTool(tester, const Offset(150, 150));
 
-    final small = tester.getCenter(find.bySemanticsLabel('Small text'));
-    final large = tester.getCenter(find.bySemanticsLabel('Large text'));
+    final small = tester.getCenter(find.text('S'));
+    final large = tester.getCenter(find.text('L'));
     final blue = tester.getCenter(find.bySemanticsLabel('Blue'));
     expect(small.dy, closeTo(blue.dy, 0.5));
     expect(large.dy, closeTo(blue.dy, 0.5));
@@ -216,14 +167,13 @@ void main() {
   testWidgets('size and colour picked in the editor travel with the text', (
     tester,
   ) async {
-    final fixture = await _openPane(tester);
+    final fixture = await openPane(tester);
 
-    await _placeWithTool(tester, const Offset(150, 150));
-    await tester.enterText(_field, 'big blue');
-    await tester.tap(find.bySemanticsLabel('Large text'));
+    await placeWithTool(tester, const Offset(150, 150));
+    await tester.enterText(field, 'big blue');
+    await tester.tap(find.text('L'));
     await tester.tap(find.bySemanticsLabel('Blue'));
-    await tester.tap(find.text('Save'));
-    await tester.pumpAndSettle();
+    await commit(tester);
 
     expect(fixture.posted.single['props'], {
       'text': 'big blue',
@@ -235,25 +185,23 @@ void main() {
   testWidgets('hidden and direction characters never reach the wire', (
     tester,
   ) async {
-    final fixture = await _openPane(tester);
+    final fixture = await openPane(tester);
 
-    await _placeWithTool(tester, const Offset(150, 150));
-    await tester.enterText(_field, 'a\u202Eb\u200Bc\td\r\ne');
-    await tester.tap(find.text('Save'));
-    await tester.pumpAndSettle();
+    await placeWithTool(tester, const Offset(150, 150));
+    await tester.enterText(field, 'a\u202Eb\u200Bc\td\r\ne');
+    await commit(tester);
 
     expect((fixture.posted.single['props'] as Map)['text'], 'abc d\ne');
   });
 
   testWidgets('the text is cut at the server limit', (tester) async {
-    final fixture = await _openPane(tester);
+    final fixture = await openPane(tester);
 
-    await _placeWithTool(tester, const Offset(150, 150));
-    await tester.enterText(_field, 'x' * 600);
+    await placeWithTool(tester, const Offset(150, 150));
+    await tester.enterText(field, 'x' * 600);
     await tester.pump();
     expect(find.text('This text box is full.'), findsOneWidget);
-    await tester.tap(find.text('Save'));
-    await tester.pumpAndSettle();
+    await commit(tester);
 
     expect(
       ((fixture.posted.single['props'] as Map)['text'] as String).length,
@@ -262,7 +210,7 @@ void main() {
   });
 
   testWidgets('the T key arms the text tool', (tester) async {
-    await _openPane(tester);
+    await openPane(tester);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.keyT);
     await tester.pump();
@@ -272,32 +220,32 @@ void main() {
     await gesture.up();
     await tester.pumpAndSettle();
 
-    expect(find.byType(CanvasTextEditor), findsOneWidget);
+    expect(editor, findsOneWidget);
   });
 
   testWidgets('a long press on empty canvas with a finger opens the editor', (
     tester,
   ) async {
-    final fixture = await _openPane(tester);
+    final fixture = await openPane(tester);
     await tester.tap(find.bySemanticsLabel('Pan'));
     await tester.pump();
 
     await _longPress(tester, const Offset(150, 150));
 
-    expect(find.byType(CanvasTextEditor), findsOneWidget);
+    expect(editor, findsOneWidget);
     expect(fixture.posted, isEmpty);
   });
 
   testWidgets('a long press on an object does not open the text editor', (
     tester,
   ) async {
-    await _openPane(tester, objects: [canvasNoteJson('note', x: 400)]);
+    await openPane(tester, objects: [canvasNoteJson('note', x: 400)]);
     await tester.tap(find.bySemanticsLabel('Pan'));
     await tester.pump();
 
     await _longPress(tester, const Offset(415, 15));
 
-    expect(find.byType(CanvasTextEditor), findsNothing);
+    expect(editor, findsNothing);
   });
 
   testWidgets('a refused placement takes the box back off the canvas', (
@@ -310,10 +258,9 @@ void main() {
     await pumpCanvasPane(tester, container);
     await tester.pumpAndSettle();
 
-    await _placeWithTool(tester, const Offset(150, 150));
-    await tester.enterText(_field, 'doomed');
-    await tester.tap(find.text('Save'));
-    await tester.pumpAndSettle();
+    await placeWithTool(tester, const Offset(150, 150));
+    await tester.enterText(field, 'doomed');
+    await commit(tester);
 
     expect(fixture.posted, isEmpty);
     expect(surfaceDocument(tester).liveCountsByKind.texts, 0);
@@ -322,7 +269,7 @@ void main() {
 
   testWidgets('a refused edit puts the old text back', (tester) async {
     final fixture = CanvasPaneFixture(opsPostStatus: 400)
-      ..objects = [_textJson('box')];
+      ..objects = [textBoxJson('box')];
     final container = fixture.container();
     addTearDown(container.dispose);
     addTearDown(fixture.events.close);
@@ -330,18 +277,17 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.bySemanticsLabel('Pan'));
     await tester.pump();
-    await _fingerTapTwice(tester, const Offset(415, 20));
+    await fingerTapTwice(tester, const Offset(415, 20));
 
-    await tester.enterText(_field, 'after');
-    await tester.tap(find.text('Save'));
-    await tester.pumpAndSettle();
+    await tester.enterText(field, 'after');
+    await commit(tester);
 
     expect(surfaceDocument(tester).textOf('box'), 'before');
   });
 
   group('editing a placed box', () {
     Future<CanvasPaneFixture> open(WidgetTester tester) async {
-      final fixture = await _openPane(tester, objects: [_textJson('box')]);
+      final fixture = await openPane(tester, objects: [textBoxJson('box')]);
       await tester.tap(find.bySemanticsLabel('Pan'));
       await tester.pump();
       return fixture;
@@ -354,23 +300,22 @@ void main() {
     ) async {
       await open(tester);
 
-      await _fingerTapTwice(tester, onBox);
+      await fingerTapTwice(tester, onBox);
 
-      expect(find.byType(CanvasTextEditor), findsOneWidget);
+      expect(editor, findsOneWidget);
       expect(find.text('before'), findsOneWidget);
     });
 
     testWidgets(
-      'Save posts one edit with the whole props; undo and redo reverse it',
+      'committing posts one edit with the whole props; undo and redo reverse it',
       (tester) async {
         final fixture = await open(tester);
-        await _fingerTapTwice(tester, onBox);
+        await fingerTapTwice(tester, onBox);
 
-        await tester.enterText(_field, 'after');
-        await tester.tap(find.bySemanticsLabel('Small text'));
+        await tester.enterText(field, 'after');
+        await tester.tap(find.text('S'));
         await tester.tap(find.bySemanticsLabel('Green'));
-        await tester.tap(find.text('Save'));
-        await tester.pumpAndSettle();
+        await commit(tester);
 
         final edits = fixture.postedOps.where((op) => op['kind'] == 'edit');
         expect(edits, hasLength(1));
@@ -408,13 +353,13 @@ void main() {
 
     testWidgets('Escape keeps the old text and posts nothing', (tester) async {
       final fixture = await open(tester);
-      await _fingerTapTwice(tester, onBox);
-      await tester.enterText(_field, 'changed');
+      await fingerTapTwice(tester, onBox);
+      await tester.enterText(field, 'changed');
 
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await tester.pumpAndSettle();
 
-      expect(find.byType(CanvasTextEditor), findsNothing);
+      expect(editor, findsNothing);
       expect(fixture.postedOps, isEmpty);
       expect(surfaceDocument(tester).textOf('box'), 'before');
     });
@@ -432,7 +377,7 @@ void main() {
       await tester.tap(find.text('Edit text'));
       await tester.pumpAndSettle();
 
-      expect(find.byType(CanvasTextEditor), findsOneWidget);
+      expect(editor, findsOneWidget);
     });
 
     testWidgets('a live edit from someone else restyles the box', (

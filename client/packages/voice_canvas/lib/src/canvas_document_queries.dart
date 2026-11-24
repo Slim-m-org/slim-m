@@ -296,6 +296,11 @@ extension CanvasDocumentQueries on CanvasDocument {
       existing.text = input.text;
       restyled = true;
     }
+    if (existing.kind == CanvasObjectKind.note &&
+        existing.noteStyle != input.noteStyle) {
+      existing.noteStyle = input.noteStyle;
+      restyled = true;
+    }
     if (existing.kind == CanvasObjectKind.text &&
         input.text != null &&
         (existing.text != input.text ||

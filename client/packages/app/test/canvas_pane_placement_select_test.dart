@@ -8,6 +8,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
@@ -93,9 +94,14 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      await tester.enterText(find.byType(TextField), 'a note');
+      await tester.enterText(
+        find.byWidgetPredicate((w) => w is EditableText),
+        'a note',
+      );
       await tester.pump();
-      await tester.tap(find.text('Add note'));
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
       await tester.pumpAndSettle();
 
       expect(fixture.posted, hasLength(1));
@@ -110,7 +116,7 @@ void main() {
     },
   );
 
-  testWidgets('cancelling the note sheet places nothing and selects nothing', (
+  testWidgets('cancelling the note draft places nothing and selects nothing', (
     tester,
   ) async {
     final fixture = CanvasPaneFixture();
@@ -128,8 +134,7 @@ void main() {
     await gesture.up();
     await tester.pumpAndSettle();
 
-    // Cancelling is a bare back-navigation, the same route every other sheet in this app cancels through.
-    Navigator.of(tester.element(find.byType(TextField))).pop();
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
 
     expect(fixture.posted, isEmpty);

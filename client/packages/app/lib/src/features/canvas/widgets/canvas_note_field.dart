@@ -34,6 +34,9 @@ class CanvasNoteField extends ConsumerStatefulWidget {
     this.hintText,
     this.minLines = 3,
     this.maxLines = 8,
+    this.inPlaceStyle,
+    this.tapRegionGroupId,
+    this.onTapOutside,
   });
 
   final TextEditingController controller;
@@ -46,6 +49,13 @@ class CanvasNoteField extends ConsumerStatefulWidget {
   final int minLines;
   final int maxLines;
 
+  /// Set when the field is the note itself: borderless, filling its box in this style, with its suggestions floated above it and no emoji button.
+  final TextStyle? inPlaceStyle;
+
+  /// The group a tap on the note's own bar belongs to, so it is not an outside tap.
+  final Object? tapRegionGroupId;
+  final VoidCallback? onTapOutside;
+
   @override
   ConsumerState<CanvasNoteField> createState() => _CanvasNoteFieldState();
 }
@@ -55,6 +65,8 @@ class _CanvasNoteFieldState extends ConsumerState<CanvasNoteField> {
   AutocompleteQuery? _query;
   int _selected = 0;
   bool _full = false;
+  final _suggestionsLink = LayerLink();
+  final _suggestionsPortal = OverlayPortalController();
 
   /// The text's length at the last change: a cut paste lands at the cap, so
   /// only taking something out makes room again.
@@ -225,10 +237,97 @@ class _CanvasNoteFieldState extends ConsumerState<CanvasNoteField> {
     }
   }
 
+  Widget _inPlace(AppTokens tokens, List<AutocompleteSuggestion> suggestions) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final show = suggestions.isNotEmpty;
+      if (show && !_suggestionsPortal.isShowing) _suggestionsPortal.show();
+      if (!show && _suggestionsPortal.isShowing) _suggestionsPortal.hide();
+    });
+    return OverlayPortal(
+      controller: _suggestionsPortal,
+      overlayChildBuilder: (_) => CompositedTransformFollower(
+        link: _suggestionsLink,
+        targetAnchor: Alignment.topLeft,
+        followerAnchor: Alignment.bottomLeft,
+        child: Align(
+          alignment: Alignment.bottomLeft,
+          child: SizedBox(
+            width: 280,
+            child: TextFieldTapRegion(
+              groupId: widget.tapRegionGroupId ?? EditableText,
+              child: Material(
+                type: MaterialType.transparency,
+                child: ComposerAutocomplete(
+                  suggestions: suggestions,
+                  selected: _selected,
+                  onPick: _accept,
+                  onHover: (i) => setState(() => _selected = i),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+      child: CompositedTransformTarget(
+        link: _suggestionsLink,
+        child: ComposerShortcodes(
+          controller: widget.controller,
+          expand: true,
+          child: CallbackShortcuts(
+            bindings: _bindings(),
+            child: Semantics(
+              label: widget.hintText,
+              child: TextField(
+                controller: widget.controller,
+                focusNode: widget.focusNode,
+                groupId: widget.tapRegionGroupId ?? EditableText,
+                onTapOutside: (_) => widget.onTapOutside?.call(),
+                expands: true,
+                minLines: null,
+                maxLines: null,
+                textAlignVertical: TextAlignVertical.top,
+                keyboardType: TextInputType.multiline,
+                inputFormatters: [NoteByteLimitFormatter(onRefused: _markFull)],
+                style: widget.inPlaceStyle,
+                cursorColor: tokens.accent,
+                decoration: InputDecoration(
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  filled: false,
+                  isDense: true,
+                  contentPadding: EdgeInsets.zero,
+                  hintText: widget.hintText,
+                  hintStyle: widget.inPlaceStyle?.copyWith(
+                    color: tokens.textSecondary,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Map<ShortcutActivator, VoidCallback> _bindings() => {
+    ...emphasisShortcuts(widget.controller),
+    if (widget.onSave != null) ...{
+      const SingleActivator(LogicalKeyboardKey.enter, control: true):
+          widget.onSave!,
+      const SingleActivator(LogicalKeyboardKey.enter, meta: true):
+          widget.onSave!,
+    },
+    if (widget.onCancel != null)
+      const SingleActivator(LogicalKeyboardKey.escape): widget.onCancel!,
+  };
+
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final suggestions = _suggestions();
+    if (widget.inPlaceStyle != null) return _inPlace(tokens, suggestions);
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -242,18 +341,7 @@ class _CanvasNoteFieldState extends ConsumerState<CanvasNoteField> {
         ComposerShortcodes(
           controller: widget.controller,
           child: CallbackShortcuts(
-            bindings: {
-              ...emphasisShortcuts(widget.controller),
-              if (widget.onSave != null) ...{
-                const SingleActivator(LogicalKeyboardKey.enter, control: true):
-                    widget.onSave!,
-                const SingleActivator(LogicalKeyboardKey.enter, meta: true):
-                    widget.onSave!,
-              },
-              if (widget.onCancel != null)
-                const SingleActivator(LogicalKeyboardKey.escape):
-                    widget.onCancel!,
-            },
+            bindings: _bindings(),
             child: EmojiFieldPicker(
               semanticLabel: 'Insert emoji',
               onSelect: _insertEmoji,

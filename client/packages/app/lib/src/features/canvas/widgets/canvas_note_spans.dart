@@ -2,17 +2,18 @@
 /// A note's text as styled spans: the message parser's inline markdown,
 /// mentions and links, drawn by a canvas painter rather than a widget tree.
 ///
-/// Only `TextSpan`s are produced, since a painter cannot lay out a widget.
-/// Block markdown (headings, quotes, fences) and Space emoji images stay as
-/// the text typed; standard emoji are already glyphs.
+/// Only spans are produced, since a painter cannot lay out a widget: blocks come from
+/// `canvas_note_blocks.dart`, and a link is a `NoteLinkSpan` the board answers a tap on.
+/// Space emoji images stay as the text typed; standard emoji are already glyphs.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_voice_canvas/voice_canvas.dart' show NoteLinkSpan;
 
 import '../../messages/widgets/message_inline.dart';
 
-/// What [buildNoteSpans] needs beyond the text: who a mention can name and
+/// What the note spans need beyond the text: who a mention can name and
 /// the colours a mention and a link take.
 class NoteSpanStyle {
   const NoteSpanStyle({
@@ -45,9 +46,9 @@ class NoteSpanStyle {
 
 const _reservedMentions = {'everyone', 'here'};
 
-/// [text] parsed with the message grammar and styled over [base].
-InlineSpan buildNoteSpans(String text, TextStyle base, NoteSpanStyle style) =>
-    TextSpan(style: base, children: _spans(parseInline(text), style));
+/// One line of [text] parsed with the message grammar, as spans over the style it is placed in.
+List<InlineSpan> noteInlineSpans(String text, NoteSpanStyle style) =>
+    _spans(parseInline(text), style);
 
 List<InlineSpan> _spans(List<InlineNode> nodes, NoteSpanStyle style) => [
   for (final node in nodes) _span(node, style),
@@ -61,10 +62,14 @@ InlineSpan _span(InlineNode node, NoteSpanStyle style) => switch (node) {
   ),
   InlineMention(:final raw) => _mention(raw, style),
   InlineRoleMention(:final name) => _chip('@$name', style),
-  InlineChannelMention() => const TextSpan(text: '#channel'),
+  InlineChannelMention(:final channelId) => _link(
+    '#channel',
+    style,
+    '$noteChannelLinkPrefix$channelId',
+  ),
   InlineEmoji(:final raw) => TextSpan(text: raw),
-  InlineLink(:final url) => _link(url, style),
-  InlineMessageLink() => _link('message link', style),
+  InlineLink(:final url) => _link(url, style, url),
+  InlineMessageLink(:final raw) => _link('message link', style, raw),
   InlineBold(:final children) => TextSpan(
     style: const TextStyle(fontWeight: AppWeights.semi),
     children: _spans(children, style),
@@ -98,7 +103,11 @@ InlineSpan _chip(String text, NoteSpanStyle style) => TextSpan(
   ),
 );
 
-InlineSpan _link(String text, NoteSpanStyle style) => TextSpan(
+/// A link target that is a channel in this app, not an address.
+const String noteChannelLinkPrefix = 'slimm-channel:';
+
+InlineSpan _link(String text, NoteSpanStyle style, String url) => NoteLinkSpan(
+  url: url,
   text: text,
   style: TextStyle(
     color: style.linkInk,

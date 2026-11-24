@@ -97,6 +97,7 @@ class CanvasSurface extends StatefulWidget {
     this.edgeInk,
     this.edgeLabelFill,
     this.noteTextInk = const Color(0xFF1A1A1A),
+    this.notePalette = const NotePalette(),
     this.noteSpans,
     this.noteSpansRevision = 0,
     this.remoteDrafts,
@@ -125,6 +126,9 @@ class CanvasSurface extends StatefulWidget {
   /// The chip behind an edge's label; null falls back to [placeholderFill].
   final Color? edgeLabelFill;
   final Color noteTextInk;
+
+  /// The colours a note is drawn with; [noteTextInk] should be its `textInk`.
+  final NotePalette notePalette;
 
   /// See [StrokePainter.noteSpans] and [StrokePainter.noteSpansRevision].
   final NoteSpanBuilder? noteSpans;

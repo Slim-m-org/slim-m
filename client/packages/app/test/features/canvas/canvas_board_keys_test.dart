@@ -5,6 +5,7 @@
 library;
 
 import 'package:flutter/gestures.dart';
+import 'package:flutter/foundation.dart' show ValueKey;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -80,13 +81,15 @@ void main() {
     ]);
   });
 
-  testWidgets('Enter opens the selected object\'s menu', (tester) async {
+  testWidgets('Enter opens the selected note for typing in place', (
+    tester,
+  ) async {
     await _pump(tester);
     await tester.sendKeyEvent(LogicalKeyboardKey.bracketRight);
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pumpAndSettle();
 
-    expect(find.text('Bring to front'), findsOneWidget);
+    expect(find.byKey(const ValueKey('canvas-note-editor-rect')), findsOne);
   });
 
   testWidgets('the menu key opens the tool wheel when nothing is selected', (
@@ -141,7 +144,7 @@ void main() {
     expect(document.camera.x, greaterThan(before));
   });
 
-  testWidgets('with the note tool armed, Enter opens the note sheet', (
+  testWidgets('with the note tool armed, Enter opens a note to type in', (
     tester,
   ) async {
     await _pump(tester);
@@ -150,7 +153,7 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pumpAndSettle();
 
-    expect(find.text('Add a note'), findsWidgets);
+    expect(find.byKey(const ValueKey('canvas-note-editor-rect')), findsOne);
   });
 
   testWidgets(

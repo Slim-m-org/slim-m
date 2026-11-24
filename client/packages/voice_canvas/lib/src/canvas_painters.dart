@@ -25,6 +25,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 
 import 'canvas_ink.dart';
+import 'canvas_note_layout.dart';
 import 'canvas_document.dart';
 import 'canvas_ink_cache.dart';
 import 'canvas_object_painter.dart';
@@ -33,6 +34,7 @@ import 'canvas_snap.dart' show gridSpacingFor;
 export 'canvas_live_painters.dart';
 
 export 'canvas_object_painter.dart' hide ObjectPainter;
+export 'canvas_note_layout.dart';
 
 /// The background lattice, at a spacing quantised to the zoom so the mesh
 /// keeps roughly the same density on screen at any scale.
@@ -127,7 +129,14 @@ class StrokePainter extends CustomPainter {
     this.placeholderFill = const Color(0xFFB9C0C8),
     this.placeholderIcon = const Color(0xFF6C757E),
     this.elevationShadow = const [],
-  }) : super(repaint: Listenable.merge([document, document.elevatedObjectId]));
+    this.notePalette = const NotePalette(),
+  }) : super(
+          repaint: Listenable.merge([
+            document,
+            document.elevatedObjectId,
+            document.editingObjectId,
+          ]),
+        );
 
   final CanvasDocument document;
 
@@ -170,7 +179,11 @@ class StrokePainter extends CustomPainter {
   /// choice `CanvasSurface.selectionOutline` already makes.
   final List<BoxShadow> elevationShadow;
 
+  /// The colours a note is drawn with; its `textInk` is [textInk].
+  final NotePalette notePalette;
+
   late final ObjectPainter _objects = ObjectPainter(
+    palette: notePalette,
     ink: ink,
     inkColors: inkColors,
     textInk: textInk,
@@ -330,6 +343,7 @@ class StrokePainter extends CustomPainter {
             camera,
             noteColor ?? ink,
             elevated: isElevated,
+            editing: stroke.id == document.editingObjectId.value,
           );
           continue;
         case CanvasObjectKind.shape:
@@ -343,7 +357,12 @@ class StrokePainter extends CustomPainter {
           continue;
         case CanvasObjectKind.text:
           noteIds.add(stroke.id);
-          _objects.paintText(canvas, stroke, camera);
+          _objects.paintText(
+            canvas,
+            stroke,
+            camera,
+            editing: stroke.id == document.editingObjectId.value,
+          );
           continue;
         case CanvasObjectKind.tile:
           _paintTile(canvas, stroke, camera, elevated: isElevated);

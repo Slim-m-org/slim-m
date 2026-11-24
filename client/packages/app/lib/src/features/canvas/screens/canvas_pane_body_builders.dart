@@ -94,6 +94,7 @@ extension _CanvasPaneBodyBuilders on _CanvasPaneBodyState {
         onSendToBack: widget.onSendToBack,
         onDeleteSelected: widget.onDeleteSelected,
         onEditNote: widget.onEditNote,
+        onStyleNote: widget.onStyleNote,
         onRecenter: widget.onRecenter,
         onToolChanged: widget.onToolChanged,
         onBringIntoBoard: widget.onBringIntoBoard,

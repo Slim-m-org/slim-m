@@ -12,7 +12,7 @@ import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/features/canvas/screens/canvas_note_sizing.dart';
+import 'package:slimm_app/src/features/canvas/widgets/canvas_note_sizing.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_ops_controller.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_sync.dart';
 import 'package:slimm_test_support/slimm_test_support.dart';

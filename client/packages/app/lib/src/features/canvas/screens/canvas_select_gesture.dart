@@ -4,6 +4,7 @@
 /// for editing on a double click or a second tap.
 library;
 
+import 'dart:async';
 import 'dart:ui' show PointerDeviceKind;
 
 import 'package:clock/clock.dart';
@@ -18,6 +19,7 @@ import '../../channels/providers/channel_permissions.dart';
 import 'canvas_drag_pan.dart';
 import 'canvas_edge_gesture.dart';
 import 'canvas_engine.dart';
+import 'canvas_note_taps.dart';
 import 'canvas_ops_controller.dart';
 
 /// How close a tap must land to someone's cursor to follow them, in screen pixels.
@@ -38,6 +40,8 @@ class CanvasSelectGesture {
     required this.editNote,
     required this.changed,
     required CanvasTool Function() tool,
+    this.noteSpans,
+    this.mayRestyle,
   }) : _tool = tool {
     edges = CanvasEdgeGesture(
       engine: engine,
@@ -76,6 +80,12 @@ class CanvasSelectGesture {
   /// Rebuilds the pane.
   final VoidCallback changed;
 
+  /// How the board lays a note's text out, so a tap can find the box or link it hit.
+  final NoteSpanBuilder? Function()? noteSpans;
+
+  /// Whether this person may change the note, which a task box needs.
+  final bool Function(String id)? mayRestyle;
+
   final _dragPan = CanvasDragPan();
 
   /// The last mouse click on a note, so a second one soon after is a double click.
@@ -96,6 +106,7 @@ class CanvasSelectGesture {
       return;
     }
     if (id == null && _followCursorAt(world)) return;
+    if (_noteContentTapped(world)) return;
     final bounds = id == null ? null : _document.objectBounds(id);
     final onNote =
         id != null &&
@@ -122,6 +133,37 @@ class CanvasSelectGesture {
       _lastNoteClick = null;
     }
     editNote(id);
+  }
+
+  /// A task box or a link in a note's text was hit; true when it took the tap.
+  bool _noteContentTapped(Offset world) {
+    final spans = noteSpans?.call();
+    if (spans == null) return false;
+    final tapped = noteTapAt(
+      _document,
+      world,
+      spans,
+      canToggle: mayToggle(world),
+    );
+    switch (tapped) {
+      case NoteCheckTap(:final objectId, :final line):
+        unawaited(_ops.toggleTask(objectId, line).then((_) => changed()));
+      case NoteLinkTap(:final url):
+        openNoteLink(ref.context, ref, url);
+      case null:
+        return false;
+    }
+    _lastNoteClick = null;
+    return true;
+  }
+
+  /// Task boxes answer only a person who may edit the note under the tap, and never a locked one.
+  bool mayToggle(Offset world) {
+    final id = hitTestTopmost(_document, world);
+    return id != null &&
+        !_ops.isLocked(id) &&
+        !spectating() &&
+        (mayRestyle?.call(id) ?? false);
   }
 
   /// A tap on someone's cursor follows them instead of selecting under it.

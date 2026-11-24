@@ -57,6 +57,7 @@ import '../../composer/widgets/composer_clipboard_image.dart'
     show pasteKeystrokeReadsClipboardImage;
 import '../widgets/armed_pen.dart';
 import '../widgets/canvas_clear_scope.dart' show CanvasScopedClear;
+import '../widgets/canvas_note_blocks.dart';
 import '../widgets/canvas_note_spans.dart';
 import 'canvas_text_tool.dart';
 import '../../members/providers/member_presence.dart' show membersProvider;
@@ -92,7 +93,7 @@ import 'canvas_fullscreen.dart';
 import 'canvas_summon_request.dart' show leaveFullscreenThenSettle;
 import 'canvas_image_paste.dart';
 import 'canvas_media_slot_sync.dart';
-import 'canvas_note_sheet.dart';
+import 'canvas_note_editing.dart';
 import 'canvas_ops_controller.dart';
 import 'canvas_pane_body.dart';
 import 'canvas_pane_holds.dart';
@@ -164,6 +165,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
   CanvasSelectGesture? _selectHelper;
   CanvasImagePaste? _imagePasteHelper;
   CanvasQuickPlacement? _quickPlacementHelper;
+  CanvasNoteEditing? _notesHelper;
   CanvasStampPlacement? _stampPlacementHelper;
 
   /// Captured once: `ref.read` throws while this element unmounts, and [dispose] still needs the engine.
@@ -312,7 +314,6 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
       (_, height) => _document.setBottomInset(_boardInset(height)),
     );
     final noteSpanStyle = _noteSpanStyle(context);
-    final editingNote = _editingNoteId != null || _text.draft != null;
     final focusedTile = _focusedTileKey;
     final voiceFlags = ref.watch(voiceFlagsProvider);
     final partialClear = ref.watch(
@@ -334,7 +335,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
           child: CanvasPaneInput(
             shortcuts: {
               // Only bound while there is something to escape from, so Escape keeps reaching whatever else would have handled it.
-              if (editingNote)
+              if (_typing)
                 const SingleActivator(LogicalKeyboardKey.escape):
                     _onNoteEditCancel
               else if (_tool != CanvasTool.pan)
@@ -349,7 +350,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
                 const SingleActivator(LogicalKeyboardKey.escape):
                     _closeMemberPane,
               // None of these while a note is being typed in (its field owns them) or while the log hides the board.
-              if (!editingNote && !_activityLogOpen && !spectating)
+              if (!_typing && !_activityLogOpen && !spectating)
                 ..._canvasEditShortcuts(),
             },
             focusNode: _focusNode,
@@ -400,17 +401,18 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
               onSelectTap: _select.tap,
               grabsHandleAt: _select.grabsHandleAt,
               onEditNote: _onEditNote,
-              noteSpans: (text, base) =>
-                  buildNoteSpans(text, base, noteSpanStyle),
+              onStyleNote: _notes.focusBar,
+              noteSpans: _useNoteSpans(noteSpanStyle),
               noteSpansRevision: noteSpanStyle.revision,
-              noteEditor: _text.editor(
-                _editingNoteId,
-                onCancel: _onNoteEditCancel,
-                onEditClosed: () => _refresh(() => _editingNoteId = null),
-                onNoteSave: _onNoteEditSave,
+              noteEditor: _notes.overlay(
+                tokens: Theme.of(context).extension<AppTokens>()!,
+                tool: _tool,
+                mayEdit: (id) => _mayRestyle(id, manageCanvas, me?.id),
+                onTextStyle: _text.restyle,
+                textEditing: _editingNoteId != null || _text.draft != null,
+                textEditor: _textEditor(),
               ),
-              onNotePlace: (world, [size]) =>
-                  unawaited(_onNotePlace(world, size)),
+              onNotePlace: (world, [size]) => _notes.placeDraft(world, size),
               onTextPlace: _text.place,
               onSelectLongPress: _text.longPress,
               onShapePlace: (world, size, {flipX = false, flipY = false}) =>

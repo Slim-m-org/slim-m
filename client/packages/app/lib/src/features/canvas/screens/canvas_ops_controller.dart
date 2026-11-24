@@ -18,10 +18,11 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../../ids.dart';
 import 'canvas_commit_queue.dart';
-import 'canvas_note_sizing.dart';
+import '../widgets/canvas_note_sizing.dart';
 import 'canvas_object_op_chain.dart';
 import '../providers/canvas_object_inputs.dart';
 import '../providers/canvas_text_props.dart';
+import '../widgets/canvas_note_blocks.dart' show toggleNoteTask;
 import '../widgets/canvas_text_content.dart';
 import 'canvas_retry.dart';
 
@@ -134,6 +135,9 @@ class CanvasOpsController {
 
   bool _disposed = false;
   bool _historyBusy = false;
+
+  /// How the board lays a note's text out, so a note grows to the room its rendered Markdown takes.
+  NoteSpanBuilder? noteSpans;
 
   Offset? _lastErase;
 
@@ -297,6 +301,7 @@ class CanvasOpsController {
       objectId,
       inverse,
     ),
+    _StyleEntry(:final objectId, :final from) => _undoStyle(objectId, from),
     _NoUndo() => Future.value(const _NoRedo()),
   };
 
@@ -342,6 +347,7 @@ class CanvasOpsController {
       objectId,
       change,
     ),
+    _RedoStyle(:final objectId, :final to) => _redoStyle(objectId, to),
     _NoRedo() || _Skipped() => Future.value(const _NoUndo()),
   };
 

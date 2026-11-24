@@ -344,16 +344,17 @@ impl Store {
                 outcome
             }
             CanvasOpRequest::Edit { object_id, props } => {
-                apply_edit(
+                let edited = apply_edit(
                     &mut tx,
                     channel_id,
                     actor_id,
                     may_moderate,
                     object_id,
                     &props,
-                    &mut edit_props,
                 )
-                .await?
+                .await?;
+                edit_props = edited.props;
+                edited.outcome
             }
             CanvasOpRequest::Reorder { object_id, z_index } => {
                 let outcome = apply_reorder(

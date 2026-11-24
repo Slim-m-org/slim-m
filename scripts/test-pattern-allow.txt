@@ -14,7 +14,6 @@ client/packages/app/test/canvas_compact_dock_width_sweep_test.dart 1 2
 client/packages/app/test/canvas_docked_thread_escape_test.dart 0 2
 client/packages/app/test/canvas_image_paste_test.dart 0 3
 client/packages/app/test/canvas_menu_dismiss_click_test.dart 0 4
-client/packages/app/test/canvas_note_sheet_focus_test.dart 3 2
 client/packages/app/test/canvas_pane_activity_summary_test.dart 0 2
 client/packages/app/test/canvas_pane_bring_in_undo_test.dart 0 2
 client/packages/app/test/canvas_pane_context_menu_test.dart 1 7
@@ -26,7 +25,7 @@ client/packages/app/test/canvas_pane_log_open_shortcuts_test.dart 0 5
 client/packages/app/test/canvas_pane_long_press_pointer_kind_test.dart 0 2
 client/packages/app/test/canvas_pane_ops_test.dart 0 37
 client/packages/app/test/canvas_pane_placeholder_test.dart 1 0
-client/packages/app/test/canvas_pane_placement_select_test.dart 4 11
+client/packages/app/test/canvas_pane_placement_select_test.dart 2 11
 client/packages/app/test/canvas_pane_presence_test.dart 6 0
 client/packages/app/test/canvas_pane_redo_test.dart 1 6
 client/packages/app/test/canvas_pane_remove_failure_test.dart 0 4
@@ -91,7 +90,7 @@ client/packages/app/test/features/auth/database_reset_notice_test.dart 2 0
 client/packages/app/test/features/auth/dismissed_sheet_setstate_test.dart 3 5
 client/packages/app/test/features/auth/first_run_polish_test.dart 3 0
 client/packages/app/test/features/auth/invite_join_tofu_test.dart 3 6
-client/packages/app/test/features/auth/invite_landing_test.dart 12 6
+client/packages/app/test/features/auth/invite_landing_test.dart 11 6
 client/packages/app/test/features/auth/new_device_banner_test.dart 5 2
 client/packages/app/test/features/auth/official_join_path_test.dart 4 5
 client/packages/app/test/features/auth/onboarding_invite_link_test.dart 4 7
@@ -111,7 +110,6 @@ client/packages/app/test/features/auth/sign_in_field_rules_test.dart 0 3
 client/packages/app/test/features/auth/sign_in_invite_after_router_leaves_test.dart 1 3
 client/packages/app/test/features/auth/sign_in_invite_notice_test.dart 0 1
 client/packages/app/test/features/auth/sign_in_not_a_slim_server_test.dart 1 2
-client/packages/app/test/features/auth/sign_in_registration_flag_test.dart 0 2
 client/packages/app/test/features/auth/sign_in_screen_busy_test.dart 9 3
 client/packages/app/test/features/auth/sign_in_screen_default_server_test.dart 4 2
 client/packages/app/test/features/auth/sign_in_screen_identity_test.dart 10 13
@@ -156,9 +154,7 @@ client/packages/app/test/features/canvas/canvas_load_failure_recovery_test.dart 
 client/packages/app/test/features/canvas/canvas_load_retry_test.dart 0 1
 client/packages/app/test/features/canvas/canvas_loading_state_test.dart 2 0
 client/packages/app/test/features/canvas/canvas_note_edit_pane_test.dart 18 10
-client/packages/app/test/features/canvas/canvas_note_editor_dock_floor_test.dart 1 0
 client/packages/app/test/features/canvas/canvas_note_field_test.dart 7 3
-client/packages/app/test/features/canvas/canvas_note_sheet_test.dart 9 2
 client/packages/app/test/features/canvas/canvas_note_typing_keys_test.dart 7 3
 client/packages/app/test/features/canvas/canvas_object_context_menu_long_press_test.dart 0 3
 client/packages/app/test/features/canvas/canvas_object_context_menu_test.dart 0 21
@@ -194,7 +190,7 @@ client/packages/app/test/features/canvas/canvas_scoped_clear_version_test.dart 0
 client/packages/app/test/features/canvas/canvas_screen_share_badge_test.dart 5 0
 client/packages/app/test/features/canvas/canvas_selection_semantics_test.dart 3 0
 client/packages/app/test/features/canvas/canvas_short_window_test.dart 6 0
-client/packages/app/test/features/canvas/canvas_text_pane_test.dart 10 22
+client/packages/app/test/features/canvas/canvas_text_pane_test.dart 0 11
 client/packages/app/test/features/canvas/canvas_tool_options_clearance_test.dart 3 1
 client/packages/app/test/features/canvas/canvas_tool_options_test.dart 12 16
 client/packages/app/test/features/canvas/canvas_tool_wheel_test.dart 3 15
@@ -715,7 +711,7 @@ client/packages/app/test/features/settings/roles_screen_test.dart 2 8
 client/packages/app/test/features/settings/screen_safe_area_test.dart 10 3
 client/packages/app/test/features/settings/server_metrics_screen_test.dart 1 1
 client/packages/app/test/features/settings/settings_declutter_test.dart 2 2
-client/packages/app/test/features/settings/settings_detail_row_test.dart 2 0
+client/packages/app/test/features/settings/settings_detail_row_test.dart 1 0
 client/packages/app/test/features/settings/settings_entity_row_test.dart 6 2
 client/packages/app/test/features/settings/settings_entry_points_test.dart 0 8
 client/packages/app/test/features/settings/settings_fold_test.dart 1 5

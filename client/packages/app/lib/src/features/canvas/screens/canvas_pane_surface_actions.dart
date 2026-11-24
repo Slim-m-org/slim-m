@@ -42,6 +42,7 @@ class CanvasPaneSurfaceActions {
     required this.onSendToBack,
     required this.onDeleteSelected,
     this.onEditNote,
+    this.onStyleNote,
     required this.onRecenter,
     required this.onToolChanged,
     required this.onBringIntoBoard,
@@ -82,6 +83,7 @@ class CanvasPaneSurfaceActions {
   final ValueChanged<String> onDeleteSelected;
 
   final ValueChanged<String>? onEditNote;
+  final ValueChanged<String>? onStyleNote;
   final VoidCallback onRecenter;
   final ValueChanged<CanvasTool> onToolChanged;
   final VoidCallback onBringIntoBoard;

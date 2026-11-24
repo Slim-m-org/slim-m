@@ -17,6 +17,7 @@ import 'canvas_board_object_semantics.dart';
 import 'canvas_module_tile_layer.dart';
 import 'canvas_object_context_menu.dart';
 import 'canvas_pane_surface_actions.dart';
+import '../providers/canvas_note_style.dart';
 import '../providers/canvas_pen_style.dart';
 import 'canvas_presence_frame.dart';
 import 'canvas_presence_layer.dart';
@@ -101,6 +102,7 @@ class CanvasPaneSurface extends StatelessWidget {
     document: document,
     tool: tool,
     onOpenActions: menuRequests.request,
+    onEditObject: readOnly ? null : actions.onEditNote,
     onOpenToolWheel: readOnly ? () {} : toolWheel.requestOpen,
     onPlaceNote: actions.onNotePlace,
     onPlaceText: actions.onTextPlace,
@@ -155,6 +157,7 @@ class CanvasPaneSurface extends StatelessWidget {
           edgeLabelFill: tokens.surfaceRaised,
           shapeColor: AppCanvasColors.shape,
           noteTextInk: tokens.textPrimary,
+          notePalette: canvasNotePalette(tokens),
           noteSpans: noteSpans,
           noteSpansRevision: noteSpansRevision,
           onStroke: actions.onStroke,
@@ -199,6 +202,7 @@ class CanvasPaneSurface extends StatelessWidget {
           onDeleteSelected: actions.onDeleteSelected,
           onAddNoteAt: actions.onNotePlace,
           onEditNote: actions.onEditNote,
+          onStyleNote: actions.onStyleNote,
           canDraw: !readOnly && !canvasErrorBlocksDrawing(error),
           readOnly: readOnly,
           onRecenter: actions.onRecenter,

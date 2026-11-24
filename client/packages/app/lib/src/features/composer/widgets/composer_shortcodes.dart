@@ -19,10 +19,14 @@ class ComposerShortcodes extends ConsumerStatefulWidget {
     super.key,
     required this.controller,
     required this.child,
+    this.expand = false,
   });
 
   final TextEditingController controller;
   final Widget child;
+
+  /// Fills the height it is given, for a field that is the box it sits in.
+  final bool expand;
 
   @override
   ConsumerState<ComposerShortcodes> createState() => _ComposerShortcodesState();
@@ -122,10 +126,10 @@ class _ComposerShortcodesState extends ConsumerState<ComposerShortcodes> {
     final names = _previewNames.where(index.containsKey).toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
+      mainAxisSize: widget.expand ? MainAxisSize.max : MainAxisSize.min,
       children: [
         if (names.isNotEmpty) _Preview(names: names, index: index),
-        widget.child,
+        if (widget.expand) Expanded(child: widget.child) else widget.child,
       ],
     );
   }

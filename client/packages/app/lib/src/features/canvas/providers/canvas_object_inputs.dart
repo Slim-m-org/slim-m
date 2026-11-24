@@ -119,7 +119,7 @@ CanvasStrokeInput? _imageInputFrom(api.CanvasObject object) {
   );
 }
 
-/// A note carries only its text; an edit op replaces it later.
+/// A note carries its text and optional style; an edit op changes them later.
 CanvasStrokeInput? _noteInputFrom(api.CanvasObject object) {
   final text = object.props['text'];
   if (text is! String) return null;
@@ -138,6 +138,7 @@ CanvasStrokeInput? _noteInputFrom(api.CanvasObject object) {
     kind: CanvasObjectKind.note,
     text: text,
     fontSize: _noteFontSizeOf(object.props['font_size']),
+    noteStyle: CanvasNoteStyle.fromWire(object.props),
   );
 }
 
@@ -226,6 +227,10 @@ void applyEditedProps(
   if (document.kindOf(objectId) != CanvasObjectKind.text) {
     final text = props['text'];
     if (text is String) document.setNoteText(objectId, text);
+    // A merged edit always carries the whole style, so it replaces what was held.
+    if (document.kindOf(objectId) == CanvasObjectKind.note) {
+      document.setNoteStyle(objectId, CanvasNoteStyle.fromWire(props));
+    }
     return;
   }
   if (CanvasTextProps.fromWire(props) case final next?) {

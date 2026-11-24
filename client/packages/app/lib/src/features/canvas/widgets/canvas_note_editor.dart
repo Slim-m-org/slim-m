@@ -1,69 +1,205 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A placed note edited where it sits: a raised field over the note's own box
-/// that follows the camera, with the composer's input features.
+/// A note edited where it sits: the note itself is the field, at its own position, size, padding, font and colours.
 ///
-/// Escape or Cancel keeps the old text; Save, Ctrl or Cmd plus Enter, or a
-/// click outside commits. Editing down to nothing cancels, since this field
-/// has no way to delete the note.
+/// The painter leaves the note's text out while it is edited, so this field is the only copy and follows
+/// the camera and any remote move every frame. A tap outside the note and its bar, Ctrl or Cmd plus Enter
+/// or picking another object commits; Escape cancels. Editing down to nothing cancels, since this field has no way to delete a note.
 library;
+
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-import 'canvas_editor_layout.dart';
+import 'canvas_note_sizing.dart';
 import 'canvas_note_field.dart';
+
+/// What the field says before anything is typed, and what a screen reader calls it.
+const String canvasNoteFieldHint = 'What do you want to remember?';
+
+/// The tap region group the field and its style bar share.
+final Object canvasNoteTapGroup = Object();
+
+/// The text being edited and where the note stood when editing began.
+class CanvasNoteEditSession {
+  CanvasNoteEditSession({
+    required this.objectId,
+    required this.initialText,
+    required this.startBounds,
+    this.draft,
+  }) : controller = TextEditingController(text: initialText),
+       focusNode = FocusNode() {
+    controller.selection = TextSelection.collapsed(offset: initialText.length);
+  }
+
+  final String objectId;
+  final String initialText;
+
+  /// The note's box before it grew to hold what was typed, which a cancel or a commit grows from.
+  final ({double x, double y, double w, double h}) startBounds;
+
+  /// Set for a note that exists only here until its text is committed: where it was asked for.
+  final CanvasNoteDraft? draft;
+
+  final TextEditingController controller;
+  final FocusNode focusNode;
+
+  void dispose() {
+    controller.dispose();
+    focusNode.dispose();
+  }
+}
+
+/// A note not placed yet: the spot asked for and the size it was dragged out to, if any.
+class CanvasNoteDraft {
+  const CanvasNoteDraft({required this.world, this.draggedSize});
+
+  final Offset world;
+  final Size? draggedSize;
+}
 
 class CanvasNoteEditor extends StatefulWidget {
   const CanvasNoteEditor({
     super.key,
     required this.document,
-    required this.objectId,
-    required this.onSave,
+    required this.session,
+    required this.palette,
+    required this.onCommit,
     required this.onCancel,
+    required this.onGone,
   });
 
   final CanvasDocument document;
-  final String objectId;
-  final ValueChanged<String> onSave;
+  final CanvasNoteEditSession session;
+  final NotePalette palette;
+  final ValueChanged<String> onCommit;
   final VoidCallback onCancel;
+
+  /// The note was removed under the editor.
+  final VoidCallback onGone;
 
   @override
   State<CanvasNoteEditor> createState() => _CanvasNoteEditorState();
 }
 
-class _CanvasNoteEditorState extends State<CanvasNoteEditor> {
-  late final _initial = widget.document.noteTextOf(widget.objectId) ?? '';
-  late final _controller = TextEditingController(text: _initial)
-    ..selection = TextSelection.collapsed(offset: _initial.length);
-  final _focus = FocusNode();
+class _CanvasNoteEditorState extends State<CanvasNoteEditor>
+    with SingleTickerProviderStateMixin {
+  CanvasNoteEditSession get _session => widget.session;
   bool _done = false;
+  late final AnimationController _ease = AnimationController(vsync: this);
+  Camera? _easeFrom;
+  Camera? _easeTo;
 
   @override
   void initState() {
     super.initState();
+    _session.controller.addListener(_grow);
+    widget.document.editingObjectId.value = _session.objectId;
     // Asked for, not autofocus alone: the pane's own shortcut focus can still hold it.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _focus.requestFocus();
+      if (!mounted) return;
+      _session.focusNode.requestFocus();
+      _easeToReadable();
     });
   }
 
   @override
   void dispose() {
-    _focus.dispose();
-    _controller.dispose();
+    _session.controller.removeListener(_grow);
+    _ease.dispose();
+    if (!widget.document.isDisposed &&
+        widget.document.editingObjectId.value == _session.objectId) {
+      widget.document.editingObjectId.value = null;
+    }
     super.dispose();
   }
 
-  void _save() {
-    if (_done) return;
-    _done = true;
-    final text = _controller.text.trim();
-    if (text.isEmpty || text == _initial) {
-      widget.onCancel();
-    } else {
-      widget.onSave(text);
+  double _fontWorld(double w, double h) {
+    final style =
+        widget.document.noteStyleOf(_session.objectId) ??
+        const CanvasNoteStyle();
+    return noteTextSizeOf(noteFontSizeFor(w, h), style);
+  }
+
+  /// Grows the note to hold the raw text as it is typed; the commit grows it again to the rendered layout.
+  void _grow() {
+    final bounds = widget.document.objectBounds(_session.objectId);
+    if (bounds == null) return;
+    final style =
+        widget.document.noteStyleOf(_session.objectId) ??
+        const CanvasNoteStyle();
+    final box = noteBoxFor(
+      _session.controller.text,
+      width: bounds.w,
+      minHeight: bounds.h,
+      fontSize: noteTextSizeOf(noteFontSizeForWidth(bounds.w), style),
+    );
+    if (box.height <= bounds.h) return;
+    final to = widget.document.boxOnBoard(
+      _session.objectId,
+      bounds.x,
+      bounds.y,
+      bounds.w,
+      box.height,
+    );
+    widget.document
+      ..moveObject(_session.objectId, to.x, to.y, to.w, to.h)
+      ..refresh();
+  }
+
+  /// A note smaller on screen than body text is not typed into: the camera eases in, a move the system makes and so may animate.
+  void _easeToReadable() {
+    final document = widget.document;
+    final bounds = document.objectBounds(_session.objectId);
+    if (bounds == null) return;
+    final camera = document.camera;
+    final screenFont = _fontWorld(bounds.w, bounds.h) * camera.zoom;
+    final body = AppText.body.fontSize!;
+    if (screenFont >= body) return;
+    final zoom = (camera.zoom * body / screenFont).clamp(camera.zoom, maxZoom);
+    final center = Offset(bounds.x + bounds.w / 2, bounds.y + bounds.h / 2);
+    final view = document.viewport;
+    final target = Camera(
+      x: center.dx - view.width / (2 * zoom),
+      y: center.dy - view.height / (3 * zoom),
+      zoom: zoom,
+    );
+    final duration = AppMotion.reduced(context, AppMotion.base);
+    if (duration == Duration.zero) {
+      document.setCamera(target);
+      return;
     }
+    _easeFrom = camera;
+    _easeTo = target;
+    _ease
+      ..duration = duration
+      ..addListener(_stepEase)
+      ..forward(from: 0);
+  }
+
+  void _stepEase() {
+    final from = _easeFrom;
+    final to = _easeTo;
+    if (from == null || to == null) return;
+    final t = Curves.easeOut.transform(_ease.value);
+    widget.document.setCamera(
+      Camera(
+        x: from.x + (to.x - from.x) * t,
+        y: from.y + (to.y - from.y) * t,
+        zoom: from.zoom + (to.zoom - from.zoom) * t,
+      ),
+    );
+  }
+
+  void _commit() {
+    if (_done) return;
+    final text = _session.controller.text.trim();
+    if (text.isEmpty || text == _session.initialText) {
+      _cancel();
+      return;
+    }
+    widget.onCommit(text);
   }
 
   void _cancel() {
@@ -75,137 +211,85 @@ class _CanvasNoteEditorState extends State<CanvasNoteEditor> {
   @override
   Widget build(BuildContext context) {
     final inset = MediaQuery.viewInsetsOf(context).bottom;
-    return Stack(
-      children: [
-        Positioned.fill(
-          // Named, so the cover a screen reader meets over the board says what a tap on it does.
-          child: Semantics(
-            label: 'Save and close the note',
-            button: true,
-            onTap: _save,
-            excludeSemantics: true,
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: _save,
-            ),
-          ),
-        ),
-        Positioned.fill(
-          child: AnimatedBuilder(
-            animation: widget.document,
-            builder: (context, _) {
-              final bounds = widget.document.objectBounds(widget.objectId);
-              if (bounds == null) {
-                // The note was removed under the editor.
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (mounted) _cancel();
-                });
-                return const SizedBox.shrink();
-              }
-              final camera = widget.document.camera;
-              final board = widget.document.board;
-              return CustomSingleChildLayout(
-                delegate: CanvasEditorLayout(
-                  area: board == null
-                      ? null
-                      : Rect.fromLTWH(
-                          (board.left - camera.x) * camera.zoom,
-                          (board.top - camera.y) * camera.zoom,
-                          board.width * camera.zoom,
-                          board.height * camera.zoom,
-                        ),
-                  anchor: Offset(
-                    (bounds.x - camera.x) * camera.zoom,
-                    (bounds.y - camera.y) * camera.zoom,
+    return AnimatedBuilder(
+      animation: widget.document,
+      builder: (context, _) {
+        final bounds = widget.document.objectBounds(_session.objectId);
+        if (bounds == null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted && !_done) {
+              _done = true;
+              widget.onGone();
+            }
+          });
+          return const SizedBox.shrink();
+        }
+        final camera = widget.document.camera;
+        final style =
+            widget.document.noteStyleOf(_session.objectId) ??
+            const CanvasNoteStyle();
+        final fontScreen = _fontWorld(bounds.w, bounds.h) * camera.zoom;
+        final pad = noteWorldPad * camera.zoom;
+        final rect = Rect.fromLTWH(
+          (bounds.x - camera.x) * camera.zoom,
+          (bounds.y - camera.y) * camera.zoom,
+          bounds.w * camera.zoom,
+          bounds.h * camera.zoom,
+        );
+        _keepAboveKeyboard(rect, inset);
+        final ink = widget.palette.inkOf(style, AppCanvasColors.note);
+        return Stack(
+          children: [
+            Positioned.fromRect(
+              rect: rect,
+              child: TextFieldTapRegion(
+                key: const ValueKey('canvas-note-editor-rect'),
+                groupId: canvasNoteTapGroup,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _session.focusNode.requestFocus,
+                  child: Padding(
+                    padding: EdgeInsets.all(pad),
+                    child: CanvasNoteField(
+                      controller: _session.controller,
+                      focusNode: _session.focusNode,
+                      onSave: _commit,
+                      onCancel: _cancel,
+                      hintText: canvasNoteFieldHint,
+                      inPlaceStyle: TextStyle(
+                        fontFamily: AppFonts.sans,
+                        fontSize: fontScreen,
+                        height: noteLineHeight,
+                        color: ink,
+                      ),
+                      tapRegionGroupId: canvasNoteTapGroup,
+                      onTapOutside: _commit,
+                    ),
                   ),
-                  objectWidth: bounds.w * camera.zoom,
-                  keyboardInset: inset,
-                  bottomInset: widget.document.bottomInset,
-                ),
-                child: _Panel(
-                  controller: _controller,
-                  focusNode: _focus,
-                  onSave: _save,
-                  onCancel: _cancel,
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _Panel extends StatelessWidget {
-  const _Panel({
-    required this.controller,
-    required this.focusNode,
-    required this.onSave,
-    required this.onCancel,
-  });
-
-  final TextEditingController controller;
-  final FocusNode focusNode;
-  final VoidCallback onSave;
-  final VoidCallback onCancel;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    return Material(
-      type: MaterialType.transparency,
-      child: Container(
-        padding: const EdgeInsets.all(AppSpacing.s8),
-        decoration: BoxDecoration(
-          color: tokens.surfaceRaised,
-          border: Border.all(color: tokens.accentFill),
-          borderRadius: BorderRadius.circular(AppRadii.card),
-          boxShadow: AppShadows.menu,
-        ),
-        // Scrolls so a short window, or a keyboard, cannot overflow the panel.
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              CanvasNoteField(
-                controller: controller,
-                focusNode: focusNode,
-                onSave: onSave,
-                onCancel: onCancel,
-                hintText: 'Note text',
-                minLines: 2,
-                maxLines: 8,
-              ),
-              const SizedBox(height: AppSpacing.s4),
-              Align(
-                alignment: Alignment.centerRight,
-                // Wraps: a sideways phone with its keyboard up leaves the panel narrower than both buttons.
-                child: Wrap(
-                  alignment: WrapAlignment.end,
-                  spacing: AppSpacing.s8,
-                  runSpacing: AppSpacing.s4,
-                  children: [
-                    AppButton(
-                      label: 'Cancel',
-                      variant: AppButtonVariant.ghost,
-                      size: AppButtonSize.sm,
-                      onPressed: onCancel,
-                    ),
-                    AppButton(
-                      label: 'Save',
-                      variant: AppButtonVariant.primary,
-                      size: AppButtonSize.sm,
-                      onPressed: onSave,
-                    ),
-                  ],
                 ),
               ),
-            ],
-          ),
-        ),
-      ),
+            ),
+          ],
+        );
+      },
     );
   }
+
+  /// A phone's keyboard must not cover the note: the camera pans, never the layout.
+  void _keepAboveKeyboard(Rect rect, double inset) {
+    if (inset <= 0) return;
+    final floor = widget.document.viewport.height - inset - _barRoom;
+    final over = rect.bottom - floor;
+    if (over <= 0) return;
+    final camera = widget.document.camera;
+    final shift = math.min(over, math.max(0, rect.top - AppSpacing.s8));
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      widget.document.setCamera(
+        camera.copyWith(y: camera.y + shift / camera.zoom),
+      );
+    });
+  }
+
+  static const double _barRoom = 64;
 }

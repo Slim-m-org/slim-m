@@ -22,20 +22,20 @@ export 'src/canvas_external_pointers.dart';
 export 'src/canvas_grid_layer.dart';
 export 'src/canvas_ink.dart';
 export 'src/canvas_hit_test.dart';
+export 'src/canvas_note_layout.dart';
 export 'src/canvas_object_previews.dart';
 export 'src/canvas_painters.dart'
     show
         CursorPainter,
         DraftStroke,
-        NoteSpanBuilder,
         RemoteDraftPainter,
         StrokePainter,
         noteFontSizeFor,
         noteFontSizeForWidth,
+        noteMaxLines,
         noteReferenceFontSize,
         noteReferenceHeight,
-        noteReferenceWidth,
-        noteWorldFontSize;
+        noteReferenceWidth;
 export 'src/canvas_personal_layout.dart';
 export 'src/canvas_presence_layout.dart';
 export 'src/canvas_presence_tile_overrides.dart';
