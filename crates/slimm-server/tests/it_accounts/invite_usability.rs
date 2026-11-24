@@ -57,6 +57,7 @@ async fn sql_says_usable(s: &Store, code: &str, user: UserId) -> bool {
 async fn exactly_at_max_uses_is_unusable_on_both_paths() {
     let (s, _guard) = store().await;
     let owner = s.create_user("owner", "Owner").await.unwrap();
+    s.bootstrap_deployment(owner.id).await.unwrap();
     let a = s.create_user("a", "A").await.unwrap();
     let b = s.create_user("b", "B").await.unwrap();
     let invite = s

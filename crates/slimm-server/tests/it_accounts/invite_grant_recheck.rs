@@ -113,8 +113,64 @@ async fn a_maker_who_still_could_grant_the_role_gives_it() {
 #[tokio::test]
 async fn a_demoted_maker_gives_nobody_the_role() {
     let w = world("slimm-invite-recheck-demoted").await;
-    w.store.unassign_role(w.mia, w.mods).await.unwrap();
+    sqlx::query("UPDATE roles SET permissions = ? WHERE id = ?")
+        .bind(
+            Permissions::CREATE_INVITE
+                .union(Permissions::KICK_MEMBERS)
+                .bits(),
+        )
+        .bind(w.mods)
+        .execute(&w.pool)
+        .await
+        .unwrap();
     assert!(!w.joins_with_helper("late").await);
+}
+
+/// A code whose maker lost CREATE_INVITE admits nobody: signup, redeem and the landing check agree.
+#[tokio::test]
+async fn a_maker_who_lost_create_invite_admits_nobody() {
+    let w = world("slimm-invite-recheck-no-invite").await;
+    let (status, _) = call(
+        &w.app,
+        "GET",
+        &format!("/invites/{}/check", w.code),
+        None,
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    w.store.unassign_role(w.mia, w.mods).await.unwrap();
+
+    let (status, check): (StatusCode, Value) = call(
+        &w.app,
+        "GET",
+        &format!("/invites/{}/check", w.code),
+        None,
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(check, json!({ "usable": false }));
+    let body = json!({
+        "username": "late",
+        "display_name": "late",
+        "password": "a-long-enough-password",
+        "device_name": "cli",
+        "invite_code": w.code,
+    });
+    let (status, body): (StatusCode, Value) =
+        call(&w.app, "POST", "/auth/register", None, Some(body)).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+    assert!(w.store.find_credentials("late").await.unwrap().is_none());
+    let member = register_account(&w.store, "member").await;
+    let uri = format!("/invites/{}/redeem", w.code);
+    let (status, _) = call_as(&w.app, "POST", &uri, &member.token, None).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    let alice_code = w.mint(w.helper).await;
+    assert!(
+        w.joins_holding("control", &alice_code, w.helper).await,
+        "the owner's own code still admits"
+    );
 }
 
 #[tokio::test]

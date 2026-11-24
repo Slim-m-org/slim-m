@@ -33,12 +33,20 @@ async fn a_retry_by_the_same_user_spends_no_second_use() {
         .await
         .unwrap();
 
-    let fresh = store.redeem_invite(&invite.code, alice.id).await.unwrap();
+    let fresh = store
+        .redeem_invite(&invite.code, alice.id)
+        .await
+        .unwrap()
+        .fresh;
     assert!(fresh, "a first redemption must report itself as fresh");
     assert_eq!(uses(&store, &invite.code).await, 1);
 
     // Alice retries the same redemption: a no-op, not a second use.
-    let retried = store.redeem_invite(&invite.code, alice.id).await.unwrap();
+    let retried = store
+        .redeem_invite(&invite.code, alice.id)
+        .await
+        .unwrap()
+        .fresh;
     assert!(
         !retried,
         "a retry must not report itself as fresh, or MemberJoined fires twice"
@@ -50,7 +58,11 @@ async fn a_retry_by_the_same_user_spends_no_second_use() {
     );
 
     // The slot Alice's retry did not take is still there for Bob.
-    let bob_fresh = store.redeem_invite(&invite.code, bob.id).await.unwrap();
+    let bob_fresh = store
+        .redeem_invite(&invite.code, bob.id)
+        .await
+        .unwrap()
+        .fresh;
     assert!(bob_fresh);
     assert_eq!(uses(&store, &invite.code).await, 2);
     assert!(!store.invite_is_usable(&invite.code).await.unwrap());

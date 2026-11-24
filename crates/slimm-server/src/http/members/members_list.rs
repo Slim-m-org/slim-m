@@ -9,6 +9,7 @@ use serde::Deserialize;
 use super::super::AppState;
 use super::super::error::ApiError;
 use super::super::extract::{AUTHED_READ, AuthedLimited, Json, Query};
+use super::super::invites::code_reader_scope;
 use super::super::messages::parse_uuid;
 use super::super::users::{UserDto, to_dtos};
 use crate::ids::{ChannelId, UserId};
@@ -48,15 +49,9 @@ struct ListMembersParams {
 /// A MANAGE_ROLES caller additionally gets each member's registration invite
 /// code attached (see MOD9) - a moderation signal, not a public one, so it
 /// is fetched and attached only here rather than in [`to_dtos`] itself,
-/// which every other `UserDto` response also goes through.
-///
-/// MANAGE_ROLES rather than the BAN_MEMBERS this once used: a code is a
-/// credential, not a label. `Store::redeem_invite` applies the invite's
-/// `role_grant` to whoever spends it, and redeeming needs nothing but a
-/// session, so a moderator who could not grant a role could read a still-live
-/// code off this list and take that role - up to ADMINISTRATOR. Gating on the
-/// permission that could grant it anyway closes that without losing the
-/// ban-evasion signal for the people who set the roles in the first place.
+/// which every other `UserDto` response also goes through. A code is a
+/// credential, so only one the caller would see in `GET /invites` is attached:
+/// see [`code_reader_scope`].
 async fn list_members(
     AuthedLimited(ctx): AuthedLimited<AUTHED_READ>,
     Query(params): Query<ListMembersParams>,
@@ -94,16 +89,15 @@ async fn list_members(
     let ids: Vec<UserId> = members.iter().map(|m| m.id).collect();
     let mut dtos = to_dtos(&state.store, members).await?;
 
-    // A code is a credential: redeeming it applies the role it grants.
-    let sees_codes = state
-        .store
-        .base_permissions(ctx.user_id)
-        .await?
-        .contains(Permissions::MANAGE_ROLES);
-    if sees_codes {
+    if let Some(scope) = code_reader_scope(&state, ctx.user_id).await? {
         let invite_codes = state.store.registration_invite_codes(&ids).await?;
+        let codes: Vec<String> = invite_codes.values().cloned().collect();
+        let readable = state.store.invite_codes_within(&codes, scope).await?;
         for (dto, id) in dtos.iter_mut().zip(ids.iter()) {
-            dto.invite_code = invite_codes.get(id).cloned();
+            dto.invite_code = invite_codes
+                .get(id)
+                .filter(|code| readable.contains(*code))
+                .cloned();
         }
     }
     Ok(Json(dtos))

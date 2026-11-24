@@ -92,9 +92,8 @@ struct RemovalDto {
     reason: Option<String>,
     removed_by: Option<String>,
     removed_at: i64,
-    /// The invite this member registered through, or `null` if they had
-    /// none. This route already requires BAN_MEMBERS, so unlike
-    /// `UserDto.invite_code` it is never gated further.
+    /// The invite this member registered through, or `null` if they had none or the caller
+    /// may not read it; see [`list_removed`].
     invite_code: Option<String>,
 }
 
@@ -334,10 +333,9 @@ async fn delete_member_account(
 /// Every removal in force. Requires BAN_MEMBERS, because this is the only
 /// place a removed member is still nameable - the member list drops them.
 ///
-/// The `invite_code` on each entry needs MANAGE_ROLES on top, for the reason
-/// given on [`super::users::list`]: the code is redeemable for the role it
-/// grants, so a caller who could not grant that role must not be able to read
-/// one. The removal itself stays visible to any BAN_MEMBERS holder.
+/// The `invite_code` on each entry shows only as the member list shows it, through
+/// [`super::invites::code_reader_scope`]: the code is redeemable for the role it grants.
+/// The removal itself stays visible to any BAN_MEMBERS holder.
 async fn list_removed(
     Authed(ctx): Authed,
     parts: Parts,
@@ -347,21 +345,23 @@ async fn list_removed(
     enforce(&state, &parts, Some(&ctx), Class::AuthedRead)?;
     require(&state, ctx.user_id, Permissions::BAN_MEMBERS).await?;
 
-    // Blanked below unless held; see the note in `http::users::list`.
-    let sees_codes = state
-        .store
-        .base_permissions(ctx.user_id)
-        .await?
-        .contains(Permissions::MANAGE_ROLES);
     let removals = state.store.list_removals().await?;
+    let readable = match super::invites::code_reader_scope(&state, ctx.user_id).await? {
+        Some(scope) => {
+            let codes: Vec<String> = removals
+                .iter()
+                .filter_map(|removal| removal.invite_code.clone())
+                .collect();
+            state.store.invite_codes_within(&codes, scope).await?
+        }
+        None => Default::default(),
+    };
     Ok(Json(
         removals
             .into_iter()
             .map(|removal| {
                 let mut dto = RemovalDto::from(removal);
-                if !sees_codes {
-                    dto.invite_code = None;
-                }
+                dto.invite_code = dto.invite_code.filter(|code| readable.contains(code));
                 dto
             })
             .collect(),

@@ -16,6 +16,8 @@
 
 mod redemption;
 mod sweep;
+pub use redemption::Redemption;
+use redemption::maker_still_invites;
 pub(super) use redemption::{apply_role_grant, record_redemption, spend_invite};
 
 use rand_core::{OsRng, RngCore};
@@ -260,17 +262,6 @@ impl Store {
         Ok(revoked)
     }
 
-    /// Who made `code`, if it exists and its maker still has an account.
-    pub async fn invite_creator(&self, code: &str) -> anyhow::Result<Option<UserId>> {
-        Ok(sqlx::query_scalar!(
-            r#"SELECT created_by AS "created_by: UserId" FROM invites WHERE code = ?"#,
-            code
-        )
-        .fetch_optional(&self.pool)
-        .await?
-        .flatten())
-    }
-
     /// Invites, newest first, within `scope`: one account's own, or everyone's, or everyone's but
     /// the role-granting codes a manager could not grant by hand.
     ///
@@ -284,7 +275,8 @@ impl Store {
     /// requires, sees everyone's, and then only the roles it could grant itself.
     ///
     /// One page of at most `limit` rows, starting after the invite `before`
-    /// names; an unknown `before` starts from the top rather than failing.
+    /// names; an unknown `before` starts from the top rather than failing. An invite dead for
+    /// longer than the sweep's grace is left out, as if swept, though a member's join keeps its row.
     pub async fn list_invites(
         &self,
         scope: InviteScope,
@@ -292,6 +284,7 @@ impl Store {
         limit: i64,
     ) -> anyhow::Result<Vec<Invite>> {
         let (created_by, manager, below, holds) = scope.parts();
+        let dead_before = now_ms() - sweep::DEAD_INVITE_GRACE_MS;
         let rows = sqlx::query!(
             r#"SELECT i.code AS "code!", i.max_uses, i.uses AS "uses!", i.expires_at,
                       i.created_at AS "created_at!", i.revoked_at,
@@ -307,6 +300,11 @@ impl Store {
                                  AND r.is_everyone = 0 AND r.is_bots_role = 0
                                  AND r.managed_bot_id IS NULL AND r.position < ?5
                                  AND (r.permissions & ?6) = r.permissions))
+                 AND NOT ((i.revoked_at IS NOT NULL AND i.revoked_at < ?7)
+                      OR (i.expires_at IS NOT NULL AND i.expires_at < ?7)
+                      OR (i.max_uses IS NOT NULL AND i.uses >= i.max_uses
+                          AND COALESCE((SELECT MAX(r.redeemed_at) FROM invite_redemptions r
+                                        WHERE r.code = i.code), i.created_at) < ?7))
                ORDER BY i.created_at DESC, i.code DESC
                LIMIT ?3"#,
             created_by,
@@ -314,7 +312,8 @@ impl Store {
             limit,
             manager,
             below,
-            holds
+            holds,
+            dead_before
         )
         .fetch_all(&self.pool)
         .await?;
@@ -433,7 +432,7 @@ impl Store {
             row.expires_at,
             now,
         );
-        if !usable {
+        if !usable || !maker_still_invites(&mut *self.pool.acquire().await?, code).await? {
             return Ok(InviteCheck::Unusable);
         }
 

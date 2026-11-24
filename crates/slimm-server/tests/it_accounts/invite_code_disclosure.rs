@@ -133,3 +133,102 @@ async fn a_moderator_without_manage_roles_cannot_read_a_registration_code() {
         .unwrap();
     assert_eq!(carol["invite_code"].as_str(), Some(code.as_str()));
 }
+
+/// The `invite_code` each row of `GET {uri}` shows for `username`, as `caller` reads it.
+async fn code_on_row(app: &Router, uri: &str, caller: &str, username: &str) -> Option<String> {
+    let listed = app
+        .clone()
+        .oneshot(request("GET", uri, Some(caller), None))
+        .await
+        .unwrap();
+    assert_eq!(listed.status(), StatusCode::OK, "{uri}");
+    let rows = json_body(listed).await;
+    let row = rows
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|m| m["username"] == username)
+        .unwrap_or_else(|| panic!("{username} is listed on {uri}"))
+        .clone();
+    row["invite_code"].as_str().map(str::to_owned)
+}
+
+/// The member lists show a code only where `GET /invites` would: a manager below a role is not
+/// handed a live code that grants it.
+#[tokio::test]
+async fn a_manager_below_a_role_cannot_read_a_code_that_grants_it_off_either_list() {
+    let (store, app, admin, member, _guard) = fixture().await;
+    let managing = Permissions::MANAGE_ROLES
+        .union(Permissions::CREATE_INVITE)
+        .union(Permissions::BAN_MEMBERS);
+    let manager = store.create_role("manager", managing, false).await.unwrap();
+    let staff = store
+        .create_role("staff", Permissions::BAN_MEMBERS, false)
+        .await
+        .unwrap();
+    let owner_role = store
+        .list_roles()
+        .await
+        .unwrap()
+        .into_iter()
+        .find(|r| r.name == "admin")
+        .unwrap()
+        .id;
+    store
+        .reorder_roles(&[owner_role, staff, manager])
+        .await
+        .unwrap();
+    let member_id = store.find_credentials("member").await.unwrap().unwrap().0;
+    store.assign_role(member_id, manager).await.unwrap();
+
+    let mint = |body: serde_json::Value| {
+        let app = app.clone();
+        let admin = admin.clone();
+        async move {
+            let created = app
+                .oneshot(request("POST", "/invites", Some(&admin), Some(body)))
+                .await
+                .unwrap();
+            assert_eq!(created.status(), StatusCode::OK);
+            json_body(created).await["code"]
+                .as_str()
+                .unwrap()
+                .to_owned()
+        }
+    };
+    let staff_code = mint(json!({ "role_grant": staff.to_string() })).await;
+    let plain_code = mint(json!({})).await;
+    let carol = store
+        .register_account("carol", "Carol", "h", Some(&staff_code))
+        .await
+        .unwrap();
+    store
+        .register_account("dave", "Dave", "h", Some(&plain_code))
+        .await
+        .unwrap();
+
+    assert_eq!(code_on_row(&app, "/members", &member, "carol").await, None);
+    assert_eq!(
+        code_on_row(&app, "/members", &member, "dave").await,
+        Some(plain_code.clone()),
+        "a code that grants nothing is one the manager lists in GET /invites too"
+    );
+    assert_eq!(
+        code_on_row(&app, "/members", &admin, "carol").await,
+        Some(staff_code.clone())
+    );
+
+    let admin_id = store.find_credentials("admin").await.unwrap().unwrap().0;
+    store
+        .remove_from_space(carol.id, admin_id, None)
+        .await
+        .unwrap();
+    assert_eq!(
+        code_on_row(&app, "/members/removed", &member, "carol").await,
+        None
+    );
+    assert_eq!(
+        code_on_row(&app, "/members/removed", &admin, "carol").await,
+        Some(staff_code)
+    );
+}

@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT i.code AS \"code!\", i.max_uses, i.uses AS \"uses!\", i.expires_at,\n                      i.created_at AS \"created_at!\", i.revoked_at,\n                      i.role_grant AS \"role_grant: RoleId\",\n                      u.display_name AS \"created_by_name?: String\"\n               FROM invites i\n               LEFT JOIN users u ON u.id = i.created_by AND u.deleted_at IS NULL\n               WHERE (?1 IS NULL OR i.created_by = ?1)\n                 AND (?2 IS NULL OR NOT EXISTS (SELECT 1 FROM invites c WHERE c.code = ?2)\n                      OR (i.created_at, i.code) < (SELECT c.created_at, c.code FROM invites c WHERE c.code = ?2))\n                 AND (?4 IS NULL OR i.role_grant IS NULL OR i.created_by = ?4\n                      OR EXISTS (SELECT 1 FROM roles r WHERE r.id = i.role_grant\n                                 AND r.is_everyone = 0 AND r.is_bots_role = 0\n                                 AND r.managed_bot_id IS NULL AND r.position < ?5\n                                 AND (r.permissions & ?6) = r.permissions))\n               ORDER BY i.created_at DESC, i.code DESC\n               LIMIT ?3",
+  "query": "SELECT i.code AS \"code!\", i.max_uses, i.uses AS \"uses!\", i.expires_at,\n                      i.created_at AS \"created_at!\", i.revoked_at,\n                      i.role_grant AS \"role_grant: RoleId\",\n                      u.display_name AS \"created_by_name?: String\"\n               FROM invites i\n               LEFT JOIN users u ON u.id = i.created_by AND u.deleted_at IS NULL\n               WHERE (?1 IS NULL OR i.created_by = ?1)\n                 AND (?2 IS NULL OR NOT EXISTS (SELECT 1 FROM invites c WHERE c.code = ?2)\n                      OR (i.created_at, i.code) < (SELECT c.created_at, c.code FROM invites c WHERE c.code = ?2))\n                 AND (?4 IS NULL OR i.role_grant IS NULL OR i.created_by = ?4\n                      OR EXISTS (SELECT 1 FROM roles r WHERE r.id = i.role_grant\n                                 AND r.is_everyone = 0 AND r.is_bots_role = 0\n                                 AND r.managed_bot_id IS NULL AND r.position < ?5\n                                 AND (r.permissions & ?6) = r.permissions))\n                 AND NOT ((i.revoked_at IS NOT NULL AND i.revoked_at < ?7)\n                      OR (i.expires_at IS NOT NULL AND i.expires_at < ?7)\n                      OR (i.max_uses IS NOT NULL AND i.uses >= i.max_uses\n                          AND COALESCE((SELECT MAX(r.redeemed_at) FROM invite_redemptions r\n                                        WHERE r.code = i.code), i.created_at) < ?7))\n               ORDER BY i.created_at DESC, i.code DESC\n               LIMIT ?3",
   "describe": {
     "columns": [
       {
@@ -93,7 +93,7 @@
       }
     ],
     "parameters": {
-      "Right": 6
+      "Right": 7
     },
     "nullable": [
       false,
@@ -106,5 +106,5 @@
       true
     ]
   },
-  "hash": "681f013539d34488dc6d500d9122332ab34103b1e15db592185583f14396ee73"
+  "hash": "3a6f6c2777fbf0a98959d0c9a97b20333ffa4149b47ac88f8bc0c111c7e1971d"
 }
