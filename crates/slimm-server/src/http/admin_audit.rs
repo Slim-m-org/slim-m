@@ -38,6 +38,8 @@ const MAX_NAME_CHARS: usize = 100;
 /// Well under the 4096 characters the table's CHECK allows, so a row is never refused for its detail.
 const MAX_DETAIL_CHARS: usize = 3500;
 const RECORD_ATTEMPTS: u32 = 3;
+/// How long a body may take to arrive before it is passed on uninspected.
+const INSPECTION_WAIT: std::time::Duration = std::time::Duration::from_millis(500);
 const PAGE_DEFAULT: i64 = 50;
 const PAGE_MAX: i64 = 200;
 
@@ -188,22 +190,31 @@ async fn inspect_json(headers: &axum::http::HeaderMap, body: Body) -> (Body, Opt
     buffer_up_to_cap(body).await
 }
 
-/// Buffers a body up to the inspection cap; past it the buffered part is chained back onto the rest.
+/// Buffers a body up to the inspection cap or the wait, whichever comes first; what is left is chained back on.
+///
+/// The wait keeps a stalled body from holding a connection ahead of the handler's own rate-limit charge.
 async fn buffer_up_to_cap(body: Body) -> (Body, Option<Value>, bool) {
     let mut stream = body.into_data_stream();
     let mut buffered = Vec::new();
-    while let Some(chunk) = stream.next().await {
-        let Ok(chunk) = chunk else {
-            return (Body::empty(), None, false);
-        };
-        buffered.extend_from_slice(&chunk);
+    let deadline = tokio::time::Instant::now() + INSPECTION_WAIT;
+    loop {
+        match tokio::time::timeout_at(deadline, stream.next()).await {
+            Ok(None) => break,
+            Ok(Some(Err(_))) => return (Body::empty(), None, false),
+            Ok(Some(Ok(chunk))) => buffered.extend_from_slice(&chunk),
+            Err(_) => return (rejoin(buffered, stream), None, true),
+        }
         if buffered.len() > MAX_INSPECTED_BODY {
-            let head = futures_util::stream::iter([Ok(Bytes::from(buffered))]);
-            return (Body::from_stream(head.chain(stream)), None, true);
+            return (rejoin(buffered, stream), None, true);
         }
     }
     let json = serde_json::from_slice(&buffered).ok();
     (Body::from(buffered), json, false)
+}
+
+fn rejoin(buffered: Vec<u8>, rest: axum::body::BodyDataStream) -> Body {
+    let head = futures_util::stream::iter([Ok(Bytes::from(buffered))]);
+    Body::from_stream(head.chain(rest))
 }
 
 /// Whether the body is known to fit the inspection cap; one that may not is passed through whole.
