@@ -6,7 +6,9 @@
 use slimm_server::config::Config;
 use slimm_server::db;
 use slimm_server::ids::{ChannelId, MessageId, UserId};
-use slimm_server::store::{MAX_SAVED_MESSAGES, MAX_THREADS_PER_CHANNEL, NewMessage, Store};
+use slimm_server::store::{
+    MAX_SAVED_MESSAGES, MAX_THREADS_PER_CHANNEL, NewMessage, OpenThreadError, Store,
+};
 use sqlx::SqlitePool;
 
 use crate::support;
@@ -62,7 +64,7 @@ async fn saves_of_deleted_messages_do_not_hold_a_slot() {
 }
 
 #[tokio::test]
-async fn threads_under_deleted_parents_do_not_hold_a_slot() {
+async fn threads_under_deleted_parents_still_hold_a_slot() {
     let (s, pool, user, channel, _guard) = store("slimm-audit-threads").await;
     let mut first = None;
     for i in 0..MAX_THREADS_PER_CHANNEL {
@@ -74,8 +76,11 @@ async fn threads_under_deleted_parents_do_not_hold_a_slot() {
 
     let parent = send(&s, channel, user, "one more").await;
     assert!(
-        s.open_thread(channel, parent).await.is_ok(),
-        "a thread the list hides still counted toward the ceiling"
+        matches!(
+            s.open_thread(channel, parent).await,
+            Err(OpenThreadError::TooMany)
+        ),
+        "deleting a parent freed a slot the live thread still uses"
     );
 }
 
