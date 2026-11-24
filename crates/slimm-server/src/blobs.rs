@@ -51,6 +51,7 @@ pub async fn collect_garbage(
     now: SystemTime,
 ) -> anyhow::Result<usize> {
     let mut removed = collect_stale_previews(store, media, now).await?;
+    removed += crate::profile_sweep::collect_profile_files(store, media, now).await?;
     for (name, modified) in media.attachment_files().await? {
         let age = now.duration_since(modified).unwrap_or_default();
         if name.starts_with(".tmp-") {

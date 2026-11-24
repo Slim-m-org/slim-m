@@ -45,9 +45,11 @@ pub(super) async fn upload_banner(
     })?;
 
     let user_id = ctx.user_id.to_string();
+    let body = media::fit_profile_image(body.to_vec(), media::BANNER_SIDE).await;
+    let _guard = state.media.profile_guard().await;
     state
         .media
-        .write_user_banner(&user_id, body.to_vec())
+        .write_user_banner(&user_id, body)
         .await
         .map_err(|err| {
             tracing::error!(error = %err, "failed to write an uploaded banner");
@@ -69,6 +71,7 @@ pub(super) async fn delete_banner(
     State(state): State<AppState>,
 ) -> Result<StatusCode, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
+    let _guard = state.media.profile_guard().await;
     state.store.clear_banner(ctx.user_id).await?;
     if let Err(err) = state
         .media

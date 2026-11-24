@@ -43,6 +43,7 @@ pub mod soundboard;
 pub use notifications::notification_schedule;
 pub mod permissions;
 pub mod presence;
+pub mod profile_sweep;
 pub mod space_theme;
 pub use presence::presence_activity;
 pub use presence::typing;
