@@ -14,7 +14,7 @@ import 'package:slimm_app/src/sync/providers/sync_status.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  int retriesAfterDrop({required bool inCall}) {
+  int retriesAfterDrop({required bool inCall, bool dropFirst = true}) {
     var starts = 0;
     fakeAsync((async) {
       final container = ProviderContainer(
@@ -41,7 +41,11 @@ void main() {
           ),
         ),
       );
-      reconnector.scheduleRetry();
+      if (dropFirst) {
+        reconnector.scheduleRetry();
+      } else {
+        reconnector.onCallStarted();
+      }
       async.elapse(const Duration(seconds: 5));
       container.dispose();
     });
@@ -51,6 +55,13 @@ void main() {
   test('a backgrounded phone in a call schedules the reconnect', () {
     expect(retriesAfterDrop(inCall: true), 1);
   });
+
+  test(
+    'a call that starts while the socket is down schedules the reconnect',
+    () {
+      expect(retriesAfterDrop(inCall: true, dropFirst: false), 1);
+    },
+  );
 
   test('a backgrounded phone out of a call still waits for the foreground', () {
     expect(retriesAfterDrop(inCall: false), 0);
