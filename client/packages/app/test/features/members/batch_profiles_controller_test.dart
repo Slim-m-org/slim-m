@@ -87,6 +87,38 @@ void main() {
     );
   });
 
+  test('a member.removed frame evicts the id, so a deleted account resolves '
+      'to gone instead of its last name', () async {
+    final events = StreamController<api.ServerEvent>.broadcast();
+    addTearDown(events.close);
+    var deleted = false;
+    final container = ProviderContainer(
+      overrides: [
+        sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
+        liveEventsProvider.overrideWithValue(events.stream),
+        mockApiOverride(
+          (request) async => http.Response(
+            jsonEncode(deleted ? [] : [_userJson('u1', 'Dave')]),
+            200,
+            headers: {'content-type': 'application/json'},
+          ),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    final notifier = container.read(batchProfilesControllerProvider.notifier);
+    await notifier.resolve(['u1']);
+
+    deleted = true;
+    events.add(const api.MemberRemoved(userId: 'u1'));
+    await Future<void>.delayed(Duration.zero);
+    await notifier.resolve(['u1']);
+
+    final profiles = container.read(batchProfilesControllerProvider);
+    expect(profiles.containsKey('u1'), isTrue);
+    expect(profiles['u1'], isNull);
+  });
+
   test('clear() forgets every cached profile', () async {
     final events = StreamController<api.ServerEvent>.broadcast();
     addTearDown(events.close);
