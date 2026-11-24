@@ -46,6 +46,14 @@ jobs:
           npm ci --ignore-scripts
           node check-parses.mjs
 
+      # The pre-commit credential check again, over the PR's diff, for commits made with --no-verify or in the web editor.
+      - name: no secrets or large binaries in the PR diff
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: bash .githooks/check-staged-safety.sh "${BASE_SHA}...${HEAD_SHA}"
+
       # Wheel-only so no sdist setup script runs; without them the tests that need these skip silently.
       - name: python dependencies for the scripts/lib tests
         run: "pip install --only-binary :all: numpy==2.4.6 websockets==15.0.1"

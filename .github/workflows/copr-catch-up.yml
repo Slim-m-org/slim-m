@@ -46,7 +46,7 @@ jobs:
 
   tarball:
     needs: [check]
-    if: needs.check.outputs.behind == 'true'
+    if: github.ref == 'refs/heads/main' && needs.check.outputs.behind == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -69,7 +69,7 @@ jobs:
 
   copr:
     needs: [check, tarball]
-    if: needs.check.outputs.behind == 'true' && needs.tarball.result == 'success'
+    if: github.ref == 'refs/heads/main' && needs.check.outputs.behind == 'true' && needs.tarball.result == 'success'
     uses: ./.github/workflows/copr-publish.yml
     # Named rather than `inherit`, for the reason main-builds.yml's copr job gives.
     secrets:
