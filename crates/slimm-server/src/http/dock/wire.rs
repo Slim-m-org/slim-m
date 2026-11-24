@@ -21,6 +21,11 @@ pub(super) struct IndexEntryDto {
     /// True when another source already owns this id, so it cannot be
     /// installed from the source being listed (decision 0046).
     shadowed: bool,
+    /// Versions the registry withdrew; empty when none.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    withdrawn: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    withdrawn_reason: Option<String>,
 }
 
 impl IndexEntryDto {
@@ -31,6 +36,8 @@ impl IndexEntryDto {
             version: entry.version,
             summary: entry.summary,
             shadowed,
+            withdrawn: entry.withdrawn,
+            withdrawn_reason: entry.withdrawn_reason,
         }
     }
 }
@@ -310,6 +317,9 @@ pub(in crate::http) struct InstalledModuleDto {
     queue_depth: Option<i64>,
     /// The fuel one run may burn, the ceiling the run stats' fuel is read against.
     fuel_limit: i64,
+    /// Why the registry withdrew the installed version; only the installed listing carries it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    withdrawn_reason: Option<String>,
     #[serde(flatten)]
     platform: PlatformDto,
     #[serde(flatten)]
@@ -393,6 +403,12 @@ impl InstalledModuleDto {
         self
     }
 
+    /// Marks the installed version as withdrawn by the registry, with its reason.
+    pub(in crate::http) fn with_withdrawal(mut self, reason: Option<String>) -> Self {
+        self.withdrawn_reason = reason;
+        self
+    }
+
     /// Adds how many pushed events are waiting for the module.
     pub(in crate::http) fn with_queue_depth(mut self, depth: usize) -> Self {
         self.queue_depth = Some(i64::try_from(depth).unwrap_or(i64::MAX));
@@ -443,6 +459,7 @@ impl From<InstalledModule> for InstalledModuleDto {
             events_dropped: 0,
             queue_depth: None,
             fuel_limit: i64::try_from(RunLimits::from(&m.runtime_limits).fuel).unwrap_or(i64::MAX),
+            withdrawn_reason: None,
             connector: super::dock_connector::ConnectorInstalledDto::of(m.connector_permissions),
             platform: PlatformDto {
                 addon_api: m.addon_api,

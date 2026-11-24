@@ -14,7 +14,10 @@ use super::super::overwrite_changes;
 use super::super::overwrites::Target;
 use super::capabilities::held_hooks;
 use super::connector_guard;
+use super::fetch_index;
 use super::keywords::{self, ensure_slash_keywords_free};
+use super::manifest::IndexEntry;
+use super::sources::Origin;
 use super::wire::InstalledModuleDto;
 use crate::module_runtime::valid_file_id;
 use crate::ratelimit::Class;
@@ -183,6 +186,7 @@ async fn apply_enabled(
     id: &str,
     enabled: bool,
 ) -> Result<Json<InstalledModuleDto>, ApiError> {
+    let _changing = state.dock.lock_changes().await;
     if enabled {
         let module = state
             .store
@@ -261,6 +265,7 @@ pub(in crate::http) async fn list_installed(
     let usage = state.store.module_storage_usage().await?;
     let mut health = state.store.module_health().await?;
     let mut hooks = state.store.module_hook_decls().await?;
+    let official = official_index(&state, &modules).await;
     Ok(Json(
         modules
             .into_iter()
@@ -270,7 +275,9 @@ pub(in crate::http) async fn list_installed(
                 let health = health.remove(&m.id).unwrap_or_default();
                 let depth = state.dock.queue_depths().get(&m.id);
                 let hooks = hooks.remove(&m.id).unwrap_or_default();
+                let withdrawn = withdrawal(&official, &m);
                 InstalledModuleDto::from(m)
+                    .with_withdrawal(withdrawn)
                     .with_activity(stats, usage)
                     .with_health(health)
                     .with_queue_depth(depth)
@@ -278,6 +285,29 @@ pub(in crate::http) async fn list_installed(
             })
             .collect(),
     ))
+}
+
+/// The official index when an installed module came from it; unreadable means no flags.
+async fn official_index(state: &AppState, modules: &[InstalledModule]) -> Vec<IndexEntry> {
+    let from_official = modules.iter().any(|m| m.source_repo.is_none());
+    let Ok(dock) = state.dock.enabled() else {
+        return Vec::new();
+    };
+    if !from_official {
+        return Vec::new();
+    }
+    let origin = Origin::Remote(dock.official_bases.clone());
+    fetch_index(dock, &origin).await.unwrap_or_default()
+}
+
+fn withdrawal(index: &[IndexEntry], module: &InstalledModule) -> Option<String> {
+    if module.source_repo.is_some() {
+        return None;
+    }
+    index
+        .iter()
+        .find(|e| e.id == module.id)
+        .and_then(|e| e.withdrawal_of(&module.version))
 }
 
 /// Empties a module's `kv.store`; the module stays installed with its approvals.

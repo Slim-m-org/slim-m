@@ -7,7 +7,7 @@ use sha2::{Digest, Sha256};
 
 use super::Manifest;
 use crate::media::to_hex;
-use crate::store::SettingKind;
+use crate::store::{HostRunSpec, SettingKind};
 
 #[derive(Serialize)]
 struct Reviewed<'a> {
@@ -18,7 +18,8 @@ struct Reviewed<'a> {
     hosts: Vec<&'a str>,
     local: bool,
     schedules: Vec<(&'a str, u32)>,
-    permissions: Vec<&'a str>,
+    /// Each permission's key, name and description, the words the consent screen shows.
+    permissions: Vec<(&'a str, &'a str, &'a str)>,
     limits: (Option<u64>, Option<u64>, Option<u64>),
     #[serde(skip_serializing_if = "Vec::is_empty")]
     subscriptions: Vec<&'a str>,
@@ -41,11 +42,48 @@ struct Reviewed<'a> {
     /// The core permissions a connector's token asks for.
     #[serde(skip_serializing_if = "Option::is_none")]
     connector: Option<i64>,
+    /// The image, egress, volume and limits a host-run connector asks the host to run with.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    host_run: Option<HostRunAsk<'a>>,
+}
+
+#[derive(Serialize)]
+struct HostRunAsk<'a> {
+    image: &'a str,
+    egress: Vec<(&'a str, u16)>,
+    egress_private: bool,
+    volume: bool,
+    memory_mib: Option<i64>,
+    cpus: Option<f64>,
+    pids: Option<i64>,
+    volume_mib: Option<i64>,
+}
+
+impl<'a> HostRunAsk<'a> {
+    fn of(run: &'a HostRunSpec) -> Self {
+        let mut egress: Vec<(&str, u16)> = run
+            .egress
+            .iter()
+            .map(|e| (e.host.as_str(), e.port))
+            .collect();
+        egress.sort_unstable();
+        Self {
+            image: &run.image,
+            egress,
+            egress_private: run.egress_private,
+            volume: run.volume,
+            memory_mib: run.memory_mib,
+            cpus: run.cpus,
+            pids: run.pids,
+            volume_mib: run.volume_mib,
+        }
+    }
 }
 
 type ExtensionPoint<'a> = (
     &'a str,
     &'a str,
+    Option<&'a str>,
     Option<&'a str>,
     Option<&'a str>,
     Option<&'a str>,
@@ -57,9 +95,19 @@ fn sorted<'a>(items: impl Iterator<Item = &'a str>) -> Vec<&'a str> {
     v
 }
 
+fn permissions(manifest: &Manifest) -> Vec<(&str, &str, &str)> {
+    let mut all: Vec<_> = manifest
+        .permissions
+        .iter()
+        .map(|p| (p.key.as_str(), p.name.as_str(), p.description.as_str()))
+        .collect();
+    all.sort_unstable();
+    all
+}
+
 impl Manifest {
-    /// Hex sha256 over the artifact, capabilities, hosts, schedules, permission keys, limits,
-    /// hooks, extension points, settings and slots, each list in sorted order.
+    /// Hex sha256 over the artifact, capabilities, hosts, schedules, permissions, limits,
+    /// hooks, extension points, settings, slots and a connector's host-run ask, each list sorted.
     pub(in crate::http) fn review_digest(&self) -> String {
         let mut schedules: Vec<(&str, u32)> = self
             .schedules
@@ -85,6 +133,7 @@ impl Manifest {
                 (
                     e.kind.as_str(),
                     e.name.as_str(),
+                    e.description.as_deref(),
                     e.command.as_deref(),
                     e.permission.as_deref(),
                     e.language.as_deref(),
@@ -117,7 +166,7 @@ impl Manifest {
             hosts: sorted(self.network.hosts.iter().map(String::as_str)),
             local: self.network.local,
             schedules,
-            permissions: sorted(self.permissions.iter().map(|p| p.key.as_str())),
+            permissions: permissions(self),
             limits: (limits.memory_mb, limits.wall_ms, limits.fuel),
             subscriptions: sorted(self.platform.subscriptions.iter().map(String::as_str)),
             data: self.data.as_ref(),
@@ -133,6 +182,11 @@ impl Manifest {
             settings,
             slots,
             connector: self.connector.as_ref().map(|c| c.permissions.bits()),
+            host_run: self
+                .connector
+                .as_ref()
+                .and_then(|c| c.host_run.as_ref())
+                .map(HostRunAsk::of),
         };
         let json = serde_json::to_vec(&reviewed).unwrap_or_default();
         to_hex(&Sha256::digest(json))

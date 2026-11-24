@@ -85,6 +85,7 @@ pub(super) async fn install_manifest(
     repo: Option<&str>,
     actor: crate::ids::UserId,
 ) -> Result<InstalledModuleDto, ApiError> {
+    let _changing = state.dock.lock_changes().await;
     let id = manifest.id.as_str();
     if manifest.version != req.version {
         return Err(ApiError::Conflict(
