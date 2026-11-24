@@ -14,21 +14,33 @@ import 'package:slimm_api/api.dart' show AppLog, LogTag;
 const _recentEmojiKey = 'slimm.recent_emoji';
 const _maxRecentEmoji = 24;
 
+/// Filed per account so the next one on this device never sees the last one's picks.
+String recentEmojiStorageKey(String userId) => '$_recentEmojiKey.$userId';
+
 /// Recently-picked reaction emoji, most recent first. Loaded from
 /// [preferencesProvider] on construction and persisted, best-effort, after
 /// every [use]; a failed read or write just leaves the shelf as it was.
 class RecentEmojiController extends StateNotifier<List<String>> {
   RecentEmojiController(this._ref) : super(const []) {
+    final userId = _ref.read(sessionProvider).tokens?.userId;
+    _key = userId == null ? null : recentEmojiStorageKey(userId);
     unawaited(_load());
   }
 
   final Ref _ref;
+  late final String? _key;
 
   Future<void> _load() async {
+    final key = _key;
+    if (key == null) return;
     try {
       final prefs = await _ref.read(preferencesProvider.future);
-      final stored = prefs.getStringList(_recentEmojiKey);
-      if (stored != null) state = stored;
+      final stored = prefs.getStringList(key);
+      if (stored == null || !mounted) return;
+      state = [
+        ...state,
+        ...stored.where((e) => !state.contains(e)),
+      ].take(_maxRecentEmoji).toList();
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.media,
@@ -45,9 +57,11 @@ class RecentEmojiController extends StateNotifier<List<String>> {
       emoji,
       ...state.where((e) => e != emoji),
     ].take(_maxRecentEmoji).toList();
+    final key = _key;
+    if (key == null) return;
     try {
       final prefs = await _ref.read(preferencesProvider.future);
-      await prefs.setStringList(_recentEmojiKey, state);
+      await prefs.setStringList(key, state);
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.media,
@@ -60,6 +74,7 @@ class RecentEmojiController extends StateNotifier<List<String>> {
 }
 
 final recentEmojiProvider =
-    StateNotifierProvider<RecentEmojiController, List<String>>(
-      (ref) => RecentEmojiController(ref),
-    );
+    StateNotifierProvider<RecentEmojiController, List<String>>((ref) {
+      ref.watch(sessionProvider);
+      return RecentEmojiController(ref);
+    });

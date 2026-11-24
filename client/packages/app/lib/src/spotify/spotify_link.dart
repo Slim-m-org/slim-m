@@ -354,6 +354,7 @@ class SpotifySwitchController extends ActivitySwitchController {
 }
 
 final shareSpotifyProvider =
-    StateNotifierProvider<SpotifySwitchController, bool>(
-      SpotifySwitchController.new,
-    );
+    StateNotifierProvider<SpotifySwitchController, bool>((ref) {
+      ref.watch(sessionProvider);
+      return SpotifySwitchController(ref);
+    });

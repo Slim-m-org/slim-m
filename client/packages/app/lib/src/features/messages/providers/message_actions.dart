@@ -385,11 +385,15 @@ Future<void> sendOptimistically(
 }) async {
   // Before the first await, so a local write that has to retry cannot let a later send overtake this one.
   final slot = read(channelSendQueueProvider).reserve(channelId);
+  final sender = read(sessionProvider).tokens?.userId;
+  bool stillSender() => read(sessionProvider).tokens?.userId == sender;
   try {
     final store = await read(storeProvider.future);
+    if (!stillSender()) return;
     final me = read(effectiveMeProvider);
     await _keepLocally(
       'queue the message',
+      stillSender,
       () => store.addPending(
         id: id,
         channelId: channelId,
@@ -406,19 +410,23 @@ Future<void> sendOptimistically(
     try {
       final client = read(apiProvider);
       final sent = await slot.run(
-        () => client.sendMessage(
-          channelId: channelId,
-          id: id,
-          content: content,
-          attachmentIds: attachmentIds,
-          spoilerAttachmentIds: spoilerIds,
-          replyToId: replyToId,
-          mentionReply: mentionReply,
-        ),
+        () async => stillSender()
+            ? await client.sendMessage(
+                channelId: channelId,
+                id: id,
+                content: content,
+                attachmentIds: attachmentIds,
+                spoilerAttachmentIds: spoilerIds,
+                replyToId: replyToId,
+                mentionReply: mentionReply,
+              )
+            : null,
       );
+      if (sent == null || !stillSender()) return;
       // Lands on the same row, because it carries the same id.
       await _keepLocally(
         'store the sent message',
+        stillSender,
         () => store.applyMessage(sent),
       );
       read(messageExtrasProvider.notifier).applyMessage(sent);
@@ -428,7 +436,9 @@ Future<void> sendOptimistically(
       ).recordSent(channelId, DateTime.now());
     } on api.ApiException catch (e, stack) {
       api.reportFailure(api.LogTag.ui, 'send the message', e, stack);
-      await store.markFailed(id, reason: _sendFailureReason(e));
+      if (stillSender()) {
+        await store.markFailed(id, reason: _sendFailureReason(e));
+      }
     }
   } finally {
     slot.release();
@@ -444,9 +454,13 @@ String _sendFailureReason(api.ApiException e) => e is api.TransportException
 /// Retries a local write that lost a lock race, then logs and goes on: the
 /// server copy is what counts, and sync fills the row in when the write
 /// never lands.
-Future<void> _keepLocally(String what, Future<void> Function() write) async {
+Future<void> _keepLocally(
+  String what,
+  bool Function() stillWanted,
+  Future<void> Function() write,
+) async {
   const attempts = 3;
-  for (var attempt = 1; ; attempt++) {
+  for (var attempt = 1; stillWanted(); attempt++) {
     try {
       return await write();
     } on Object catch (error, stack) {
