@@ -63,7 +63,7 @@ use crate::store::{MODULE_TILE_KIND, ModuleTileRef, PlaceError};
 /// of them, so this is what stops a canvas burst from costing more resident
 /// memory than the whole process budget. A stroke is split by the client on
 /// this byte budget, not on a point count.
-pub(in crate::http) const MAX_PROPS_BYTES: usize = 4 * 1024;
+pub(in crate::http) const MAX_PROPS_BYTES: usize = crate::canvas_text::MAX_PROPS_BYTES;
 
 /// The whole request body, which is `props` plus a small fixed envelope.
 pub(in crate::http) const MAX_BODY_BYTES: usize = 8 * 1024;
@@ -165,6 +165,9 @@ pub(super) fn validate_place(params: PlaceParams) -> Result<ValidatedPlace, ApiE
     }
     if params.kind == "text" {
         crate::canvas_text::check_text_props(&params.props).map_err(ApiError::BadRequest)?;
+    }
+    if params.kind == "note" {
+        crate::canvas_text::check_note_props(&params.props).map_err(ApiError::BadRequest)?;
     }
     if params.kind == "emoji" {
         check_emoji_key(&params.props)?;
