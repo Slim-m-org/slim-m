@@ -189,6 +189,23 @@ impl Store {
         Ok(pending.len())
     }
 
+    /// Members whose module data has not been purged yet.
+    pub async fn pending_module_data_purges(&self) -> anyhow::Result<Vec<UserId>> {
+        Ok(sqlx::query_scalar!(
+            r#"SELECT user_id AS "user_id!: UserId" FROM module_data_purges ORDER BY started_at"#
+        )
+        .fetch_all(&self.pool)
+        .await?)
+    }
+
+    /// Records that every module's data about `user_id` is purged.
+    pub async fn finish_module_data_purge(&self, user_id: UserId) -> anyhow::Result<()> {
+        sqlx::query!("DELETE FROM module_data_purges WHERE user_id = ?", user_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
     /// The bounded clean-up after [`Self::close_account`]; idempotent, so a resumed run repeats it safely.
     async fn clear_closed_account(&self, user_id: UserId) -> anyhow::Result<bounded::Cleared> {
         let mut cleared = bounded::clear_authored_content(self, user_id).await?;
@@ -288,6 +305,14 @@ impl Store {
 
         sqlx::query!(
             "INSERT INTO account_purges (user_id, started_at) VALUES (?, ?)
+             ON CONFLICT (user_id) DO UPDATE SET started_at = excluded.started_at",
+            user_id,
+            now
+        )
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query!(
+            "INSERT INTO module_data_purges (user_id, started_at) VALUES (?, ?)
              ON CONFLICT (user_id) DO UPDATE SET started_at = excluded.started_at",
             user_id,
             now
