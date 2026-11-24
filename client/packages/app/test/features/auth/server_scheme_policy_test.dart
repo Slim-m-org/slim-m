@@ -57,4 +57,58 @@ void main() {
       expect(error, contains('https'));
     });
   });
+
+  group('in a browser', () {
+    final httpsPage = Uri.parse('https://slim.example.com/app/');
+    final lanPage = Uri.parse('http://192.168.1.20:8080/');
+
+    test('explains a plain http LAN server the page cannot reach', () {
+      for (final page in [httpsPage, lanPage]) {
+        final error = requireSecureScheme(
+          Uri.parse('http://192.168.1.20:8095'),
+          onWeb: true,
+          page: page,
+        );
+        expect(error, contains('browser'), reason: '$page');
+      }
+    });
+
+    test('allows loopback, the page origin and https', () {
+      expect(
+        requireSecureScheme(
+          Uri.parse('http://localhost:8095'),
+          onWeb: true,
+          page: httpsPage,
+        ),
+        isNull,
+      );
+      expect(
+        requireSecureScheme(
+          Uri.parse('http://192.168.1.20:8080'),
+          onWeb: true,
+          page: lanPage,
+        ),
+        isNull,
+      );
+      expect(
+        requireSecureScheme(
+          Uri.parse('https://chat.example.com'),
+          onWeb: true,
+          page: lanPage,
+        ),
+        isNull,
+      );
+    });
+
+    test('a native app still accepts a LAN server', () {
+      expect(
+        requireSecureScheme(
+          Uri.parse('http://192.168.1.20:8095'),
+          onWeb: false,
+          page: httpsPage,
+        ),
+        isNull,
+      );
+    });
+  });
 }
