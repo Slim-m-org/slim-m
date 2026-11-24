@@ -22,6 +22,7 @@ use self::reads::fetch_ballots;
 use super::messages::row::{IdProbe, NewRow, insert_message_row, probe_id};
 use super::poll_runoff::{Runoff, instant_runoff};
 use super::{Sent, Store, now_ms};
+use crate::hidden_chars::draws_nothing;
 use crate::ids::{ChannelId, MessageId, UserId};
 
 /// Fewest options a poll may have. Below this it is not a choice.
@@ -176,11 +177,12 @@ impl Store {
         if options.len() < MIN_OPTIONS || options.len() > MAX_OPTIONS {
             return Err(CreatePollError::InvalidOptionCount);
         }
-        if question.trim().is_empty() || question.chars().count() > MAX_QUESTION_CHARS {
+        let question = question.trim();
+        if draws_nothing(question) || question.chars().count() > MAX_QUESTION_CHARS {
             return Err(CreatePollError::InvalidQuestion);
         }
         for option in options {
-            if option.trim().is_empty() || option.chars().count() > MAX_OPTION_CHARS {
+            if draws_nothing(option.trim()) || option.chars().count() > MAX_OPTION_CHARS {
                 return Err(CreatePollError::InvalidOption);
             }
         }
@@ -244,7 +246,7 @@ impl Store {
         .execute(&mut *tx)
         .await?;
 
-        for (position, label) in options.iter().enumerate() {
+        for (position, label) in options.iter().map(|o| o.trim()).enumerate() {
             let position = position as i64;
             sqlx::query!(
                 "INSERT INTO poll_options (message_id, position, label) VALUES (?, ?, ?)",

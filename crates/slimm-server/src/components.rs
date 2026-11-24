@@ -110,7 +110,7 @@ pub(crate) fn check_custom_id(id: &str, hidden: fn(char) -> bool) -> Result<(), 
 
 fn validate_button(button: &mut Button, hidden: fn(char) -> bool) -> Result<(), &'static str> {
     button.label = button.label.trim().to_owned();
-    if button.label.is_empty() {
+    if crate::hidden_chars::draws_nothing(&button.label) {
         return Err("a button needs a label");
     }
     if button.label.chars().count() > MAX_LABEL_CHARS {

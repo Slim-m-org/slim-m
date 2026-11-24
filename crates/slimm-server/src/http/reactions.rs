@@ -84,6 +84,7 @@ async fn add(
     if !super::reaction_emoji::is_reaction(&emoji) {
         return Err(ApiError::BadRequest("that is not a usable emoji"));
     }
+    super::reaction_emoji::require_known_shortcode(&state, &emoji).await?;
     let emoji = canonical(&emoji).into_owned();
 
     let added = match state

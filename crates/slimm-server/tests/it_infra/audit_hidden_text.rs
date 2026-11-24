@@ -275,3 +275,188 @@ async fn poll_text_and_embed_headings_refuse_hidden_characters() {
         assert!(names_field(&body, field), "{body}");
     }
 }
+
+const SELECTOR: &str = "\u{FE0F}";
+
+#[tokio::test]
+async fn a_name_of_only_variation_selectors_is_refused_everywhere() {
+    let w = world().await;
+    let general = support::overwrite_harness::general_channel_id(&w.store).await;
+    for bad in [
+        SELECTOR,
+        "\u{FE00}\u{FE01}",
+        " \u{180B}\u{180F} ",
+        "\u{1D173}",
+    ] {
+        let cases = [
+            ("POST", "/channels".to_owned(), json!({"name": bad})),
+            (
+                "PATCH",
+                format!("/channels/{general}"),
+                json!({"name": bad}),
+            ),
+            ("POST", "/categories".to_owned(), json!({"name": bad})),
+            (
+                "POST",
+                "/roles".to_owned(),
+                json!({"name": bad, "permissions": 0}),
+            ),
+            ("PATCH", "/space/settings".to_owned(), json!({"name": bad})),
+        ];
+        for (method, uri, body) in cases {
+            let (status, answer) = w.admin(method, &uri, Some(body)).await;
+            assert_eq!(
+                status,
+                StatusCode::BAD_REQUEST,
+                "{method} {uri} {bad:?} {answer}"
+            );
+        }
+    }
+}
+
+#[tokio::test]
+async fn a_look_alike_of_an_existing_role_name_is_a_duplicate() {
+    let w = world().await;
+    let (status, body) = w
+        .admin(
+            "POST",
+            "/roles",
+            Some(json!({"name": "Mod", "permissions": 0})),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    for twin in [
+        "Mod\u{FE0F}",
+        "\u{FF2D}od",
+        "\u{FF4D}\u{FF4F}\u{FF44}",
+        "@mod",
+    ] {
+        let (status, body) = w
+            .admin(
+                "POST",
+                "/roles",
+                Some(json!({"name": twin, "permissions": 0})),
+            )
+            .await;
+        assert_eq!(status, StatusCode::CONFLICT, "{twin:?} {body}");
+    }
+    let (status, body) = w
+        .admin(
+            "POST",
+            "/roles",
+            Some(json!({"name": "\u{FF45}veryone", "permissions": 0})),
+        )
+        .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+}
+
+#[tokio::test]
+async fn blank_looking_poll_text_status_and_notes_are_refused_or_cleared() {
+    let w = world().await;
+    let channel = support::overwrite_harness::general_channel_id(&w.store).await;
+    let uri = format!("/channels/{channel}/messages/polls");
+    let poll = |question: &str, options: Value| json!({"id": uuid::Uuid::now_v7().to_string(), "question": question, "options": options});
+    for (question, options) in [
+        (SELECTOR, json!(["a", "b"])),
+        ("fine", json!(["a", SELECTOR])),
+    ] {
+        let (status, body) = w.admin("POST", &uri, Some(poll(question, options))).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+    }
+
+    let (status, body) = w
+        .admin("PATCH", "/me", Some(json!({"status_text": SELECTOR})))
+        .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert!(body["status_text"].is_null(), "{body}");
+
+    let log =
+        |note: &str| json!({"log": "line", "note": note, "app_version": "1", "platform": "linux"});
+    let (status, body) = w
+        .admin("POST", "/debug-logs", Some(log("ok\u{202E}fdp")))
+        .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+    let (status, body) = w
+        .admin("POST", "/debug-logs", Some(log("two\nlines")))
+        .await;
+    assert_eq!(status, StatusCode::CREATED, "{body}");
+
+    let note = format!("/users/{}/note", w.member.1);
+    let (status, body) = w
+        .admin("PUT", &note, Some(json!({"body": "a\u{202E}b"})))
+        .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+}
+
+#[tokio::test]
+async fn embed_bodies_lose_reading_rewrites_and_blank_embeds_stay_empty() {
+    let w = world().await;
+    let channel = support::overwrite_harness::general_channel_id(&w.store).await;
+    let (_, made) = w
+        .admin(
+            "POST",
+            "/webhooks",
+            Some(json!({"channel_id": channel, "label": "hook"})),
+        )
+        .await;
+    let hook = made["delivery_path"].as_str().unwrap().to_owned();
+    let (status, _) = w
+        .send(
+            "POST",
+            &hook,
+            None,
+            Some(json!({"embeds": [{"description": SELECTOR}]})),
+        )
+        .await;
+    assert_eq!(
+        status,
+        StatusCode::BAD_REQUEST,
+        "a blank-only embed is empty"
+    );
+
+    let (status, _) = w
+        .send(
+            "POST",
+            &hook,
+            None,
+            Some(json!({"embeds": [{"description": "invoice\u{202E}fdp.exe\u{7}", "fields": [{"name": "n", "value": "v\u{202E}x"}]}]})),
+        )
+        .await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    let (_, listed) = w
+        .admin("GET", &format!("/channels/{channel}/messages"), None)
+        .await;
+    let embed = &listed.as_array().unwrap()[0]["embeds"][0];
+    assert_eq!(embed["description"], "invoicefdp.exe");
+    assert_eq!(embed["fields"][0]["value"], "vx");
+}
+
+#[tokio::test]
+async fn an_unknown_shortcode_reaction_is_refused_and_a_shipped_one_is_not() {
+    let w = world().await;
+    let channel = support::overwrite_harness::general_channel_id(&w.store).await;
+    let id = uuid::Uuid::now_v7().to_string();
+    let (status, body) = w
+        .admin(
+            "POST",
+            &format!("/channels/{channel}/messages"),
+            Some(json!({"id": id, "content": "hi"})),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    for (emoji, ok) in [
+        (":this_is_a_sentence:", false),
+        (":thumbsup:", true),
+        (":%2B1:", true),
+    ] {
+        let (status, body) = w
+            .admin("PUT", &format!("/messages/{id}/reactions/{emoji}"), None)
+            .await;
+        let expected = if ok {
+            StatusCode::NO_CONTENT
+        } else {
+            StatusCode::BAD_REQUEST
+        };
+        assert_eq!(status, expected, "{emoji} {body}");
+    }
+}

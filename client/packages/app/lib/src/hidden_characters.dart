@@ -26,8 +26,11 @@ bool isHiddenCharacter(int c) =>
     c == 0x3164 ||
     c == 0xFEFF ||
     c == 0xFFA0 ||
-    (c >= 0xFFF9 && c <= 0xFFFC) ||
-    (c >= 0xE0000 && c <= 0xE007F);
+    (c >= 0xFFF0 && c <= 0xFFFC) ||
+    (c >= 0x1BCA0 && c <= 0x1BCA3) ||
+    (c >= 0x1D173 && c <= 0x1D17A) ||
+    (c >= 0xE0000 && c <= 0xE00FF) ||
+    (c >= 0xE01F0 && c <= 0xE0FFF);
 
 const _zwj = 0x200D;
 const _tagFlagBase = 0x1F3F4;

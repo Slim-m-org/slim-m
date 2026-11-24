@@ -18,7 +18,7 @@ use super::AppState;
 use super::error::ApiError;
 use super::extract::require_manage_server;
 use super::extract::{Authed, Json, enforce};
-use super::hidden_chars::is_hidden_char;
+use super::hidden_chars::{draws_nothing, is_hidden_char};
 use super::messages::parse_uuid;
 use crate::hub::Event;
 use crate::ids::{ChannelId, UserId};
@@ -214,6 +214,9 @@ fn validate_name(raw: &str) -> Result<&str, ApiError> {
         return Err(ApiError::BadRequest(
             "name must not contain control or invisible characters",
         ));
+    }
+    if draws_nothing(trimmed) {
+        return Err(ApiError::BadRequest("name must not be blank"));
     }
     Ok(trimmed)
 }

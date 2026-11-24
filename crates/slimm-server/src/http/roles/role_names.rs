@@ -3,7 +3,7 @@
 
 use super::super::AppState;
 use super::super::error::ApiError;
-use super::super::hidden_chars::is_hidden_char;
+use super::super::hidden_chars::{draws_nothing, is_hidden_char};
 use crate::ids::RoleId;
 use crate::store::fold_role_name as folded_role_name;
 
@@ -19,6 +19,9 @@ pub(super) fn validate_role_name(name: &str) -> Result<&str, ApiError> {
         return Err(ApiError::BadRequest(
             "name must not contain control or invisible characters",
         ));
+    }
+    if draws_nothing(trimmed) {
+        return Err(ApiError::BadRequest("name must not be blank"));
     }
     Ok(trimmed)
 }

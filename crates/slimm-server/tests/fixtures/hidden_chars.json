@@ -16,8 +16,11 @@
     {"from": "3164", "to": "3164", "why": "hangul filler"},
     {"from": "FEFF", "to": "FEFF", "why": "zero-width no-break space"},
     {"from": "FFA0", "to": "FFA0", "why": "halfwidth hangul filler"},
-    {"from": "FFF9", "to": "FFFC", "why": "interlinear annotation, object replacement"},
-    {"from": "E0000", "to": "E007F", "why": "tag characters"}
+    {"from": "FFF0", "to": "FFFC", "why": "reserved specials, interlinear annotation, object replacement"},
+    {"from": "1BCA0", "to": "1BCA3", "why": "shorthand format controls"},
+    {"from": "1D173", "to": "1D17A", "why": "musical symbol formatting"},
+    {"from": "E0000", "to": "E00FF", "why": "tag characters and reserved ignorables"},
+    {"from": "E01F0", "to": "E0FFF", "why": "reserved ignorables"}
   ],
   "pictographic": [
     {"from": "00A9", "to": "00A9", "why": "copyright"},

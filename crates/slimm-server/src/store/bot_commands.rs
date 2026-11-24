@@ -106,7 +106,7 @@ fn validate_bot_command(command: &BotCommand) -> Result<(), &'static str> {
     {
         return Err("a command name may only hold letters, digits, - and _");
     }
-    if command.description.is_empty()
+    if crate::hidden_chars::draws_nothing(&command.description)
         || command.description.chars().count() > MAX_BOT_COMMAND_DESCRIPTION_LEN
     {
         return Err("a command description must be 1 to 100 characters");
