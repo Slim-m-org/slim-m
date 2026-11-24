@@ -205,6 +205,7 @@ extension CanvasOpsControllerEdit on CanvasOpsController {
 
   /// Never shrinks: a box someone sized by hand keeps its height.
   Future<void> _regrowNote(String objectId, String text) async {
+    if (document.isDisposed) return;
     final bounds = document.objectBounds(objectId);
     if (bounds == null) return;
     final style = document.noteStyleOf(objectId) ?? const CanvasNoteStyle();

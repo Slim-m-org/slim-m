@@ -216,6 +216,7 @@ class CanvasQuickPlacement {
           props: props,
         ),
       );
+      if (document.isDisposed) return placed;
       final input = canvasStrokeInputFrom(placed);
       if (clearedSincePlacement(placed)) {
         document
@@ -228,6 +229,7 @@ class CanvasQuickPlacement {
       }
       return placed;
     } on api.ApiException catch (error) {
+      if (document.isDisposed) return null;
       document
         ..kill(id)
         ..refresh();

@@ -49,6 +49,12 @@ class CanvasNoteEditing {
   /// Where the keyboard lands when the object menu asks for the style bar.
   final barFocus = FocusNode(debugLabel: 'canvas note bar');
 
+  bool _disposed = false;
+
+  /// Reports a change to the pane unless it is being torn down, when there is no state left to rebuild.
+  void _apply([VoidCallback? mutate]) =>
+      _disposed ? mutate?.call() : changed(mutate);
+
   CanvasDocument get _document => engine.document;
   bool get active => session != null;
 
@@ -117,12 +123,12 @@ class CanvasNoteEditing {
     );
   }
 
-  void _open(CanvasNoteEditSession next) => changed(() => session = next);
+  void _open(CanvasNoteEditSession next) => _apply(() => session = next);
 
   void _close() {
     final closing = session;
-    changed(() => session = null);
-    focusBoard();
+    _apply(() => session = null);
+    if (!_disposed) focusBoard();
     if (closing == null) return;
     // After the frame that removes the editor, which still listens to the controller.
     WidgetsBinding.instance.addPostFrameCallback((_) => closing.dispose());
@@ -151,10 +157,33 @@ class CanvasNoteEditing {
     _close();
   }
 
-  /// The note was removed by someone else while it was open.
+  /// The note left the board while it was open: a draft is opened again with its text, which a hard reset must not cost.
   void gone() {
+    final s = session;
+    final draft = s?.draft;
+    if (s != null && draft != null) {
+      final text = s.controller.text;
+      _close();
+      _openDraft(draft.world, draft.draggedSize, text);
+      return;
+    }
     engine.reportError('That note was removed while you were editing it.');
     _close();
+  }
+
+  /// The pane is closing: what was typed is sent, never dropped.
+  void dispose() {
+    _disposed = true;
+    final s = session;
+    if (s != null) {
+      final text = s.controller.text.trim();
+      if (text.isEmpty || text == s.initialText) {
+        cancel();
+      } else {
+        unawaited(commit(text));
+      }
+    }
+    barFocus.dispose();
   }
 
   Future<void> commit(String text) async {
@@ -174,7 +203,7 @@ class CanvasNoteEditing {
       if (now != null && grown != null && now.h == s.baseHeight) {
         _document.moveObject(s.objectId, now.x, now.y, now.w, grown);
       }
-      changed();
+      _apply();
     }
   }
 
@@ -264,6 +293,6 @@ class CanvasNoteEditing {
       changed();
       return;
     }
-    unawaited(engine.ops.styleNote(id, next).then((_) => changed()));
+    unawaited(engine.ops.styleNote(id, next).then((_) => _apply()));
   }
 }

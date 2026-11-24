@@ -183,6 +183,7 @@ extension _CanvasPaneGestures on _CanvasPaneState {
   }
 
   void _onNoteEditCancel() {
+    _notes.cancel();
     _refresh(() {
       _editingNoteId = null;
       _text.cancelDraft();

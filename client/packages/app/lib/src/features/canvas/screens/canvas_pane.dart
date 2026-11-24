@@ -165,6 +165,12 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
   CanvasSelectGesture? _selectHelper;
   CanvasImagePaste? _imagePasteHelper;
   CanvasQuickPlacement? _quickPlacementHelper;
+
+  /// Read through by what must still send after the pane is gone, which a disposed `ref` cannot.
+  late final ProviderContainer _container = ProviderScope.containerOf(
+    context,
+    listen: false,
+  );
   CanvasNoteEditing? _notesHelper;
   CanvasStampPlacement? _stampPlacementHelper;
 
@@ -185,6 +191,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
     super.initState();
     _holds = CanvasPaneHolds(ref, channelId: () => widget.channelId);
     _engine.attachPane(); // also forces the late field's ref.read now
+    _container;
     _engine.viewRelay.followedTile.addListener(_onFollowedTile);
     _timeoutBanner = CanvasTimeoutBanner(
       timedOutUntil: () => ref.read(meProvider).valueOrNull?.timedOutUntil,
@@ -238,6 +245,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
   void dispose() {
     _imagePasteHelper?.stop();
     _selectHelper?.dispose();
+    _notesHelper?.dispose();
     _stampPlacementHelper?.dispose();
     _timeoutBanner.dispose();
     _boardFocusNode.dispose();

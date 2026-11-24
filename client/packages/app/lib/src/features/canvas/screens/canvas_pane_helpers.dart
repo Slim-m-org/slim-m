@@ -126,11 +126,12 @@ extension _CanvasPaneHelpers on _CanvasPaneState {
 
   CanvasQuickPlacement get _quickPlacement =>
       _quickPlacementHelper ??= CanvasQuickPlacement(
-        client: ref.read(apiProvider),
+        client: _container.read(apiProvider),
         channelId: widget.channelId,
         document: _document,
-        timedOutUntil: () => ref.read(meProvider).valueOrNull?.timedOutUntil,
-        authorId: () => ref.read(meProvider).valueOrNull?.id,
+        timedOutUntil: () =>
+            _container.read(meProvider).valueOrNull?.timedOutUntil,
+        authorId: () => _container.read(meProvider).valueOrNull?.id,
         clearedSincePlacement: _engine.sync.clearedSincePlacement,
       );
 
