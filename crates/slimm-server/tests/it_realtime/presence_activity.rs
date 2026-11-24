@@ -67,6 +67,13 @@ async fn lookup(state: &AppState, token: &str, target: &str) -> Value {
         .remove(0)
 }
 
+/// True when no `presence.changed` for `user_id` arrives within a short window.
+async fn no_presence_for(ws: &mut Client, user_id: &str) -> bool {
+    tokio::time::timeout(Duration::from_millis(400), next_presence_for(ws, user_id))
+        .await
+        .is_err()
+}
+
 fn track(title: &str) -> Value {
     json!({ "type": "listening", "title": title, "subtitle": "Artist" })
 }
@@ -151,11 +158,9 @@ async fn hidden_user_activity_is_invisible_to_others_but_not_to_self() {
     presence_where(&mut bob_ws, &alice, |f| f["status"] == "offline").await;
 
     put_activity(&state, &alice_access, track("Secret")).await;
-    let frame = presence_where(&mut bob_ws, &alice, |_| true).await;
-    assert_eq!(frame["status"], "offline");
     assert!(
-        frame.get("activity").is_none(),
-        "hidden activity leaked over ws"
+        no_presence_for(&mut bob_ws, &alice).await,
+        "a hidden member's activity change must send no frame"
     );
     assert!(
         lookup(&state, &bob_access, &alice)
@@ -287,4 +292,68 @@ async fn activity_writes_are_rate_limited() {
         put_activity(&state, &access, track("one too many")).await,
         StatusCode::TOO_MANY_REQUESTS
     );
+}
+
+#[tokio::test]
+async fn a_hidden_members_connect_and_disconnect_send_no_frame() {
+    let (store, _guard) = support::new_store("slimm-presence-test").await;
+    let state = support::app::builder(store.clone()).hub(Hub::new()).build();
+    let (_alice_access, alice_ticket, alice_id) = user_ticket(&store, "alice").await;
+    let (_bob_access, bob_ticket, bob_id) = user_ticket(&store, "bob").await;
+    let alice = alice_id.to_string();
+    store
+        .set_presence_visibility(alice_id, slimm_server::presence::Visibility::Hidden)
+        .await
+        .unwrap();
+    let addr = serve(state.clone()).await;
+    let mut bob_ws = connect(addr, &bob_ticket).await;
+    let _ = next_presence_for(&mut bob_ws, &bob_id.to_string()).await;
+
+    let alice_ws = connect(addr, &alice_ticket).await;
+    assert!(
+        no_presence_for(&mut bob_ws, &alice).await,
+        "a hidden member connecting must send no frame"
+    );
+    drop(alice_ws);
+    assert!(
+        no_presence_for(&mut bob_ws, &alice).await,
+        "a hidden member disconnecting must send no frame"
+    );
+}
+
+#[tokio::test]
+async fn an_unknown_activity_field_from_a_newer_client_is_ignored() {
+    let (store, _guard) = support::new_store("slimm-presence-test").await;
+    let state = support::app::builder(store.clone()).hub(Hub::new()).build();
+    let (access, _ticket, _id) = user_ticket(&store, "alice").await;
+    let mut body = track("Song");
+    body["lyrics_line"] = json!("la la");
+    assert_eq!(
+        put_activity(&state, &access, body).await,
+        StatusCode::NO_CONTENT
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn racing_visibility_toggles_leave_the_cache_equal_to_the_store() {
+    let (store, _guard) = support::new_store("slimm-presence-test").await;
+    let state = support::app::builder(store.clone()).hub(Hub::new()).build();
+    let (access, ticket, id) = user_ticket(&store, "alice").await;
+    let _ws = connect(serve(state.clone()).await, &ticket).await;
+    for _ in 0..6 {
+        let toggles = ["hidden", "online", "dnd", "away"].map(|v| {
+            let (state, access) = (state.clone(), access.clone());
+            tokio::spawn(async move {
+                let body = json!({ "visibility": v });
+                send(&state, request("PATCH", "/presence", &access, Some(body))).await
+            })
+        });
+        let mut statuses = Vec::new();
+        for toggle in toggles {
+            statuses.push(toggle.await.unwrap());
+        }
+        assert!(statuses.contains(&StatusCode::OK), "{statuses:?}");
+        let stored = store.presence_visibility(id).await.unwrap();
+        assert_eq!(stored, state.hub.presence().visibility(id));
+    }
 }

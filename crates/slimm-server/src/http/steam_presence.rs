@@ -53,6 +53,7 @@ pub fn clear_steam_activity(state: &AppState, user_id: UserId) {
     let tracker = state.hub.presence();
     if tracker.activity(user_id).is_some_and(|a| a.is_steam())
         && tracker.set_activity(user_id, None)
+        && !tracker.is_hidden(user_id)
     {
         state.hub.publish(Event::presence_changed(user_id));
     }
@@ -66,6 +67,16 @@ impl Poller {
             .sharing_links(PROVIDER)
             .await
             .map_err(|e| SteamError(e.to_string()))?;
+        let departed: Vec<UserId> = self
+            .seen
+            .keys()
+            .filter(|id| !links.iter().any(|(linked, _)| linked == *id))
+            .copied()
+            .collect();
+        for user_id in departed {
+            self.seen.remove(&user_id);
+            clear_steam_activity(state, user_id);
+        }
         let (eligible, ineligible) = self.split_eligible(state, links).await?;
         for user_id in ineligible {
             self.seen.remove(&user_id);
@@ -83,7 +94,10 @@ impl Poller {
                 .get(&steam_id)
                 .and_then(|p| Some((p.game_id?, p.game_name.clone()?)));
             match playing {
-                Some((app_id, name)) => self.show(state, api, user_id, app_id, &name).await,
+                Some((app_id, name)) => {
+                    self.show(state, api, (user_id, &steam_id), app_id, &name)
+                        .await
+                }
                 None => {
                     self.seen.remove(&user_id);
                     clear_steam_activity(state, user_id);
@@ -129,7 +143,7 @@ impl Poller {
         &mut self,
         state: &AppState,
         api: &SteamApi,
-        user_id: UserId,
+        (user_id, steam_id): (UserId, &str),
         app_id: u32,
         name: &str,
     ) {
@@ -157,7 +171,18 @@ impl Poller {
         if activity.validate().is_err() {
             return;
         }
-        if state.hub.presence().set_activity(user_id, Some(activity)) {
+        let still_sharing = state
+            .store
+            .is_sharing_link(user_id, PROVIDER, steam_id)
+            .await
+            .unwrap_or(false);
+        if !still_sharing {
+            self.seen.remove(&user_id);
+            clear_steam_activity(state, user_id);
+            return;
+        }
+        let changed = state.hub.presence().set_activity(user_id, Some(activity));
+        if changed && !state.hub.presence().is_hidden(user_id) {
             state.hub.publish(Event::presence_changed(user_id));
         }
     }

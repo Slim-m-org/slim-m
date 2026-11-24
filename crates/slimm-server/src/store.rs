@@ -52,6 +52,7 @@ mod dock_sources;
 mod emoji;
 mod forward_cascade;
 mod group_dm_delete;
+mod group_dm_limits;
 mod group_dms;
 mod interactions;
 mod invite_reuse;
@@ -123,6 +124,7 @@ mod space_link_previews;
 mod space_log_mode;
 mod space_module_display;
 mod space_owner;
+mod space_settings_patch;
 mod space_setup;
 mod space_themes;
 mod space_welcome;
@@ -220,6 +222,7 @@ pub use export_capacity::DEFAULT_EXPORT_CEILING_BYTES;
 pub use export_rows::RowStream;
 pub use favorites::{FavoriteError, FavoriteKind, FavoriteRow, MAX_FAVORITES, NewFavorite};
 pub use forward_cascade::{CascadedDeletion, DetachedForward, ForwardCascade};
+pub use group_dm_limits::GROUP_DM_MAX_PER_ACCOUNT;
 pub use group_dms::{
     GROUP_DM_MAX_PARTICIPANTS, GROUP_DM_MIN_PARTICIPANTS, GroupDmError, LeftGroup,
 };
@@ -299,6 +302,7 @@ pub use space::{JoinPolicy, MAX_SCREEN_SHARE_MAX_HEIGHT, MIN_SCREEN_SHARE_MAX_HE
 pub use space_landing::{MAX_SPACE_DESCRIPTION_CHARS, SpaceLanding};
 pub use space_module_display::ModuleDisplay;
 pub use space_owner::{Handoff, Ownership};
+pub use space_settings_patch::SpaceSettingsPatch;
 pub use space_setup::SpaceSetup;
 pub use space_themes::{PublishError, SpaceTheme, ThemePicture};
 pub use space_welcome::{DEFAULT_WELCOME_MESSAGE, MAX_WELCOME_MESSAGE_CHARS, SpaceWelcome};

@@ -44,6 +44,7 @@ pub(super) mod message_reads;
 pub(super) mod message_retention;
 pub(super) mod message_search;
 pub(super) mod message_search_filters;
+mod message_search_terms;
 pub(super) mod messages_bulk;
 pub(super) mod messages_bulk_window;
 mod retention_candidates;

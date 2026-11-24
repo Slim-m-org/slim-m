@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO module_data_purges (user_id, started_at) VALUES (?, ?)\n             ON CONFLICT (user_id) DO UPDATE SET started_at = excluded.started_at",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "85cc8b8bf2b197f22e5206e9f92642cc9280e6dfd7bd6bf10477d1e3b9321edd"
+}

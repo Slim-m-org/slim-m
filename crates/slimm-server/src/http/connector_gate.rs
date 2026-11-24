@@ -88,6 +88,7 @@ fn rule(method: &str, segments: &[&str]) -> Rule {
         | (_, ["users", "{}", "note"])
         | (_, ["messages", "{}", "save"])
         | (_, ["space", "rules", "accept"])
+        | ("POST" | "DELETE", ["space", "themes", ..])
         | (
             _,
             [
@@ -138,6 +139,8 @@ mod tests {
             ("GET", "/devices"),
             ("POST", "/me/avatar"),
             ("DELETE", "/push"),
+            ("POST", "/space/themes"),
+            ("DELETE", "/space/themes/{}"),
         ] {
             assert_eq!(rule(m, &seg(p)), Rule::Never, "{m} {p}");
         }

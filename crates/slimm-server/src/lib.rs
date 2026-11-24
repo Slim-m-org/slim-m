@@ -222,6 +222,7 @@ async fn serve(config: config::Config, logging: &'static logging::Logging) -> an
     );
     http::module_compat::disable_incompatible(&state).await;
     http::module_schedule::spawn_sweep(state.clone());
+    http::dock::spawn_purge_sweep(state.clone());
     http::module_timers::spawn_sweep(state.clone());
     http::scene_refresh::spawn_sweep(state.clone());
     http::module_rooms::spawn_sweep(state.clone());

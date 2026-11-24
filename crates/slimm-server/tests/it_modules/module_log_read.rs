@@ -280,3 +280,18 @@ async fn a_row_says_whether_the_member_is_a_bot() {
     assert_eq!(rows[1]["user_id"], bot.to_string());
     assert_eq!(rows[1]["is_bot"], true);
 }
+
+#[tokio::test]
+async fn a_hidden_members_sessions_are_left_out_but_the_cursor_still_moves() {
+    let c = calls("slimm-logread-hidden").await;
+    let shown = c.session("a", false, Some(2_000)).await;
+    let hidden = c.session("b", true, Some(3_000)).await;
+    c.w.store
+        .set_presence_visibility(c.other, slimm_server::presence::Visibility::Hidden)
+        .await
+        .unwrap();
+
+    let reply = read(&c.w, &["log.read"], &read_request("voice.sessions", 0, 100)).await;
+    assert_eq!(ids(&reply), vec![shown]);
+    assert_eq!(reply["next"], hidden);
+}

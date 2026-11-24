@@ -161,6 +161,39 @@ async fn a_note_and_a_shape_are_both_accepted_object_kinds() {
     assert_eq!(body["kind"], "shape");
 }
 
+#[tokio::test]
+async fn a_note_with_a_direction_override_or_control_character_is_refused() {
+    let (store, _guard) = new_store().await;
+    let (token, _) = register(&store, "root").await;
+    let channel = general(&store).await;
+    let app = app(store);
+
+    for text in [
+        "https://example.com/\u{202E}gpj.exe",
+        "bell\u{7}",
+        "a\u{200B}b",
+    ] {
+        let note = json!({
+            "id": id(),
+            "kind": "note",
+            "x": 0.0, "y": 0.0, "w": 120.0, "h": 80.0,
+            "props": { "text": text },
+        });
+        let (status, body) = post(&app, channel, &token, note).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{text:?}: {body}");
+    }
+    let plain = json!({
+        "id": id(),
+        "kind": "note",
+        "x": 0.0, "y": 0.0, "w": 120.0, "h": 80.0,
+        "props": { "text": "two\nlines\tand a tab" },
+    });
+    assert_eq!(
+        post(&app, channel, &token, plain).await.0,
+        StatusCode::CREATED
+    );
+}
+
 /// The client's note sheet caps input at 1800 characters, chosen (per its own
 /// doc comment) as "a comfortable margin" under the server's 4 KiB
 /// `MAX_PROPS_BYTES`, on the assumption that JSON-escaping 1800 characters of

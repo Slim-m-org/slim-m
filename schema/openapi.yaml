@@ -3338,7 +3338,10 @@ paths:
         the message says a block is the reason without saying whose. Pass a
         UUIDv7 as `id` to make the request safe to retry: a replay by a
         participant returns the group already made with 200, and an id
-        belonging to anything else is a 409. Participants are announced with
+        belonging to anything else is a 409. An account may be in at most 100
+        groups, and a creation that would pass that for anyone involved is a
+        409; creations are also rate limited per account. Naming a group
+        takes the right to send messages. Participants are announced with
         a `dm.changed` event.
       requestBody:
         required: true
@@ -3462,8 +3465,9 @@ paths:
         Any participant may. Refused with 403 if the person has a block, in
         either direction, with anyone already in the group (the message says
         a block is the reason, not whose), with 409 if the group already has
-        10 people or the person is already in it, and with 404 if the caller
-        is not in the group. Announced with a `dm.changed` event.
+        10 people or the person is already in too many groups, and with 404 if
+        the caller is not in the group. Adding someone already in the group
+        succeeds, so a retry is safe. Announced with a `dm.changed` event.
       requestBody:
         required: true
         content:
@@ -3508,7 +3512,8 @@ paths:
         The group and its history stay for everyone else; the caller loses
         access to all of it, and is removed from its call. The last person to
         leave deletes the group. Announced to the people left with a
-        `dm.changed` event. A caller outside the group gets 404.
+        `dm.changed` event, and the caller's other devices are told to drop
+        the group. A caller who is already out gets 204, so a retry is safe.
       responses:
         "204":
           description: The caller is no longer in the group.

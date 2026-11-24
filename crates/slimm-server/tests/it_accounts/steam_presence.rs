@@ -134,6 +134,34 @@ async fn a_game_is_set_with_its_art_and_cleared_when_it_ends() {
 }
 
 #[tokio::test]
+async fn a_game_clears_when_sharing_ends_between_passes_without_a_clear() {
+    let mut rig = rig("slimm-steam-departed", true).await;
+    rig.play(730, "Counter-Strike 2");
+    rig.tick().await;
+    assert!(rig.activity().is_some());
+    rig.state
+        .store
+        .set_link_sharing(rig.user, "steam", false)
+        .await
+        .unwrap();
+    rig.tick().await;
+    assert!(rig.activity().is_none(), "a departed sharer keeps no game");
+}
+
+#[tokio::test]
+async fn relinking_to_another_steam_account_starts_with_sharing_off() {
+    let rig = rig("slimm-steam-relink", true).await;
+    let store = &rig.state.store;
+    let mut account = store.linked_accounts(rig.user).await.unwrap().remove(0);
+    assert!(account.share_activity);
+    store.save_linked_account(rig.user, &account).await.unwrap();
+    assert!(store.linked_accounts(rig.user).await.unwrap()[0].share_activity);
+    account.external_id = "76561198000000002".to_owned();
+    store.save_linked_account(rig.user, &account).await.unwrap();
+    assert!(!store.linked_accounts(rig.user).await.unwrap()[0].share_activity);
+}
+
+#[tokio::test]
 async fn a_clear_never_removes_spotify() {
     let mut rig = rig("slimm-steam-spotify", true).await;
     rig.state

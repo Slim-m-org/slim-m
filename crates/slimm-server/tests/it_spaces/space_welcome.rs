@@ -277,3 +277,51 @@ async fn a_manager_cannot_point_the_welcome_at_a_channel_they_cannot_see_or_at_a
     .await;
     assert_eq!(status, StatusCode::OK, "{body}");
 }
+
+#[tokio::test]
+async fn a_welcome_can_be_switched_off_after_its_channel_was_deleted() {
+    let (store, _guard) = new_store("slimm-welcome-stale").await;
+    let (root, _) = register(&store, "root").await;
+    let router = app(store);
+    let (_, made) = call(
+        &router,
+        "POST",
+        "/channels",
+        &root,
+        Some(json!({"name": "hello"})),
+    )
+    .await;
+    let stale = made["id"].as_str().unwrap().to_owned();
+    let (status, _) = call(
+        &router,
+        "PATCH",
+        "/space/settings",
+        &root,
+        Some(
+            json!({"welcome_channel_id": stale, "welcome_message": "hi", "welcome_enabled": true}),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let (status, _) = call(
+        &router,
+        "DELETE",
+        &format!("/channels/{stale}"),
+        &root,
+        None,
+    )
+    .await;
+    assert!(status.is_success(), "{status}");
+
+    let (status, off) = call(
+        &router,
+        "PATCH",
+        "/space/settings",
+        &root,
+        Some(
+            json!({"welcome_enabled": false, "welcome_channel_id": stale, "welcome_message": "hi"}),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{off}");
+}

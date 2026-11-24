@@ -7,13 +7,13 @@
 //! `super`/`super::canvas_write` already make: the read and write
 //! halves of one surface stay under the review budget separately.
 //!
-//! Three of the five kinds ask no timeout question at all: a timeout freezes
-//! the pen, never the eraser, so a timed-out member may still remove or undo
+//! Two of the kinds ask no timeout question at all: a timeout freezes
+//! the pen, never the eraser, so a timed-out member may still remove or clear
 //! their own ink. Refusing that would make a timeout's practical effect "lock
-//! the defacement in place", which is backwards. `move` and `reorder` are the
-//! exception, checked the same way `canvas_write::place` already does - both
-//! change how ink presents rather than removing it, so it is the pen's freeze
-//! that applies, not the eraser's exemption.
+//! the defacement in place", which is backwards. `move`, `reorder`, `edit` and
+//! `restore` are checked the same way `canvas_write::place` already does - each
+//! puts ink back or changes how it presents rather than removing it, so it is
+//! the pen's freeze that applies, not the eraser's exemption.
 //!
 //! `MANAGE_CANVAS` gets its only meaning here: removing another member's
 //! object, clearing, restoring an op you did not author, or moving or
@@ -104,12 +104,13 @@ pub(in crate::http) async fn submit_op(
     let may_moderate = permissions.contains(Permissions::MANAGE_CANVAS);
 
     let request = parse_request(params)?;
-    // See the module doc: only `move` and `reorder` freeze under a timeout.
+    // See the module doc: only `remove` and `clear` stay open under a timeout.
     if matches!(
         request,
         CanvasOpRequest::Move { .. }
             | CanvasOpRequest::Reorder { .. }
             | CanvasOpRequest::Edit { .. }
+            | CanvasOpRequest::Restore { .. }
     ) && state.store.timed_out_until(ctx.user_id).await?.is_some()
     {
         return Err(ApiError::Forbidden);
@@ -342,6 +343,7 @@ fn parse_edit(params: SubmitOpParams) -> Result<CanvasOpRequest, ApiError> {
     if !props.is_object() {
         return Err(ApiError::BadRequest("canvas props must be an object"));
     }
+    crate::canvas_text::check_prose_text(&props).map_err(ApiError::BadRequest)?;
     let props = serde_json::to_string(&props).map_err(|_| ApiError::Internal)?;
     if props.len() > super::canvas_write::MAX_PROPS_BYTES {
         return Err(ApiError::BadRequest("canvas props are too large"));

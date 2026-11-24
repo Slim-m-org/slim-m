@@ -33,6 +33,11 @@ const DECISIONS: &[(&str, &str, Fate)] = &[
         "user_id",
         Fate::Excluded("a deletion still running, about an account that can no longer export"),
     ),
+    (
+        "module_data_purges",
+        "user_id",
+        Fate::Excluded("a purge still running, about an account that can no longer export"),
+    ),
     ("access_tokens", "user_id", Fate::Excluded(CREDENTIAL)),
     ("admin_audit_log", "actor_id", Fate::Excluded(STAFF_RECORD)),
     ("app_surfaces", "created_by", Fate::Excluded(BOT_CONFIG)),

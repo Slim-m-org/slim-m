@@ -369,6 +369,16 @@ pub(crate) fn serve(bytes: Vec<u8>, content_type: &str, filename: &str) -> Respo
     response
 }
 
+/// [`serve`] for an asset at a fixed URL that an admin can replace, so a cache must revalidate.
+pub(crate) fn serve_revalidated(bytes: Vec<u8>, content_type: &str, filename: &str) -> Response {
+    let mut response = serve(bytes, content_type, filename);
+    response.headers_mut().insert(
+        header::CACHE_CONTROL,
+        HeaderValue::from_static("private, no-cache"),
+    );
+    response
+}
+
 /// Sets the security and caching headers every asset response carries,
 /// buffered ([`serve`]) or streamed ([`serve_ranged`]), so both are governed
 /// by one definition rather than two that can drift.

@@ -253,7 +253,6 @@ const EXEMPT: &[(&str, &[&str])] = &[
             "PATCH /dms/groups/{channel_id}",
             "DELETE /dms/groups/{channel_id}",
             "POST /dms/groups/{channel_id}/members",
-            "POST /space/themes",
             "PATCH /channels/{channel_id}/room",
             "POST /diagnostics/upload",
             "POST /channels/{channel_id}/voice/call-audio",
