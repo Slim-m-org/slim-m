@@ -12,6 +12,7 @@ pub mod bot_ui;
 pub mod call_audio;
 pub mod call_history;
 pub mod call_stats;
+pub mod canvas_edge;
 pub mod canvas_text;
 pub mod capacity;
 pub(crate) mod code_fences;

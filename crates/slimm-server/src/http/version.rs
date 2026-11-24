@@ -86,6 +86,9 @@ pub(super) struct Version {
     /// Whether the canvas accepts a `clear_scoped` op. Always true on a build that has this field;
     /// a client reads its absence as an older server and falls back to its version number.
     canvas_scoped_clear: bool,
+    /// Whether the canvas accepts `edge` objects, the connections between objects. A client hides
+    /// the Connect tool when it is absent or false.
+    canvas_edges: bool,
     /// The largest single attachment upload the server accepts, in bytes, so a
     /// client can refuse an oversize pick before sending any of it.
     max_attachment_bytes: u64,
@@ -203,6 +206,7 @@ pub(super) async fn version(
         transcribe_voice_messages: state.store.transcribe_voice_messages().await?,
         debug_logging: state.store.log_mode().await?.as_str(),
         canvas_scoped_clear: true,
+        canvas_edges: true,
         max_attachment_bytes: super::attachments::effective_attachment_max(&state).await?,
         min_client_version: min_client_version(),
         capabilities: capabilities(state).await,

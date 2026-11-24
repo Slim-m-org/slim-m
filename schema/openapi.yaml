@@ -8004,7 +8004,7 @@ paths:
         every cell of a client's spatial grid.
 
 
-        `kind` is `stroke`, `image`, `note`, `shape` or `text`. It is an allowlist
+        `kind` is `stroke`, `image`, `note`, `shape`, `text`, `emoji`, `module` or `edge`. It is an allowlist
         rather than free text, because the kind decides how every client
         renders a row and an unknown one is a row nobody can draw and nobody
         can remove. There is no `window` kind: a window is a behaviour of an
@@ -14967,6 +14967,12 @@ components:
             The space's server log mode, so a member's client keeps a longer
             debug log of its own while it is not `off`. Absent on older
             servers, read as `off`.
+        canvas_edges:
+          type: boolean
+          description: >
+            Whether the canvas accepts `edge` objects, the connections
+            between objects. A client hides the Connect tool when it is false
+            or absent, as it is on servers older than this field.
         canvas_scoped_clear:
           type: boolean
           description: >
@@ -20304,7 +20310,12 @@ components:
           description: Client-generated UUIDv7; also the idempotency key.
         kind:
           type: string
-          description: What the object is. `stroke`, `image`, `note`, `shape` or `text`.
+          description: >-
+            What the object is. `stroke`, `image`, `note`, `shape`, `text`,
+            `emoji`, `module` or `edge`. An unknown kind is skipped, never an
+            error. An `edge`'s `x`, `y`, `w` and `h` are the hull the server
+            derives from its ends, which clients never paint from; see
+            `CanvasEdgeProps`.
         z_index:
           type: integer
           format: int64
@@ -20344,6 +20355,52 @@ components:
           type: integer
           format: int64
 
+    CanvasEdgeProps:
+      type: object
+      required: [from, to]
+      additionalProperties: false
+      description: >-
+        The `props` of an `edge` object (decision 0137). At least one end is
+        attached, and the two attached ends differ. An edit merges at the top
+        level: an absent key keeps its value and `null` deletes it. `text` is
+        never a prop of an edge.
+      properties:
+        from:
+          $ref: "#/components/schemas/CanvasEdgeEnd"
+        to:
+          $ref: "#/components/schemas/CanvasEdgeEnd"
+        arrow:
+          type: string
+          enum: [none, end, both]
+          description: Absent means `end`.
+        color:
+          type: string
+          description: A palette key or `#rrggbb`. Absent means the board's neutral ink.
+        label:
+          type: string
+          maxLength: 120
+          description: One trimmed line of plain text.
+    CanvasEdgeEnd:
+      type: object
+      description: >-
+        Attached when `object_id` is present, free at a world point when `x`
+        and `y` are. An attached object is a note, text box, shape, image,
+        emoji or module tile in the same channel; never a stroke, an edge or a
+        camera or screen tile. At most 64 live edges attach to one object.
+      properties:
+        object_id:
+          type: string
+          format: uuid
+        side:
+          type: string
+          enum: [auto, top, right, bottom, left]
+          description: Absent means `auto`.
+        x:
+          type: number
+          format: double
+        "y":
+          type: number
+          format: double
     CanvasObjectBatch:
       type: object
       required: [objects]
@@ -20371,8 +20428,13 @@ components:
           description: Client-generated UUIDv7; also the idempotency key.
         kind:
           type: string
-          enum: [stroke, image, note, shape, text, emoji, module]
+          enum: [stroke, image, note, shape, text, emoji, module, edge]
           description: >
+            `edge` is a connection between objects (decision 0137): see
+            `CanvasEdgeProps`. Its `x`, `y`, `w` and `h` are ignored and
+            replaced by the hull of its ends, an end that is not live in this
+            channel answers 404, and it is refused in a batch. Offered when
+            `/version` has `canvas_edges`.
             `emoji` is a stamp on the board (decision 0121): its
             `props.emoji` must be one emoji, a `:shortcode:` or a custom
             emoji id, and anything else is a 400. Offered when `/version`
@@ -20566,7 +20628,11 @@ components:
         `object_id`, `x`, `y`, `w` and `h`, and none of `object_ids`,
         `before_seq`, `target_op` or `z_index`; a `reorder` takes `object_id`
         and `z_index`, and none of `object_ids`, `before_seq`, `target_op`,
-        `x`, `y`, `w` or `h`; an `edit` takes `object_id` and `props` only.
+        `x`, `y`, `w` or `h`; an `edit` takes `object_id` and `props` only. A
+        `move` of an `edge` is a 400: an edge follows its ends. A `remove`
+        also takes the edges attached to what it erases, without naming them
+        in its `object_ids`; so does a `clear`. A `restore` brings them back
+        when every end they attach to is live again.
       properties:
         id:
           type: string
@@ -20590,7 +20656,7 @@ components:
             canvas `seq` is removed.
         kinds:
           type: array
-          items: { type: string, enum: [stroke, image, note, shape, text, emoji, module] }
+          items: { type: string, enum: [stroke, image, note, shape, text, emoji, module, edge] }
           description: >-
             `clear_scoped` only. Removes only objects of these kinds; omit
             for every kind.
@@ -23705,7 +23771,7 @@ components:
       type: object
       required: [type, channel_id, seq, op_id, object_id, props]
       description: >-
-        A note's props were replaced by an `edit` op, gated the same way
+        A note's or text box's props were replaced, or an edge's props were merged, by an `edit` op, gated the same way
         `canvas.object.placed` is. Carries the whole new props, so a receiver
         repaints the note without a refetch. The actor is absent, matching
         `canvas.object.moved`. Delivered only for a fresh, effective edit.

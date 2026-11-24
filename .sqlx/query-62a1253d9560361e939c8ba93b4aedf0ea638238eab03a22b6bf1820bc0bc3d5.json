@@ -1,0 +1,62 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT x AS \"x!: f64\", y AS \"y!: f64\", w AS \"w!: f64\", h AS \"h!: f64\"\n           FROM canvas_objects WHERE id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "x!: f64",
+        "ordinal": 0,
+        "type_info": "Float",
+        "origin": {
+          "Table": {
+            "table": "canvas_objects",
+            "name": "x"
+          }
+        }
+      },
+      {
+        "name": "y!: f64",
+        "ordinal": 1,
+        "type_info": "Float",
+        "origin": {
+          "Table": {
+            "table": "canvas_objects",
+            "name": "y"
+          }
+        }
+      },
+      {
+        "name": "w!: f64",
+        "ordinal": 2,
+        "type_info": "Float",
+        "origin": {
+          "Table": {
+            "table": "canvas_objects",
+            "name": "w"
+          }
+        }
+      },
+      {
+        "name": "h!: f64",
+        "ordinal": 3,
+        "type_info": "Float",
+        "origin": {
+          "Table": {
+            "table": "canvas_objects",
+            "name": "h"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "62a1253d9560361e939c8ba93b4aedf0ea638238eab03a22b6bf1820bc0bc3d5"
+}
