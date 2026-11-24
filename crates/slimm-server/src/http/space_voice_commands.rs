@@ -9,8 +9,8 @@ use crate::store::TranscriptionMode;
 
 /// What a PATCH asks of the switch and the phrase, after checking.
 pub(super) struct VoiceCommandsChange {
-    on: Option<bool>,
-    phrase: Option<String>,
+    pub(super) on: Option<bool>,
+    pub(super) phrase: Option<String>,
 }
 
 /// `None` when the body names neither. `transcription` is the mode this same PATCH sets, if any.
@@ -39,12 +39,4 @@ pub(super) async fn check(
         }
     }
     Ok(Some(VoiceCommandsChange { on, phrase }))
-}
-
-pub(super) async fn apply(state: &AppState, change: VoiceCommandsChange) -> Result<(), ApiError> {
-    state
-        .store
-        .set_voice_commands(change.on, change.phrase.as_deref())
-        .await?;
-    Ok(())
 }

@@ -88,6 +88,7 @@ mod space_analytics;
 mod space_analytics_by_day;
 mod space_name;
 mod space_removal;
+mod space_settings_integrity;
 mod space_setup;
 mod space_themes_http;
 mod space_welcome;

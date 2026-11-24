@@ -27,8 +27,8 @@ use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 use crate::store::{
     DEFAULT_WELCOME_MESSAGE, JoinPolicy, MAX_SPACE_DESCRIPTION_CHARS, MAX_SPACE_NAME_CHARS,
-    MAX_TRANSCRIPT_RETENTION_DAYS, MAX_WELCOME_MESSAGE_CHARS, SpaceWelcome, TotpPolicy,
-    TranscriptionMode,
+    MAX_TRANSCRIPT_RETENTION_DAYS, MAX_WELCOME_MESSAGE_CHARS, SpaceSettingsPatch, SpaceWelcome,
+    TotpPolicy, TranscriptionMode,
 };
 
 const BODY_LIMIT: usize = 4 * 1024;
@@ -243,15 +243,15 @@ async fn merged_welcome(
             "" => None,
             raw => {
                 let id = ChannelId(parse_uuid(raw)?);
-                if welcome.channel_id != Some(id) {
-                    welcome_channel(state, caller, id).await?;
-                }
                 Some(id)
             }
         };
     }
     if let Some(raw) = body.welcome_message.as_deref() {
         welcome.message = validate_welcome_message(raw)?.to_owned();
+    }
+    if let Some(id) = welcome.channel_id {
+        welcome_channel(state, caller, id).await?;
     }
     if welcome.enabled && welcome.channel_id.is_none() {
         return Err(ApiError::BadRequest(
@@ -261,7 +261,7 @@ async fn merged_welcome(
     Ok(Some(welcome))
 }
 
-/// Refuses a newly chosen welcome channel unless it is a text channel, not a thread, that
+/// Refuses the welcome channel unless it is a text channel, not a thread, that
 /// `caller` could post in: the welcome carries their words, so one they cannot see answers as missing.
 async fn welcome_channel(state: &AppState, caller: UserId, id: ChannelId) -> Result<(), ApiError> {
     let held = state.store.permissions_in_channel(caller, id).await?;
@@ -425,59 +425,38 @@ async fn update(
     if let Some(totp) = totp {
         require_own_factor_to_change_policy(&state, ctx.user_id, totp).await?;
     }
-    if let Some(name) = name {
-        state.store.set_deployment_name(name).await?;
-    }
-    if let Some(join) = join {
-        state.store.set_join_policy(join).await?;
-    }
-    if let Some(totp) = totp {
-        state.store.set_totp_policy(totp).await?;
-    }
-    if let Some(description) = description {
-        state.store.set_space_description(description).await?;
-    }
-    if let Some(enabled) = body.strong_noise_suppression {
-        state.store.set_strong_noise_suppression(enabled).await?;
-    }
-    if let Some(enabled) = body.members_can_invite {
-        state.store.set_members_can_invite(enabled).await?;
-        if !enabled {
-            revoke_member_invites(&state, ctx.user_id).await?;
-        }
-    }
-    if let Some(hidden) = body.hide_bots_in_member_list {
-        state.store.set_hide_bots_in_member_list(hidden).await?;
-    }
-    if body.module_member_badges.is_some() || body.module_profile_sections.is_some() {
-        state
-            .store
-            .set_module_display(body.module_member_badges, body.module_profile_sections)
-            .await?;
-    }
-    if let Some(mode) = transcription {
-        state.store.set_call_transcription(mode).await?;
-    }
-    if let Some(on) = body.transcribe_voice_messages {
-        state.store.set_transcribe_voice_messages(on).await?;
-    }
-    if let Some(commands) = commands {
-        super::space_voice_commands::apply(&state, commands).await?;
-    }
-    if let Some(days) = retention {
-        state.store.set_call_transcript_retention_days(days).await?;
-    }
+    let _changing = match log_mode {
+        Some(_) => Some(crate::logging::mode_change().await),
+        None => None,
+    };
+    let patch = SpaceSettingsPatch {
+        name,
+        join_policy: join.map(JoinPolicy::as_str),
+        totp_policy: totp.map(TotpPolicy::as_str),
+        description,
+        strong_noise_suppression: body.strong_noise_suppression,
+        members_can_invite: body.members_can_invite,
+        hide_bots_in_member_list: body.hide_bots_in_member_list,
+        module_member_badges: body.module_member_badges,
+        module_profile_sections: body.module_profile_sections,
+        call_transcription: transcription.map(TranscriptionMode::as_str),
+        call_transcript_retention_days: retention,
+        transcribe_voice_messages: body.transcribe_voice_messages,
+        voice_commands: commands.as_ref().and_then(|c| c.on),
+        voice_command_phrase: commands.as_ref().and_then(|c| c.phrase.as_deref()),
+        log_mode: log_mode.map(LogMode::as_str),
+        welcome: welcome.as_ref(),
+    };
+    state.store.apply_space_settings(&patch).await?;
     if let Some(mode) = log_mode {
-        let _changing = crate::logging::mode_change().await;
-        state.store.set_log_mode(mode).await?;
         crate::logging::apply_mode(mode);
     }
     // Everything above that `/version` shows, so every member's client re-reads it.
     if changes_version {
         state.hub.publish(Event::SpaceSettingsChanged);
     }
-    if let Some(welcome) = welcome {
-        state.store.set_space_welcome(&welcome).await?;
+    if body.members_can_invite == Some(false) {
+        revoke_member_invites(&state, ctx.user_id).await?;
     }
     Ok(Json(dto(&state).await?))
 }

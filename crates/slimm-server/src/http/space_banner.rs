@@ -12,12 +12,13 @@ use axum::response::Response;
 use axum::routing::get;
 
 use super::AppState;
-use super::attachments::serve;
+use super::attachments::serve_revalidated;
 use super::error::ApiError;
 use super::extract::{
-    ASSET, Authed, AuthedLimited, Bytes, INVITE_CHECK, Json, RateLimited, enforce,
+    ASSET, Authed, AuthedLimited, Bytes, INVITE_CHECK, Json, RateLimited, UPLOAD, enforce,
     require_manage_server,
 };
+use super::manager_limited::ManagerLimited;
 use crate::media;
 use crate::ratelimit::Class;
 use crate::store::{InviteCheck, now_ms};
@@ -41,13 +42,10 @@ struct BannerDto {
 }
 
 async fn upload_banner(
-    Authed(ctx): Authed,
-    parts: Parts,
+    ManagerLimited(_): ManagerLimited<UPLOAD>,
     State(state): State<AppState>,
     Bytes(body): Bytes,
 ) -> Result<Json<BannerDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Upload)?;
-    require_manage_server(&state, ctx.user_id).await?;
     if body.is_empty() {
         return Err(ApiError::BadRequest("banner is empty"));
     }
@@ -130,5 +128,5 @@ async fn banner_response(state: &AppState) -> Result<Response, ApiError> {
         tracing::error!("stored banner bytes no longer match the upload allowlist");
         ApiError::Internal
     })?;
-    Ok(serve(bytes, content_type, "banner"))
+    Ok(serve_revalidated(bytes, content_type, "banner"))
 }
