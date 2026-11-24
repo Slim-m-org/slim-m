@@ -203,6 +203,8 @@ impl Store {
                   avatar_updated_at)
              VALUES (?, ?, ?, ?, ?, ?, ?)
              ON CONFLICT (user_id, provider) DO UPDATE SET
+                 share_activity = CASE WHEN linked_accounts.external_id = excluded.external_id
+                     THEN linked_accounts.share_activity ELSE 0 END,
                  external_id = excluded.external_id,
                  username = excluded.username,
                  display_name = excluded.display_name,
@@ -272,6 +274,25 @@ impl Store {
             .into_iter()
             .map(|r| (r.user_id, r.external_id))
             .collect())
+    }
+
+    /// Whether `user_id` still shares `provider` activity under `external_id`.
+    pub async fn is_sharing_link(
+        &self,
+        user_id: UserId,
+        provider: &str,
+        external_id: &str,
+    ) -> anyhow::Result<bool> {
+        let row = sqlx::query_scalar!(
+            r#"SELECT 1 AS "one!: i64" FROM linked_accounts
+               WHERE user_id = ? AND provider = ? AND external_id = ? AND share_activity = 1"#,
+            user_id,
+            provider,
+            external_id
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(row.is_some())
     }
 
     /// Forgets the stored picture after its file could not be written.

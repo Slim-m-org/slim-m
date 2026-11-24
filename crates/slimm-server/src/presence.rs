@@ -138,6 +138,7 @@ pub fn status_for(
 #[derive(Clone)]
 pub struct PresenceTracker {
     state: Arc<Mutex<HashMap<UserId, Entry>>>,
+    visibility_writes: Arc<tokio::sync::Mutex<()>>,
     viewing: ViewingTracker,
 }
 
@@ -165,6 +166,7 @@ impl PresenceTracker {
     pub fn new() -> Self {
         Self {
             state: Arc::new(Mutex::new(HashMap::new())),
+            visibility_writes: Arc::new(tokio::sync::Mutex::new(())),
             viewing: ViewingTracker::default(),
         }
     }
@@ -275,6 +277,17 @@ impl PresenceTracker {
         if let Some(entry) = lock(&self.state).get_mut(&user_id) {
             entry.visibility.get_or_insert(visibility);
         }
+    }
+
+    /// True when `user_id` is connected and cached as appearing offline, so a
+    /// caller about to announce a change knows the frame's existence would leak.
+    pub fn is_hidden(&self, user_id: UserId) -> bool {
+        self.visibility(user_id) == Some(Visibility::Hidden)
+    }
+
+    /// Serialises visibility writes, so the store and the cache cannot be set in opposite orders by racing toggles.
+    pub async fn lock_visibility_writes(&self) -> tokio::sync::OwnedMutexGuard<()> {
+        Arc::clone(&self.visibility_writes).lock_owned().await
     }
 
     /// `user_id`'s cached visibility, or `None` when it is not connected or

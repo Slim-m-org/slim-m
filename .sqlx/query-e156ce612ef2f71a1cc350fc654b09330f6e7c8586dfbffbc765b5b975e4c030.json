@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO linked_accounts\n                 (user_id, provider, external_id, username, display_name, linked_at,\n                  avatar_updated_at)\n             VALUES (?, ?, ?, ?, ?, ?, ?)\n             ON CONFLICT (user_id, provider) DO UPDATE SET\n                 share_activity = CASE WHEN linked_accounts.external_id = excluded.external_id\n                     THEN linked_accounts.share_activity ELSE 0 END,\n                 external_id = excluded.external_id,\n                 username = excluded.username,\n                 display_name = excluded.display_name,\n                 linked_at = excluded.linked_at,\n                 avatar_updated_at = excluded.avatar_updated_at",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 7
+    },
+    "nullable": []
+  },
+  "hash": "e156ce612ef2f71a1cc350fc654b09330f6e7c8586dfbffbc765b5b975e4c030"
+}

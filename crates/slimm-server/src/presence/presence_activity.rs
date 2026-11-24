@@ -79,9 +79,8 @@ pub fn is_allowed_art_url(url: &str) -> bool {
 
 /// One activity as it goes over the wire.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-/// Unknown fields are refused; the only image is `art_url`, checked by
-/// [`is_allowed_art_url`].
-#[serde(deny_unknown_fields)]
+/// Unknown fields are ignored, so a newer client's extra fields still land; the
+/// only image is `art_url`, checked by [`is_allowed_art_url`].
 pub struct Activity {
     #[serde(rename = "type")]
     pub kind: ActivityKind,
