@@ -57,6 +57,8 @@ extension SlimmApiTransport on SlimmApi {
     void Function(Map<String, String> headers)? onHeaders,
     // One attempt only, never replayed or refreshed: a request timed as a sample of the path.
     bool once = false,
+    // For a JSON call whose body or work is large; defaults to the request or transfer deadline.
+    Duration? deadline,
   }) async {
     // Inline, not awaitTrust: a trusted server must not cost every request a turn.
     if (authenticated) {
@@ -73,7 +75,8 @@ extension SlimmApiTransport on SlimmApi {
             authenticated: authenticated,
           ),
           '$method $path',
-          deadline: bytes == null ? requestDeadline : transferDeadline,
+          deadline:
+              deadline ?? (bytes == null ? requestDeadline : transferDeadline),
           over: over,
           maxBytes: unvouched ? unvouchedReplyBytes : null,
         );
@@ -101,6 +104,7 @@ extension SlimmApiTransport on SlimmApi {
         onStatus: onStatus,
         over: over,
         onHeaders: onHeaders,
+        deadline: deadline,
         isRetry: true,
       );
     }

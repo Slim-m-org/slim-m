@@ -319,6 +319,52 @@ void main() {
     expect(server.received, data);
   });
 
+  test('a blip on the status check of a kept session does not discard it',
+      () async {
+    final server = _FakeServer();
+    final data = _bytes(100);
+    final api = _api(server);
+    server.fault = (put) => put >= 3 ? const _Fault.status(503) : null;
+    await expectLater(
+      _run(server, data, api: api, resumeKey: 'tile-1'),
+      throwsA(isA<UnavailableException>()),
+    );
+    server
+      ..fault = null
+      ..downFor = 2;
+    final attachment = await _run(server, data, api: api, resumeKey: 'tile-1');
+    expect(attachment.id, 'att1');
+    expect(server.creates, 1, reason: 'resumed, not restarted');
+    expect(server.discarded, isFalse);
+    expect(server.received, data);
+  });
+
+  test('a server still down on resume keeps the session for the next try',
+      () async {
+    final server = _FakeServer();
+    final data = _bytes(100);
+    final api = _api(server);
+    server.fault = (put) => put >= 3 ? const _Fault.status(503) : null;
+    await expectLater(
+      _run(server, data, api: api, resumeKey: 'tile-1'),
+      throwsA(isA<UnavailableException>()),
+    );
+    server
+      ..fault = null
+      ..downFor = 1000;
+    await expectLater(
+      _run(server, data, api: api, resumeKey: 'tile-1'),
+      throwsA(isA<NotFoundException>()),
+    );
+    expect(server.calls.where((c) => c.startsWith('DELETE')), isEmpty);
+
+    server.downFor = 0;
+    final attachment = await _run(server, data, api: api, resumeKey: 'tile-1');
+    expect(attachment.id, 'att1');
+    expect(server.creates, 1);
+    expect(server.received, data);
+  });
+
   test('unknown capabilities are asked for rather than read as none', () async {
     final server = _FakeServer();
     final attachment = await _run(server, _bytes(100), capabilities: null);

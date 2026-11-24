@@ -7,7 +7,21 @@ import 'exceptions.dart';
 import 'models.dart';
 import 'client.dart';
 import 'client_transport.dart';
+import 'upload_guard.dart';
 import 'upload_send.dart';
+import 'upload_source.dart';
+
+/// How long a plain upload may go without a byte moving before it fails.
+const kUploadStallDeadline = Duration(seconds: 60);
+
+/// [body] that stops at once when [guard] gave up and counts each chunk as movement.
+Stream<List<int>> _watched(Stream<List<int>> body, UploadGuard guard) async* {
+  await for (final chunk in body) {
+    if (guard.stopped) return;
+    guard.touch();
+    yield chunk;
+  }
+}
 
 /// Attachments: upload bytes once, reference the returned id in
 /// [SlimmApi.sendMessage], fetch them back. The `attachments` tag.
@@ -50,12 +64,17 @@ extension SlimmApiAttachments on SlimmApi {
   ///
   /// [open] is a factory, not a stream: the one-shot refresh-and-replay after
   /// a 401 has to read the body again from the start.
+  ///
+  /// The upload fails with a [TransportException] once [stallDeadline] passes
+  /// with no byte moving, and stops with [UploadCancelled] when [cancel] trips.
   Future<Attachment> uploadAttachmentStream(
     Stream<List<int>> Function() open, {
     required int length,
     String? filename,
     String? channelId,
     void Function(int sent)? onProgress,
+    UploadCancelToken? cancel,
+    Duration stallDeadline = kUploadStallDeadline,
   }) async {
     final response = await sendStreamed(
       'POST',
@@ -67,6 +86,8 @@ extension SlimmApiAttachments on SlimmApi {
         if (channelId != null) 'channel_id': channelId,
       },
       onProgress: onProgress,
+      cancel: cancel,
+      stallDeadline: stallDeadline,
     );
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return decodeShape(
@@ -81,9 +102,9 @@ extension SlimmApiAttachments on SlimmApi {
   /// Sends a raw body read from [open] and answers the response unmapped, so
   /// the caller decides what a status means. Replays once after a 401.
   ///
-  /// [sendDeadline] bounds the send itself, which a plain upload leaves open
-  /// but a part of a resumable one cannot: a stalled part has to fail so the
-  /// uploader can resume from the server's offset.
+  /// [sendDeadline] bounds the whole send and [stallDeadline] the gap between
+  /// moving bytes: a stalled part has to fail so the uploader can resume from
+  /// the server's offset. Either one, and [cancel], also abort the request.
   Future<http.Response> sendStreamed(
     String method,
     String path, {
@@ -92,31 +113,53 @@ extension SlimmApiAttachments on SlimmApi {
     Map<String, String>? query,
     void Function(int sent)? onProgress,
     Duration? sendDeadline,
+    Duration? stallDeadline,
+    UploadCancelToken? cancel,
     bool isRetry = false,
   }) async {
+    cancel?.throwIfCancelled();
     await awaitTrust();
     final token = session.tokens?.accessToken;
     if (token == null) throw const UnauthorizedException('not signed in');
-    final request = http.StreamedRequest(method, requestUri(path, query))
+    final guard = UploadGuard(
+      stall: stallDeadline,
+      total: sendDeadline,
+      cancel: cancel,
+    );
+    final request = http.AbortableStreamedRequest(
+      method,
+      requestUri(path, query),
+      abortTrigger: guard.abortTrigger,
+    )
       ..contentLength = length
       ..headers['content-type'] = 'application/octet-stream'
       ..headers['authorization'] = 'Bearer $token';
     final http.Response response;
     try {
-      var sending = sendUpload(
+      final sending = sendUpload(
         link.client,
         request,
-        open(),
-        onProgress: onProgress,
+        _watched(open(), guard),
+        abortTrigger: guard.abortTrigger,
+        onProgress: (sent) {
+          guard.touch();
+          if (sent >= length) guard.rearm(transferDeadline);
+          onProgress?.call(sent);
+        },
       );
-      if (sendDeadline != null) sending = sending.timeout(sendDeadline);
+      final streamed = await guard.guard(sending);
+      guard.dispose();
       response = await http.Response.fromStream(
-        await sending,
+        streamed,
       ).timeout(transferDeadline);
+    } on UploadCancelled {
+      rethrow;
     } on TimeoutException {
       throw TransportException('$method $path got no answer');
     } catch (e) {
       throw TransportException('$method $path failed: $e');
+    } finally {
+      guard.dispose();
     }
     if (response.statusCode == 401 && !isRetry && session.tokens != null) {
       await refreshUnlessRotated(token);
@@ -128,6 +171,8 @@ extension SlimmApiAttachments on SlimmApi {
         query: query,
         onProgress: onProgress,
         sendDeadline: sendDeadline,
+        stallDeadline: stallDeadline,
+        cancel: cancel,
         isRetry: true,
       );
     }

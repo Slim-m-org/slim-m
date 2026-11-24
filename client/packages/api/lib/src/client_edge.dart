@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 library;
 
+import 'dart:async';
+
 import 'package:http/http.dart' as http;
 
 import 'client.dart';
@@ -8,12 +10,18 @@ import 'client_transport.dart';
 import 'edge_route.dart';
 import 'exceptions.dart';
 
-// No deadline of its own: an answer that never comes only leaves the trace unread.
-Future<http.Response> _traceOnce(http.Client client, Uri uri) async {
+Future<http.Response> _traceOnce(
+  http.Client client,
+  Uri uri,
+  Duration deadline,
+) async {
   try {
     return await client
         .send(http.Request('GET', uri))
-        .then(http.Response.fromStream);
+        .then(http.Response.fromStream)
+        .timeout(deadline);
+  } on TimeoutException {
+    throw TransportException('the trace of ${uri.host} got no answer');
   } on http.ClientException catch (e) {
     throw ConnectionDroppedException('the trace of ${uri.host} failed: $e');
   } catch (e) {
@@ -30,7 +38,10 @@ extension SlimmApiEdge on SlimmApi {
   /// Cloudflare answers there, as on a self-host or the server's own network.
   ///
   /// Throws a [TransportException] when nothing answered, which says nothing about the route.
-  Future<EdgeTrace?> cloudflareTrace({Uri? host}) async {
+  Future<EdgeTrace?> cloudflareTrace({
+    Uri? host,
+    Duration deadline = requestDeadline,
+  }) async {
     final base = host ?? baseUrl;
     final scheme = switch (base.scheme) {
       'wss' => 'https',
@@ -45,7 +56,7 @@ extension SlimmApiEdge on SlimmApi {
     );
     final response = await replayingDroppedSocket(
       'GET',
-      () => _traceOnce(link.client, uri),
+      () => _traceOnce(link.client, uri, deadline),
     );
     if (response.statusCode != 200) return null;
     return parseCloudflareTrace(response.body);
