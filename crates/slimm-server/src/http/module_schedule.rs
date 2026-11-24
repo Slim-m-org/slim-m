@@ -126,6 +126,14 @@ pub(crate) fn spawn_sweep(state: AppState) {
     });
 }
 
+/// Whether a module's principal may still act on its own: not deleted, and not removed from the Space.
+pub(crate) async fn principal_may_act(state: &AppState, principal: UserId) -> anyhow::Result<bool> {
+    if state.store.user_profile(principal).await?.is_none() {
+        return Ok(false);
+    }
+    Ok(!state.store.is_removed(principal).await?)
+}
+
 /// Whether `schedule` is due at `now`, given when it last ran.
 pub(crate) fn is_due(schedule: &ModuleSchedule, last_run_at: Option<i64>, now: i64) -> bool {
     let every_ms = i64::from(schedule.every_minutes) * 60_000;
@@ -143,8 +151,8 @@ pub async fn run_due(state: &AppState, now: i64) -> anyhow::Result<usize> {
         if !module.enabled || !schedule_approved(&module) {
             continue;
         }
-        // A deleted principal keeps its overwrite, so this is what stops it.
-        if state.store.user_profile(bot).await?.is_none() {
+        // A deleted or removed principal keeps its overwrite, so this is what stops it.
+        if !principal_may_act(state, bot).await? {
             continue;
         }
         let last_runs = state.store.module_schedule_runs(&module.id).await?;

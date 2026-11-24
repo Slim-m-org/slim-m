@@ -20,6 +20,7 @@ use super::super::error::ApiError;
 use super::super::extract::{AUTHED_READ, AuthedLimited, Json, MODULE};
 use super::super::messages::parse_uuid;
 use super::super::module_commands::execute_on_canvas;
+use super::super::participant::Participant;
 use super::super::scene_refresh::requested_ms;
 use super::super::surface_lock::lock_canvas_tile;
 use super::super::surface_state::with_held_state;
@@ -124,17 +125,13 @@ async fn read(
 
 /// Runs the tile's command as the caller on the held frame; a press with nothing stored yet launches it.
 async fn press(
-    AuthedLimited(ctx): AuthedLimited<MODULE>,
+    Participant(ctx): Participant<MODULE>,
     State(state): State<AppState>,
     Path((channel_id, object_id)): Path<(String, String)>,
     Json(req): Json<PressRequest>,
 ) -> Result<Json<PressResponse>, ApiError> {
     let (channel_id, object_id) = ids(&channel_id, &object_id)?;
     canvas_read_access(&state, ctx.user_id, channel_id).await?;
-    // The frame is shown to the whole call, so a timeout bars it like a message.
-    if state.store.timed_out_until(ctx.user_id).await?.is_some() {
-        return Err(ApiError::Forbidden);
-    }
     let tile = live_tile(&state, channel_id, object_id).await?;
     let (module, command) = runnable_tile(&state, &tile).await?;
 

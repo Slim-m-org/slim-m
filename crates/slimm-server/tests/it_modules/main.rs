@@ -68,6 +68,7 @@ mod module_hooks_latency;
 mod module_hooks_paths;
 mod module_hooks_write_paths;
 mod module_install_atomic;
+mod module_invoker_rights;
 mod module_log_read;
 mod module_net_lan;
 mod module_net_slow;

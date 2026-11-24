@@ -127,7 +127,11 @@ async fn a_module_cannot_post_where_the_invoking_user_cannot() {
         .await
         .unwrap();
     let denied = "{'error':'not permitted to post in that channel','ok':false}";
-    for (module, channel) in [("into-staff", hidden.id), ("into-news", read_only.id)] {
+    let unseen = "insufficient permissions";
+    for (module, channel, answer) in [
+        ("into-staff", hidden.id, unseen),
+        ("into-news", read_only.id, denied),
+    ] {
         w.install(Install {
             id: module,
             wasm: host_call_loop_wasm(&post_request(&channel.to_string(), "sneaky"), 1),
@@ -135,7 +139,7 @@ async fn a_module_cannot_post_where_the_invoking_user_cannot() {
             approved_host: &["message.post"],
         })
         .await;
-        assert_eq!(w.answer_in(module, Some(channel)).await, denied);
+        assert_eq!(w.answer_in(module, Some(channel)).await, answer);
     }
     let nowhere = "00000000-0000-0000-0000-000000000000";
     w.install(Install {
@@ -146,7 +150,7 @@ async fn a_module_cannot_post_where_the_invoking_user_cannot() {
     })
     .await;
     let nowhere_id = ChannelId(nowhere.parse().unwrap());
-    assert_eq!(w.answer_in("into-nowhere", Some(nowhere_id)).await, denied);
+    assert_eq!(w.answer_in("into-nowhere", Some(nowhere_id)).await, unseen);
 }
 
 #[tokio::test]

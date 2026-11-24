@@ -44,7 +44,7 @@ const EXEMPT: [(&str, Option<&str>, &str); 3] = [
     (
         "http/module_host.rs",
         Some("intercept("),
-        "a module's post skips its own interceptors, and the message.send hook is not asked for it",
+        "a module's post skips its own interceptors, and only a person's run asks the message.send hook",
     ),
 ];
 

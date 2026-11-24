@@ -25,6 +25,10 @@ The policy behind the levels is decision [0100](../decisions/0100-module-safety-
 - From the audit of 2026-11-23, still inside level 7 before its release (decision [0100](../decisions/0100-module-safety-contracts.md#where-they-run)): `message.pre_send` interceptors also run over a poll's caption, question and options, an app launch's caption, embed titles, descriptions, author names, footers and field names and values, a webhook's `username` label, and button and select labels and placeholders. Each is its own run with that text as `content`, through the reject and rewrite phases only; a rewrite of one must be non-empty and fit that field's own limit, or it counts as a failed run.
 - `message.pre_edit` also runs when a bot replaces its embeds on an edit or its buttons with `PUT .../components`, and `reply_to_id` now carries the edited message's parent instead of always null.
 - The `message.send` permission hook is now asked for polls, app launches, edits, webhook deliveries and a bot changing its buttons, not only `POST /channels/{channel_id}/messages`.
+- From the audit of 2026-11-23, module runs and their posts are held to the member who ran them: a command naming a channel the member cannot view answers 403 before the module runs, and a member who has not accepted the rules or is timed out is refused with 403 on `POST /modules/{id}/commands/{command}` and on a canvas tile press, with the `timed_out` code other routes use for a timeout.
+- A `run_after` timer keeps `context.channel_id` only when the member (or, for a run nobody started, the module's principal) may view and send there when it is armed; otherwise it is stored with no channel and posts nowhere.
+- A `message.post` made during a member's run reaches `@everyone`, `@here` and roles only when both the member and the module's principal hold `mention_everyone`, the rule a posted command answer already had, and the `message.send` permission hook is asked for it and for a posted answer.
+- A module whose principal was removed from the Space runs no schedules, timers or events until it is restored.
 
 ## Level 6
 
