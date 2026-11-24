@@ -4,7 +4,6 @@ library;
 
 import 'dart:ui';
 
-import 'package:flutter/gestures.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/canvas/providers/canvas_edge_style.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';

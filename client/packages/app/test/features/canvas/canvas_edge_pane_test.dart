@@ -388,7 +388,7 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pump();
 
-    final family = '\u{1F468}\u200D\u{1F469}\u200D\u{1F467}';
+    const family = '\u{1F468}\u200D\u{1F469}\u200D\u{1F467}';
     await tester.enterText(
       find.byKey(canvasEdgeLabelFieldKey),
       'a\u200Bb${family * 40}',

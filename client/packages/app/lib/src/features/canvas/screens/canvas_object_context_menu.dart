@@ -307,7 +307,11 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
       id != null &&
       widget.canDraw &&
       canvasEdgeAttachable(widget.document.kindOf(id)) &&
-      ProviderScope.containerOf(context).read(canvasEdgesSupportedProvider);
+      (context
+              .getInheritedWidgetOfExactType<UncontrolledProviderScope>()
+              ?.container
+              .read(canvasEdgesSupportedProvider) ??
+          false);
 
   /// Hands the keyboard a connection to finish: the bracket keys pick the target.
   void _connect(String id) {
