@@ -166,6 +166,8 @@ void main() {
 
 /// The device-wide counterpart of [spaceScopedKeys]; see decision 0070.
 const _deviceKeys = <String>{
+  'slimm.presence.share_listening',
+  'slimm.presence.share_spotify',
   'slimm.appearance.custom_theme',
   'slimm.appearance.custom_theme_source',
   'slimm.appearance.my_themes',

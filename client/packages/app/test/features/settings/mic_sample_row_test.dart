@@ -50,6 +50,7 @@ Future<_Harness> _pump(
   bool inCall = false,
   bool silent = false,
   List<Override> extra = const [],
+  ValueNotifier<bool>? shown,
 }) async {
   final harness = _Harness();
   await tester.pumpWidget(
@@ -74,7 +75,13 @@ Future<_Harness> _pump(
       ],
       child: MaterialApp(
         theme: buildTheme(Brightness.light, AppTokens.light),
-        home: const Scaffold(body: MicSampleRow()),
+        home: Scaffold(
+          body: ValueListenableBuilder<bool>(
+            valueListenable: shown ?? ValueNotifier(true),
+            builder: (_, on, _) =>
+                on ? const MicSampleRow() : const SizedBox.shrink(),
+          ),
+        ),
       ),
     ),
   );
@@ -156,9 +163,13 @@ void main() {
   group('a recording that is still running', () {
     final inCall = StateProvider<bool>((ref) => false);
 
-    Future<(_Harness, ProviderContainer)> record(WidgetTester tester) async {
+    Future<(_Harness, ProviderContainer)> record(
+      WidgetTester tester, {
+      ValueNotifier<bool>? shown,
+    }) async {
       final harness = await _pump(
         tester,
+        shown: shown,
         extra: [
           keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
           micPreviewBlockedProvider.overrideWith((ref) => ref.watch(inCall)),
@@ -203,8 +214,10 @@ void main() {
     });
 
     testWidgets('stops when the pane is left', (tester) async {
-      final (harness, _) = await record(tester);
-      await tester.pumpWidget(const SizedBox.shrink());
+      final shown = ValueNotifier(true);
+      final (harness, _) = await record(tester, shown: shown);
+      shown.value = false;
+      await tester.pump();
       await tester.pump(const Duration(seconds: 4));
       expect(harness.saved, isEmpty);
     });

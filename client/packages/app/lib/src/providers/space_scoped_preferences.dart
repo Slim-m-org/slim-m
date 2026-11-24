@@ -25,8 +25,6 @@ const Set<String> spaceScopedKeys = {
   'slimm.performance.gif_autoplay',
   'slimm.performance.link_previews',
   'slimm.composer.reply_mention',
-  'slimm.presence.share_listening',
-  'slimm.presence.share_spotify',
   'slimm.voice.join_leave_sounds_enabled',
   'slimm.voice.hold_music_enabled',
   'slimm.voice.hold_music_track',

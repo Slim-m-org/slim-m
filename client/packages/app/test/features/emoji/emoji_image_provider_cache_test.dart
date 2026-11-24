@@ -96,6 +96,7 @@ void main() {
     }
     expect(requests, 120);
 
+    await pumpEventQueue();
     await container.read(customEmojiImageProvider('e-119').future);
     expect(requests, 120, reason: 'a recent image stays held');
 

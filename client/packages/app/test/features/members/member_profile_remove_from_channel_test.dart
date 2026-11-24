@@ -73,7 +73,16 @@ _wire({
   final container = ProviderContainer(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
-      sessionProvider.overrideWithValue(api.SessionStore(tokens: tokens)),
+      sessionProvider.overrideWithValue(
+        api.SessionStore(
+          tokens: api.TokenPair(
+            userId: selfProfile?.id ?? tokens.userId,
+            accessToken: tokens.accessToken,
+            refreshToken: tokens.refreshToken,
+            accessExpiresAt: tokens.accessExpiresAt,
+          ),
+        ),
+      ),
       myPermissionsProvider.overrideWithValue(0),
       membersProvider.overrideWith((ref) async => [member]),
       rolesProvider.overrideWith((ref) async {
