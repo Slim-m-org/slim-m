@@ -207,6 +207,16 @@ impl Hub {
     /// are no subscribers on that channel; never blocks or errors from the
     /// caller's point of view.
     pub fn publish(&self, event: Event) {
+        self.publish_with(event, true);
+    }
+
+    /// Publishes like [`Self::publish`] but leaves the permissions epoch alone, for an
+    /// update the caller knows moves nobody's permissions.
+    pub fn publish_keeping_permissions(&self, event: Event) {
+        self.publish_with(event, false);
+    }
+
+    fn publish_with(&self, event: Event, may_move_permissions: bool) {
         let event = if is_moderation(&event) {
             Event::Stamped {
                 seq: self.moderation.advance(),
@@ -216,7 +226,7 @@ impl Hub {
             event
         };
         // Bumped before the send, so no subscriber can act on a stale answer.
-        if moves_permissions(&event) {
+        if may_move_permissions && moves_permissions(&event) {
             self.permissions_epoch.fetch_add(1, Ordering::Release);
         }
         if is_ephemeral(&event) {

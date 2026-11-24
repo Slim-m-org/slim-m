@@ -397,9 +397,10 @@ async fn every_read_of_a_channel_returns_the_same_row() {
     let owner = store.create_user("alice", "Alice").await.unwrap();
     let lobby = store.channel(lobby.id).await.unwrap().unwrap();
     let room = store
-        .create_voice_room(&lobby, owner.id, "alice's room")
+        .open_voice_room(&lobby, owner.id, "alice's room")
         .await
-        .unwrap();
+        .unwrap()
+        .0;
     let room = store
         .update_channel_settings(
             room.id,

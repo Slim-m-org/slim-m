@@ -44,38 +44,36 @@ impl Store {
         .await?)
     }
 
-    /// `owner`'s live room from `lobby`, if they already have one.
-    pub async fn voice_room_of(
-        &self,
-        lobby: ChannelId,
-        owner: UserId,
-    ) -> anyhow::Result<Option<Channel>> {
-        let id = sqlx::query_scalar!(
-            r#"SELECT id AS "id!: ChannelId" FROM channels
-               WHERE room_lobby_id = ? AND room_owner_id = ? AND deleted_at IS NULL
-               ORDER BY created_at LIMIT 1"#,
-            lobby,
-            owner
-        )
-        .fetch_optional(&self.pool)
-        .await?;
-        match id {
-            Some(id) => self.channel(id).await,
-            None => Ok(None),
-        }
-    }
-
-    /// Creates `owner`'s room beside `lobby`: same category and position
-    /// (created later, so it sorts right after the lobby), and the lobby's overwrites.
-    pub async fn create_voice_room(
+    /// `owner`'s room beside `lobby`, made if they have none: same category and
+    /// position (created later, so it sorts right after the lobby), and the lobby's
+    /// overwrites. The flag says whether this call made it; the lookup shares the
+    /// write transaction, so concurrent calls make one room.
+    pub async fn open_voice_room(
         &self,
         lobby: &Channel,
         owner: UserId,
         name: &str,
-    ) -> anyhow::Result<Channel> {
+    ) -> anyhow::Result<(Channel, bool)> {
         let id = ChannelId(Uuid::now_v7());
         let now = now_ms();
         let mut tx = self.begin_write().await?;
+        let existing = sqlx::query_scalar!(
+            r#"SELECT id AS "id!: ChannelId" FROM channels
+               WHERE room_lobby_id = ? AND room_owner_id = ? AND deleted_at IS NULL
+               ORDER BY created_at LIMIT 1"#,
+            lobby.id,
+            owner
+        )
+        .fetch_optional(&mut *tx)
+        .await?;
+        if let Some(existing) = existing {
+            tx.commit().await?;
+            let room = self
+                .channel(existing)
+                .await?
+                .ok_or_else(|| anyhow::anyhow!("the room found is missing"))?;
+            return Ok((room, false));
+        }
         sqlx::query!(
             "INSERT INTO channels
                 (id, name, kind, position, created_at, category_id, room_owner_id, room_lobby_id)
@@ -100,9 +98,11 @@ impl Store {
         .execute(&mut *tx)
         .await?;
         tx.commit().await?;
-        self.channel(id)
+        let room = self
+            .channel(id)
             .await?
-            .ok_or_else(|| anyhow::anyhow!("the room just created is missing"))
+            .ok_or_else(|| anyhow::anyhow!("the room just created is missing"))?;
+        Ok((room, true))
     }
 
     /// Live rooms created before `before_ms`, for the sweep that removes the

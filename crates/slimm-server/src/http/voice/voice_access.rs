@@ -28,9 +28,11 @@ pub fn spawn_voice_access_watch(state: AppState) -> JoinHandle<()> {
 }
 
 async fn watch(state: AppState, mut events: Receiver<Event>) {
+    let mut seen_epoch = state.hub.permissions_epoch();
     loop {
         let relevant = match events.recv().await {
-            Ok(event) => moves_permissions(&event),
+            // An event published without a bump (see `Hub::publish_keeping_permissions`) is no change.
+            Ok(event) => moves_permissions(&event) && state.hub.permissions_epoch() != seen_epoch,
             // A missed event may have been a revoke, so a lag re-checks everyone too.
             Err(RecvError::Lagged(_)) => true,
             Err(RecvError::Closed) => return,
@@ -46,6 +48,7 @@ async fn watch(state: AppState, mut events: Receiver<Event>) {
                 Err(TryRecvError::Closed) => return,
             }
         }
+        seen_epoch = state.hub.permissions_epoch();
         evict_who_lost_access(&state).await;
     }
 }
@@ -91,8 +94,8 @@ pub(in crate::http) async fn evict_refused_heartbeat(
     remove_from_room(state, user_id, channel_id).await;
 }
 
-/// Removes someone the SFU just let in who holds no View and Connect in the channel, or whose
-/// token's device is signed out, answering whether they stay.
+/// Removes someone the SFU just let in who holds no View and Connect in the channel, whose
+/// token's device is signed out, or who is past the room's user limit, answering whether they stay.
 ///
 /// The SFU renews every token it accepts, so one minted before the access or the session went
 /// still joins; this is the check a join by that token never otherwise meets.
@@ -120,6 +123,7 @@ pub(in crate::http) async fn evict_join_without_access(
             true
         }
     };
+    let stays = stays && !super::voice_rooms::past_user_limit(state, channel_id, user_id).await;
     if !stays {
         evict_refused_heartbeat(state, user_id, channel_id).await;
     }
