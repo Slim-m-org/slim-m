@@ -45,6 +45,7 @@ mod openapi_400_coverage;
 mod openapi_429_coverage;
 mod openapi_contract;
 mod panic_guard;
+mod participant_guard_coverage;
 mod permissions_batch_cost;
 mod permissions_webhook_batch;
 mod post_commit_failures;
