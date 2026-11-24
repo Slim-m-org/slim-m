@@ -7,6 +7,7 @@ use axum::Router;
 use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::StatusCode;
 use axum::http::request::Parts;
+use axum::middleware::from_fn;
 use axum::routing::{patch, post};
 use serde::Deserialize;
 
@@ -16,6 +17,7 @@ use super::dms::{DmConversationDto, with_nicknames};
 use super::error::ApiError;
 use super::extract::{Authed, Json, enforce};
 use super::messages::parse_uuid;
+use super::post_commit::run_to_completion;
 use crate::hub::Event;
 use crate::ids::{ChannelId, UserId};
 use crate::ratelimit::Class;
@@ -26,7 +28,10 @@ const BODY_LIMIT: usize = 4 * 1024;
 
 pub fn routes() -> Router<AppState> {
     Router::new()
-        .route("/dms/groups", post(create))
+        .route(
+            "/dms/groups",
+            post(create).layer(from_fn(run_to_completion)),
+        )
         .route("/dms/groups/{channel_id}", patch(rename).delete(delete))
         .route("/dms/groups/{channel_id}/members", post(add_member))
         .route("/dms/groups/{channel_id}/leave", post(leave))

@@ -184,8 +184,6 @@ async fn remove(
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_server(&state, ctx.user_id).await?;
     let id = parse_id(&id)?;
-    if !state.store.delete_debug_log(id).await? {
-        return Err(ApiError::NotFound("debug log not found"));
-    }
+    state.store.delete_debug_log(id).await?;
     Ok(StatusCode::NO_CONTENT)
 }

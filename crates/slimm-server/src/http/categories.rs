@@ -7,7 +7,8 @@ use axum::Router;
 use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::StatusCode;
 use axum::http::request::Parts;
-use axum::routing::{get, patch};
+use axum::middleware::from_fn;
+use axum::routing::{get, patch, post};
 use serde::{Deserialize, Serialize};
 
 use super::AppState;
@@ -16,6 +17,7 @@ use super::error::ApiError;
 use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce};
 use super::hidden_chars::{draws_nothing, is_hidden_char};
 use super::messages::parse_uuid;
+use super::post_commit::run_to_completion;
 use crate::hub::Event;
 use crate::ids::ChannelCategoryId;
 use crate::permissions::Permissions;
@@ -30,7 +32,10 @@ const CATEGORY_NAME_MAX_CHARS: usize = crate::limits::MAX_NAME_CHARS;
 /// The category routes, mounted by [`super::router`].
 pub fn routes() -> Router<AppState> {
     Router::new()
-        .route("/categories", get(list).post(create))
+        .route(
+            "/categories",
+            get(list).merge(post(create).layer(from_fn(run_to_completion))),
+        )
         .route("/categories/{category_id}", patch(update).delete(delete))
         .layer(DefaultBodyLimit::max(CATEGORY_BODY_LIMIT))
 }

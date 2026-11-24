@@ -149,11 +149,8 @@ pub(in crate::http) async fn remove_source(
             "the official source cannot be removed",
         ));
     }
-    if state.store.remove_dock_source(&source_id).await? {
-        Ok(StatusCode::NO_CONTENT)
-    } else {
-        Err(ApiError::NotFound("unknown module source"))
-    }
+    state.store.remove_dock_source(&source_id).await?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 #[cfg(test)]

@@ -172,7 +172,7 @@ async fn removal_is_for_the_author_or_an_administrator() {
         None,
     )
     .await;
-    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert_eq!(status, StatusCode::NO_CONTENT);
 }
 
 #[tokio::test]

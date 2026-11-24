@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT reason, removed_by AS \"removed_by: UserId\" FROM space_removals WHERE user_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "reason",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "space_removals",
+            "name": "reason"
+          }
+        }
+      },
+      {
+        "name": "removed_by: UserId",
+        "ordinal": 1,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "space_removals",
+            "name": "removed_by"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true,
+      true
+    ]
+  },
+  "hash": "3b0ecde08e43563283a969986de09eed6427fbd2d4152469e474112f8793c11f"
+}

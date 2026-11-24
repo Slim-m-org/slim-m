@@ -310,7 +310,7 @@ pub use threads::{
     MAX_THREADS_PER_CHANNEL, OpenThreadError, OpenedThread, ThreadParent, ThreadSummary,
 };
 pub(crate) use timeouts::TIMEOUT_DENY;
-pub use timeouts::{MAX_TIMEOUT_MS, MemberTimeout, TimeoutError};
+pub use timeouts::{MAX_TIMEOUT_MS, MemberTimeout, TimeoutApplied, TimeoutError};
 pub use totp::{RECOVERY_CODE_COUNT, TotpEnrolment, TotpError, TotpPolicy, TotpStatus};
 pub use totp_verify::{ChallengeError, TotpChallenge, TotpProof, TotpSignIn};
 pub use uplink_tests::{UPLINK_HISTORY_LEN, UplinkTest};

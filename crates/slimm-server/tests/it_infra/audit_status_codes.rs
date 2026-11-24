@@ -300,7 +300,7 @@ async fn join_muted_is_refused_on_a_text_channel_create_and_update() {
 }
 
 #[tokio::test]
-async fn deleting_an_account_that_is_already_gone_is_a_404() {
+async fn deleting_an_account_that_is_already_gone_is_a_success() {
     let w = world().await;
     let uri = format!("/members/{}/account", w.member.1);
     assert_eq!(
@@ -308,12 +308,11 @@ async fn deleting_an_account_that_is_already_gone_is_a_404() {
         StatusCode::NO_CONTENT
     );
     let (status, body) = w.as_admin("DELETE", &uri, None).await;
-    assert_eq!(status, StatusCode::NOT_FOUND, "{body}");
-    assert_eq!(error_text(&body), "no such member");
+    assert_eq!(status, StatusCode::NO_CONTENT, "{body}");
     let ghost = format!("/members/{}/account", uuid::Uuid::now_v7());
     assert_eq!(
         w.as_admin("DELETE", &ghost, None).await.0,
-        StatusCode::NOT_FOUND
+        StatusCode::NO_CONTENT
     );
 }
 
