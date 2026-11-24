@@ -300,9 +300,7 @@ fn nudge_if_microphone(state: &AppState, channel_id: ChannelId, event: &WebhookE
         .as_ref()
         .is_some_and(|track| track.source.eq_ignore_ascii_case("MICROPHONE"));
     if is_microphone {
-        state
-            .hub
-            .publish(Event::VoiceActivityChanged { channel_id });
+        state.hub.nudge_voice_roster(channel_id);
     }
 }
 

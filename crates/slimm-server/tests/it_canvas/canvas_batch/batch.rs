@@ -5,8 +5,8 @@ use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
-use slimm_server::hub::{CanvasEvent, Event, Hub};
-use slimm_server::ids::ChannelId;
+use slimm_server::hub::{CanvasEvent, Event, Hub, MessageEvent};
+use slimm_server::ids::{ChannelId, MessageId};
 use slimm_server::permissions::Permissions;
 use slimm_server::store::Store;
 use tower::ServiceExt;
@@ -168,6 +168,46 @@ async fn fan_out_is_one_event_per_object_in_seq_order() {
     }
     assert_eq!(seqs.len(), 7);
     assert!(seqs.windows(2).all(|w| w[1] == w[0] + 1));
+}
+
+/// A subscriber already far behind makes the publisher pause instead of piling more on.
+#[tokio::test]
+async fn a_batch_waits_for_a_backlogged_subscriber_instead_of_overrunning_it() {
+    let (store, _guard) = new_store().await;
+    let (token, _) = register(&store, "root").await;
+    let channel = general(&store).await;
+    let hub = Hub::new();
+    let mut events = hub.subscribe();
+    for _ in 0..300 {
+        hub.publish(Event::Message(MessageEvent::Deleted {
+            channel_id: channel,
+            message_id: MessageId::generate(),
+            op_seq: None,
+        }));
+    }
+    let app = app_with_hub(store, hub);
+
+    batch(&app, channel, &token, strokes(5)).await;
+    let mut placed_while_backlogged = 0;
+    let mut drained = 0;
+    while let Ok(event) = events.try_recv() {
+        drained += 1;
+        if matches!(event, Event::Canvas(CanvasEvent::ObjectPlaced { .. })) {
+            placed_while_backlogged += 1;
+        }
+    }
+    assert_eq!(drained, 300);
+    assert_eq!(placed_while_backlogged, 0);
+    for _ in 0..5 {
+        let event = tokio::time::timeout(std::time::Duration::from_secs(3), events.recv())
+            .await
+            .expect("the paced objects still arrive")
+            .unwrap();
+        assert!(matches!(
+            event,
+            Event::Canvas(CanvasEvent::ObjectPlaced { .. })
+        ));
+    }
 }
 
 #[tokio::test]
