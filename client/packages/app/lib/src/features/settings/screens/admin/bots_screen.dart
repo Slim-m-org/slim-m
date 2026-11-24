@@ -20,6 +20,7 @@ import '../../../../routing/routes.dart';
 import '../../../../widgets/labeled_field.dart';
 import '../../../members/widgets/bot_permission_toggles.dart';
 import '../../../../widgets/run_guarded.dart';
+import '../../providers/secret_reveal.dart';
 import '../../widgets/admin_token_password.dart';
 import '../../widgets/bot_env_block.dart';
 import '../../widgets/settings_disclosure.dart';
@@ -61,13 +62,9 @@ class _BotsPaneState extends ConsumerState<BotsPane>
   /// The bot's managed-role grant. Defaults to none.
   int _permissions = 0;
 
-  /// The one and only time this token is legible. Held in state rather than
-  /// pushed into a toast, so it stays on screen until it is dismissed.
-  api.NewBot? _justCreated;
   final _revealKey = GlobalKey();
 
-  void _showReveal(api.NewBot issued) {
-    setState(() => _justCreated = issued);
+  void _scrollToReveal() {
     // The reveal sits above the list, so a re-issue from a low row must scroll to it.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final revealed = _revealKey.currentContext;
@@ -114,13 +111,14 @@ class _BotsPaneState extends ConsumerState<BotsPane>
 
   Future<void> _create() async {
     // A pending reveal is the only copy of the last bot's token, so a second create waits for it.
-    if (_justCreated != null) return;
+    if (ref.read(botSecretRevealProvider) != null) return;
     final username = _username.text.trim();
     if (username.isEmpty) return;
     final prefix = _prefix.text.trim();
     setState(() => _busy = true);
     api.NewBot? created;
-    final client = ref.read(apiProvider);
+    final container = ProviderScope.containerOf(context, listen: false);
+    final client = container.read(apiProvider);
     var done = false;
     final guarded = await guard(
       whatFailed: 'create the bot',
@@ -145,20 +143,20 @@ class _BotsPaneState extends ConsumerState<BotsPane>
       },
     );
     final ok = guarded && done;
+    if (ok) {
+      container.read(botSecretRevealProvider.notifier).state = created;
+      container.invalidate(botsProvider);
+    }
     if (!mounted) return;
     setState(() {
       _busy = false;
       if (ok) {
-        _justCreated = created;
         _username.clear();
         _prefix.clear();
         _permissions = 0;
       }
     });
-    if (ok) {
-      ref.invalidate(botsProvider);
-      await _suggestPrefix(refresh: true);
-    }
+    if (ok) await _suggestPrefix(refresh: true);
   }
 
   String _permissionsSummary() {
@@ -171,11 +169,15 @@ class _BotsPaneState extends ConsumerState<BotsPane>
   @override
   Widget build(BuildContext context) {
     final bots = ref.watch(botsProvider);
+    final justCreated = ref.watch(botSecretRevealProvider);
+    ref.listen(botSecretRevealProvider, (previous, next) {
+      if (next != null && next != previous) _scrollToReveal();
+    });
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (_justCreated case final created?)
+        if (justCreated case final created?)
           SettingsSecretReveal(
             key: _revealKey,
             warning:
@@ -191,7 +193,8 @@ class _BotsPaneState extends ConsumerState<BotsPane>
               url: ref.read(serverUrlProvider),
               token: created.token,
             ),
-            onDismiss: () => setState(() => _justCreated = null),
+            onDismiss: () =>
+                ref.read(botSecretRevealProvider.notifier).state = null,
           ),
         SettingsSectionCard(
           title: ActionLabels.createBot,
@@ -251,10 +254,10 @@ class _BotsPaneState extends ConsumerState<BotsPane>
                   child: AppButton(
                     label: ActionLabels.createBot,
                     variant: AppButtonVariant.primary,
-                    onPressed: _busy || _justCreated != null ? null : _create,
+                    onPressed: _busy || justCreated != null ? null : _create,
                   ),
                 ),
-                if (_justCreated != null)
+                if (justCreated != null)
                   Text(
                     'Copy or dismiss the token above first.',
                     style: AppText.caption.copyWith(
@@ -290,8 +293,7 @@ class _BotsPaneState extends ConsumerState<BotsPane>
                     key: ValueKey(bot.userId),
                     bot: bot,
                     // A pending reveal is the only copy of that token.
-                    canReissue: _justCreated == null,
-                    onReissued: _showReveal,
+                    canReissue: justCreated == null,
                   ),
             ],
           ),

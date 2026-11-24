@@ -24,7 +24,7 @@ class NameSheetAction {
 
   final String label;
   final String whatFailed;
-  final Future<void> Function(WidgetRef ref) run;
+  final Future<void> Function(ProviderContainer container) run;
 }
 
 /// Opens the sheet; true once [onSave] or [secondary] succeeded and closed it.
@@ -37,7 +37,8 @@ Future<bool> showNameSheet(
   required String fieldLabel,
   required int maxChars,
   required String whatFailed,
-  required Future<void> Function(WidgetRef ref, String name) onSave,
+  required Future<void> Function(ProviderContainer container, String name)
+  onSave,
   String initial = '',
   String? caption,
   String? placeholder,
@@ -93,7 +94,7 @@ class _NameSheet extends ConsumerStatefulWidget {
   final String fieldLabel;
   final int maxChars;
   final String whatFailed;
-  final Future<void> Function(WidgetRef ref, String name) onSave;
+  final Future<void> Function(ProviderContainer container, String name) onSave;
   final String initial;
   final String? caption;
   final String? placeholder;
@@ -145,9 +146,14 @@ class _NameSheetState extends ConsumerState<_NameSheet>
     setState(() => _busy = false);
   }
 
+  /// The app's container, so a write that finishes after the sheet closed can still refresh.
+  ProviderContainer get _container =>
+      ProviderScope.containerOf(context, listen: false);
+
   Future<void> _save() {
     final name = _trimmed;
-    return _run(widget.whatFailed, () => widget.onSave(ref, name));
+    final container = _container;
+    return _run(widget.whatFailed, () => widget.onSave(container, name));
   }
 
   @override
@@ -216,8 +222,15 @@ class _NameSheetState extends ConsumerState<_NameSheet>
                       variant: AppButtonVariant.ghost,
                       full: true,
                       disabled: _busy,
-                      onPressed: () =>
-                          _run(secondary.whatFailed, () => secondary.run(ref)),
+                      onPressed: () {
+                        final container = _container;
+                        unawaited(
+                          _run(
+                            secondary.whatFailed,
+                            () => secondary.run(container),
+                          ),
+                        );
+                      },
                     ),
                   ),
                   Expanded(child: save),

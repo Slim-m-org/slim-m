@@ -135,8 +135,9 @@ const _turnOffWhat = 'turn off two-factor sign-in';
 /// once the code is confirmed, and a barrier tap or back gesture closes the
 /// codes view without Done.
 Future<void> _enrol(BuildContext context, WidgetRef ref) async {
+  final container = ProviderScope.containerOf(context, listen: false);
   await showTotpEnrolSheet(context, ref);
-  ref.invalidate(totpStatusProvider);
+  container.invalidate(totpStatusProvider);
 }
 
 /// Replacing the set needs a current code, and the sheet that asks for one
@@ -144,6 +145,9 @@ Future<void> _enrol(BuildContext context, WidgetRef ref) async {
 /// are shown once, so they need somewhere they can be read and copied.
 Future<void> _reissue(BuildContext context, WidgetRef ref) async {
   List<String>? fresh;
+  final container = ProviderScope.containerOf(context, listen: false);
+  // The root navigator outlives the settings pane, so the codes can still be shown.
+  final navigator = Navigator.of(context, rootNavigator: true);
   await showTotpCodeSheet(
     context,
     title: 'New recovery codes',
@@ -151,7 +155,7 @@ Future<void> _reissue(BuildContext context, WidgetRef ref) async {
     submitLabel: 'Replace codes',
     onSubmit: (code) async {
       try {
-        fresh = await ref
+        fresh = await container
             .read(settingsActionsProvider)
             .reissueTotpRecoveryCodes(code);
         return null;
@@ -162,10 +166,11 @@ Future<void> _reissue(BuildContext context, WidgetRef ref) async {
     },
   );
   final codes = fresh;
-  if (codes == null || !context.mounted) return;
-  ref.invalidate(totpStatusProvider);
+  if (codes == null) return;
+  container.invalidate(totpStatusProvider);
+  if (!navigator.mounted) return;
   await showAppSheet<void>(
-    context,
+    navigator.context,
     builder: (context) => TotpRecoveryCodesView(
       codes: codes,
       headline: 'Your new recovery codes',
@@ -175,7 +180,8 @@ Future<void> _reissue(BuildContext context, WidgetRef ref) async {
 }
 
 Future<void> _turnOff(BuildContext context, WidgetRef ref) async {
-  final done = await showTotpCodeSheet(
+  final container = ProviderScope.containerOf(context, listen: false);
+  await showTotpCodeSheet(
     context,
     title: 'Turn off two-factor authentication',
     description: 'Enter a code from your authenticator, or a recovery code.',
@@ -183,7 +189,7 @@ Future<void> _turnOff(BuildContext context, WidgetRef ref) async {
     dangerous: true,
     onSubmit: (code) async {
       try {
-        await ref.read(settingsActionsProvider).disableTotp(code);
+        await container.read(settingsActionsProvider).disableTotp(code);
         return null;
       } on api.ApiException catch (e, stack) {
         api.reportFailure(api.LogTag.auth, _turnOffWhat, e, stack);
@@ -191,7 +197,7 @@ Future<void> _turnOff(BuildContext context, WidgetRef ref) async {
       }
     },
   );
-  if (done == true) ref.invalidate(totpStatusProvider);
+  container.invalidate(totpStatusProvider);
 }
 
 class _LowCodesNotice extends StatelessWidget {

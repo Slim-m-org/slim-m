@@ -7,6 +7,7 @@
 /// guards against is not a widget rendering wrong - it is a step being skipped.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -21,6 +22,7 @@ import 'package:slimm_app/src/features/settings/widgets/settings_section_header.
 import 'package:slimm_app/src/features/settings/widgets/totp_section.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
+import '../../support/async_wait.dart';
 import '../../support/toast_host.dart';
 
 const _tokens = api.TokenPair(
@@ -55,7 +57,11 @@ class _Server {
     this.confirmStatus = 200,
     this.passwordOk = true,
     this.statusFails = false,
+    this.hold,
   });
+
+  /// Holds back the answer to a reissue or a disable.
+  final Future<void>? hold;
 
   /// The status read answers 500, so the section shows its load failure.
   final bool statusFails;
@@ -89,6 +95,7 @@ class _Server {
     }
     if (path == '/auth/totp/recovery-codes' || path == '/auth/totp/disable') {
       codeBodies.add(jsonDecode(request.body) as Map<String, dynamic>);
+      await hold;
     }
     return switch ((request.method, path)) {
       ('GET', '/auth/totp') when statusFails => http.Response(
@@ -133,7 +140,11 @@ class _Server {
   });
 }
 
-Future<void> _pump(WidgetTester tester, _Server server) async {
+Future<void> _pump(
+  WidgetTester tester,
+  _Server server, {
+  ValueNotifier<bool>? shown,
+}) async {
   final container = ProviderContainer(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
@@ -156,9 +167,14 @@ Future<void> _pump(WidgetTester tester, _Server server) async {
       container: container,
       child: MaterialApp(
         theme: buildTheme(Brightness.dark, AppTokens.dark),
-        home: const Scaffold(
-          body: SingleChildScrollView(
-            child: SettingsSectionCard(children: [TotpSection()]),
+        home: Scaffold(
+          body: ValueListenableBuilder<bool>(
+            valueListenable: shown ?? ValueNotifier(true),
+            builder: (context, on, _) => on
+                ? const SingleChildScrollView(
+                    child: SettingsSectionCard(children: [TotpSection()]),
+                  )
+                : const SizedBox(),
           ),
         ),
       ),
@@ -406,5 +422,80 @@ void main() {
       2,
       reason: 'the section refetches its status once the factor is off',
     );
+  });
+
+  testWidgets('Turn off refreshes the status when the sheet is dismissed '
+      'mid-request', (tester) async {
+    final hold = Completer<void>();
+    final server = _Server(
+      statusBody: _status(enabled: true, remaining: 3),
+      hold: hold.future,
+    );
+    await _pump(tester, server);
+
+    await tester.tap(find.text('Turn off two-factor authentication'));
+    await pumpFrames(tester);
+    await tester.enterText(
+      find.byWidgetPredicate((w) => w is TextField),
+      '123456',
+    );
+    await pumpFrames(tester);
+    await tester.tap(find.widgetWithText(AppButton, 'Turn off').last);
+    await tester.runAsync(() async {
+      while (server.codeBodies.isEmpty) {
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+      }
+    });
+    await tester.tapAt(const Offset(4, 4));
+    await pumpFrames(tester);
+    hold.complete();
+    for (var i = 0; i < 200; i++) {
+      if (server.calls.where((c) => c == 'GET /auth/totp').length > 1) break;
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 5)),
+      );
+      await tester.pump();
+    }
+
+    expect(tester.takeException(), isNull);
+    expect(server.calls.where((c) => c == 'GET /auth/totp').length, 2);
+  });
+
+  testWidgets('new recovery codes are still shown after the section left', (
+    tester,
+  ) async {
+    final hold = Completer<void>();
+    final shown = ValueNotifier(true);
+    addTearDown(shown.dispose);
+    final server = _Server(
+      statusBody: _status(enabled: true, remaining: 3),
+      hold: hold.future,
+    );
+    await _pump(tester, server, shown: shown);
+
+    await tester.tap(find.textContaining('Recovery codes,'));
+    await pumpFrames(tester);
+    await tester.enterText(
+      find.byWidgetPredicate((w) => w is TextField),
+      '654321',
+    );
+    await pumpFrames(tester);
+    await tester.tap(find.widgetWithText(AppButton, 'Replace codes').last);
+    await tester.runAsync(() async {
+      while (server.codeBodies.isEmpty) {
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+      }
+    });
+    shown.value = false;
+    await pumpFrames(tester);
+    hold.complete();
+    await pumpFrames(tester, frames: 40);
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 50)),
+    );
+    await pumpFrames(tester, frames: 40);
+
+    expect(tester.takeException(), isNull);
+    expect(find.textContaining(_codes.first), findsOneWidget);
   });
 }

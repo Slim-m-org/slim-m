@@ -1,0 +1,41 @@
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+#
+# Files that still use ref or setState after an await with no mounted check.
+# Each is a ceiling on that file's count (one when unwritten), read by
+# scripts/check-ref-after-await.py. The list only shrinks: fix a use, then
+# lower or drop its entry. A new file gets no entry; take a ProviderContainer
+# (ProviderScope.containerOf(context, listen: false)) before the first await.
+client/packages/app/lib/src/desktop/update_action.dart 4
+client/packages/app/lib/src/desktop/update_available_banner.dart 3
+client/packages/app/lib/src/features/auth/screens/sign_in_connect.dart
+client/packages/app/lib/src/features/auth/widgets/client_too_old_gate.dart 2
+client/packages/app/lib/src/features/auth/widgets/invite_preview_image.dart
+client/packages/app/lib/src/features/auth/widgets/server_identity_change_gate.dart
+client/packages/app/lib/src/features/auth/widgets/server_identity_confirmation.dart
+client/packages/app/lib/src/features/canvas/widgets/canvas_custom_colours.dart
+client/packages/app/lib/src/features/composer/widgets/composer_edit_last.dart 3
+client/packages/app/lib/src/features/members/widgets/banner_settings_row.dart
+client/packages/app/lib/src/features/members/widgets/invite_landing_section.dart
+client/packages/app/lib/src/features/members/widgets/member_handle_line.dart
+client/packages/app/lib/src/features/members/widgets/member_profile_links.dart
+client/packages/app/lib/src/features/messages/widgets/fullscreen_image_actions.dart
+client/packages/app/lib/src/features/modules/widgets/call_scene_stage.dart
+client/packages/app/lib/src/features/settings/screens/admin/bot_prefix_sheet.dart
+client/packages/app/lib/src/features/settings/screens/admin/call_transcripts_section.dart
+client/packages/app/lib/src/features/settings/screens/admin/debug_log_row.dart
+client/packages/app/lib/src/features/settings/screens/admin/dock_manage_sources.dart
+client/packages/app/lib/src/features/settings/screens/admin/dock_module_screen.dart 3
+client/packages/app/lib/src/features/settings/screens/admin/dock_role_access_card.dart
+client/packages/app/lib/src/features/settings/screens/admin/dock_update_all.dart
+client/packages/app/lib/src/features/settings/screens/admin/removed_members_screen.dart 2
+client/packages/app/lib/src/features/settings/screens/admin/role_members_tab.dart 2
+client/packages/app/lib/src/features/settings/widgets/call_diagnostics_row.dart
+client/packages/app/lib/src/features/settings/widgets/notification_settings_rows.dart
+client/packages/app/lib/src/features/settings/widgets/personal_account_sections.dart
+client/packages/app/lib/src/features/settings/widgets/settings_panes.dart
+client/packages/app/lib/src/features/settings/widgets/theme_editor_page.dart 3
+client/packages/app/lib/src/features/voice/screens/voice_idle/call_transcript_section.dart
+client/packages/app/lib/src/features/voice/screens/voice_screen.dart 5
+client/packages/app/lib/src/features/voice/widgets/call_audio_start.dart
+client/packages/app/lib/src/features/voice/widgets/move_participant_popover.dart
+client/packages/app/lib/src/widgets/whats_new_gate.dart

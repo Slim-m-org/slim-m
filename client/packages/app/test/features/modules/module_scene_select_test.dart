@@ -34,6 +34,7 @@ Future<List<String>> _pump(
   WidgetTester tester,
   ModuleScene scene, {
   Alignment alignment = Alignment.topLeft,
+  ValueNotifier<bool>? shown,
 }) async {
   final sent = <String>[];
   tester.view.physicalSize = const Size(1200, 800);
@@ -45,14 +46,18 @@ Future<List<String>> _pump(
       home: Scaffold(
         body: Align(
           alignment: alignment,
-          child: SizedBox(
-            width: 400,
-            child: ModuleSceneView(
-              initial: scene,
-              runCommand: (input) async {
-                sent.add(jsonDecode(input)['action'] as String);
-                return const api.RunModuleCommandResult(ok: true, output: '');
-              },
+          child: ValueListenableBuilder<bool>(
+            valueListenable: shown ?? ValueNotifier(true),
+            builder: (context, on, child) => on ? child! : const SizedBox(),
+            child: SizedBox(
+              width: 400,
+              child: ModuleSceneView(
+                initial: scene,
+                runCommand: (input) async {
+                  sent.add(jsonDecode(input)['action'] as String);
+                  return const api.RunModuleCommandResult(ok: true, output: '');
+                },
+              ),
             ),
           ),
         ),
@@ -256,6 +261,24 @@ void main() {
       await _settle(tester);
 
       expect(sent, ['expert']);
+    });
+
+    testWidgets('a choice made after the scene left does nothing', (
+      tester,
+    ) async {
+      final shown = ValueNotifier(true);
+      addTearDown(shown.dispose);
+      final sent = await _pump(tester, scene, shown: shown);
+
+      await tester.tap(find.text('beginner'), kind: PointerDeviceKind.mouse);
+      await _settle(tester);
+      shown.value = false;
+      await tester.pump();
+      await tester.tap(find.text('expert'), kind: PointerDeviceKind.mouse);
+      await _settle(tester);
+
+      expect(tester.takeException(), isNull);
+      expect(sent, isEmpty);
     });
 
     testWidgets('the option already in force sends nothing', (tester) async {
