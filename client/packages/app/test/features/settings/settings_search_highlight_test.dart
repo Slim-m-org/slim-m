@@ -10,6 +10,8 @@ import 'package:slimm_app/src/features/settings/widgets/settings_panes.dart';
 import 'package:slimm_app/src/features/settings/widgets/settings_search.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../support/async_wait.dart';
+
 class _Refusing implements SettingsLeaveGuard {
   bool answer = false;
 
@@ -44,8 +46,8 @@ bool _lit(WidgetTester tester) {
   final box = tester.widget<AnimatedContainer>(
     find
         .descendant(
-          of: find.byType(SettingsHighlightTarget),
-          matching: find.byType(AnimatedContainer),
+          of: find.byWidgetPredicate((w) => w is SettingsHighlightTarget),
+          matching: find.byWidgetPredicate((w) => w is AnimatedContainer),
         )
         .first,
   );
@@ -95,12 +97,12 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await pumpFrames(tester, frames: 30);
 
     await tester.enterText(find.byKey(const Key('settings-search')), 'probe');
     await tester.pump();
     await tester.tap(find.text('Probe row'));
-    await tester.pumpAndSettle();
+    await pumpFrames(tester, frames: 30);
     expect(
       find.text('pane-a'),
       findsOneWidget,
@@ -109,7 +111,7 @@ void main() {
 
     guard.answer = true;
     await tester.tap(find.text('Second'));
-    await tester.pumpAndSettle();
+    await pumpFrames(tester, frames: 30);
     expect(find.text('pane-b'), findsOneWidget);
     expect(_lit(tester), isFalse);
   });

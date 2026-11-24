@@ -13,6 +13,8 @@ import 'package:slimm_app/src/diagnostics/debug_log_filter.dart';
 import 'package:slimm_app/src/features/settings/screens/debug_log_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../support/async_wait.dart';
+
 DebugLog _log() {
   LogRecord at(LogLevel level, String tag, String message) => LogRecord(
     at: DateTime(2026, 10, 18),
@@ -131,7 +133,7 @@ void main() {
     );
     expect(find.byKey(const ValueKey('area-All')), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('area-All')));
-    await tester.pumpAndSettle();
+    await pumpFrames(tester, frames: 20);
     expect(find.text('voice joined'), findsOneWidget);
   });
 

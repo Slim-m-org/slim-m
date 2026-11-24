@@ -40,7 +40,10 @@ void main() {
     await tester.tap(find.text('Open'));
     await pumpFrames(tester, frames: 20);
 
-    await tester.enterText(find.byType(EditableText), 'den');
+    await tester.enterText(
+      find.byWidgetPredicate((w) => w is EditableText),
+      'den',
+    );
     await tester.pump();
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pump();

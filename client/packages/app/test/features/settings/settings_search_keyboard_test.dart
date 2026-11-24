@@ -10,6 +10,8 @@ import 'package:slimm_app/src/features/settings/providers/settings_index.dart';
 import 'package:slimm_app/src/features/settings/widgets/settings_search.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../support/async_wait.dart';
+
 final _entries = [
   for (var i = 0; i < 40; i++)
     SettingsEntry('appearance', 'Probe row ${i.toString().padLeft(2, '0')}'),
@@ -42,7 +44,7 @@ void main() {
     await _pump(tester, _entries);
     for (var i = 0; i < 30; i++) {
       await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
-      await tester.pumpAndSettle();
+      await pumpFrames(tester, frames: 10);
     }
     final row = find.byKey(
       const ValueKey('settings-result-appearance-Probe row 30'),
