@@ -70,7 +70,7 @@ impl Histogram {
 /// counts, the running sum, and the total - everything `/metrics` needs to
 /// print a `_bucket`/`_sum`/`_count` histogram for this method and route.
 pub struct RouteSnapshot {
-    pub method: Method,
+    pub method: &'static str,
     pub route: String,
     pub bucket_counts: [u64; BUCKET_BOUNDS_SECONDS.len()],
     pub sum_seconds: f64,
@@ -80,7 +80,7 @@ pub struct RouteSnapshot {
 /// A cloneable handle to a process's per-route latency histograms.
 #[derive(Clone, Default)]
 pub struct RouteTimings {
-    inner: Arc<Mutex<HashMap<(Method, String), Histogram>>>,
+    inner: Arc<Mutex<HashMap<(&'static str, String), Histogram>>>,
 }
 
 impl RouteTimings {
@@ -88,7 +88,7 @@ impl RouteTimings {
         Self::default()
     }
 
-    fn observe(&self, method: Method, route: String, seconds: f64) {
+    fn observe(&self, method: &'static str, route: String, seconds: f64) {
         let mut inner = match self.inner.lock() {
             Ok(guard) => guard,
             // A poisoned lock loses one sample rather than wedging every request.
@@ -107,17 +107,32 @@ impl RouteTimings {
         let mut snapshots: Vec<RouteSnapshot> = inner
             .iter()
             .map(|((method, route), histogram)| RouteSnapshot {
-                method: method.clone(),
+                method,
                 route: route.clone(),
                 bucket_counts: histogram.bucket_counts,
                 sum_seconds: histogram.sum_seconds,
                 count: histogram.count,
             })
             .collect();
-        snapshots.sort_by(|a, b| {
-            (a.route.as_str(), a.method.as_str()).cmp(&(b.route.as_str(), b.method.as_str()))
-        });
+        snapshots.sort_by(|a, b| (a.route.as_str(), a.method).cmp(&(b.route.as_str(), b.method)));
         snapshots
+    }
+}
+
+/// The fixed label a method is recorded under; any extension method is `OTHER`
+/// so a caller cannot mint series by inventing method names.
+pub fn method_label(method: &Method) -> &'static str {
+    match *method {
+        Method::GET => "GET",
+        Method::HEAD => "HEAD",
+        Method::POST => "POST",
+        Method::PUT => "PUT",
+        Method::PATCH => "PATCH",
+        Method::DELETE => "DELETE",
+        Method::OPTIONS => "OPTIONS",
+        Method::CONNECT => "CONNECT",
+        Method::TRACE => "TRACE",
+        _ => "OTHER",
     }
 }
 
@@ -138,7 +153,7 @@ pub async fn record(
     req: Request,
     next: Next,
 ) -> Response {
-    let method = req.method().clone();
+    let method = method_label(req.method());
     let route = req
         .extensions()
         .get::<MatchedPath>()
@@ -157,13 +172,13 @@ mod tests {
     #[test]
     fn observations_are_bucketed_cumulatively() {
         let timings = RouteTimings::new();
-        timings.observe(Method::GET, "/channels".to_owned(), 0.003);
-        timings.observe(Method::GET, "/channels".to_owned(), 0.2);
+        timings.observe("GET", "/channels".to_owned(), 0.003);
+        timings.observe("GET", "/channels".to_owned(), 0.2);
 
         let snapshot = timings
             .snapshot()
             .into_iter()
-            .find(|s| s.route == "/channels" && s.method == Method::GET)
+            .find(|s| s.route == "/channels" && s.method == "GET")
             .expect("the observed route is present");
         assert_eq!(snapshot.count, 2);
         assert!((snapshot.sum_seconds - 0.203).abs() < 1e-9);
@@ -182,12 +197,25 @@ mod tests {
     #[test]
     fn routes_and_methods_are_independent() {
         let timings = RouteTimings::new();
-        timings.observe(Method::GET, "/a".to_owned(), 0.01);
-        timings.observe(Method::POST, "/a".to_owned(), 0.01);
-        timings.observe(Method::GET, "/b".to_owned(), 0.01);
+        timings.observe("GET", "/a".to_owned(), 0.01);
+        timings.observe("POST", "/a".to_owned(), 0.01);
+        timings.observe("GET", "/b".to_owned(), 0.01);
 
         let snapshot = timings.snapshot();
         assert_eq!(snapshot.len(), 3);
+    }
+
+    #[test]
+    fn a_thousand_invented_methods_share_one_label() {
+        let timings = RouteTimings::new();
+        for i in 0..1000 {
+            let method = Method::from_bytes(format!("XQ{i:05}").as_bytes()).unwrap();
+            timings.observe(method_label(&method), "/version".to_owned(), 0.01);
+        }
+        let snapshot = timings.snapshot();
+        assert_eq!(snapshot.len(), 1);
+        assert_eq!(snapshot[0].method, "OTHER");
+        assert_eq!(snapshot[0].count, 1000);
     }
 
     #[test]

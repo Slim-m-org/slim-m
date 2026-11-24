@@ -51,6 +51,7 @@ mod process_metrics;
 pub mod push;
 pub mod ratelimit;
 pub mod room_cleanup;
+mod serve;
 mod sidecar_url;
 pub mod state;
 pub mod store;
@@ -69,8 +70,6 @@ pub use sweeps::{
     sweep_stale_voice_calls, sweep_stale_voice_calls_at,
 };
 pub use voice_session_sweeps::{close_stale_sessions, reconcile_on_startup};
-
-use std::net::SocketAddr;
 
 use anyhow::Context as _;
 
@@ -258,12 +257,7 @@ async fn serve(config: config::Config, logging: &'static logging::Logging) -> an
         .with_context(|| format!("binding to {addr}"))?;
     tracing::info!(%addr, version = env!("CARGO_PKG_VERSION"), "slim-m server listening");
 
-    axum::serve(
-        listener,
-        app.into_make_service_with_connect_info::<SocketAddr>(),
-    )
-    .with_graceful_shutdown(shutdown_signal())
-    .await?;
+    serve::serve(listener, app, shutdown_signal()).await?;
     Ok(())
 }
 

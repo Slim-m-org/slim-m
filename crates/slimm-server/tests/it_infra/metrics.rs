@@ -387,3 +387,36 @@ async fn returns_json_error_shape_on_forbidden_not_a_partial_metrics_body() {
     let parsed: serde_json::Value = serde_json::from_str(&text).expect("a JSON error body");
     assert_eq!(parsed, json!({ "error": "insufficient permissions" }));
 }
+
+/// Any token is a valid HTTP method, so the latency series must not grow with
+/// the methods a caller invents.
+#[tokio::test]
+async fn invented_http_methods_share_one_latency_series() {
+    let (s, _guard) = store("slimm-metrics-methods").await;
+    let (admin, _member) = deployment(&s).await;
+    let session = s.open_session(admin.id, "laptop").await.unwrap();
+    let router = app(s, VoiceService::disabled());
+
+    for i in 0..1000 {
+        let request = Request::builder()
+            .method(format!("XQ{i:05}").as_str())
+            .uri("/version")
+            .body(Body::empty())
+            .unwrap();
+        router.clone().oneshot(request).await.unwrap();
+    }
+    let scrape = router
+        .oneshot(get("/metrics", &session.access_token))
+        .await
+        .unwrap();
+    let text = body_text(scrape).await;
+
+    assert!(!text.contains("XQ0"), "an invented method became a label");
+    assert_eq!(
+        metric_value(
+            &text,
+            "slimm_http_request_duration_seconds_count{method=\"OTHER\",route=\"/version\"} "
+        ),
+        1000
+    );
+}
