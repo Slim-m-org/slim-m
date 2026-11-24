@@ -88,6 +88,7 @@ extension SlimmApiAttachments on SlimmApi {
       onProgress: onProgress,
       cancel: cancel,
       stallDeadline: stallDeadline,
+      answerDeadline: uploadAnswerDeadline,
     );
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return decodeShape(
@@ -105,6 +106,7 @@ extension SlimmApiAttachments on SlimmApi {
   /// [sendDeadline] bounds the whole send and [stallDeadline] the gap between
   /// moving bytes: a stalled part has to fail so the uploader can resume from
   /// the server's offset. Either one, and [cancel], also abort the request.
+  /// Once the body is out the server gets [answerDeadline] to reply.
   Future<http.Response> sendStreamed(
     String method,
     String path, {
@@ -114,6 +116,7 @@ extension SlimmApiAttachments on SlimmApi {
     void Function(int sent)? onProgress,
     Duration? sendDeadline,
     Duration? stallDeadline,
+    Duration answerDeadline = transferDeadline,
     UploadCancelToken? cancel,
     bool isRetry = false,
   }) async {
@@ -143,7 +146,7 @@ extension SlimmApiAttachments on SlimmApi {
         abortTrigger: guard.abortTrigger,
         onProgress: (sent) {
           guard.touch();
-          if (sent >= length) guard.rearm(transferDeadline);
+          if (sent >= length) guard.rearm(answerDeadline);
           onProgress?.call(sent);
         },
       );
@@ -172,6 +175,7 @@ extension SlimmApiAttachments on SlimmApi {
         onProgress: onProgress,
         sendDeadline: sendDeadline,
         stallDeadline: stallDeadline,
+        answerDeadline: answerDeadline,
         cancel: cancel,
         isRetry: true,
       );

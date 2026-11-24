@@ -107,6 +107,33 @@ void main() {
     });
   });
 
+  test('a plain upload waits out a server that recompresses the file', () {
+    const processing = Duration(minutes: 5);
+    final api = _api(MockClient.streaming((request, body) async {
+      await body.drain<void>();
+      await Future<void>.delayed(processing);
+      return http.StreamedResponse(
+        Stream.value(utf8.encode(jsonEncode(_attachment))),
+        201,
+        headers: {'content-type': 'application/json'},
+      );
+    }));
+    Attachment? done;
+    Object? error;
+    fakeAsync((async) {
+      api
+          .uploadAttachmentStream(() => Stream.value([1, 2, 3, 4]), length: 4)
+          .then<void>((a) => done = a, onError: (Object e) {
+        error = e;
+      });
+      async.flushMicrotasks();
+      async.elapse(processing + const Duration(seconds: 1));
+      async.flushMicrotasks();
+    });
+    expect(error, isNull);
+    expect(done?.id, 'att1');
+  });
+
   group('the connection trace', () {
     test('gives up on an answer that never comes', () async {
       final silent = _Silent();

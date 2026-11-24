@@ -39,6 +39,12 @@ const requestDeadline = Duration(seconds: 45);
 /// the hang it replaces.
 const transferDeadline = Duration(minutes: 3);
 
+/// How long a finished upload may wait for the server to answer.
+///
+/// The server may decode, re-encode and recompress an image, or hash the whole
+/// file, before it replies, so this outlasts [transferDeadline].
+const uploadAnswerDeadline = Duration(minutes: 10);
+
 /// Methods a repeat cannot double up: a POST might already have landed.
 const _replayable = {'GET', 'HEAD', 'PUT', 'DELETE'};
 
