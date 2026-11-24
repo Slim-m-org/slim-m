@@ -32,6 +32,7 @@ import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
 
 import '../../../routing/router.dart';
+import '../../accounts/providers/account_providers.dart';
 import '../../../routing/routes.dart';
 import 'dm_call.dart';
 import '../../channels/providers/ensure_dm_channel.dart';
@@ -49,9 +50,12 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
     _sub = _ref.read(liveEventsProvider).listen(_onEvent);
     final callKit = _ref.read(callKitIncomingChannelProvider);
     _callKitSub = callKit.events.listen(_onCallKit);
-    unawaited(
-      callKit.takePending().then((pending) => pending.forEach(_onCallKit)),
-    );
+    // Pending events are consumed by whoever asks, so only the container they belong to may.
+    if (_routesCallKitHere()) {
+      unawaited(
+        callKit.takePending().then((pending) => pending.forEach(_onCallKit)),
+      );
+    }
     _ref.listen<String?>(voiceControllerProvider.select((s) => s.channelId), (
       previous,
       next,
@@ -112,8 +116,28 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
         DateTime.now().difference(at) < _answerWindow;
   }
 
+  /// CallKit knows no account: the call's own account, else the one holding the ring, else the one on screen.
+  bool _routesCallKitHere() {
+    final host = _ref.read(accountHostProvider);
+    if (host == null) return true;
+    final inCall = host.callRuntime?.container;
+    if (inCall != null) return identical(inCall, _ref.container);
+    if (state.incoming != null) return true;
+    final elsewhere = host.accounts.any(
+      (r) =>
+          !identical(r.container, _ref.container) &&
+          r.container.exists(dmCallRingControllerProvider) &&
+          r.container.read(dmCallRingControllerProvider).incoming != null,
+    );
+    return !elsewhere && identical(host.active?.container, _ref.container);
+  }
+
   void _onCallKit(CallKitIncomingEvent event) {
     if (!mounted) return;
+    if (!_routesCallKitHere()) {
+      _dropForeignCallKit(event);
+      return;
+    }
     switch (event.kind) {
       case CallKitIncomingKind.ringing:
         _callKitCallId = event.callId;
@@ -133,6 +157,13 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
       case CallKitIncomingKind.ended:
         _onCallKitEnded(event.callId);
     }
+  }
+
+  void _dropForeignCallKit(CallKitIncomingEvent event) {
+    if (event.kind == CallKitIncomingKind.ringing) return;
+    if (event.callId != _callKitCallId) return;
+    _forgetCallKit();
+    state = state.copyWith(callKit: CallKitPhase.none);
   }
 
   void _onCallKitEnded(String callId) {

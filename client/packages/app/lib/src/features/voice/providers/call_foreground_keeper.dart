@@ -14,7 +14,9 @@ class CallForegroundKeeper {
     CallService? service,
     Future<bool> Function()? requestCapturePermission,
     Future<void> Function()? requestNotifications,
-  }) : _service = service ?? CallService(),
+    bool Function()? mayUpdate,
+  }) : _mayUpdate = mayUpdate ?? (() => true),
+       _service = service ?? CallService(),
        _requestCapture =
            requestCapturePermission ?? requestScreenCapturePermission,
        _requestNotifications = requestNotifications;
@@ -22,6 +24,7 @@ class CallForegroundKeeper {
   final CallService _service;
   final Future<bool> Function() _requestCapture;
   final Future<void> Function()? _requestNotifications;
+  final bool Function() _mayUpdate;
 
   bool _connected = false;
   bool _camera = false;
@@ -65,7 +68,7 @@ class CallForegroundKeeper {
     if (!await _requestCapture()) return false;
     _shareStarting = true;
     _sharing = true;
-    await _service.update(_state);
+    await _update();
     return true;
   }
 
@@ -82,7 +85,12 @@ class CallForegroundKeeper {
     share: _connected && _sharing,
   );
 
-  void _push() => unawaited(_service.update(_state));
+  void _push() => unawaited(_update());
+
+  /// The service is one per process: a keeper whose account is not in the call must not stop it.
+  Future<void> _update() async {
+    if (_mayUpdate()) await _service.update(_state);
+  }
 
   Future<void> _askNotificationsOnce() async {
     final ask = _requestNotifications;

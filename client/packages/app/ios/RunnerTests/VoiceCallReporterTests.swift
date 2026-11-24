@@ -72,15 +72,44 @@ final class OutgoingCallLifecycleTests: XCTestCase {
     XCTAssertEqual(lifecycle.activeCallId, id)
   }
 
-  func testARepeatCallStartedWhileOneIsActiveIsANoOp() {
+  func testARepeatCallStartedForTheActiveCallIsANoOp() {
     let controller = RecordingController()
     let provider = RecordingProvider()
     let lifecycle = OutgoingCallLifecycle(controller: controller, provider: provider)
+    let id = UUID()
 
-    lifecycle.callStarted(id: UUID(), displayName: "First")
-    lifecycle.callStarted(id: UUID(), displayName: "Second")
+    lifecycle.callStarted(id: id, displayName: "First")
+    lifecycle.callStarted(id: id, displayName: "Second")
 
-    XCTAssertEqual(controller.started.count, 1, "one call at a time, per voice_controller.dart")
+    XCTAssertEqual(controller.started.count, 1, "CallKit already tracks this call")
+  }
+
+  func testACallStartedForAnotherCallReplacesTheActiveOne() {
+    let controller = RecordingController()
+    let lifecycle = OutgoingCallLifecycle(controller: controller, provider: RecordingProvider())
+    let first = UUID()
+    let second = UUID()
+
+    lifecycle.callStarted(id: first, displayName: "First")
+    lifecycle.callStarted(id: second, displayName: "Second")
+
+    XCTAssertEqual(controller.ended.map(\.callUUID), [first])
+    XCTAssertEqual(controller.started.map(\.callUUID), [first, second])
+    XCTAssertEqual(lifecycle.activeCallId, second)
+  }
+
+  func testALateEndForAReplacedCallIsIgnored() {
+    let controller = RecordingController()
+    let lifecycle = OutgoingCallLifecycle(controller: controller, provider: RecordingProvider())
+    let first = UUID()
+    let second = UUID()
+    lifecycle.callStarted(id: first, displayName: "First")
+    lifecycle.callStarted(id: second, displayName: "Second")
+
+    lifecycle.callEnded(callId: first)
+
+    XCTAssertEqual(lifecycle.activeCallId, second)
+    XCTAssertEqual(controller.ended.map(\.callUUID), [first], "only the replacement's own end request")
   }
 
   func testACallKitRefusalToStartClearsTheActiveCall() {
@@ -114,8 +143,9 @@ final class OutgoingCallLifecycleTests: XCTestCase {
     var results: [String] = []
     lifecycle.onEvent = { results.append($0["result"] as? String ?? "") }
 
-    lifecycle.callStarted(id: UUID(), displayName: "First")
-    lifecycle.callStarted(id: UUID(), displayName: "Second")
+    let id = UUID()
+    lifecycle.callStarted(id: id, displayName: "First")
+    lifecycle.callStarted(id: id, displayName: "Second")
 
     XCTAssertEqual(results, ["ok", "skipped"])
   }

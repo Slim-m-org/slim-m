@@ -122,8 +122,11 @@ class CallRestore {
     await _prefs.setString(callRestoreKey, call.encode());
   }
 
-  Future<void> forget() async {
+  /// Drops [userId]'s record; another account's live call keeps its own.
+  Future<void> forget(String userId) async {
     if (_closing) return;
+    final stored = CallToRestore.decode(_prefs.getString(callRestoreKey));
+    if (stored != null && stored.userId != userId) return;
     await _prefs.remove(callRestoreKey);
   }
 
@@ -194,17 +197,24 @@ final callRestoreProvider = FutureProvider<CallRestore>(
 /// Keeps the record current while a call is connected, and forgets it when the call is left.
 final callRestoreWatchProvider = Provider<void>((ref) {
   Timer? refresh;
+  // A sign-out clears the session before this runs, so the id is kept from when the call was recorded.
+  String? rememberedUser;
   Future<void> sync(VoiceFlags? before, VoiceFlags now) async {
     final restore = await ref.read(callRestoreProvider.future);
     final channelId = now.channelId;
     if (channelId == null) {
       refresh?.cancel();
       refresh = null;
-      if (before?.channelId != null) await restore.forget();
+      final leaving = rememberedUser;
+      rememberedUser = null;
+      if (before?.channelId != null && leaving != null) {
+        await restore.forget(leaving);
+      }
       return;
     }
     final userId = ref.read(apiProvider).session.tokens?.userId;
     if (now.state != VoiceSessionState.connected || userId == null) return;
+    rememberedUser = userId;
     await restore.remember(
       channelId: channelId,
       userId: userId,

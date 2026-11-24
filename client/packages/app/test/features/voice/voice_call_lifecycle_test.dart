@@ -111,23 +111,66 @@ void main() {
     expect(calls.map((c) => c.method), ['callEnded']);
   });
 
+  Future<void> systemHangup() => TestDefaultBinaryMessengerBinding
+      .instance
+      .defaultBinaryMessenger
+      .handlePlatformMessage(
+        _channelName,
+        const StandardMethodCodec().encodeMethodCall(
+          const MethodCall('endCall'),
+        ),
+        (_) {},
+      );
+
   test('an endCall from the system call UI leaves the room', () async {
+    final (:lifecycle, :calls) = iosLifecycle();
+    final session = FakeSession();
+    final controller = harness.controllerWith(
+      session,
+      voiceApi(),
+      callLifecycle: lifecycle,
+    );
+    unawaited(controller.join('channel-1'));
+    await Future<void>.delayed(Duration.zero);
+    session.emitState(VoiceSessionState.connecting);
+    session.emitState(VoiceSessionState.connected);
+    await Future<void>.delayed(Duration.zero);
+
+    unawaited(systemHangup());
+    await Future<void>.delayed(Duration.zero);
+
+    expect(session.leaveCalls, 1);
+  });
+
+  test('a system hangup leaves an account with no call alone', () async {
     final (:lifecycle, :calls) = iosLifecycle();
     final session = FakeSession();
     harness.controllerWith(session, voiceApi(), callLifecycle: lifecycle);
 
-    unawaited(
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .handlePlatformMessage(
-            _channelName,
-            const StandardMethodCodec().encodeMethodCall(
-              const MethodCall('endCall'),
-            ),
-            (_) {},
-          ),
-    );
+    unawaited(systemHangup());
     await Future<void>.delayed(Duration.zero);
 
-    expect(session.leaveCalls, 1);
+    expect(session.leaveCalls, 0);
+  });
+
+  test('the end names the call it reports, never another account\'s', () async {
+    final (:lifecycle, :calls) = iosLifecycle();
+    final session = FakeSession();
+    final controller = harness.controllerWith(
+      session,
+      voiceApi(),
+      callLifecycle: lifecycle,
+    );
+    unawaited(controller.join('channel-1'));
+    await Future<void>.delayed(Duration.zero);
+    session.emitState(VoiceSessionState.connecting);
+    session.emitState(VoiceSessionState.connected);
+    await Future<void>.delayed(Duration.zero);
+    calls.clear();
+
+    await controller.leave();
+    await Future<void>.delayed(Duration.zero);
+
+    expect(calls.single.arguments, {'callId': 'channel-1'});
   });
 }

@@ -13,6 +13,7 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 
 import 'host_platform.dart';
+import 'method_channel_hub.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 const _channelName = 'top.npcserver.slimm/picture_in_picture';
@@ -21,17 +22,20 @@ class PictureInPictureChannel {
   PictureInPictureChannel({MethodChannel? channel, bool? isAndroid})
       : _channel = channel ?? const MethodChannel(_channelName),
         _isAndroid = isAndroid ?? isAndroidHost {
-    if (_isAndroid) _channel.setMethodCallHandler(_onCall);
+    if (_isAndroid) {
+      _calls = MethodChannelHub.of(_channel).calls.listen(_onCall);
+    }
   }
 
   final MethodChannel _channel;
   final bool _isAndroid;
   final _modes = StreamController<bool>.broadcast();
+  StreamSubscription<MethodCall>? _calls;
 
   /// True on entering the floating window, false on leaving it.
   Stream<bool> get modeChanges => _modes.stream;
 
-  Future<void> _onCall(MethodCall call) async {
+  void _onCall(MethodCall call) {
     if (call.method != 'modeChanged') return;
     final inPictureInPicture = call.arguments;
     if (inPictureInPicture is bool) _modes.add(inPictureInPicture);
@@ -54,5 +58,8 @@ class PictureInPictureChannel {
     }
   }
 
-  Future<void> dispose() => _modes.close();
+  Future<void> dispose() async {
+    await _calls?.cancel();
+    await _modes.close();
+  }
 }

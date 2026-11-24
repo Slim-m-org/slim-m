@@ -20,6 +20,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_platform/platform.dart';
 
 import '../../../providers/app_lifecycle.dart';
+import '../../accounts/providers/account_providers.dart';
+import '../providers/call_owner.dart';
 import '../providers/global_hotkeys_controller.dart';
 import '../providers/push_to_talk_gate.dart';
 import '../providers/push_to_talk_key.dart';
@@ -57,7 +59,7 @@ class _PushToTalkListenerState extends ConsumerState<PushToTalkListener> {
     // The window never sees the key-up once it loses focus; only global capture still can.
     ref.listenManual(appFocusedProvider, (_, focused) {
       if (focused) return;
-      ref.read(pushToTalkGateProvider).release(HoldSource.inWindow);
+      _gate.release(HoldSource.inWindow);
     });
   }
 
@@ -70,12 +72,20 @@ class _PushToTalkListenerState extends ConsumerState<PushToTalkListener> {
     super.dispose();
   }
 
+  /// The call's own account holds the mic, whichever account is on screen.
+  PushToTalkGate get _gate {
+    final owner = callEventContainer(ref.read(accountHostProvider));
+    return (owner ?? ProviderScope.containerOf(context)).read(
+      pushToTalkGateProvider,
+    );
+  }
+
   bool _handleKey(KeyEvent event) {
     if (event is! KeyDownEvent && event is! KeyUpEvent) return false;
     final settings = ref.read(voiceSettingsControllerProvider);
     if (!settings.pushToTalkEnabled) return false;
     if (event.logicalKey != settings.pushToTalkKey) return false;
-    final gate = ref.read(pushToTalkGateProvider);
+    final gate = _gate;
     if (event is KeyDownEvent) {
       if (_isShortcutChord(event) || _typingIntoField()) return false;
       gate.press(HoldSource.inWindow);

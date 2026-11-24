@@ -17,6 +17,7 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 
 import 'host_platform.dart';
+import 'method_channel_hub.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 const _channelName = 'top.npcserver.slimm/callkit_incoming';
@@ -44,16 +45,17 @@ class CallKitIncomingChannel {
   CallKitIncomingChannel({MethodChannel? channel, bool? isIOS})
       : _channel = channel ?? const MethodChannel(_channelName),
         _isIOS = isIOS ?? isIOSHost {
-    if (_isIOS) _channel.setMethodCallHandler(_onCall);
+    if (_isIOS) _calls = MethodChannelHub.of(_channel).calls.listen(_onCall);
   }
 
   final MethodChannel _channel;
   final bool _isIOS;
   final _events = StreamController<CallKitIncomingEvent>.broadcast();
+  StreamSubscription<MethodCall>? _calls;
 
   Stream<CallKitIncomingEvent> get events => _events.stream;
 
-  Future<void> _onCall(MethodCall call) async {
+  void _onCall(MethodCall call) {
     if (call.method != 'onCallKitEvent') return;
     final event = CallKitIncomingEvent.tryParse(call.arguments);
     if (event != null) _events.add(event);
@@ -103,5 +105,8 @@ class CallKitIncomingChannel {
     }
   }
 
-  Future<void> dispose() => _events.close();
+  Future<void> dispose() async {
+    await _calls?.cancel();
+    await _events.close();
+  }
 }

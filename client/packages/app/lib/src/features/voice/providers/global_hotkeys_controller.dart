@@ -10,9 +10,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../../accounts/providers/account_host.dart';
+import '../../accounts/providers/account_providers.dart';
 import '../../screen_overlay/providers/call_overlay_toggle.dart';
 import '../../screen_overlay/providers/screen_overlay_controller.dart';
 import 'call_mark_actions.dart';
+import 'call_owner.dart';
 import 'push_to_talk_gate.dart';
 import 'shortcut_overrides.dart';
 import 'voice_controller.dart';
@@ -36,11 +39,12 @@ HotkeyChord? chordFor(AppAction action) {
   );
 }
 
+GlobalHotkeySource? _processSource;
+
+/// One source for the process: the OS keeps a single native binding set and handler, whichever account is on screen.
 final globalHotkeySourceProvider = Provider<GlobalHotkeySource?>((ref) {
   if (!isDesktopHost) return null;
-  final source = createGlobalHotkeySource();
-  if (source != null) ref.onDispose(() => unawaited(source.dispose()));
-  return source;
+  return _processSource ??= createGlobalHotkeySource();
 });
 
 /// Null while the first check runs; afterwards what settings should say.
@@ -54,6 +58,9 @@ class GlobalHotkeysController extends StateNotifier<GlobalHotkeyAvailability?> {
       return;
     }
     _source = source;
+    _owned = ownsCallEvents(_ref);
+    _host = _ref.read(accountHostProvider);
+    _host?.addListener(_onHostChanged);
     _events = source.events.listen(_onEvent);
     _ref.listen(
       voiceSettingsControllerProvider,
@@ -69,11 +76,24 @@ class GlobalHotkeysController extends StateNotifier<GlobalHotkeyAvailability?> {
   }
 
   final Ref _ref;
+  AccountHost? _host;
+  bool _owned = true;
   GlobalHotkeySource? _source;
   StreamSubscription<GlobalHotkeyEvent>? _events;
   String _bound = '';
   bool _binding = false;
   bool _probedAvailable = false;
+
+  /// The native binding set is shared, so only the container that owns the call (else the one on screen) binds it.
+  void _onHostChanged() {
+    final owns = ownsCallEvents(_ref);
+    if (owns == _owned) return;
+    _owned = owns;
+    if (owns) {
+      _bound = '';
+      unawaited(_sync());
+    }
+  }
 
   Future<void> _start() async {
     final source = _source;
@@ -140,7 +160,7 @@ class GlobalHotkeysController extends StateNotifier<GlobalHotkeyAvailability?> {
     final source = _source;
     final canBind =
         state?.available == true || (retryUnavailable && _probedAvailable);
-    if (source == null || _binding || !canBind) return;
+    if (source == null || _binding || !canBind || !_owned) return;
     final wanted = _wanted();
     final signature = [
       for (final b in wanted) '${b.id.name}:${_chordKey(b.chord)}',
@@ -162,6 +182,7 @@ class GlobalHotkeysController extends StateNotifier<GlobalHotkeyAvailability?> {
   }
 
   void _onEvent(GlobalHotkeyEvent event) {
+    if (!_owned) return;
     final gate = _ref.read(pushToTalkGateProvider);
     if (event.phase == GlobalHotkeyPhase.lost) {
       gate.release(HoldSource.global);
@@ -218,6 +239,7 @@ class GlobalHotkeysController extends StateNotifier<GlobalHotkeyAvailability?> {
 
   @override
   void dispose() {
+    _host?.removeListener(_onHostChanged);
     unawaited(_events?.cancel());
     super.dispose();
   }
