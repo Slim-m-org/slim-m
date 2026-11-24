@@ -187,6 +187,7 @@ class Message {
     this.embeds = const [],
     this.webhookUsername,
     this.viaModule,
+    this.repostOfAuthorId,
     this.components = const [],
   });
 
@@ -307,6 +308,10 @@ class Message {
   /// The module that posted this message, null on every other one.
   final ViaModule? viaModule;
 
+  /// The member whose words a bot re-posted here, null on every other message. A
+  /// viewer who blocked that member hides the message as they hide the member's own.
+  final String? repostOfAuthorId;
+
   /// Buttons a bot attached, in rows. A bot can replace them later, so a live
   /// `message.components` frame, not this field on an edit, is what changes
   /// them; `message.embeds` does the same for embeds.
@@ -370,6 +375,7 @@ class Message {
         viaModule: json['via_module'] == null
             ? null
             : ViaModule.fromJson(json['via_module'] as Map<String, dynamic>),
+        repostOfAuthorId: json['repost_of_author_id'] as String?,
         components: ComponentRow.listFromJson(json['components']),
       );
 }

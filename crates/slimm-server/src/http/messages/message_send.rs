@@ -83,6 +83,9 @@ pub(super) async fn send(
         .map(|raw| parse_uuid(raw).map(MessageId))
         .transpose()?;
     let mention_reply = req.mention_reply;
+    let repost_author =
+        super::message_reposts::honored(&state, ctx.user_id, req.repost_of_author_id.as_deref())
+            .await?;
     // A retry must not re-authorize what already succeeded; the authoritative check still runs in the transaction.
     let stored_already = state.store.message_including_deleted(id).await?.is_some();
     // Never on a retry: see `enforce_slow_mode`'s own doc for why a second attempt at an id that already landed must not be refused.
@@ -140,6 +143,13 @@ pub(super) async fn send(
 
     if sent.fresh {
         intercepted.save_annotations(&state, id).await;
+    }
+    // Also on a retry, which repairs a row its first attempt failed to store; before the live frame reads it.
+    if let Some(author) = repost_author {
+        after_commit(
+            "its repost author",
+            state.store.set_repost_author(id, author).await,
+        );
     }
 
     // Read once and used twice: the live frame and this response need the same summaries, and a fresh message can already have them.
@@ -226,5 +236,6 @@ pub(super) async fn send(
     dto.forwarded = forwarded.map(Into::into);
     dto.embeds = embeds::dtos_from_stored(&state.link_previews, stored_embeds);
     dto.components = stored_components;
+    dto.repost_of_author_id = repost_author.map(|author| author.to_string());
     Ok(Json(dto))
 }

@@ -3,8 +3,8 @@
 
 Every file the snapshot references ends up in one of four places. The mirror
 has a good copy and the data directory lacks it: copied. The data directory
-already holds a file of the same size: left in place, since attachments are
-named after their content. The mirror lacks it but the data directory being
+already holds the file at the same size, and for an attachment the same
+sha256: left in place. The mirror lacks it but the data directory being
 rolled back still has it: kept, which is every banner and icon of a backup
 taken before backup_side_files.py existed. Neither has it: missing, which
 stops the restore unless the operator passes --allow-missing-files.
@@ -96,7 +96,7 @@ def _plan_media(plan, snapshot, backup_root, media_dir):
         if label in unusable:
             held = _data_directory_holds(dest, directory, name, size)
             (plan.kept if held else plan.missing).append(label)
-        elif size is not None and backup_side_files.is_present(dest, size):
+        elif size is not None and _data_directory_holds(dest, directory, name, size):
             plan.in_place += 1
         else:
             plan.copies.append((source, dest))

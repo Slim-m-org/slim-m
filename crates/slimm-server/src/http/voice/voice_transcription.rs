@@ -3,6 +3,8 @@
 //! Space transcribes every call (decision 0113). Answering and stopping reuse
 //! the call-audio routes; the session machine is the same one a module uses.
 
+use std::collections::BTreeSet;
+
 use axum::Router;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
@@ -79,6 +81,28 @@ async fn ask(
 
 /// Starts the `always` session when someone joins a call nobody is being heard in.
 pub(super) async fn ensure_always(state: &AppState, channel: ChannelId, joiner: UserId) {
+    ensure_always_for(state, channel, Some(joiner)).await;
+}
+
+/// Starts `always` sessions for the calls already running when the listener becomes ready,
+/// which no join will announce: a restart of either side, or a join that came in too early.
+pub(crate) async fn resume_always(state: &AppState) {
+    let mut channels: BTreeSet<ChannelId> = state
+        .voice
+        .calls()
+        .into_iter()
+        .map(|(_, channel)| channel)
+        .collect();
+    match state.store.channels_with_open_voice_sessions().await {
+        Ok(open) => channels.extend(open),
+        Err(err) => tracing::warn!(%err, "could not list the calls to resume transcribing"),
+    }
+    for channel in channels {
+        ensure_always_for(state, channel, None).await;
+    }
+}
+
+async fn ensure_always_for(state: &AppState, channel: ChannelId, joiner: Option<UserId>) {
     match state.store.call_transcription().await {
         Ok(TranscriptionMode::Always) => {}
         Ok(_) => return,
@@ -91,8 +115,13 @@ pub(super) async fn ensure_always(state: &AppState, channel: ChannelId, joiner: 
         return;
     }
     let mut present = people_in_call(state, channel).await;
-    if !present.contains(&joiner) {
+    if let Some(joiner) = joiner
+        && !present.contains(&joiner)
+    {
         present.push(joiner);
+    }
+    if present.is_empty() {
+        return;
     }
     let commands = state.store.voice_commands().await.unwrap_or_else(|err| {
         tracing::warn!(%err, "could not read voice commands; the call starts without them");
@@ -111,7 +140,9 @@ pub(super) async fn ensure_always(state: &AppState, channel: ChannelId, joiner: 
             runtime::apply(state, outcome).await;
         }
         Err(RequestError::AlreadyOn) => {
-            if let Some(outcome) = state.call_audio.joined(channel, joiner, now_ms()) {
+            if let Some(joiner) = joiner
+                && let Some(outcome) = state.call_audio.joined(channel, joiner, now_ms())
+            {
                 runtime::apply(state, outcome).await;
             }
         }

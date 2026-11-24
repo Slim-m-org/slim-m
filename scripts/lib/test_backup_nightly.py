@@ -33,6 +33,37 @@ class NightlyTestCase(unittest.TestCase):
         return json.loads((self.status_dir / "status.json").read_text())
 
 
+class CatchUpTest(NightlyTestCase):
+    HOUR_MS = 60 * 60 * 1000
+
+    def _finished(self, at_ms):
+        backup_nightly.write_status(self.status_dir, {"finished_at_ms": at_ms})
+
+    def test_a_missing_status_needs_a_run(self):
+        self.assertTrue(backup_nightly.needs_catch_up(self.status_dir, 10**12))
+
+    def test_a_recent_status_waits_for_the_night(self):
+        self._finished(10**12 - 3 * self.HOUR_MS)
+
+        self.assertFalse(backup_nightly.needs_catch_up(self.status_dir, 10**12))
+
+    def test_a_status_older_than_a_day_needs_a_run_after_a_restart(self):
+        self._finished(10**12 - 25 * self.HOUR_MS)
+
+        self.assertTrue(backup_nightly.needs_catch_up(self.status_dir, 10**12))
+
+    def test_a_status_without_a_finish_time_needs_a_run(self):
+        backup_nightly.write_status(self.status_dir, {"ok": True})
+
+        self.assertTrue(backup_nightly.needs_catch_up(self.status_dir, 10**12))
+
+    def test_the_prune_flag_reaches_the_backup(self):
+        args = backup_nightly.parse_args([
+            "--backup-root", "b", "--status-dir", "s", "--prune-mirror"])
+
+        self.assertIn("--prune-mirror", backup_nightly._backup_argv(args))
+
+
 class RunOnceTest(NightlyTestCase):
     def test_a_good_run_records_a_verified_backup(self):
         data = b"an attachment"

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! Decision 0135: a member on Do not disturb is woken by no message, mention or `@everyone`.
+//! Decision 0136: a member on Do not disturb is woken by no message, mention or `@everyone`.
 
 use slimm_server::config::Config;
 use slimm_server::db;

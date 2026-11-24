@@ -1,5 +1,5 @@
 <!-- SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0 -->
-# 0135 - Do not disturb silences chat as well as calls
+# 0136 - Do not disturb silences chat as well as calls
 
 Status: accepted (owner, 2026-11-24)
 Date: 2026-11-24

@@ -768,7 +768,7 @@ The secret is set on this repository now, and the release PRs and the tags relea
 The PAT needs `contents: read and write` and `pull requests: read and write` on this repository, and nothing else.
 
 Since 2026-11-21 a release PR runs only the checks that read its own diff: `hygiene` (the commit-lint parse of its title and body), `licenses`, `schema-ci` and SonarCloud.
-The test, build, e2e, perf and publish-paths jobs skip on a `release-please--` head branch, because the PR is main plus a version bump and main's push run already tested that code.
+The test, build, e2e, perf and publish-paths jobs skip on a `release-please--` head branch of this repository (a fork's branch of that name runs everything), because the PR is main plus a version bump and main's push run already tested that code.
 release-please rebases both release PRs onto every push to main, so before this each merge started those workflows three times at once: in the 11 hours to 2026-11-21 07:00 the two release PRs used about 2,100 runner minutes, and a main push queued up to 23 minutes behind them on the 20-job limit.
 The release gates never read the PR's runs: `verify-release-checks` waits on the release commit's own push run, which still runs everything.
 One kind of test is not covered by main: a test that reads the version the release PR bumps.

@@ -305,7 +305,7 @@ jobs:
   # CONTINUOUS_TESTFLIGHT=false leaves iOS to release.yml alone; a hand-run dispatch still builds.
   ios-testflight:
     needs: [changes]
-    if: needs.changes.outputs.client == 'true' && (github.event_name == 'workflow_dispatch' || vars.CONTINUOUS_TESTFLIGHT != 'false')
+    if: github.ref == 'refs/heads/main' && needs.changes.outputs.client == 'true' && (github.event_name == 'workflow_dispatch' || vars.CONTINUOUS_TESTFLIGHT != 'false')
     runs-on: xcode-27
     timeout-minutes: 60
     permissions:
@@ -358,7 +358,7 @@ jobs:
   # action, since the job needs its own container image.
   copr:
     needs: [changes, linux-client]
-    if: (needs.changes.outputs.client == 'true' || needs.changes.outputs.packaging == 'true') && needs.linux-client.result == 'success'
+    if: github.ref == 'refs/heads/main' && (needs.changes.outputs.client == 'true' || needs.changes.outputs.packaging == 'true') && needs.linux-client.result == 'success'
     uses: ./.github/workflows/copr-publish.yml
     # Named rather than `inherit`: this job reads COPR_CONFIG and nothing else,
     # and inherit would hand a container running dnf-installed tooling ambient
@@ -432,7 +432,7 @@ jobs:
   # The optional call-audio listener as ghcr.io/<owner>/slim-m-listener (decision 0105); nothing deploys it on its own.
   listener-image:
     needs: [changes]
-    if: needs.changes.outputs.listener == 'true'
+    if: github.ref == 'refs/heads/main' && needs.changes.outputs.listener == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     permissions:
@@ -448,6 +448,11 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      # A re-run of an older run keeps its sha tag but must not move :latest back.
+      - name: decide whether latest may move
+        id: move
+        env: {GH_TOKEN: "${{ github.token }}"}
+        run: echo "allowed=$(bash scripts/main-latest-allowed.sh "$IMAGE" "$GITHUB_SHA")" >> "$GITHUB_OUTPUT"
       - uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
         with:
           context: .
@@ -455,15 +460,32 @@ jobs:
           platforms: linux/amd64
           tags: |
             ${{ env.IMAGE }}:sha-${{ github.sha }}
-            ${{ env.IMAGE }}:latest
+            ${{ steps.move.outputs.allowed == 'true' && format('{0}:latest', env.IMAGE) || '' }}
           push: true
           cache-from: type=gha,scope=listener
           cache-to: type=gha,mode=max,scope=listener
 
+  # A re-run of an older run keeps its sha tag but must not move the web image's :main and :latest back (scripts/main-latest-allowed.sh).
+  web-latest:
+    needs: [changes]
+    if: github.ref == 'refs/heads/main' && needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      packages: read
+    outputs:
+      allowed: ${{ steps.move.outputs.allowed }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - id: move
+        env: {GH_TOKEN: "${{ github.token }}"}
+        run: echo "allowed=$(bash scripts/main-latest-allowed.sh "ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/slim-m-web" "$GITHUB_SHA")" >> "$GITHUB_OUTPUT"
+
   # The web client as ghcr.io/<owner>/slim-m-web, which Watchtower follows on the live host; see web-image.yml.
   web-image:
-    needs: [changes]
-    if: needs.changes.outputs.web == 'true'
+    needs: [changes, web-latest]
+    if: github.ref == 'refs/heads/main' && needs.changes.outputs.web == 'true'
     uses: ./.github/workflows/web-image.yml
     permissions:
       contents: read
@@ -472,5 +494,5 @@ jobs:
     with:
       tags: |
         sha-${{ github.sha }}
-        main
-        latest
+        ${{ needs.web-latest.outputs.allowed == 'true' && 'main' || '' }}
+        ${{ needs.web-latest.outputs.allowed == 'true' && 'latest' || '' }}

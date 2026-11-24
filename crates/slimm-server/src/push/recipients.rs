@@ -371,7 +371,7 @@ async fn narrow_for_thread(
 /// distinct state from a schedule with every day empty.
 ///
 /// A recipient on Do not disturb is dropped first, for every message, mention
-/// and `@everyone` alike (decision 0135); only rings and security alerts, which
+/// and `@everyone` alike (decision 0136); only rings and security alerts, which
 /// never come through here, still reach them.
 ///
 /// A channel the recipient can read but not post in (a feed, an announcement

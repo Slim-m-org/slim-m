@@ -17,6 +17,7 @@ class MessageExtras {
     this.embeds = const [],
     this.webhookUsername,
     this.viaModule,
+    this.repostOfAuthorId,
     this.components = const [],
     this.threadChannelId,
     this.threadReplyCount,
@@ -38,6 +39,9 @@ class MessageExtras {
 
   /// The module that posted the message; fixed once it exists.
   final api.ViaModule? viaModule;
+
+  /// The member a bot re-posted here; fixed once the message exists.
+  final String? repostOfAuthorId;
 
   /// A bot's buttons. A bot can replace or clear them, so a REST fetch and a
   /// `message.components` frame both replace the list, where a bare live
@@ -105,6 +109,7 @@ class MessageExtras {
     embeds: embeds ?? this.embeds,
     webhookUsername: webhookUsername,
     viaModule: viaModule,
+    repostOfAuthorId: repostOfAuthorId,
     components: components ?? this.components,
     threadChannelId: threadChannelId ?? this.threadChannelId,
     threadReplyCount: threadReplyCount ?? this.threadReplyCount,

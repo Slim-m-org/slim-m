@@ -73,12 +73,20 @@ pub(super) async fn created_from_event(
         call: call.map(|c| (*c).clone()),
         components: (*components).clone(),
     };
+    let repost_author = store
+        .repost_author_for_viewer(viewer, facts.repost_author)
+        .await
+        .map_err(|_| ())?;
     Ok(created(
         link_previews,
         (*message).clone(),
         extras,
         facts.mentioned.contains(&viewer),
-        (facts.webhook_username.clone(), facts.module_origin.clone()),
+        (
+            facts.webhook_username.clone(),
+            facts.module_origin.clone(),
+            repost_author,
+        ),
     ))
 }
 
@@ -90,7 +98,11 @@ fn created(
     message: Message,
     extras: MessageExtras,
     mentions_me: bool,
-    (webhook_username, module_origin): (Option<String>, Option<ModuleOrigin>),
+    (webhook_username, module_origin, repost_author): (
+        Option<String>,
+        Option<ModuleOrigin>,
+        Option<UserId>,
+    ),
 ) -> ServerFrame {
     let channel_id = message.channel_id.to_string();
     let seq = message.seq.0;
@@ -120,6 +132,7 @@ fn created(
     dto.mentions_me = mentions_me;
     dto.webhook_username = webhook_username;
     dto.via_module = module_origin.map(ViaModuleDto::from);
+    dto.repost_of_author_id = repost_author.map(|author| author.to_string());
     // Without this a call arrives blank until the next cold read.
     dto.call = extras.call.map(CallDto::from);
     ServerFrame::MessageCreated {
@@ -147,6 +160,11 @@ pub(super) async fn edited(
     let facts = lookups.get(store, message_id).await.map_err(|_| ())?;
     dto.webhook_username = facts.webhook_username.clone();
     dto.via_module = facts.module_origin.clone().map(ViaModuleDto::from);
+    dto.repost_of_author_id = store
+        .repost_author_for_viewer(viewer, facts.repost_author)
+        .await
+        .map_err(|_| ())?
+        .map(|author| author.to_string());
     dto.mentions_me = facts.mentioned.contains(&viewer);
     dto.link_previews_removed = lookups
         .previews_removed(store, message_id)

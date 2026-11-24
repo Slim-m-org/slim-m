@@ -2,8 +2,17 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 #
 # Rejects staged files that look like credentials or that are large binaries, before they reach history.
-# SLIMM_ALLOW_LARGE=1 lets a deliberate large asset through; there is no bypass for credentials except --no-verify.
+# SLIMM_ALLOW_LARGE=1 lets a deliberate large asset through (CI sets it from the large-asset PR label); there is no bypass for credentials except --no-verify.
+# With a revision range argument (base...head) it checks that range instead of the index, which is how hygiene.yml runs it on a pull request.
 set -uo pipefail
+
+if [ $# -gt 0 ]; then
+  diff_args=("$1")
+  blob_prefix="${1##*.}"
+else
+  diff_args=(--cached)
+  blob_prefix=""
+fi
 
 limit=$((1024 * 1024))
 status=0
@@ -17,9 +26,9 @@ while IFS= read -r f; do
     echo "::error file=$f::looks like a credentials file; do not commit it"
     status=1
   fi
-done < <(git diff --cached --name-only --diff-filter=ACM)
+done < <(git diff "${diff_args[@]}" --name-only --diff-filter=ACMR)
 
-added=$(git diff --cached --diff-filter=ACM -U0 --no-color | grep -E '^(\+\+\+ b/|\+[^+])' || true)
+added=$(git diff "${diff_args[@]}" --diff-filter=ACMR -U0 --no-color | grep -E '^(\+\+\+ b/|\+[^+])' || true)
 if grep -Eq -e "$secret_pattern" <<<"$added"; then
   echo "::error::a staged line looks like a private key or API token"
   awk -v pat="$secret_pattern" '/^\+\+\+ b\// {file=substr($0, 7)} $0 ~ pat && !/^\+\+\+ / {print "  in: " file}' <<<"$added" | sort -u
@@ -29,11 +38,11 @@ fi
 if [ "${SLIMM_ALLOW_LARGE:-0}" != 1 ]; then
   while IFS=$'\t' read -r added _ f; do
     [ "$added" = "-" ] || continue
-    size=$(git cat-file -s ":$f" 2>/dev/null || echo 0)
+    size=$(git cat-file -s "${blob_prefix}:$f" 2>/dev/null || echo 0)
     if [ "$size" -gt "$limit" ]; then
       echo "::error file=$f::binary file of $((size / 1024)) KiB staged; the limit is $((limit / 1024)) KiB"
       status=1
     fi
-  done < <(git diff --cached --numstat --diff-filter=AM)
+  done < <(git diff "${diff_args[@]}" --numstat --no-renames --diff-filter=AM)
 fi
 exit $status

@@ -55,6 +55,10 @@ struct Rig {
 }
 
 fn rig(include: &[&str]) -> Rig {
+    rig_with(include, Arc::new(Counting))
+}
+
+fn rig_with(include: &[&str], transcriber: Arc<dyn Transcriber>) -> Rig {
     let (events, feed) = unbounded_channel();
     let (commands, command_feed) = unbounded_channel();
     let (reports_tx, reports) = unbounded_channel();
@@ -70,7 +74,7 @@ fn rig(include: &[&str]) -> Rig {
         include: include.iter().map(|s| (*s).to_owned()).collect(),
         language: None,
     };
-    let pool = Arc::new(Pool::new(Arc::new(Counting), 2));
+    let pool = Arc::new(Pool::new(transcriber, 2));
     let task = tokio::spawn(run(params, room, command_feed, pool, reports_tx));
     Rig {
         events,
@@ -232,6 +236,55 @@ async fn speech_in_flight_for_someone_removed_is_never_reported() {
     assert_eq!(identity, "alice");
     settle().await;
     assert!(rig.reports.try_recv().is_err());
+}
+
+/// Holds every utterance inside the engine until the test lets it go.
+#[derive(Default)]
+struct Gated {
+    entered: std::sync::atomic::AtomicBool,
+    open: std::sync::atomic::AtomicBool,
+}
+
+impl Transcriber for Gated {
+    fn transcribe(&self, _: &[i16], _: Option<&str>) -> anyhow::Result<Transcript> {
+        use std::sync::atomic::Ordering::SeqCst;
+        self.entered.store(true, SeqCst);
+        while !self.open.load(SeqCst) {
+            std::thread::sleep(Duration::from_millis(2));
+        }
+        Ok(Transcript {
+            text: "said before".into(),
+            language: None,
+        })
+    }
+
+    fn model(&self) -> String {
+        "gated".into()
+    }
+}
+
+#[tokio::test]
+async fn speech_from_before_a_withdrawal_stays_unreported_when_consent_comes_back() {
+    use std::sync::atomic::Ordering::SeqCst;
+    let gate = Arc::new(Gated::default());
+    let mut rig = rig_with(&["alice", "bob"], gate.clone());
+    assert!(matches!(
+        next_report(&mut rig).await,
+        Report::Started { .. }
+    ));
+    say(&rig, "bob");
+    while !gate.entered.load(SeqCst) {
+        tokio::time::sleep(Duration::from_millis(2)).await;
+    }
+    for set in [&["alice"][..], &["alice", "bob"][..]] {
+        let set = set.iter().map(|s| (*s).to_owned()).collect();
+        rig.commands.send(SessionCommand::Include(set)).unwrap();
+    }
+    settle().await;
+    gate.open.store(true, SeqCst);
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    settle().await;
+    assert!(rig.reports.try_recv().is_err(), "the old utterance is gone");
 }
 
 #[tokio::test(start_paused = true)]

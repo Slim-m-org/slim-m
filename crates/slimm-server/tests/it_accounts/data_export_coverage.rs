@@ -170,6 +170,11 @@ const DECISIONS: &[(&str, &str, Fate)] = &[
     ),
     ("message_mentions", "user_id", Fate::Excluded(DERIVED)),
     ("message_ops", "actor_id", Fate::Excluded(STAFF_RECORD)),
+    (
+        "message_repost_authors",
+        "author_id",
+        Fate::Excluded(SOMEONE_ELSE),
+    ),
     ("messages", "author_id", Fate::Exported("messages.jsonl")),
     (
         "moderation_audit_log",

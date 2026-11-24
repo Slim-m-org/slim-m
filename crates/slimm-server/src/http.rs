@@ -191,6 +191,7 @@ mod users;
 mod version;
 mod viewable_message;
 mod voice;
+pub(crate) use voice::voice_transcription::resume_always;
 use voice::{
     voice_call_audio, voice_calls, voice_notify_prefs, voice_ring, voice_rooms,
     voice_transcription, voice_transcripts, voice_webhook,
