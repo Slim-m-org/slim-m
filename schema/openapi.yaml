@@ -7766,7 +7766,8 @@ paths:
         Send `duration_seconds`: the server counts it from its own clock, so a
         device with a wrong clock still gets the span it chose (the client works
         out the seconds to its own local midnight for "until tomorrow"). The older
-        absolute `until_ms` is still accepted. Send exactly one. Either must end
+        absolute `until_ms` is still accepted, and is ignored when both are sent so
+        a client can serve older servers too. Either must end
         in the future and no more than a week out. While active, the schedule reads
         as off hours in `nothing` mode regardless of the configured window
         or mode, still subject to both allow-lists.
@@ -22284,6 +22285,10 @@ components:
               format: int64
             - type: "null"
           description: Epoch-millisecond deadline; while in the future the schedule reads as off hours in `nothing` mode regardless of the window or mode.
+        server_now:
+          type: integer
+          format: int64
+          description: The server's clock in epoch milliseconds when this was read; compare `snooze_until` with it, not with the device clock.
         allowed_user_ids:
           type: array
           items:

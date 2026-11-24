@@ -68,6 +68,8 @@ struct NotificationScheduleDto {
     snooze_until: Option<i64>,
     allowed_user_ids: Vec<String>,
     allowed_channel_ids: Vec<String>,
+    /// The server clock when this was read, so a device with a wrong clock can judge `snooze_until`.
+    server_now: i64,
 }
 
 #[derive(Serialize)]
@@ -98,6 +100,7 @@ impl From<NotificationScheduleDetail> for NotificationScheduleDto {
             days,
             off_hours_mode: detail.schedule.off_hours_mode.as_str().to_owned(),
             snooze_until: detail.schedule.snooze_until,
+            server_now: crate::store::now_ms(),
             allowed_user_ids: detail
                 .allowed_user_ids
                 .iter()
@@ -297,7 +300,7 @@ async fn remove_allowed_channel(
 }
 
 /// Pauses notifications for `duration_seconds` from the server's now, or until
-/// the older absolute `until_ms`; either may be at most a week out. The client
+/// the older absolute `until_ms` (ignored when a duration is sent too); either may be at most a week out. The client
 /// sends a duration because a device clock can be minutes or hours wrong.
 async fn set_snooze(
     Authed(ctx): Authed,
@@ -308,12 +311,10 @@ async fn set_snooze(
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let now = crate::store::now_ms();
     let until_ms = match (req.duration_seconds, req.until_ms) {
-        (Some(seconds), None) => seconds.saturating_mul(1000).saturating_add(now),
+        (Some(seconds), _) => seconds.saturating_mul(1000).saturating_add(now),
         (None, Some(until_ms)) => until_ms,
-        _ => {
-            return Err(ApiError::BadRequest(
-                "send exactly one of duration_seconds and until_ms",
-            ));
+        (None, None) => {
+            return Err(ApiError::BadRequest("send duration_seconds or until_ms"));
         }
     };
     if until_ms <= now || until_ms - now > MAX_SNOOZE_MS {

@@ -45,6 +45,8 @@ void main() {
     final until = await api.setNotificationSnooze(const Duration(minutes: 30));
 
     expect(until, 123);
-    expect(body, {'duration_seconds': 1800});
+    expect(body?['duration_seconds'], 1800);
+    expect(body?['until_ms'], isA<int>(),
+        reason: 'older servers read this one');
   });
 }

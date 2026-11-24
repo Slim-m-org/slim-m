@@ -62,17 +62,15 @@ async fn a_duration_is_counted_from_the_server_clock() {
 }
 
 #[tokio::test]
-async fn a_snooze_needs_exactly_one_way_to_say_when() {
+async fn a_snooze_needs_a_way_to_say_when_and_a_duration_wins() {
     let (store, _guard) = support::new_store("slimm-snooze-one-way").await;
     let state = support::app::state(store.clone());
     let user = store.create_user("alice", "alice").await.unwrap();
     let session = store.open_session(user.id, "phone").await.unwrap();
     let token = &session.access_token;
 
-    let both = json!({ "duration_seconds": 60, "until_ms": now_ms() + 60_000 });
     for body in [
         json!({}),
-        both,
         json!({ "duration_seconds": 0 }),
         json!({ "duration_seconds": -5 }),
     ] {
@@ -88,4 +86,25 @@ async fn a_snooze_needs_exactly_one_way_to_say_when() {
         StatusCode::OK,
         "the older absolute form still works: {body}"
     );
+}
+
+#[tokio::test]
+async fn a_duration_wins_over_a_device_clock_deadline_sent_with_it() {
+    let (store, _guard) = support::new_store("slimm-snooze-both").await;
+    let state = support::app::state(store.clone());
+    let user = store.create_user("alice", "alice").await.unwrap();
+    let session = store.open_session(user.id, "phone").await.unwrap();
+
+    let before = now_ms();
+    let wrong_clock = now_ms() + 3 * 3_600_000;
+    let (status, body) = snooze(
+        &state,
+        &session.access_token,
+        json!({ "duration_seconds": 1800, "until_ms": wrong_clock }),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let until = body["snooze_until"].as_i64().unwrap();
+    assert!(until < before + 1_800_000 + 60_000, "{until}");
 }

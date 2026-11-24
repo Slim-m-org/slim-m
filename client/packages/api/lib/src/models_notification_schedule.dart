@@ -60,6 +60,7 @@ class NotificationSchedule {
     required this.snoozeUntil,
     required this.allowedUserIds,
     required this.allowedChannelIds,
+    this.clockOffsetMs = 0,
   });
 
   final String timezone;
@@ -68,6 +69,10 @@ class NotificationSchedule {
   final int? snoozeUntil;
   final List<String> allowedUserIds;
   final List<String> allowedChannelIds;
+
+  /// The server clock minus this device's when the schedule was read; 0 from a
+  /// server that does not say, so `snooze_until` is judged on the server's clock.
+  final int clockOffsetMs;
 
   /// [days] indexed by weekday, `null` for a day with no on-hours window.
   List<NotificationScheduleDay?> get byWeekday {
@@ -80,7 +85,7 @@ class NotificationSchedule {
 
   bool get isSnoozed =>
       snoozeUntil != null &&
-      snoozeUntil! > DateTime.now().millisecondsSinceEpoch;
+      snoozeUntil! > DateTime.now().millisecondsSinceEpoch + clockOffsetMs;
 
   factory NotificationSchedule.fromJson(Map<String, dynamic> json) =>
       NotificationSchedule(
@@ -97,5 +102,10 @@ class NotificationSchedule {
             (json['allowed_user_ids'] as List<dynamic>).cast<String>(),
         allowedChannelIds:
             (json['allowed_channel_ids'] as List<dynamic>).cast<String>(),
+        clockOffsetMs: switch (json['server_now']) {
+          final int serverNow =>
+            serverNow - DateTime.now().millisecondsSinceEpoch,
+          _ => 0,
+        },
       );
 }
