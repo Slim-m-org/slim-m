@@ -29,6 +29,7 @@ impl Class {
             Class::Ring => "ring",
             Class::Soundboard => "soundboard",
             Class::ScreenStamp => "screen_stamp",
+            Class::GroupDmCreate => "group_dm_create",
             Class::AuthedRead => "authed_read",
             Class::Module => "module",
             Class::CodeRunner => "code_runner",

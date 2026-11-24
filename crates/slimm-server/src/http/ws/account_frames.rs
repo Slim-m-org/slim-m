@@ -102,6 +102,15 @@ pub(super) fn authorize(ctx: &SessionContext, event: &Event) -> Option<Authoriza
                 player_id: player_id.to_string(),
             },
         ),
+        Event::DmLeft {
+            user_id,
+            channel_id,
+        } => (
+            *user_id,
+            ServerFrame::ChannelDeleted {
+                channel_id: channel_id.to_string(),
+            },
+        ),
         Event::ConnectorRun(run) => (
             run.principal,
             ServerFrame::ConnectorRun {

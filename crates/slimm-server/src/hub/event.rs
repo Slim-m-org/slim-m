@@ -338,6 +338,11 @@ pub enum Event {
     /// ordinary `VIEW_CHANNEL` check, so it is the roster as it is now that
     /// decides, and a person who just left learns from their own request.
     DmChanged { channel_id: ChannelId },
+    /// `user_id` left a group DM. Private to that account, so its other devices drop the group.
+    DmLeft {
+        user_id: UserId,
+        channel_id: ChannelId,
+    },
     /// A report was filed or resolved: the moderation queue changed and a
     /// moderator watching it should refetch.
     ///

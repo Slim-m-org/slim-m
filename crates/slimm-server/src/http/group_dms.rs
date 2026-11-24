@@ -18,6 +18,7 @@ use super::extract::{Authed, Json, enforce};
 use super::messages::parse_uuid;
 use crate::hub::Event;
 use crate::ids::{ChannelId, UserId};
+use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 use crate::store::{GroupDmError, LeftGroup, MemberGate};
 use crate::voice::VoiceError;
@@ -70,7 +71,9 @@ impl From<GroupDmError> for ApiError {
                 ApiError::BadRequest("a group has 3 to 10 people, you included")
             }
             GroupDmError::Full => ApiError::Conflict("this group already has 10 people"),
-            GroupDmError::AlreadyMember => ApiError::Conflict("already in this group"),
+            GroupDmError::TooManyGroups => {
+                ApiError::Conflict("one of these people is already in too many groups")
+            }
             GroupDmError::IdTaken => ApiError::Conflict("that id is already in use"),
             GroupDmError::Internal(e) => e.into(),
         }
@@ -113,8 +116,21 @@ async fn create(
     Json(req): Json<CreateRequest>,
 ) -> Result<(StatusCode, Json<DmConversationDto>), ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
+    enforce(&state, &parts, Some(&ctx), Class::GroupDmCreate)?;
     require_member(&state, ctx.user_id).await?;
     let name = optional_name(req.name.as_deref())?;
+    // A timeout takes away naming a group too, since the name reaches everyone in it.
+    if name.is_some()
+        && !state
+            .store
+            .base_permissions(ctx.user_id)
+            .await?
+            .contains(Permissions::SEND_MESSAGES)
+    {
+        return Err(ApiError::ForbiddenBecause(
+            "you cannot name a group right now",
+        ));
+    }
     let id = req
         .id
         .as_deref()
@@ -178,6 +194,14 @@ async fn rename(
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
     let name = optional_name(req.name.as_deref())?;
+    // Roster, timeout and join gate in one answer; anyone short of it gets the not-found a stranger gets.
+    if !state
+        .store
+        .has_permission(ctx.user_id, channel_id, Permissions::SEND_MESSAGES)
+        .await?
+    {
+        return Err(GroupDmError::NotFound.into());
+    }
     state
         .store
         .rename_group_dm(ctx.user_id, channel_id, name)
@@ -210,6 +234,11 @@ async fn leave(
     if outcome == LeftGroup::Remains {
         state.hub.publish(Event::DmChanged { channel_id });
     }
+    // The leaver is off the roster now, so only this tells their other devices.
+    state.hub.publish(Event::DmLeft {
+        user_id: ctx.user_id,
+        channel_id,
+    });
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -221,6 +250,7 @@ async fn delete(
     State(state): State<AppState>,
 ) -> Result<StatusCode, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
+    require_member(&state, ctx.user_id).await?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
     let deleted = state.store.delete_group_dm(ctx.user_id, channel_id).await?;
     super::channels::end_voice_room(&state, channel_id).await;
