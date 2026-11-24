@@ -12,6 +12,7 @@
 #include "youtube_player_input.h"
 #include "youtube_player_navigation.h"
 #include "youtube_player_policy.h"
+#include "youtube_player_sandbox.h"
 #include "youtube_player_texture.h"
 
 namespace {
@@ -169,36 +170,6 @@ void OpenExternally(const char* uri) {
   }
 }
 
-// Nothing the embed streams is ever saved to disk.
-void OnDownloadStarted(void* context, void* download, gpointer user_data) {
-  const slimm_webkit::Api* api = slimm_webkit::Load();
-  if (api->download_cancel != nullptr) api->download_cancel(download);
-}
-
-// The player asks for nothing but autoplay, which is a website policy and no prompt.
-gboolean OnPermissionRequest(GtkWidget* view, void* request,
-                             gpointer user_data) {
-  const slimm_webkit::Api* api = slimm_webkit::Load();
-  if (api->permission_request_deny != nullptr) {
-    api->permission_request_deny(request);
-  }
-  return TRUE;
-}
-
-// Before the first view, since WebKit refuses to change the sandbox once a web process runs.
-void ConfigureContext(const slimm_webkit::Api* api) {
-  static bool configured = false;
-  if (configured || api->web_context_get_default == nullptr) return;
-  configured = true;
-  void* context = api->web_context_get_default();
-  if (api->web_context_set_sandbox_enabled != nullptr &&
-      g_find_program_in_path("bwrap") != nullptr) {
-    api->web_context_set_sandbox_enabled(context, TRUE);
-  }
-  g_signal_connect(context, "download-started",
-                   G_CALLBACK(OnDownloadStarted), nullptr);
-}
-
 // WebKit fullscreens the window (FALSE lets it); Dart covers it with the texture and sizes the view to match.
 gboolean OnEnterFullscreen(GtkWidget* view, gpointer user_data) {
   g_player.fullscreen = true;
@@ -244,7 +215,7 @@ int64_t Create(const char* html) {
     return -1;
   }
   Destroy();
-  ConfigureContext(api);
+  slimm_youtube::ConfigureContext(api);
   SlimmVideoTexture* texture = slimm_video_texture_new();
   if (!fl_texture_registrar_register_texture(g_player.registrar,
                                              FL_TEXTURE(texture))) {
@@ -272,8 +243,7 @@ int64_t Create(const char* html) {
                "enable-fullscreen", TRUE,
                "enable-developer-extras", FALSE, nullptr);
   slimm_youtube::GuardNavigation(view, OpenExternally);
-  g_signal_connect(view, "permission-request",
-                   G_CALLBACK(OnPermissionRequest), nullptr);
+  slimm_youtube::DenyPermissions(view);
   g_signal_connect(view, "enter-fullscreen", G_CALLBACK(OnEnterFullscreen), nullptr);
   g_signal_connect(view, "leave-fullscreen", G_CALLBACK(OnLeaveFullscreen), nullptr);
   g_signal_connect(view, "web-process-terminated",

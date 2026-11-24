@@ -27,6 +27,7 @@ add_executable(${BINARY_NAME}
   "youtube_player_channel.cc"
   "youtube_player_input.cc"
   "youtube_player_navigation.cc"
+  "youtube_player_sandbox.cc"
   "youtube_player_texture.cc"
   "${FLUTTER_MANAGED_DIR}/generated_plugin_registrant.cc"
 )
