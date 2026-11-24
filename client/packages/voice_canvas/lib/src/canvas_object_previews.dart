@@ -5,6 +5,8 @@ library;
 
 import 'dart:ui';
 
+import 'package:flutter/foundation.dart';
+
 import 'canvas_document.dart';
 
 /// How long the ease toward a newly reported box lasts: a little over the
@@ -78,6 +80,9 @@ class RemoteObjectPreviews {
   final Map<String, _Preview> _previews = <String, _Preview>{};
   final Map<String, DateTime> _settledAt = <String, DateTime>{};
 
+  @visibleForTesting
+  int get debugSettledCount => _settledAt.length;
+
   /// Zero (reduce-motion) jumps straight to each reported box.
   Duration glide = objectPreviewGlideDuration;
 
@@ -132,7 +137,17 @@ class RemoteObjectPreviews {
   /// The committed move arrived; the preview has nothing left to say.
   void settle(String objectId, {required DateTime now}) {
     if (_previews.remove(objectId) != null) document.releaseLive(objectId);
+    _settledAt.remove(objectId);
     _settledAt[objectId] = now;
+    _dropStaleSettled(now);
+  }
+
+  void _dropStaleSettled(DateTime now) {
+    while (_settledAt.isNotEmpty &&
+        now.difference(_settledAt.values.first) >=
+            objectPreviewLateFrameWindow) {
+      _settledAt.remove(_settledAt.keys.first);
+    }
   }
 
   /// Gives up on every preview past its deadline, putting its object back.

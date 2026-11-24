@@ -43,6 +43,7 @@ extension CanvasOpsControllerErase on CanvasOpsController {
       world,
       touch: touch,
       allowed: allowed,
+      fallThrough: true,
       accepts: CanvasOpsController._isInk,
     );
     if (id == null || _dragBatch.contains(id)) return;
