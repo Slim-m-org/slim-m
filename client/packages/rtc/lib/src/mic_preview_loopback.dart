@@ -155,16 +155,25 @@ class LoopbackMicSource implements MicPreviewSource {
     final stream = _stream;
     final processed = _processed;
     _sender = _receiver = _stream = _far = _processed = null;
+    Future<void> step(Future<void> Function() release) async {
+      try {
+        await release();
+      } catch (error, stack) {
+        AppLog.swallowed(LogTag.voice, 'Could not release a preview mic handle',
+            error, stack);
+      }
+    }
+
     if (processed != null) {
-      await detachWebCaptureChain(processed);
-      await processed.stop();
+      await step(() => detachWebCaptureChain(processed));
+      await step(() => processed.stop());
     }
-    for (final track in stream?.getAudioTracks() ?? const []) {
-      await track.stop();
+    for (final track in stream?.getAudioTracks() ?? <rtc.MediaStreamTrack>[]) {
+      await step(() => track.stop());
     }
-    await sender?.close();
-    await receiver?.close();
-    await stream?.dispose();
+    await step(() async => await sender?.close());
+    await step(() async => await receiver?.close());
+    await step(() async => await stream?.dispose());
   }
 }
 

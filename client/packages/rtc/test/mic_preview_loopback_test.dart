@@ -67,6 +67,19 @@ class _Peer implements rtc.RTCPeerConnection {
   dynamic noSuchMethod(Invocation invocation) => null;
 }
 
+class _ClosingPeer extends _Peer {
+  _ClosingPeer({this.throwOnClose = false});
+
+  final bool throwOnClose;
+  bool closed = false;
+
+  @override
+  Future<void> close() async {
+    closed = true;
+    if (throwOnClose) throw PlatformException(code: 'gone');
+  }
+}
+
 void _mockWebRtcChannel() {
   const channel = MethodChannel('FlutterWebRTC.Method');
   final messenger = TestWidgetsFlutterBinding.instance.defaultBinaryMessenger;
@@ -105,6 +118,22 @@ void main() {
       expect(configuration['tcpCandidatePolicy'], 'disabled',
           reason: 'a TCP candidate listens, and Windows asks to allow it');
     }
+  });
+
+  test('one handle failing to close does not strand the rest', () async {
+    _mockWebRtcChannel();
+    final peers = [_ClosingPeer(throwOnClose: true), _ClosingPeer()];
+    final source = LoopbackMicSource(
+      AudioDeviceSwitching(_NoDevices(), pulse: PulseAudio.inert()),
+      createPeer: (configuration) async => peers.removeAt(0),
+    );
+    final both = [...peers];
+
+    await source.open(null);
+    await source.close();
+
+    expect(both.every((peer) => peer.closed), isTrue,
+        reason: 'the second peer is left open behind the first one failing');
   });
 
   test('silences the received track by volume and never disables it', () async {

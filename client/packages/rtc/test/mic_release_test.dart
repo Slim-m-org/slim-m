@@ -104,6 +104,24 @@ class _NoDevices implements AudioDevices {
 }
 
 void main() {
+  test('an unmute during the release still reopens the capture', () async {
+    final stopping = Completer<bool>();
+    final release = MicRelease(
+      grace: Duration.zero,
+      mobile: false,
+      release: () => stopping.future,
+    )..onMuted();
+    unawaited(release.releaseNow());
+    await pumpEventQueue();
+
+    final reopen = release.onUnmuting();
+    stopping.complete(true);
+    await pumpEventQueue();
+
+    expect(reopen, isTrue, reason: 'the capture is being stopped under it');
+    expect(release.released, isFalse, reason: 'the user is unmuted');
+  });
+
   test('a mute keeps the capture through the grace, then releases it', () {
     fakeAsync((clock) {
       late VoiceSession session;

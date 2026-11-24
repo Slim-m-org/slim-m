@@ -15,6 +15,7 @@ import 'track_event_filter.dart';
 mixin TrackTileState<T extends StatefulWidget> on State<T> {
   lk.CancelListenFunc? _cancel;
   lk.VideoTrack? _renderedTrack;
+  int _attachGeneration = 0;
 
   /// The renderer for the track now showing, or null before its initialize()
   /// completes.
@@ -47,6 +48,9 @@ mixin TrackTileState<T extends StatefulWidget> on State<T> {
     }
   }
 
+  @visibleForTesting
+  void syncTrackTileForTest() => _syncRenderer();
+
   /// Call from `dispose`.
   void stopTrackTile() {
     _cancel?.call();
@@ -73,6 +77,7 @@ mixin TrackTileState<T extends StatefulWidget> on State<T> {
     final track = currentTrack();
     if (identical(track, _renderedTrack)) return;
     _renderedTrack = track;
+    _attachGeneration++;
     final stale = ownedRenderer;
     ownedRenderer = null;
     frameHistory.retire(stale);
@@ -81,9 +86,10 @@ mixin TrackTileState<T extends StatefulWidget> on State<T> {
   }
 
   Future<void> _attachRenderer(lk.VideoTrack track) async {
+    final generation = _attachGeneration;
     final owned = OwnedVideoRenderer();
     await owned.initialize();
-    if (!mounted || !identical(track, _renderedTrack)) {
+    if (!mounted || generation != _attachGeneration) {
       unawaited(owned.dispose());
       return;
     }

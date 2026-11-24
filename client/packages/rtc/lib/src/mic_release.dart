@@ -31,6 +31,7 @@ class MicRelease {
 
   Timer? _timer;
   bool _released = false;
+  bool _releasing = false;
   bool _keepReady = false;
   bool _backgrounded = false;
   bool _muted = false;
@@ -51,7 +52,7 @@ class MicRelease {
     _timer?.cancel();
     _timer = null;
     _muted = false;
-    return _released;
+    return _released || _releasing;
   }
 
   void setKeepReady(bool value) {
@@ -96,13 +97,16 @@ class MicRelease {
   Future<void> _run() async {
     _timer = null;
     if (!_muted || _released) return;
+    _releasing = true;
     try {
       if (!await release()) return;
-      _released = true;
+      _released = _muted;
       log?.call('Released the microphone capture while muted');
     } catch (e) {
       log?.call('Could not release the microphone: $e',
           level: LogLevel.warning);
+    } finally {
+      _releasing = false;
     }
   }
 
