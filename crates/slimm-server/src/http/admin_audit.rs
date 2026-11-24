@@ -7,13 +7,15 @@
 //! mutating route is neither audited nor listed as exempt.
 
 use axum::Router;
+use axum::body::Bytes;
 use axum::body::{Body, HttpBody, to_bytes};
 use axum::extract::{FromRequestParts, MatchedPath, Query, RawPathParams, Request, State};
 use axum::http::request::Parts;
 use axum::http::{Method, header};
 use axum::middleware::Next;
-use axum::response::{IntoResponse, Response};
+use axum::response::Response;
 use axum::routing::get;
+use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
@@ -62,10 +64,7 @@ pub async fn record(State(state): State<AppState>, request: Request, next: Next)
     let (mut parts, body) = request.into_parts();
     let actor = Authed::from_request_parts(&mut parts, &state).await.ok();
     let params = path_params(&mut parts, &state).await;
-    let (body, request_json, uninspected) = match inspect_json(&parts.headers, body).await {
-        Ok(inspected) => inspected,
-        Err(refusal) => return refusal,
-    };
+    let (body, request_json, uninspected) = inspect_json(&parts.headers, body).await;
     let response = next.run(Request::from_parts(parts, body)).await;
     let Some(Authed(ctx)) = actor else {
         return response;
@@ -173,29 +172,37 @@ fn is_json(headers: &axum::http::HeaderMap) -> bool {
 
 /// Reads a small JSON body so its field names can be logged, and hands back an equivalent body for
 /// the handler, with whether the body was left unread. A body without a length is buffered up to the
-/// cap and refused past it, so leaving out Content-Length hides nothing from the log.
-async fn inspect_json(
-    headers: &axum::http::HeaderMap,
-    body: Body,
-) -> Result<(Body, Option<Value>, bool), Response> {
+/// cap, so leaving out Content-Length hides nothing from the log.
+async fn inspect_json(headers: &axum::http::HeaderMap, body: Body) -> (Body, Option<Value>, bool) {
     if !is_json(headers) {
-        return Ok((body, None, false));
+        return (body, None, false);
     }
     let declared = headers
         .get(header::CONTENT_LENGTH)
         .and_then(|value| value.to_str().ok())
         .and_then(|value| value.parse::<usize>().ok());
     if declared.is_some_and(|length| length > MAX_INSPECTED_BODY) {
-        return Ok((body, None, true));
+        return (body, None, true);
     }
-    match to_bytes(body, MAX_INSPECTED_BODY).await {
-        Ok(bytes) => {
-            let json = serde_json::from_slice(&bytes).ok();
-            Ok((Body::from(bytes), json, false))
+    buffer_up_to_cap(body).await
+}
+
+/// Buffers a body up to the inspection cap; past it the buffered part is chained back onto the rest.
+async fn buffer_up_to_cap(body: Body) -> (Body, Option<Value>, bool) {
+    let mut stream = body.into_data_stream();
+    let mut buffered = Vec::new();
+    while let Some(chunk) = stream.next().await {
+        let Ok(chunk) = chunk else {
+            return (Body::empty(), None, false);
+        };
+        buffered.extend_from_slice(&chunk);
+        if buffered.len() > MAX_INSPECTED_BODY {
+            let head = futures_util::stream::iter([Ok(Bytes::from(buffered))]);
+            return (Body::from_stream(head.chain(stream)), None, true);
         }
-        Err(_) if declared.is_none() => Err(ApiError::PayloadTooLarge.into_response()),
-        Err(_) => Ok((Body::empty(), None, false)),
     }
+    let json = serde_json::from_slice(&buffered).ok();
+    (Body::from(buffered), json, false)
 }
 
 /// Whether the body is known to fit the inspection cap; one that may not is passed through whole.
