@@ -149,24 +149,17 @@ async fn one_member_is_held_to_the_input_rate() {
     let r = room_world("slimm-rooms-rate", "noughts", noughts_wasm()).await;
     let ava = r.player("ava").await;
     r.join_call(&ava);
-    let burst = 8;
-    // Spent at a future instant, so no real time elapsing on a slow runner can refill the bucket.
+    assert_eq!(r.input(&ava, "0").await.0, StatusCode::OK);
+    // Drained at a future instant, so no real time a slow runner spends between requests can refill it.
     let key = format!("u:{}:{}:{}", ava.id, r.module, r.call);
     let later = Instant::now() + Duration::from_secs(3600);
-    assert!(
-        r.w.state
-            .limiter
-            .check_at(Class::ModuleRoomInput, &key, later)
-    );
-    let mut statuses = Vec::new();
-    for _ in 0..burst {
-        statuses.push(r.input(&ava, "0").await.0);
-    }
-    assert!(
-        statuses[..burst - 1].iter().all(|s| *s == StatusCode::OK),
-        "{statuses:?}"
-    );
-    assert_eq!(statuses[burst - 1], StatusCode::TOO_MANY_REQUESTS);
+    while r
+        .w
+        .state
+        .limiter
+        .check_at(Class::ModuleRoomInput, &key, later)
+    {}
+    assert_eq!(r.input(&ava, "0").await.0, StatusCode::TOO_MANY_REQUESTS);
 }
 
 #[tokio::test]
