@@ -14,6 +14,8 @@ const FRAME_MS: i64 = 20;
 const END_SILENCE_MS: i64 = 600;
 const MIN_UTTERANCE_MS: i64 = 400;
 pub const MAX_UTTERANCE_MS: i64 = 15_000;
+/// How far the delivered audio may trail the clock before the timeline is re-anchored.
+const RESYNC_GAP_MS: i64 = 500;
 /// Audio kept from before the first loud frame, so a word is not clipped.
 const PRE_ROLL_FRAMES: usize = 5;
 /// Speech must be this many times the noise floor.
@@ -76,6 +78,26 @@ impl Endpointer {
     /// How many bursts were dropped as shorter than [`MIN_UTTERANCE_MS`], so a log can tell clipped speech from silence.
     pub fn too_short(&self) -> u32 {
         self.too_short
+    }
+
+    /// Feeds samples that arrived at `now_ms`, first re-anchoring the clock if the stream fell behind real time.
+    /// An utterance in progress is ended at the gap, since the audio on either side is not contiguous.
+    pub fn push_at(&mut self, samples: &[i16], now_ms: i64) -> Vec<Utterance> {
+        let delivered = self.frames_seen * FRAME_MS + self.pending_ms();
+        let behind = now_ms - self.origin_ms - delivered - samples_ms(samples.len());
+        let mut done = Vec::new();
+        if behind > RESYNC_GAP_MS {
+            done.extend(self.finish());
+            self.pending.clear();
+            self.pre_roll.clear();
+            self.origin_ms += behind;
+        }
+        done.extend(self.push(samples));
+        done
+    }
+
+    fn pending_ms(&self) -> i64 {
+        samples_ms(self.pending.len())
     }
 
     /// Feeds samples and returns the utterances that ended in them.
@@ -166,6 +188,10 @@ impl Endpointer {
             pcm: active.pcm,
         })
     }
+}
+
+fn samples_ms(samples: usize) -> i64 {
+    (samples * 1000 / SAMPLE_RATE) as i64
 }
 
 fn rms(frame: &[i16]) -> f32 {

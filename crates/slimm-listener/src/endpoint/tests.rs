@@ -174,3 +174,39 @@ fn the_voiced_end_leaves_out_the_silence_that_closed_the_utterance() {
     assert!((1_500..=1_620).contains(&voiced), "{voiced}");
     assert!(u.end_ms - u.voiced_end_ms >= END_SILENCE_MS - 40);
 }
+
+#[test]
+fn a_stretch_with_no_frames_re_anchors_later_timestamps_to_the_clock() {
+    let mut endpointer = Endpointer::new(0);
+    let mut found = endpointer.push_at(&hiss(1_000, 60.0), 1_000);
+    found.extend(endpointer.push_at(&speech(1_500), 2_500));
+    found.extend(endpointer.push_at(&hiss(1_000, 60.0), 3_500));
+    assert_eq!(found.len(), 1);
+    assert!(
+        (found[0].start_ms - 1_000).abs() <= 120,
+        "{}",
+        found[0].start_ms
+    );
+
+    let mut found = endpointer.push_at(&hiss(500, 60.0), 13_500);
+    found.extend(endpointer.push_at(&speech(1_500), 15_000));
+    found.extend(endpointer.push_at(&hiss(1_000, 60.0), 16_000));
+    assert_eq!(found.len(), 1);
+    let start = found[0].start_ms;
+    assert!((start - 13_500).abs() <= 120, "{start}");
+}
+
+#[test]
+fn audio_that_keeps_up_with_the_clock_is_not_moved() {
+    let mut endpointer = Endpointer::new(0);
+    let mut found = Vec::new();
+    for (i, part) in [hiss(1_000, 60.0), speech(1_500), hiss(1_000, 60.0)]
+        .iter()
+        .enumerate()
+    {
+        let now = [1_000, 2_500, 3_500][i];
+        found.extend(endpointer.push_at(part, now));
+    }
+    assert_eq!(found.len(), 1);
+    assert!((found[0].start_ms - 1_000).abs() <= 120);
+}

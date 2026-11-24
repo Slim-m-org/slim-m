@@ -59,6 +59,8 @@ pub struct Control {
     launcher: Arc<dyn Launcher>,
     connected: Arc<AtomicBool>,
     silence: Duration,
+    /// One voice-message clip at a time, so retries of an abandoned one cannot crowd out calls.
+    clips: Arc<tokio::sync::Semaphore>,
 }
 
 /// Holds the single control slot; dropping it frees the slot, however the
@@ -125,6 +127,7 @@ impl Control {
             launcher,
             connected: Arc::new(AtomicBool::new(false)),
             silence: SILENCE_LIMIT,
+            clips: Arc::new(tokio::sync::Semaphore::new(1)),
         }
     }
 
@@ -136,6 +139,12 @@ impl Control {
 
     pub(crate) fn config(&self) -> &Config {
         &self.config
+    }
+
+    pub(crate) async fn clip_turn(
+        &self,
+    ) -> Result<tokio::sync::OwnedSemaphorePermit, tokio::sync::AcquireError> {
+        Arc::clone(&self.clips).acquire_owned().await
     }
 
     pub(crate) fn pool(&self) -> &Pool {
@@ -212,10 +221,14 @@ async fn serve(control: &Control, mut socket: WebSocket) {
         return;
     }
     let mut sessions = Sessions::default();
+    let silence = tokio::time::sleep(control.silence);
+    tokio::pin!(silence);
     loop {
         tokio::select! {
-            incoming = tokio::time::timeout(control.silence, socket.recv()) => {
-                let Ok(Some(Ok(frame))) = incoming else { break };
+            () = &mut silence => break,
+            incoming = socket.recv() => {
+                let Some(Ok(frame)) = incoming else { break };
+                silence.as_mut().reset(tokio::time::Instant::now() + control.silence);
                 match frame {
                     Message::Text(text) => {
                         if !handle(control, text.as_str(), &reports, &mut sessions, &mut socket).await {
@@ -230,13 +243,21 @@ async fn serve(control: &Control, mut socket: WebSocket) {
                 if let Report::Ended { session, .. } = &report {
                     sessions.retire(session);
                 }
-                if socket.send(Message::text(protocol::encode(&report))).await.is_err() {
+                if !send_within(&mut socket, control.silence, Message::text(protocol::encode(&report))).await {
                     break;
                 }
             }
         }
     }
     sessions.leave_everything().await;
+}
+
+/// Whether `message` went out in time; a peer that stopped reading counts as gone.
+async fn send_within(socket: &mut WebSocket, limit: Duration, message: Message) -> bool {
+    matches!(
+        tokio::time::timeout(limit, socket.send(message)).await,
+        Ok(Ok(()))
+    )
 }
 
 /// Applies one command; false closes the connection.
