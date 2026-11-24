@@ -58,7 +58,7 @@ pub(super) async fn upload_avatar(
     )?;
 
     let user_id = ctx.user_id.to_string();
-    let body = media::fit_profile_image(body.to_vec(), media::AVATAR_SIDE).await;
+    let body = media::fit_profile_image(body.to_vec(), media::AVATAR_SIDE).await?;
     let _guard = state.media.profile_guard().await;
     state
         .media

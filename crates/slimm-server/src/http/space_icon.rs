@@ -63,7 +63,7 @@ async fn upload_icon(
             too_large: "icon must be at most 4096 pixels on a side",
         },
     )?;
-    let body = crate::media::fit_profile_image(body.to_vec(), crate::media::AVATAR_SIDE).await;
+    let body = crate::media::fit_profile_image(body.to_vec(), crate::media::AVATAR_SIDE).await?;
     state.media.write_space_icon(body).await.map_err(|err| {
         tracing::error!(error = %err, "failed to write the space icon");
         ApiError::Internal

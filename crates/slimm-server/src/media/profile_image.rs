@@ -19,11 +19,18 @@ pub const BANNER_SIDE: u32 = 1280;
 const JPEG_QUALITY: u8 = 88;
 
 /// `bytes` fitted within `max_side`; a picture already that small, a moving one, or one that
-/// cannot be re-encoded is returned as it came.
-pub async fn fit_profile_image(bytes: Vec<u8>, max_side: u32) -> Vec<u8> {
-    tokio::task::spawn_blocking(move || shrink(bytes, max_side))
+/// cannot be re-encoded is returned as it came. A decoder that panics is an error, never an empty picture.
+pub async fn fit_profile_image(bytes: Vec<u8>, max_side: u32) -> anyhow::Result<Vec<u8>> {
+    fit_with(bytes, move |bytes| shrink(bytes, max_side)).await
+}
+
+async fn fit_with(
+    bytes: Vec<u8>,
+    work: impl FnOnce(Vec<u8>) -> Vec<u8> + Send + 'static,
+) -> anyhow::Result<Vec<u8>> {
+    tokio::task::spawn_blocking(move || work(bytes))
         .await
-        .unwrap_or_default()
+        .map_err(|err| anyhow::anyhow!("profile image resize task failed: {err}"))
 }
 
 fn shrink(bytes: Vec<u8>, max_side: u32) -> Vec<u8> {
@@ -80,6 +87,18 @@ mod tests {
     fn a_small_picture_is_left_alone() {
         let small = png(300);
         assert_eq!(shrink(small.clone(), AVATAR_SIDE), small);
+    }
+
+    #[tokio::test]
+    async fn a_panicking_resize_is_an_error_not_an_empty_picture() {
+        let result = fit_with(png(10), |_| panic!("decoder blew up")).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn a_resize_that_succeeds_returns_its_bytes() {
+        let kept = fit_with(png(10), |bytes| bytes).await.expect("fits");
+        assert_eq!(kept, png(10));
     }
 
     #[test]

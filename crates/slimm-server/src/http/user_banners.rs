@@ -45,7 +45,7 @@ pub(super) async fn upload_banner(
     })?;
 
     let user_id = ctx.user_id.to_string();
-    let body = media::fit_profile_image(body.to_vec(), media::BANNER_SIDE).await;
+    let body = media::fit_profile_image(body.to_vec(), media::BANNER_SIDE).await?;
     let _guard = state.media.profile_guard().await;
     state
         .media
