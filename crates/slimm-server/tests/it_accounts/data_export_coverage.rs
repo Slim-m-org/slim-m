@@ -216,9 +216,7 @@ const DECISIONS: &[(&str, &str, Fate)] = &[
     (
         "poll_rankings",
         "user_id",
-        Fate::Excluded(
-            "a ranked ballot's later choices are not in the first format; its first choice is in poll_votes.jsonl",
-        ),
+        Fate::Exported("poll_votes.jsonl"),
     ),
     ("poll_votes", "user_id", Fate::Exported("poll_votes.jsonl")),
     ("polls", "created_by", Fate::Excluded(BOT_CONFIG)),

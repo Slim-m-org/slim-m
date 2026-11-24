@@ -13,9 +13,7 @@ const SWEEP_INTERVAL: Duration = Duration::from_secs(10 * 60);
 /// Runs [`sweep_exports_once`] on a timer for the life of the process.
 pub fn spawn_export_sweep(store: Store, media: Media) {
     tokio::spawn(async move {
-        if let Err(err) = store.fail_interrupted_exports().await {
-            tracing::warn!(%err, "could not fail interrupted exports");
-        }
+        resume_interrupted_exports(&store, &media).await;
         let mut ticker = tokio::time::interval(SWEEP_INTERVAL);
         loop {
             ticker.tick().await;
@@ -24,6 +22,29 @@ pub fn spawn_export_sweep(store: Store, media: Media) {
             }
         }
     });
+}
+
+/// Re-runs every export a restart cut short; a row too old to matter is failed by the staleness rule.
+async fn resume_interrupted_exports(store: &Store, media: &Media) {
+    let jobs = match store.requeue_interrupted_exports().await {
+        Ok(jobs) => jobs,
+        Err(err) => {
+            tracing::warn!(%err, "could not requeue interrupted exports");
+            return;
+        }
+    };
+    for export in jobs {
+        let _ = media.remove_export(&export.id.to_string()).await;
+        super::spawn(
+            store.clone(),
+            media.clone(),
+            super::Job {
+                id: export.id,
+                user_id: export.user_id,
+                kind: export.kind,
+            },
+        );
+    }
 }
 
 /// Expires due archives and removes files no queued, running or ready job owns.
