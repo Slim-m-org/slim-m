@@ -253,10 +253,11 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
     final voice = ref.read(voiceControllerProvider.notifier);
     final sync = ref.read(syncControllerProvider.notifier);
     final push = ref.read(pushControllerProvider.notifier);
+    final keepPushKey = otherAccountNeedsPushKey(ref.read);
     // Otherwise a live call keeps heartbeating a session about to be deleted.
     await voice.leave();
     await sync.stop();
-    await unregisterPushVia(ref.read);
+    await push.unregister(keepDeviceKey: keepPushKey);
     try {
       await ref
           .read(settingsActionsProvider)

@@ -76,15 +76,17 @@ void startAccountServices(ProviderContainer container) {
 /// Reads a provider; both a [WidgetRef] and a [ProviderContainer] offer it.
 typedef ProviderReader = T Function<T>(ProviderListenable<T> provider);
 
+/// Whether another signed-in account on this device still needs the device-wide push key.
+bool otherAccountNeedsPushKey(ProviderReader read) =>
+    read(
+      accountHostProvider,
+    )?.otherAccountSignedIn(read(accountSlotProvider)) ??
+    false;
+
 /// Unregisters this account's push, keeping the device-wide key while another account still uses it.
-Future<void> unregisterPushVia(ProviderReader read) {
-  final host = read(accountHostProvider);
-  final keepKey =
-      host?.otherAccountSignedIn(read(accountSlotProvider)) ?? false;
-  return read(
-    pushControllerProvider.notifier,
-  ).unregister(keepDeviceKey: keepKey);
-}
+Future<void> unregisterPushVia(ProviderReader read) => read(
+  pushControllerProvider.notifier,
+).unregister(keepDeviceKey: otherAccountNeedsPushKey(read));
 
 /// Push is unregistered before the session goes, or this device keeps waking
 /// for an account that is no longer signed in on it.
