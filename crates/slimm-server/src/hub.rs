@@ -266,8 +266,10 @@ impl Hub {
     }
 
     /// Called by the block and unblock handlers once the change has committed.
+    /// A block also rewrites the DM grant, so cached permissions go stale with it.
     pub fn blocks_changed(&self) {
         self.blocks_epoch.fetch_add(1, Ordering::Release);
+        self.permissions_epoch.fetch_add(1, Ordering::Release);
     }
 
     /// Subscribes a new connection to the durable event stream: messages,

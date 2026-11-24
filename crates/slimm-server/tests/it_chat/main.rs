@@ -6,6 +6,7 @@ mod support;
 
 mod attachment_text_plan;
 mod attachments;
+mod blocked_mentions;
 mod dm_activity;
 mod dm_canvas;
 mod dm_channels_rebuild;
