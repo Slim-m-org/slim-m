@@ -31,10 +31,15 @@ use crate::store::{PublishError, SpaceTheme};
 /// larger than the bytes it carries.
 const BODY_LIMIT_BYTES: usize = (MAX_PICTURE_BYTES / 3) * 4 + 65_536;
 
-pub fn routes() -> Router<AppState> {
+/// Listing and publishing, mounted apart from [`routes`] because a picture needs a longer request timeout.
+pub fn publish_routes() -> Router<AppState> {
     Router::new()
         .route("/space/themes", get(list).post(publish))
         .route_layer(DefaultBodyLimit::max(BODY_LIMIT_BYTES))
+}
+
+pub fn routes() -> Router<AppState> {
+    Router::new()
         .route("/space/themes/{theme_id}", axum::routing::delete(remove))
         .route("/space/themes/{theme_id}/picture", get(picture))
         .route("/space/default-theme", put(set_default))

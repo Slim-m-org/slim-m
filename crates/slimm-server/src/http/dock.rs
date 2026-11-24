@@ -292,6 +292,11 @@ impl Enabled {
     }
 }
 
+/// The package preview, install and export routes, mounted apart from [`routes`] for their longer request timeout.
+pub fn package_routes() -> Router<AppState> {
+    dock_package::routes()
+}
+
 /// The Dock routes, mounted by [`super::router`].
 pub fn routes() -> Router<AppState> {
     Router::new()
@@ -319,7 +324,6 @@ pub fn routes() -> Router<AppState> {
             axum::routing::delete(remove_source),
         )
         .layer(DefaultBodyLimit::max(BODY_LIMIT))
-        .merge(dock_package::routes())
         .route(
             "/space/dock/modules/{id}/settings",
             get(get_settings)
