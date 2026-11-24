@@ -4,6 +4,7 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/features/voice/providers/voice_join_muted.dart';
 import 'package:slimm_app/src/providers/toasts.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/routing/routes.dart';
@@ -27,6 +28,7 @@ Future<List<String>> _hangUp(
     httpClient: quietClient(),
     signedIn: true,
     extraOverrides: [
+      channelJoinMutedProvider.overrideWithValue((_) async => false),
       voiceControllerProvider.overrideWith(
         (ref) => voice = FakeVoiceController(
           ref,

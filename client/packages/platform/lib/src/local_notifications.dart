@@ -23,6 +23,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
+import 'browser_attention.dart';
 import 'host_platform.dart';
 
 const messagesChannelId = 'messages_v1';
@@ -198,7 +199,9 @@ class LocalNotifications {
     AndroidPermissionRequester? permissionRequester,
     Future<void> Function(String? payload)? onActivated,
     MethodChannel? windowsToasts,
+    BrowserAttention? browser,
   })  : _onActivated = onActivated,
+        _browser = browser,
         _windowsToasts =
             windowsToasts ?? const MethodChannel(windowsToastsChannelName),
         _plugin = plugin ?? FlutterLocalNotificationsPlugin(),
@@ -212,6 +215,7 @@ class LocalNotifications {
   final bool _isAndroid;
   final bool _isLinux;
   final bool _isWindows;
+  BrowserAttention? _browser;
 
   /// Called when the person clicks a notification, with the payload it was shown with.
   final Future<void> Function(String? payload)? _onActivated;
@@ -225,6 +229,12 @@ class LocalNotifications {
   /// middle of assigning. Built lazily in requestPermission instead.
   final AndroidPermissionRequester? _permissionRequester;
   bool _ready = false;
+
+  /// The launching tap belongs to the process, not to any one account container.
+  static bool _launchPayloadTaken = false;
+
+  @visibleForTesting
+  static void resetLaunchPayloadTakenForTest() => _launchPayloadTaken = false;
 
   /// Creates every [LocalAlertChannel] and initializes the plugin. Every
   /// call here is idempotent on the native side, so calling this more than
@@ -304,6 +314,14 @@ class LocalNotifications {
     String? payload,
     int? id,
   }) async {
+    if (kIsWeb) {
+      return _showInBrowser(
+        text,
+        title: title,
+        payload: payload,
+        id: id ?? channel.notificationId,
+      );
+    }
     if (!_supported) return;
     await _ensureReady();
     await _plugin.show(
@@ -329,6 +347,21 @@ class LocalNotifications {
         ),
       ),
       payload: payload,
+    );
+  }
+
+  Future<void> _showInBrowser(
+    String text, {
+    required String? title,
+    required String? payload,
+    required int id,
+  }) async {
+    (_browser ??= BrowserAttention()).notify(
+      title ?? 'slim-m',
+      text,
+      tag: '$id',
+      onClick: () =>
+          unawaited(_onActivated?.call(payload) ?? Future<void>.value()),
     );
   }
 
@@ -359,6 +392,19 @@ class LocalNotifications {
       AppLog.swallowed(
           LogTag.push, 'Could not take a toast down', error, stack);
     }
+  }
+
+  /// The payload of the notification whose tap launched this process, or null when it was not launched by one.
+  ///
+  /// Android only. It also initializes the plugin in the main isolate, which is what makes later taps reach `onActivated`.
+  Future<String?> launchPayload() async {
+    if (!_isAndroid) return null;
+    await _ensureReady();
+    if (_launchPayloadTaken) return null;
+    _launchPayloadTaken = true;
+    final details = await _plugin.getNotificationAppLaunchDetails();
+    if (details == null || !details.didNotificationLaunchApp) return null;
+    return details.notificationResponse?.payload;
   }
 
   /// Takes down the notifications this app is showing whose id is in [staleIds], leaving every other one up.

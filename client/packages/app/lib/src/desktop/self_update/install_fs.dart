@@ -3,6 +3,8 @@
 library;
 
 import 'dart:io';
+
+import 'package:path/path.dart' as p;
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// Deletes [entity] recursively; a locked or already-gone entry is left for the next cleanup pass.
@@ -19,6 +21,17 @@ void safeDelete(FileSystemEntity entity) {
     return;
   }
 }
+
+/// The folder directly under [root] that holds [executable], or null when it runs from elsewhere.
+String? runningFolderName(String root, String executable) =>
+    p.isWithin(root, executable)
+    ? p.split(p.relative(executable, from: root)).first
+    : null;
+
+/// Whether anything, even an unreadable pointer, sits at [path].
+bool pointerExists(String path) =>
+    FileSystemEntity.typeSync(path, followLinks: false) !=
+    FileSystemEntityType.notFound;
 
 /// Tells the launcher this run reached the app, so it is not counted as a failed start.
 void markStarted(File pending, File started) {

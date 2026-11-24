@@ -227,8 +227,8 @@ class _RosterPoller {
       );
       dispose();
       unawaited(_controller.close());
-    } on api.ApiException catch (e) {
-      // Unavailable, forbidden, rate-limited: try again, unless this has gone on long enough to say so.
+    } on Object catch (e) {
+      // Unavailable, forbidden, rate-limited or an unreadable body: try again, unless this has gone on long enough to say so.
       _consecutiveFailures++;
       if (_consecutiveFailures >= persistentRosterFailureThreshold &&
           !_controller.isClosed) {

@@ -101,9 +101,16 @@ class CallAudioController
     final version = ++_version;
     try {
       final status = await _api.callAudio(channelId);
-      if (!_disposed && version == _version) {
-        state = state.copyWith(status: status);
-      }
+      if (_disposed) return;
+      state = state.copyWith(
+        status: version == _version
+            ? status
+            : api.CallAudioStatus(
+                session: state.status.session,
+                startable: status.startable,
+                transcribable: status.transcribable,
+              ),
+      );
     } on api.ApiException catch (error, stack) {
       api.AppLog.swallowed(
         api.LogTag.voice,
@@ -134,10 +141,16 @@ class CallAudioController
   });
 
   Future<void> _act(Future<api.CallAudioStatus?> Function() call) async {
+    if (state.busy) return;
     state = state.copyWith(busy: true, clearError: true);
+    final version = _version;
     try {
       final status = await call();
       if (_disposed) return;
+      if (version != _version) {
+        state = state.copyWith(busy: false);
+        return;
+      }
       _version++;
       state = state.copyWith(
         busy: false,

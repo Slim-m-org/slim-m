@@ -8,7 +8,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
-import 'package:slimm_data/data.dart';
+import 'package:slimm_data/data.dart' hide Message;
 
 import '../features/channels/providers/category_nesting.dart';
 import '../features/channels/providers/channel_refresher.dart';
@@ -143,6 +143,9 @@ class SyncController extends StateNotifier<SyncStatus> {
   /// Every event this session receives, for anything that wants to react to
   /// one live rather than re-deriving it from the local store.
   Stream<ServerEvent> get liveEvents => _liveEvents.stream;
+
+  /// The messages each reconnect's catch-up stored, for alerts the live socket never raised.
+  Stream<List<Message>> get caughtUpMessages => _catchUp.reconnectBatches;
 
   /// Tells the server this user is typing in a channel.
   ///
@@ -321,6 +324,7 @@ class SyncController extends StateNotifier<SyncStatus> {
 
       _reconnector.connected();
       state = SyncStatus.live;
+      _catchUp.endBatch(reconnect: _wasLive);
       afterSyncLive(
         _ref,
         store,
@@ -456,6 +460,8 @@ class SyncController extends StateNotifier<SyncStatus> {
   /// The session ended, whichever way: stop syncing, then clear what belongs to it.
   Future<void> _endSession() async {
     await stop();
+    _wasLive = false;
+    _catchUp.discardBatch();
     await clearSessionState(_ref);
   }
 
@@ -484,6 +490,7 @@ class SyncController extends StateNotifier<SyncStatus> {
         if (generation != _generation) return;
         try {
           await _catchUp.run(generation, api, store);
+          _catchUp.discardBatch();
         } catch (error, stack) {
           reportFailure(LogTag.sync, 'catch up with the server', error, stack);
           if (generation == _generation) _onDropped();
@@ -505,6 +512,7 @@ class SyncController extends StateNotifier<SyncStatus> {
     _reconnector.cancelRetry();
     unawaited(_teardown());
     unawaited(_liveEvents.close());
+    _catchUp.dispose();
     super.dispose();
   }
 }

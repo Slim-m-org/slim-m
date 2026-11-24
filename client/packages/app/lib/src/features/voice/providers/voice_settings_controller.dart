@@ -45,6 +45,7 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
 
   Future<void> _load() async {
     final prefs = await _ref.read(preferencesProvider.future);
+    if (!mounted) return;
     final storedQuality = prefs.getString(VoiceSettingKeys.quality);
     final storedKeyId = prefs.getInt(VoiceSettingKeys.pushToTalkKeyId);
     if (prefs.getBool(VoiceSettingKeys.pushToTalkEnabled) ?? false) {

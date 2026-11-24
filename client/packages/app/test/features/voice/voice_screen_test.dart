@@ -13,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_join_muted.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_roster.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
@@ -206,6 +207,7 @@ ProviderContainer _connectedContainer({required bool isCameraOn}) =>
           ref.onDispose(api.close);
           return api;
         }),
+        channelJoinMutedProvider.overrideWithValue((_) async => false),
         voiceControllerProvider.overrideWith(
           (ref) => VoiceController(
             ref,
@@ -250,6 +252,7 @@ void main() {
             ref.onDispose(api.close);
             return api;
           }),
+          channelJoinMutedProvider.overrideWithValue((_) async => false),
           voiceControllerProvider.overrideWith(
             (ref) => VoiceController(ref, session: _NoopSession()),
           ),
@@ -295,6 +298,7 @@ void main() {
             ref.onDispose(api.close);
             return api;
           }),
+          channelJoinMutedProvider.overrideWithValue((_) async => false),
           voiceControllerProvider.overrideWith(
             (ref) => VoiceController(ref, session: _NoopSession()),
           ),
@@ -352,6 +356,7 @@ void main() {
               headers: {'content-type': 'application/json'},
             );
           }),
+          channelJoinMutedProvider.overrideWithValue((_) async => false),
           voiceControllerProvider.overrideWith(
             (ref) => VoiceController(ref, session: _NoopSession()),
           ),

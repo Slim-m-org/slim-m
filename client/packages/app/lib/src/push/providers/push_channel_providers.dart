@@ -34,14 +34,16 @@ final taskbarAttentionProvider = Provider<TaskbarAttention>(
 /// asking for runtime permission to use it. A provider, for the same reason
 /// as the two above - a test can substitute one that reports "denied"
 /// without a real Android device or plugin channel behind it.
-final localNotificationsProvider = Provider<LocalNotifications>(
-  (ref) => LocalNotifications(
+final localNotificationsProvider = Provider<LocalNotifications>((ref) {
+  // Captured now: the plugin keeps the last handler, which can outlive this container.
+  final shell = ref.read(desktopWindowShellProvider);
+  final host = ref.read(accountHostProvider);
+  return LocalNotifications(
     onActivated: (payload) async {
-      await ref.read(desktopWindowShellProvider).raise();
-      final host = ref.read(accountHostProvider);
+      await shell.raise();
       final target = NotificationTarget.decode(payload);
       if (host == null || target == null) return;
       await openChannelOnOwner(host, target.channelId, origin: target.origin);
     },
-  ),
-);
+  );
+});

@@ -38,12 +38,24 @@ class SoundboardPlayer {
           controller.volumes.volumeFor(event.playerId),
         ) *
         perceptualParticipantGain(_ref.read(soundboardVolumeProvider));
-    unawaited(_play(event.clipId, volume.clamp(0.0, 1.0)));
+    unawaited(
+      _play(
+        event,
+        volume.clamp(0.0, 1.0),
+        generation: controller.callGeneration,
+      ),
+    );
   }
 
-  Future<void> _play(String clipId, double volume) async {
+  Future<void> _play(
+    api.SoundboardPlayed event,
+    double volume, {
+    required int generation,
+  }) async {
+    final clipId = event.clipId;
     try {
       final audio = await _ref.read(soundClipAudioProvider(clipId).future);
+      if (!_stillInCall(event.channelId, generation)) return;
       await _ref
           .read(soundClipPlayerProvider)
           .play(audio.bytes, mimeType: audio.contentType, volume: volume);
@@ -58,6 +70,15 @@ class SoundboardPlayer {
         stack: stack,
       );
     }
+  }
+
+  /// A slow download must not play into a call that ended or a listener who deafened meanwhile.
+  bool _stillInCall(String channelId, int generation) {
+    final voice = _ref.read(voiceControllerProvider);
+    final controller = _ref.read(voiceControllerProvider.notifier);
+    return voice.channelId == channelId &&
+        !voice.deafened &&
+        controller.callGeneration == generation;
   }
 }
 
