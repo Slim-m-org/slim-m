@@ -37,7 +37,9 @@ fi
 rm -rf "${root:?}"
 
 if [ "$remove_data" = 1 ]; then
-  rm -rf "${data:?}/top.npcserver.slimm" "${data:?}/top.npcserver"
+  rm -rf "${data:?}/top.npcserver.slimm" "${data:?}/top.npcserver/slim-m" "${data:?}/top.npcserver/slimm"
+  # The company folder is shared, so it goes only once nothing else lives in it.
+  rmdir "$data/top.npcserver" 2>/dev/null || true
 fi
 
 echo "removed slim-m from $root"

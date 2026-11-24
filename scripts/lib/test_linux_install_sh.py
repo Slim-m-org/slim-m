@@ -118,6 +118,22 @@ class LinuxUninstallScript(unittest.TestCase):
         self.assertEqual(self._uninstall(home, "--remove-data").returncode, 0)
         self.assertFalse((home / ".local/share/top.npcserver.slimm").exists())
 
+    def test_remove_data_leaves_other_files_in_the_shared_folder(self):
+        home = self._installed()
+        shared = home / ".local/share/top.npcserver"
+        (shared / "slim-m").mkdir(parents=True)
+        (shared / "other-app").mkdir()
+        self.assertEqual(self._uninstall(home, "--remove-data").returncode, 0)
+        self.assertTrue((shared / "other-app").is_dir())
+        self.assertFalse((shared / "slim-m").exists())
+
+    def test_remove_data_removes_the_shared_folder_once_empty(self):
+        home = self._installed()
+        shared = home / ".local/share/top.npcserver"
+        (shared / "slim-m").mkdir(parents=True)
+        self.assertEqual(self._uninstall(home, "--remove-data").returncode, 0)
+        self.assertFalse(shared.exists())
+
     def test_a_launcher_link_that_is_not_ours_stays(self):
         home = self._installed()
         link = home / ".local/bin/slim-m"
