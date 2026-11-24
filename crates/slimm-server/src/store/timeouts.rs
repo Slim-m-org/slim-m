@@ -67,6 +67,18 @@ pub struct MemberTimeout {
     pub issued_at: i64,
 }
 
+/// What applying a timeout left in force.
+#[derive(Debug, Clone, Copy)]
+pub struct TimeoutApplied {
+    pub until: i64,
+    pub changed: bool,
+}
+
+/// How long after issuing a timeout the same one again counts as a replay.
+const REPLAY_WINDOW_MS: i64 = 30_000;
+/// How far a replay's recomputed length may differ from the stored one.
+const REPLAY_LENGTH_SLACK_MS: i64 = 5_000;
+
 impl Store {
     /// Applies a timeout, replacing any timeout already on this member.
     /// Answers whether anything changed: the same deadline and reason again
@@ -85,11 +97,30 @@ impl Store {
         reason: Option<&str>,
         issued_by: UserId,
     ) -> Result<bool, TimeoutError> {
+        Ok(self
+            .apply_member_timeout(user_id, until, reason, issued_by)
+            .await?
+            .changed)
+    }
+
+    /// [`Self::set_member_timeout`], also answering the deadline now in force.
+    ///
+    /// A client replays the request after a dropped reply with a deadline
+    /// recomputed from the clock; one from the same moderator, with the same
+    /// reason and length, shortly after the first, is that replay and keeps the
+    /// stored deadline.
+    pub async fn apply_member_timeout(
+        &self,
+        user_id: UserId,
+        until: i64,
+        reason: Option<&str>,
+        issued_by: UserId,
+    ) -> Result<TimeoutApplied, TimeoutError> {
         let now = now_ms();
         let mut tx = self.begin_write().await?;
-        let changed = timeout_one(&mut tx, user_id, until, reason, issued_by, now).await?;
+        let applied = timeout_one(&mut tx, user_id, until, reason, issued_by, now).await?;
         tx.commit().await?;
-        Ok(changed)
+        Ok(applied)
     }
 
     /// Lifts a timeout. Idempotent: lifting one that already expired, or one
@@ -229,7 +260,7 @@ pub(super) async fn timeout_one(
     reason: Option<&str>,
     issued_by: UserId,
     now: i64,
-) -> Result<bool, TimeoutError> {
+) -> Result<TimeoutApplied, TimeoutError> {
     let exists = sqlx::query_scalar!(
         r#"SELECT 1 AS "one!: i64" FROM users WHERE id = ? AND deleted_at IS NULL"#,
         user_id
@@ -240,13 +271,24 @@ pub(super) async fn timeout_one(
         return Err(TimeoutError::UserNotFound);
     }
     let current = sqlx::query!(
-        "SELECT until, reason FROM member_timeouts WHERE user_id = ?",
+        r#"SELECT until, reason, issued_by AS "issued_by: UserId", issued_at
+           FROM member_timeouts WHERE user_id = ?"#,
         user_id
     )
     .fetch_optional(&mut *tx)
     .await?;
-    if current.is_some_and(|row| row.until == until && row.reason.as_deref() == reason) {
-        return Ok(false);
+    if let Some(row) = current
+        && row.reason.as_deref() == reason
+    {
+        let replay = row.issued_by == Some(issued_by)
+            && now - row.issued_at <= REPLAY_WINDOW_MS
+            && ((until - now) - (row.until - row.issued_at)).abs() <= REPLAY_LENGTH_SLACK_MS;
+        if row.until == until || replay {
+            return Ok(TimeoutApplied {
+                until: row.until,
+                changed: false,
+            });
+        }
     }
     sqlx::query!(
         "INSERT INTO member_timeouts (user_id, until, reason, issued_by, issued_at)
@@ -277,5 +319,8 @@ pub(super) async fn timeout_one(
         },
     )
     .await?;
-    Ok(true)
+    Ok(TimeoutApplied {
+        until,
+        changed: true,
+    })
 }

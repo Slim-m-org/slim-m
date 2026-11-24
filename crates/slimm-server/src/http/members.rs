@@ -155,21 +155,21 @@ async fn apply_timeout(
     let until = now_ms() + duration_ms;
 
     let reason = validate_reason(req.reason.as_deref(), false)?;
-    let changed = state
+    let applied = state
         .store
-        .set_member_timeout(target, until, reason.as_deref(), ctx.user_id)
+        .apply_member_timeout(target, until, reason.as_deref(), ctx.user_id)
         .await?;
-    if changed {
+    if applied.changed {
         state.hub.publish(Event::MemberTimeoutChanged {
             user_id: target,
-            until: Some(until),
+            until: Some(applied.until),
         });
         evict_from_voice(&state, target).await;
     }
 
     Ok(Json(TimeoutDto {
         user_id: target.to_string(),
-        until,
+        until: applied.until,
     }))
 }
 
@@ -228,10 +228,11 @@ async fn remove_member(
     let reason = validate_reason(req.reason.as_deref(), false)?;
     match state
         .store
-        .remove_from_space(target, ctx.user_id, reason.as_deref())
+        .apply_removal(target, ctx.user_id, reason.as_deref())
         .await
     {
-        Ok(revoked) => super::session_revocation::sessions_revoked_by_id(&state, revoked),
+        Ok(Some(revoked)) => super::session_revocation::sessions_revoked_by_id(&state, revoked),
+        Ok(None) => return Ok(StatusCode::NO_CONTENT),
         Err(RemoveMemberError::UserNotFound) => return Err(ApiError::NotFound("no such member")),
         Err(RemoveMemberError::LastAdministrator) => {
             return Err(ApiError::Conflict(
@@ -256,8 +257,8 @@ pub(in crate::http) async fn announce_member_gone(state: &AppState, target: User
     evict_from_voice(state, target).await;
 }
 
-/// Lets a removed member back in. Requires BAN_MEMBERS. 404 if they were not
-/// removed, so a caller can tell an undo from a no-op.
+/// Lets a removed member back in. Requires BAN_MEMBERS. Restoring one who is
+/// not removed is a no-op success, so the client's replay of an undo succeeds.
 ///
 /// A removed member keeps their roles, so this is gated like the removal itself.
 async fn restore_member(
@@ -272,10 +273,8 @@ async fn restore_member(
 
     if state.store.restore_to_space(target, ctx.user_id).await? {
         state.hub.publish(Event::MemberRestored(target));
-        Ok(StatusCode::NO_CONTENT)
-    } else {
-        Err(ApiError::NotFound("that member is not removed"))
     }
+    Ok(StatusCode::NO_CONTENT)
 }
 
 /// Deletes somebody else's account outright, the way they could delete their
@@ -326,7 +325,7 @@ async fn delete_member_account(
                 "that is the only administrator; appoint another before deleting it",
             ));
         }
-        Err(DeleteAccountError::UserNotFound) => return Err(ApiError::NotFound("no such member")),
+        Err(DeleteAccountError::UserNotFound) => return Ok(StatusCode::NO_CONTENT),
         Err(DeleteAccountError::Internal(e)) => return Err(e.into()),
     };
     deleted_account::finish_closed_account(&state, target, closed).await;

@@ -147,18 +147,16 @@ async fn list_devices(
 }
 
 /// Signs a device out. Only ever your own: a device on someone else's account
-/// is reported as missing, so this cannot be used to probe for or evict others.
+/// answers the same 204 as one already gone, so this cannot probe for or evict others.
 async fn remove_device(
     AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path(device_id): Path<String>,
     State(state): State<AppState>,
 ) -> Result<StatusCode, ApiError> {
     let device_id = DeviceId(parse_uuid(&device_id)?);
-    let revoked = state
-        .store
-        .remove_device(ctx.user_id, device_id)
-        .await?
-        .ok_or(ApiError::NotFound("device not found"))?;
+    let Some(revoked) = state.store.remove_device(ctx.user_id, device_id).await? else {
+        return Ok(StatusCode::NO_CONTENT);
+    };
 
     super::session_revocation::sessions_revoked(&state, ctx.user_id, &revoked);
     Ok(StatusCode::NO_CONTENT)

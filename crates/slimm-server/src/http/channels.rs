@@ -20,7 +20,8 @@ use axum::Router;
 use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::StatusCode;
 use axum::http::request::Parts;
-use axum::routing::{get, patch};
+use axum::middleware::from_fn;
+use axum::routing::{get, patch, post};
 use serde::Deserialize;
 
 pub(crate) use self::channel_dto::ChannelDto;
@@ -34,6 +35,7 @@ use super::category_sight::CategorySight;
 use super::error::ApiError;
 use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce};
 use super::messages::parse_uuid;
+use super::post_commit::run_to_completion;
 use crate::hub::Event;
 use crate::ids::{ChannelCategoryId, ChannelId, UserId};
 use crate::permissions::Permissions;
@@ -56,7 +58,10 @@ const CHANNEL_BODY_LIMIT: usize = 4 * 1024;
 /// The channel routes, mounted by [`super::router`].
 pub fn routes() -> Router<AppState> {
     Router::new()
-        .route("/channels", get(list).post(create))
+        .route(
+            "/channels",
+            get(list).merge(post(create).layer(from_fn(run_to_completion))),
+        )
         .route("/channels/{channel_id}", patch(update).delete(delete))
         .layer(DefaultBodyLimit::max(CHANNEL_BODY_LIMIT))
 }

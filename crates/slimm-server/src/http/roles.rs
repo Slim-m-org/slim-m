@@ -33,7 +33,8 @@ use axum::Router;
 use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::StatusCode;
 use axum::http::request::Parts;
-use axum::routing::{get, patch, put};
+use axum::middleware::from_fn;
+use axum::routing::{get, patch, post, put};
 use serde::{Deserialize, Serialize};
 
 use super::AppState;
@@ -42,6 +43,7 @@ use super::escalation::escalation_guard;
 use super::extract::require_manage_roles;
 use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce};
 use super::messages::parse_uuid;
+use super::post_commit::run_to_completion;
 use super::space::present;
 use crate::hub::{Event, RoleChange};
 use crate::ids::{RoleId, UserId};
@@ -62,7 +64,10 @@ const BODY_LIMIT: usize = 4 * 1024;
 /// The role management routes, mounted by [`super::router`].
 pub fn routes() -> Router<AppState> {
     Router::new()
-        .route("/roles", get(list).post(create))
+        .route(
+            "/roles",
+            get(list).merge(post(create).layer(from_fn(run_to_completion))),
+        )
         .route("/roles/{role_id}", patch(update).delete(delete))
         .route(
             "/members/{user_id}/roles/{role_id}",
@@ -291,7 +296,8 @@ async fn update(
     }
 }
 
-/// Deletes a role. Refuses `@everyone` and refuses to take the deployment
+/// Deletes a role. A role already gone answers 204, so the client's replay of
+/// a delete whose reply was lost succeeds. Refuses `@everyone` and refuses to take the deployment
 /// below one administrator; both come back as 409, since either way the
 /// request collided with an invariant rather than a permission the caller
 /// simply lacks.
@@ -323,7 +329,7 @@ async fn delete(
             });
             Ok(StatusCode::NO_CONTENT)
         }
-        Ok(None) => Err(ApiError::NotFound("role not found")),
+        Ok(None) => Ok(StatusCode::NO_CONTENT),
         Err(guard_err) => Err(role_guard_error(guard_err)),
     }
 }

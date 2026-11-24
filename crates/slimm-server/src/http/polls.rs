@@ -266,10 +266,12 @@ async fn create(
 
     let content = &*validate_content(&req.content, true)?;
     refuse_hidden_poll_text(&req.question, &req.options)?;
-    validate_close_at(req.close_at, now_ms())?;
     let id = MessageId(parse_uuid(&req.id)?);
     // Never on a retry: a poll that already landed must not be refused for arriving too soon.
     let stored_already = state.store.message_including_deleted(id).await?.is_some();
+    if !stored_already {
+        validate_close_at(req.close_at, now_ms())?;
+    }
     let slow_mode_window_ms = match stored_already {
         true => None,
         false => enforce_slow_mode(&state, channel_id, ctx.user_id).await?,

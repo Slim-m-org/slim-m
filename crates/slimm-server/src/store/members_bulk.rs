@@ -52,7 +52,12 @@ impl Store {
 
         let mut revoked = Vec::new();
         for user_id in user_ids {
-            revoked.extend(remove_one(&mut tx, *user_id, removed_by, reason, now).await?);
+            revoked.extend(
+                remove_one(&mut tx, *user_id, removed_by, reason, now)
+                    .await?
+                    .into_iter()
+                    .flatten(),
+            );
         }
 
         tx.commit().await?;
@@ -82,7 +87,10 @@ impl Store {
 
         let mut changed = Vec::new();
         for user_id in user_ids {
-            if timeout_one(&mut tx, *user_id, until, reason, issued_by, now).await? {
+            if timeout_one(&mut tx, *user_id, until, reason, issued_by, now)
+                .await?
+                .changed
+            {
                 changed.push(*user_id);
             }
         }
