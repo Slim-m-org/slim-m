@@ -37,6 +37,7 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
   final _aboutFocus = FocusNode();
   late final ProviderContainer _container;
   bool _seeded = false;
+  bool _leaving = false;
 
   @override
   void initState() {
@@ -50,6 +51,7 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
   void dispose() {
     // Disposing a focused node never notifies it, so an edit still in a focused field would be lost.
     if (_seeded) {
+      _leaving = true;
       unawaited(_savePronouns());
       unawaited(_saveAbout());
     }
@@ -90,7 +92,7 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
     final text = _pronouns.text.trim();
     if (text == _savedPronouns) return;
     if (hidesTextOutsideEmoji(text)) {
-      if (mounted) setState(() => _pronounsError = hiddenCharactersRefusal);
+      if (!_leaving) setState(() => _pronounsError = hiddenCharactersRefusal);
       return;
     }
     final container = _container;
@@ -113,7 +115,7 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
     final text = _about.text.trim();
     if (text == _savedAbout) return;
     if (hidesTextOutsideEmoji(text.replaceAll('\n', ''))) {
-      if (mounted) setState(() => _aboutError = hiddenCharactersRefusal);
+      if (!_leaving) setState(() => _aboutError = hiddenCharactersRefusal);
       return;
     }
     final container = _container;
