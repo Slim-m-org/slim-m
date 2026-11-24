@@ -6,6 +6,7 @@ library;
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter/services.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -224,7 +225,7 @@ class _SettingsSearchAreaState extends State<SettingsSearchArea> {
   Widget _resultList() => ListView(
     padding: widget.padding.copyWith(top: 0),
     // Every row stays built so the cursor can scroll to one far below the fold.
-    cacheExtent: 100000,
+    scrollCacheExtent: const ScrollCacheExtent.pixels(100000),
     children: [
       Semantics(
         liveRegion: true,

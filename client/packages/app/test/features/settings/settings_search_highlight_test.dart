@@ -8,7 +8,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/settings/providers/settings_index.dart';
 import 'package:slimm_app/src/features/settings/widgets/settings_panes.dart';
 import 'package:slimm_app/src/features/settings/widgets/settings_search.dart';
-import 'package:slimm_app/src/features/settings/widgets/settings_sub_pages.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 class _Refusing implements SettingsLeaveGuard {
