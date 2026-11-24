@@ -352,6 +352,7 @@ impl From<CreateRoleError> for ApiError {
             CreateRoleError::IdConflict => {
                 ApiError::Conflict("role id already used by the @everyone role")
             }
+            CreateRoleError::NameTaken => ApiError::Conflict(super::roles::ROLE_NAME_TAKEN),
             CreateRoleError::Internal(e) => {
                 tracing::error!(error = %e, "role create failed");
                 ApiError::Internal

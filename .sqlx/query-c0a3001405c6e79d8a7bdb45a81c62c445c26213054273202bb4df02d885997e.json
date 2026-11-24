@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!: RoleId\" FROM roles WHERE is_everyone = 0\n           ORDER BY position DESC, created_at",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: RoleId",
+        "ordinal": 0,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "roles",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "c0a3001405c6e79d8a7bdb45a81c62c445c26213054273202bb4df02d885997e"
+}

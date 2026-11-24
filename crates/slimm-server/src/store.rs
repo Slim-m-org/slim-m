@@ -278,6 +278,7 @@ pub use reports::{
 pub use role_hierarchy::RoleWithCount;
 pub use role_reorder::{ReorderRolesError, RoleReorderOutcome};
 pub use role_update::RoleChanges;
+pub use roles::role_name_guard::fold_role_name;
 pub use roles::{CreateRoleError, CreatedRole, ROLE_COLOR_COUNT, Role, RoleGuardError};
 pub use safety::Device;
 pub use saved_messages::{MAX_SAVED_MESSAGES, SaveError, SavedMessage};

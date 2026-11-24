@@ -33,8 +33,7 @@ impl Store {
                 everyone_perms,
                 role_perms: vec![role.permissions],
                 role_ids: vec![role.id.0],
-                owner: false,
-                cap: Permissions::ALL,
+                ..RoleContext::none()
             },
         };
         let base = roles.base();

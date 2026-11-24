@@ -201,7 +201,8 @@ pub fn evaluate(
         base = base.remove(ow.deny).union(ow.allow);
     }
 
-    base
+    // Only a role grants ADMINISTRATOR; an overwrite row carrying it would claim a bypass it never gave.
+    base.remove(Permissions::ADMINISTRATOR)
 }
 
 /// Masks a bitmask to all-zero unless it carries VIEW_CHANNEL.
@@ -248,6 +249,24 @@ mod tests {
     /// 0011): without VIEW_CHANNEL every other bit is hidden, so a caller who
     /// cannot see the channel cannot read one permission off it; with it, the
     /// set passes through unchanged.
+    #[test]
+    fn an_overwrite_never_grants_administrator() {
+        let admin = Permissions::ADMINISTRATOR;
+        let everyone = VIEW.union(SEND);
+        let member = Overwrite {
+            allow: admin,
+            deny: SEND,
+        };
+        let result = evaluate(
+            everyone,
+            &[],
+            Some(allow(admin)),
+            &[allow(admin)],
+            Some(member),
+        );
+        assert_eq!(result, VIEW);
+    }
+
     #[test]
     fn mask_unless_viewable_hides_everything_without_view() {
         // A rich set still collapses to nothing when VIEW_CHANNEL is absent.

@@ -74,7 +74,7 @@ impl Store {
     pub async fn highest_role_position(&self, user_id: UserId) -> anyhow::Result<Option<i64>> {
         let position = sqlx::query_scalar!(
             r#"SELECT MAX(r.position) AS "position: i64" FROM member_roles mr
-               JOIN roles r ON r.id = mr.role_id WHERE mr.user_id = ?"#,
+               JOIN roles r ON r.id = mr.role_id WHERE mr.user_id = ? AND r.is_everyone = 0"#,
             user_id
         )
         .fetch_one(&self.pool)

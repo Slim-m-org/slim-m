@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO category_overwrites (category_id, target_type, target_id, allow, deny)\n         SELECT o.category_id, 'member', mr.user_id, 0, o.deny\n         FROM category_overwrites o JOIN member_roles mr ON mr.role_id = o.target_id\n         WHERE o.target_type = 'role' AND o.target_id = ? AND o.deny != 0\n         ON CONFLICT (category_id, target_type, target_id)\n         DO UPDATE SET deny = deny | (excluded.deny & ~allow)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "b7a1bad4cf9126c9d41c2aa30bef92760652f923f2caf9f25f621230b03f5be7"
+}

@@ -38,6 +38,8 @@ pub enum ReorderRolesError {
     },
     /// The order moved a role at or above the caller's highest role, or put one above it.
     AboveCaller,
+    /// The live order is no longer the one the caller started from.
+    Stale,
     Internal(anyhow::Error),
 }
 
@@ -76,13 +78,25 @@ pub(in crate::store) async fn open_bottom_slot(conn: &mut SqliteConnection) -> s
     Ok(())
 }
 
+/// The live non-`@everyone` order, top first, as [`Store::list_roles`] lists it.
+async fn live_order(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+) -> Result<Vec<RoleId>, sqlx::Error> {
+    sqlx::query_scalar!(
+        r#"SELECT id AS "id!: RoleId" FROM roles WHERE is_everyone = 0
+           ORDER BY position DESC, created_at"#
+    )
+    .fetch_all(&mut **tx)
+    .await
+}
+
 async fn top_position_in(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     user_id: UserId,
 ) -> Result<Option<i64>, sqlx::Error> {
     sqlx::query_scalar!(
         r#"SELECT MAX(r.position) AS "position: i64" FROM member_roles mr
-               JOIN roles r ON r.id = mr.role_id WHERE mr.user_id = ?"#,
+               JOIN roles r ON r.id = mr.role_id WHERE mr.user_id = ? AND r.is_everyone = 0"#,
         user_id
     )
     .fetch_one(&mut **tx)
@@ -161,7 +175,7 @@ impl Store {
         &self,
         ordered: &[RoleId],
     ) -> Result<RoleReorderOutcome, ReorderRolesError> {
-        self.reorder_roles_below(ordered, None).await
+        self.reorder_roles_below(ordered, None, None).await
     }
 
     /// [`Store::reorder_roles`] for a `caller` who must not reach above themselves (`None` for the
@@ -169,13 +183,20 @@ impl Store {
     /// order, and keep their positions and ties; only the roles below are renumbered.
     ///
     /// One write transaction from the first read, so a concurrent create or delete cannot slip
-    /// between the checks and the write.
+    /// between the checks and the write, and `expected`, the order the caller started from,
+    /// refuses the write when another reorder landed first.
     pub async fn reorder_roles_below(
         &self,
         ordered: &[RoleId],
         caller: Option<UserId>,
+        expected: Option<&[RoleId]>,
     ) -> Result<RoleReorderOutcome, ReorderRolesError> {
         let mut tx = self.begin_write().await?;
+        if let Some(expected) = expected
+            && live_order(&mut tx).await? != expected
+        {
+            return Err(ReorderRolesError::Stale);
+        }
         let live = live_non_everyone_roles(&mut tx).await?;
         validate_live_set(&live, ordered)?;
 

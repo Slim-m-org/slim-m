@@ -146,11 +146,13 @@ pub(in crate::store) async fn assign_to_bot(
     Ok(())
 }
 
-/// Removes a bot's own role with its assignment and any overwrites aimed at it.
+/// Removes a bot's own role with its assignment and any overwrites aimed at it, first copying
+/// each deny they carried onto its holders, so losing the role never opens a channel it kept shut.
 pub(in crate::store) async fn delete_managed_role(
     conn: &mut SqliteConnection,
     role_id: RoleId,
 ) -> sqlx::Result<()> {
+    keep_denies_for_holders(conn, role_id).await?;
     sqlx::query!(
         "DELETE FROM channel_overwrites WHERE target_type = 'role' AND target_id = ?",
         role_id
@@ -169,6 +171,34 @@ pub(in crate::store) async fn delete_managed_role(
     sqlx::query!("DELETE FROM roles WHERE id = ?", role_id)
         .execute(&mut *conn)
         .await?;
+    Ok(())
+}
+
+/// Adds a role's channel and category deny bits to a member overwrite for each holder, less what
+/// that member's own overwrite allows, which already beat the role's deny.
+async fn keep_denies_for_holders(conn: &mut SqliteConnection, role_id: RoleId) -> sqlx::Result<()> {
+    sqlx::query!(
+        "INSERT INTO channel_overwrites (channel_id, target_type, target_id, allow, deny)
+         SELECT o.channel_id, 'member', mr.user_id, 0, o.deny
+         FROM channel_overwrites o JOIN member_roles mr ON mr.role_id = o.target_id
+         WHERE o.target_type = 'role' AND o.target_id = ? AND o.deny != 0
+         ON CONFLICT (channel_id, target_type, target_id)
+         DO UPDATE SET deny = deny | (excluded.deny & ~allow)",
+        role_id
+    )
+    .execute(&mut *conn)
+    .await?;
+    sqlx::query!(
+        "INSERT INTO category_overwrites (category_id, target_type, target_id, allow, deny)
+         SELECT o.category_id, 'member', mr.user_id, 0, o.deny
+         FROM category_overwrites o JOIN member_roles mr ON mr.role_id = o.target_id
+         WHERE o.target_type = 'role' AND o.target_id = ? AND o.deny != 0
+         ON CONFLICT (category_id, target_type, target_id)
+         DO UPDATE SET deny = deny | (excluded.deny & ~allow)",
+        role_id
+    )
+    .execute(&mut *conn)
+    .await?;
     Ok(())
 }
 

@@ -241,3 +241,39 @@ async fn an_administrator_bypasses_the_position_ceiling() {
     let response = reorder(&app, &admin_token, &[&low, &admin_role]).await;
     assert_eq!(response.status(), StatusCode::OK);
 }
+
+/// Two managers start from one order; the second save, still on that order, is refused rather
+/// than silently putting back what the first one moved.
+#[tokio::test]
+async fn a_reorder_from_a_stale_order_is_refused() {
+    let (store, _guard) = support::new_store("slimm-role-reorder-stale").await;
+    let app = app(store.clone());
+    let (admin_token, _admin_id) = register(&store, "alice").await;
+    let low = create_role(&app, &admin_token, "low", 0).await;
+    let high = create_role(&app, &admin_token, "high", 0).await;
+    let admin_role = store.list_roles().await.unwrap()[0].id.to_string();
+    let seen = [admin_role.as_str(), low.as_str(), high.as_str()];
+
+    let stale_reorder = |order: [&str; 3]| {
+        app.clone().oneshot(request(
+            "PATCH",
+            "/roles/reorder",
+            Some(&admin_token),
+            Some(json!({ "role_ids": order, "expected_role_ids": seen })),
+        ))
+    };
+    let first = stale_reorder([&admin_role, &high, &low]).await.unwrap();
+    assert_eq!(first.status(), StatusCode::OK);
+    let second = stale_reorder([&admin_role, &low, &high]).await.unwrap();
+    assert_eq!(second.status(), StatusCode::CONFLICT);
+
+    let order: Vec<String> = store
+        .list_roles()
+        .await
+        .unwrap()
+        .into_iter()
+        .filter(|r| !r.is_everyone)
+        .map(|r| r.id.to_string())
+        .collect();
+    assert_eq!(order, [admin_role, high, low], "the first move stands");
+}
