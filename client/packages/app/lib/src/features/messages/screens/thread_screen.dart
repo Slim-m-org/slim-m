@@ -69,14 +69,11 @@ class _ThreadScreenState extends ConsumerState<ThreadScreen> {
       return;
     }
     if (!mounted) return;
-    final store = await ref.read(storeProvider.future);
     if (!parent.isThread) {
-      // The masked answer means this account cannot read the thread, so nothing cached for it may stay.
-      if ((await store.channelRow(channelId))?.parentMessageId != null) {
-        await store.removeChannel(channelId);
-      }
+      await ref.read(threadAccessProvider(channelId).future);
       return;
     }
+    final store = await ref.read(storeProvider.future);
     await store.upsertChannels([
       api.Channel(
         id: channelId,
