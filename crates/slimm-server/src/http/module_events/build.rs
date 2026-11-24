@@ -101,6 +101,7 @@ pub(super) async fn build(store: &Store, event: &Event, now_ms: i64) -> anyhow::
             message_id,
             reactors,
             moved,
+            ..
         }) => moved
             .iter()
             .map(|m| {
@@ -151,6 +152,7 @@ pub(super) async fn build(store: &Store, event: &Event, now_ms: i64) -> anyhow::
             message_id,
             options,
             runoff,
+            ..
         }) => vec![Built {
             id: format!("poll-vote:{message_id}:{now_ms}"),
             created: None,

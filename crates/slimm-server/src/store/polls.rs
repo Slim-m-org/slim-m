@@ -85,6 +85,8 @@ pub type PollTally = Vec<(i64, i64)>;
 pub struct VoteOutcome {
     pub tally: PollTally,
     pub runoff: Option<Runoff>,
+    /// Orders this count against others for the same poll; see [`super::next_tally_version`].
+    pub version: i64,
 }
 
 /// A vote as cast: one option on an ordinary poll, or a ranking (best first,
@@ -351,6 +353,8 @@ impl Store {
             }
         }
 
+        // Under the write lock, so versions rise in commit order.
+        let version = super::next_tally_version();
         let tally = fetch_tally(&mut *tx, message_id).await?;
         let runoff = if poll.ranked {
             let ballots = fetch_ballots(&mut *tx, &[message_id])
@@ -363,7 +367,11 @@ impl Store {
             None
         };
         tx.commit().await?;
-        Ok(VoteOutcome { tally, runoff })
+        Ok(VoteOutcome {
+            tally,
+            runoff,
+            version,
+        })
     }
 }
 

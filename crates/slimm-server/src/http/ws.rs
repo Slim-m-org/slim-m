@@ -69,6 +69,7 @@ mod permission_cache;
 mod signals;
 mod signals_canvas;
 mod signals_screen_annotation;
+mod tally_frames;
 
 /// How long a single send may block before the peer is treated as dead. Without
 /// this a peer that completes the handshake and then stops reading could wedge

@@ -50,6 +50,7 @@ mod ws_handshake;
 mod ws_liveness;
 mod ws_member_moderation_frames;
 mod ws_message_created_enrichment;
+mod ws_own_tally_frames;
 mod ws_permission_cache;
 mod ws_pin_visibility;
 mod ws_session_lifecycle;

@@ -19,6 +19,7 @@ impl Store {
         let Some(ranked) = ranked else {
             return Ok(None);
         };
+        let version = super::super::next_tally_version();
         let tally = fetch_tally(&self.pool, message_id).await?;
         let runoff = if ranked {
             let positions = option_positions(&self.pool, message_id).await?;
@@ -31,7 +32,11 @@ impl Store {
         } else {
             None
         };
-        Ok(Some(VoteOutcome { tally, runoff }))
+        Ok(Some(VoteOutcome {
+            tally,
+            runoff,
+            version,
+        }))
     }
 
     /// A single message's poll, from one viewer's point of view. `None` if the

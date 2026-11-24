@@ -12,8 +12,8 @@ use std::sync::Arc;
 
 use slimm_server::call_audio::CallAudioView;
 use slimm_server::hub::{
-    CanvasEvent, ConnectorRunRequest, Event, MessageEvent, ModuleRoomChange, RoleChange, RoleLook,
-    RoomJson, VoiceRemovalReason,
+    CanvasEvent, CastBallot, ConnectorRunRequest, Event, MessageEvent, ModuleRoomChange,
+    RoleChange, RoleLook, RoomJson, VoiceRemovalReason,
 };
 use slimm_server::ids::{
     CallRingId, CanvasObjectId, CanvasOpId, ChannelId, MessageId, RoleId, Seq, SessionId, UserId,
@@ -41,6 +41,11 @@ fn sample_events(channel: ChannelId, alice: UserId, bob: UserId) -> Vec<Event> {
             message_id: message,
             options: vec![(0, 2), (1, 1)],
             runoff: None,
+            version: 41,
+            cast: Some(Arc::new(CastBallot {
+                user_id: alice,
+                ranking: vec![1],
+            })),
         }),
         Event::Message(MessageEvent::ComponentsChanged {
             channel_id: channel,
@@ -67,6 +72,7 @@ fn sample_events(channel: ChannelId, alice: UserId, bob: UserId) -> Vec<Event> {
             message_id: message,
             reactors: Default::default(),
             moved: None,
+            version: 42,
         }),
         Event::Message(MessageEvent::CodeRunChanged {
             channel_id: channel,

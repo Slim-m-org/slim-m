@@ -94,6 +94,7 @@ mod push;
 mod reactions;
 mod read_markers;
 mod read_state;
+mod tally_version;
 mod voice_transcripts;
 pub use read_state::{SeqHeads, UNREAD_COUNT_CAP};
 mod dropped_refresh;
@@ -303,6 +304,7 @@ pub use space_themes::{PublishError, SpaceTheme, ThemePicture};
 pub use space_welcome::{DEFAULT_WELCOME_MESSAGE, MAX_WELCOME_MESSAGE_CHARS, SpaceWelcome};
 pub use stamp_reports::{MAX_REASON_CHARS, SCREEN_STAMP_KIND};
 pub use storage::{ChannelStorage, DatabaseBytes, MAX_STORAGE_CHANNEL_ROWS, SweepStatus};
+pub use tally_version::next_tally_version;
 pub use thread_listing::ThreadListItem;
 pub use threads::{
     MAX_THREADS_PER_CHANNEL, OpenThreadError, OpenedThread, ThreadParent, ThreadSummary,

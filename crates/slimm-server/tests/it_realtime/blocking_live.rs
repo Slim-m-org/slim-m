@@ -144,8 +144,8 @@ async fn a_live_reaction_from_a_blocked_user_is_absent_for_the_blocker_alone() {
 /// A second, non-blocked reactor on the same emoji a blocked person also
 /// used: the blocker's frame still shows the emoji, counting only the
 /// reactor they have not blocked, and every reaction object on the wire
-/// carries exactly `emoji` and `count` - never a reactor id, not even for the
-/// one reactor left standing after the exclusion.
+/// carries exactly `emoji`, `count` and the viewer's own `reacted` - never a
+/// reactor id, not even for the one reactor left standing after the exclusion.
 ///
 /// This is the SRV1 path: the server now computes `reaction_reactors` once
 /// per event and filters per connection with `blocked_among`, rather than
@@ -240,8 +240,12 @@ async fn a_live_reactions_frame_never_carries_a_reactor_id_and_mixes_blocked_wit
     keys.sort();
     assert_eq!(
         keys,
-        vec!["count", "emoji"],
-        "the wire object must carry only emoji and count, never a reactor id: {for_alice}"
+        vec!["count", "emoji", "reacted"],
+        "the wire object must carry only emoji, count and the viewer's own flag, never a reactor id: {for_alice}"
+    );
+    assert_eq!(
+        reactions[0]["reacted"], false,
+        "alice did not react herself"
     );
 }
 

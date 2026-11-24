@@ -201,7 +201,7 @@ async fn a_ballot_must_fit_the_poll() {
 }
 
 #[tokio::test]
-async fn the_vote_event_carries_the_runoff_and_never_the_voter() {
+async fn the_vote_event_carries_the_runoff_and_only_the_voters_own_ranking() {
     let w = world().await;
     let (token, ticket) = member(&w.store, "ana").await;
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -231,9 +231,21 @@ async fn the_vote_event_carries_the_runoff_and_never_the_voter() {
         keys.iter()
             .copied()
             .collect::<std::collections::BTreeSet<_>>(),
-        ["channel_id", "message_id", "options", "runoff", "type"].into(),
-        "nothing in the event may say who ranked what"
+        [
+            "channel_id",
+            "message_id",
+            "options",
+            "runoff",
+            "type",
+            "version",
+            "voted_option",
+            "voted_ranking"
+        ]
+        .into(),
+        "the voter's own frame adds only her own ranking"
     );
+    assert_eq!(frame["voted_ranking"], json!([1, 0]));
+    assert_eq!(frame["voted_option"], 1);
     assert_eq!(
         frame["runoff"],
         json!({ "rounds": [[{"position": 0, "votes": 0}, {"position": 1, "votes": 1}]], "winner": 1 })

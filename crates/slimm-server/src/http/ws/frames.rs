@@ -9,6 +9,7 @@
 use serde::Serialize;
 
 use super::canvas_wire;
+use super::tally_frames::{OwnVoteDto, PollOptionCountDto, ReactionCountDto};
 use crate::http::channels::ChannelDto;
 use crate::http::ephemeral_messages::EphemeralMessageDto;
 use crate::http::messages::MessageDto;
@@ -45,6 +46,7 @@ pub(super) enum ServerFrame {
         channel_id: String,
         message_id: String,
         reactions: Vec<ReactionCountDto>,
+        version: i64,
     },
     #[serde(rename = "code_run.changed")]
     CodeRunChanged {
@@ -93,6 +95,9 @@ pub(super) enum ServerFrame {
         options: Vec<PollOptionCountDto>,
         #[serde(skip_serializing_if = "Option::is_none")]
         runoff: Option<super::super::polls::RunoffDto>,
+        version: i64,
+        #[serde(flatten)]
+        own_vote: Option<OwnVoteDto>,
     },
     #[serde(rename = "message.components")]
     MessageComponentsChanged {
@@ -466,22 +471,6 @@ pub(super) enum ServerFrame {
     Pong,
     #[serde(rename = "error")]
     Error { message: String },
-}
-
-/// One emoji and how many people used it. Public counts only: what the asking
-/// user reacted with is per viewer and never broadcast.
-#[derive(Serialize)]
-pub(crate) struct ReactionCountDto {
-    pub(super) emoji: String,
-    pub(super) count: i64,
-}
-
-/// One poll option and its current public vote count. Never carries who cast
-/// a vote, only the option and its tally.
-#[derive(Serialize)]
-pub(crate) struct PollOptionCountDto {
-    pub(super) position: i64,
-    pub(super) votes: i64,
 }
 
 impl ServerFrame {
