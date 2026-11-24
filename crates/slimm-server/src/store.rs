@@ -169,7 +169,8 @@ pub use bot_token::{ReissueError, ReissuedToken};
 pub use bot_ui::VisibleBotUi;
 pub use bots::{BOT_TOKEN_PREFIX, Bot, CreateBotError, NewBot, UpdateBotPermissionsError};
 pub use call_transcript_marks::{
-    MAX_MARKS_PER_TRANSCRIPT, MarkKind, MarkSource, NewMark, PutMark, TranscriptMark,
+    MAX_MARKS_PER_AUTHOR, MAX_MARKS_PER_TRANSCRIPT, MarkKind, MarkSource, NewMark, PutMark,
+    TranscriptMark,
 };
 pub use call_transcripts::{
     CallTranscript, HIGHLIGHT_CLOSE, HIGHLIGHT_OPEN, MAX_TRANSCRIPT_RETENTION_DAYS, NewTranscript,

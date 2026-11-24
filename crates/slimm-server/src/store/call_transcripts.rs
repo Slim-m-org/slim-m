@@ -15,6 +15,9 @@ const DAY_MS: i64 = 24 * 60 * 60 * 1000;
 pub const MAX_TRANSCRIPT_RETENTION_DAYS: i64 = 3650;
 /// Transcripts one sweep pass deletes, each in its own transaction.
 const SWEEP_BATCH: i64 = 100;
+/// Transcripts one sweep tick tries, so a newly shortened window drains over several ticks.
+const SWEEP_PER_TICK: i64 = 300;
+const DELETE_LINES_CHUNK: i64 = 500;
 /// Wraps a match in a highlighted search hit; private-use so no real text collides.
 pub const HIGHLIGHT_OPEN: char = '\u{E000}';
 pub const HIGHLIGHT_CLOSE: char = '\u{E001}';
@@ -236,22 +239,31 @@ impl Store {
         id: CallTranscriptId,
         line: &NewTranscriptLine<'_>,
     ) -> anyhow::Result<TranscriptLine> {
+        let mut tx = self.begin_write().await?;
         let seq = sqlx::query_scalar!(
-            r#"INSERT INTO call_transcript_lines
-                   (transcript_id, seq, speaker_id, at, end_at, language, text)
-               VALUES (?1, COALESCE((SELECT MAX(seq) FROM call_transcript_lines
-                                      WHERE transcript_id = ?1), 0) + 1, ?2, ?3, ?4, ?5, ?6)
-               RETURNING seq AS "seq!: i64""#,
+            r#"UPDATE call_transcripts SET next_seq = next_seq + 1 WHERE id = ?
+               RETURNING next_seq AS "seq!: i64""#,
+            id
+        )
+        .fetch_one(&mut *tx)
+        .await
+        .context("take the next call transcript seq")?;
+        sqlx::query!(
+            "INSERT INTO call_transcript_lines
+                 (transcript_id, seq, speaker_id, at, end_at, language, text)
+             VALUES (?, ?, ?, ?, ?, ?, ?)",
             id,
+            seq,
             line.speaker,
             line.at,
             line.end_at,
             line.language,
             line.text
         )
-        .fetch_one(&self.pool)
+        .execute(&mut *tx)
         .await
         .context("append call transcript line")?;
+        tx.commit().await?;
         Ok(TranscriptLine {
             seq,
             speaker_id: line.speaker,
@@ -335,16 +347,26 @@ impl Store {
     }
 
     /// Removes a transcript with its lines, marks and index rows; false when there was none.
+    ///
+    /// Lines go in chunks so a long call never holds the writer for its whole length.
     pub async fn delete_call_transcript(&self, id: CallTranscriptId) -> anyhow::Result<bool> {
+        loop {
+            let chunk = sqlx::query!(
+                "DELETE FROM call_transcript_lines WHERE id IN
+                   (SELECT id FROM call_transcript_lines WHERE transcript_id = ? LIMIT ?)",
+                id,
+                DELETE_LINES_CHUNK
+            )
+            .execute(&self.pool)
+            .await?
+            .rows_affected();
+            if chunk == 0 {
+                break;
+            }
+        }
         let mut tx = self.begin_write().await?;
         sqlx::query!(
             "DELETE FROM call_transcript_marks WHERE transcript_id = ?",
-            id
-        )
-        .execute(&mut *tx)
-        .await?;
-        sqlx::query!(
-            "DELETE FROM call_transcript_lines WHERE transcript_id = ?",
             id
         )
         .execute(&mut *tx)
@@ -357,29 +379,78 @@ impl Store {
         Ok(gone > 0)
     }
 
-    /// Deletes finished transcripts past the retention window, a batch at a time.
+    /// Removes every transcript of a channel that has just been deleted.
+    pub async fn delete_channel_call_transcripts(&self, channel: ChannelId) -> anyhow::Result<u64> {
+        let ids = sqlx::query_scalar!(
+            r#"SELECT id AS "id!: CallTranscriptId" FROM call_transcripts WHERE channel_id = ?"#,
+            channel
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        let mut removed = 0;
+        for id in ids {
+            removed += u64::from(self.delete_call_transcript(id).await?);
+        }
+        Ok(removed)
+    }
+
+    /// Drops a just-deleted channel's transcripts; a failure is left to the sweep.
+    pub(super) async fn forget_call_transcripts(&self, channel: ChannelId) {
+        if let Err(err) = self.delete_channel_call_transcripts(channel).await {
+            tracing::warn!(error = %err, "call transcripts of a deleted channel left to the sweep");
+        }
+    }
+
+    /// Deletes transcripts of deleted channels, then finished ones past the retention window.
+    ///
+    /// At most [`SWEEP_PER_TICK`] transcripts are tried per call and one that fails is skipped.
     pub async fn sweep_call_transcripts(&self, now: i64) -> anyhow::Result<u64> {
+        let mut budget = SWEEP_PER_TICK;
+        let mut removed = 0;
+        let orphans = sqlx::query_scalar!(
+            r#"SELECT t.id AS "id!: CallTranscriptId" FROM call_transcripts t
+               JOIN channels c ON c.id = t.channel_id
+               WHERE c.deleted_at IS NOT NULL ORDER BY t.id LIMIT ?"#,
+            budget
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        removed += self.delete_each(orphans, &mut budget).await;
         let Some(days) = self.call_transcript_retention_days().await? else {
-            return Ok(0);
+            return Ok(removed);
         };
         let cutoff = now - days * DAY_MS;
-        let mut removed = 0;
-        loop {
+        let mut after = Vec::new();
+        while budget > 0 {
             let batch = sqlx::query_scalar!(
                 r#"SELECT id AS "id!: CallTranscriptId" FROM call_transcripts
-                   WHERE ended_at IS NOT NULL AND ended_at < ? LIMIT ?"#,
+                   WHERE ended_at IS NOT NULL AND ended_at < ? AND id > ?
+                   ORDER BY id LIMIT ?"#,
                 cutoff,
-                SWEEP_BATCH
+                after,
+                budget.min(SWEEP_BATCH)
             )
             .fetch_all(&self.pool)
             .await?;
-            if batch.is_empty() {
-                return Ok(removed);
-            }
-            for id in batch {
-                removed += u64::from(self.delete_call_transcript(id).await?);
+            let Some(last) = batch.last().copied() else {
+                break;
+            };
+            after = last.0.as_bytes().to_vec();
+            removed += self.delete_each(batch, &mut budget).await;
+        }
+        Ok(removed)
+    }
+
+    async fn delete_each(&self, ids: Vec<CallTranscriptId>, budget: &mut i64) -> u64 {
+        let mut removed = 0;
+        for id in ids {
+            *budget -= 1;
+            match self.delete_call_transcript(id).await {
+                Ok(gone) => removed += u64::from(gone),
+                Err(err) => tracing::warn!(error = %err, "call transcript sweep skipped one"),
             }
         }
+        removed
     }
 
     /// Lines matching `query` in `channels`, newest first, strictly after `before` in that order.
