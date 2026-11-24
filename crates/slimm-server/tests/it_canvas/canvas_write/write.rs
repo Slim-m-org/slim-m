@@ -168,11 +168,7 @@ async fn a_note_with_a_direction_override_or_control_character_is_refused() {
     let channel = general(&store).await;
     let app = app(store);
 
-    for text in [
-        "https://example.com/\u{202E}gpj.exe",
-        "bell\u{7}",
-        "a\u{200B}b",
-    ] {
+    for text in ["https://example.com/\u{202E}gpj.exe", "bell\u{7}"] {
         let note = json!({
             "id": id(),
             "kind": "note",

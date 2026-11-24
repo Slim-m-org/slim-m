@@ -114,7 +114,7 @@ async fn a_timeout_with_another_length_still_replaces_the_deadline() {
 }
 
 #[tokio::test]
-async fn replaying_a_removal_audits_and_announces_once() {
+async fn replaying_a_removal_audits_once_and_repeats_the_announcement() {
     let mut w = world().await;
     let uri = format!("/members/{}/removal", w.member.id);
     let body = json!({ "reason": "spam" });
@@ -136,7 +136,10 @@ async fn replaying_a_removal_audits_and_announces_once() {
         .iter()
         .filter(|e| matches!(unstamped(e), Event::MemberRemoved { .. }))
         .count();
-    assert_eq!(announced, 1);
+    assert_eq!(
+        announced, 2,
+        "a replay repeats the announcement the first may never have finished"
+    );
 }
 
 async fn removal_stamp(w: &World) -> i64 {

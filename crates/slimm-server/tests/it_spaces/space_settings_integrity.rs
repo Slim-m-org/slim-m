@@ -167,7 +167,10 @@ async fn a_username_the_mention_grammar_would_cut_does_not_mention_another_membe
     )
     .await;
     let content = posted[0]["content"].as_str().unwrap();
-    assert_eq!(content, "hi Sam Dot");
+    assert_eq!(
+        content, "hi \u{FF20}sam.",
+        "inert, so it cannot mention another member"
+    );
 }
 
 #[tokio::test]
