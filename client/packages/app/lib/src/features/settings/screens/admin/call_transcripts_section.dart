@@ -219,6 +219,7 @@ class _VoiceCommandsCardState extends ConsumerState<_VoiceCommandsCard>
         GuardedActionState<_VoiceCommandsCard>,
         OptimisticSettingState<_VoiceCommandsCard, bool> {
   final _phrase = TextEditingController();
+  bool _phraseSeeded = false;
   String? _phraseError;
   bool _savingPhrase = false;
 
@@ -248,7 +249,7 @@ class _VoiceCommandsCardState extends ConsumerState<_VoiceCommandsCard>
           .setSpaceSettings(
             SpaceSettingsUpdate(voiceCommandPhrase: _phrase.text.trim()),
           );
-      ref.invalidate(spaceSettingsProvider);
+      if (mounted) ref.invalidate(spaceSettingsProvider);
     } on ApiException catch (error, stack) {
       reportFailure(LogTag.ui, 'save the wake phrase', error, stack);
       if (mounted) {
@@ -265,14 +266,13 @@ class _VoiceCommandsCardState extends ConsumerState<_VoiceCommandsCard>
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(spaceSettingsProvider);
-    ref.listen(spaceSettingsProvider, (_, next) {
-      retireOptimistic(next);
-      final phrase = next.valueOrNull?.voiceCommandPhrase;
-      if (phrase != null && _phrase.text.isEmpty) _phrase.text = phrase;
-    });
+    ref.listen(spaceSettingsProvider, (_, next) => retireOptimistic(next));
     final loaded = settings.valueOrNull;
     if (loaded == null) return const SizedBox.shrink();
-    if (_phrase.text.isEmpty) _phrase.text = loaded.voiceCommandPhrase;
+    if (!_phraseSeeded) {
+      _phraseSeeded = true;
+      _phrase.text = loaded.voiceCommandPhrase;
+    }
     final on = optimistic ?? loaded.voiceCommands;
     final possible =
         loaded.callTranscriptionAvailable &&

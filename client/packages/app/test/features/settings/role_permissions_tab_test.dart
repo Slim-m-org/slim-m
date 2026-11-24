@@ -40,13 +40,16 @@ Widget _wrap({
   required api.Role role,
   int myPermissions = 0,
   MockClient? client,
+  bool catalogFails = false,
 }) {
   final container = ProviderContainer(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
       myPermissionsProvider.overrideWithValue(myPermissions),
-      modulePermissionsProvider.overrideWith((ref) async => const []),
+      modulePermissionsProvider.overrideWith(
+        (ref) async => catalogFails ? throw StateError('offline') : const [],
+      ),
       roleModulePermissionsProvider(
         role.id,
       ).overrideWith((ref) async => const []),
@@ -80,6 +83,19 @@ Finder _toggle(String title) =>
     find.descendant(of: _row(title), matching: find.byType(AppToggle));
 
 void main() {
+  testWidgets('a failed module catalog load shows an error, not nothing', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 6000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(_wrap(role: _role(), catalogFails: true));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.byWidgetPredicate((w) => w is AppErrorState), findsOneWidget);
+  });
+
   testWidgets('permissions are grouped under headers', (tester) async {
     await tester.pumpWidget(
       _wrap(
