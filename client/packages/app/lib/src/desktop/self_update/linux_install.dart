@@ -53,7 +53,8 @@ Future<void> installLinuxUpdate({
   try {
     await _publishVersion(update, layout, unpack);
     final before = layout.linkedVersion(LayoutNames.current);
-    if (before != null && before != update.version) {
+    final unproven = _readPending(layout) == before;
+    if (before != null && before != update.version && !unproven) {
       _swapLink(layout, LayoutNames.previous, before);
     }
     File(layout.path(LayoutNames.pending)).writeAsStringSync(update.version);
@@ -68,6 +69,11 @@ Future<void> installLinuxUpdate({
       detail: '$error',
     );
   }
+}
+
+String? _readPending(LinuxInstallLayout layout) {
+  final file = File(layout.path(LayoutNames.pending));
+  return file.existsSync() ? file.readAsStringSync().trim() : null;
 }
 
 Future<void> _publishVersion(
@@ -110,24 +116,30 @@ void _swapLink(LinuxInstallLayout layout, String name, String version) {
 
 /// Run once the new version has stayed up: clears the pending-start marker so
 /// the launcher stops counting, and prunes every version directory except
-/// `current` and `previous` (the one kept for rollback).
-void confirmCleanStart(LinuxInstallLayout layout) {
+/// `current`, `previous` (the one kept for rollback) and the one running.
+/// No version is pruned unless both pointers could be read.
+void confirmCleanStart(LinuxInstallLayout layout, String runningExecutable) {
   safeDelete(File(layout.path(LayoutNames.pending)));
   safeDelete(File(layout.path(LayoutNames.pendingTries)));
   safeDelete(File(layout.path(LayoutNames.pendingStarted)));
+  final current = layout.linkedVersion(LayoutNames.current);
+  final previous = layout.linkedVersion(LayoutNames.previous);
+  final pointersRead =
+      current != null &&
+      (previous != null || !pointerExists(layout.path(LayoutNames.previous)));
   final keep = {
-    layout.linkedVersion(LayoutNames.current),
-    layout.linkedVersion(LayoutNames.previous),
+    current,
+    previous,
+    runningFolderName(layout.root.path, runningExecutable),
   };
   for (final entry in layout.root.listSync(followLinks: false)) {
     final name = p.basename(entry.path);
-    final stale =
-        entry is Directory &&
-        !keep.contains(name) &&
-        (parseVersion(name) != null ||
-            name == LayoutNames.staging ||
-            name.startsWith(LayoutNames.unpackPrefix));
-    if (stale) safeDelete(entry);
+    final scratch =
+        name == LayoutNames.staging ||
+        name.startsWith(LayoutNames.unpackPrefix);
+    final staleVersion =
+        pointersRead && parseVersion(name) != null && !keep.contains(name);
+    if (entry is Directory && (scratch || staleVersion)) safeDelete(entry);
   }
 }
 

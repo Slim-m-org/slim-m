@@ -38,7 +38,7 @@ void main() {
 
       expect(asked.detail, 'Close slim-m in other tabs, then reload.');
       expect(asked.primaryLabel, 'Reload');
-      asked.onPrimary();
+      asked.onPrimary!();
       expect(rig.reloads, 1);
     });
   });
@@ -51,7 +51,7 @@ void main() {
 
       expect(asked.detail, isNot(contains('tab')));
       expect(asked.primaryLabel, 'Keep waiting');
-      asked.onPrimary();
+      asked.onPrimary!();
       expect(rig.prompt.state, isNull);
       expect(rig.reloads, 0);
 

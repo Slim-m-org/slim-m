@@ -48,10 +48,10 @@ const defaultStartupStatus = 'Starting slim-m';
 class StartupPrompt {
   const StartupPrompt({
     required this.title,
-    required this.primaryLabel,
-    required this.onPrimary,
     required this.secondaryLabel,
     required this.onSecondary,
+    this.primaryLabel,
+    this.onPrimary,
     this.detail,
   });
 
@@ -60,8 +60,10 @@ class StartupPrompt {
   /// One line under [title], typically what this install's own update
   /// mechanism is - see `startup_updates.dart`.
   final String? detail;
-  final String primaryLabel;
-  final VoidCallback onPrimary;
+
+  /// Absent for a prompt that only offers to skip.
+  final String? primaryLabel;
+  final VoidCallback? onPrimary;
   final String secondaryLabel;
   final VoidCallback onSecondary;
 }
@@ -384,11 +386,12 @@ class _Prompt extends StatelessWidget {
                 variant: AppButtonVariant.ghost,
                 onPressed: prompt.onSecondary,
               ),
-              AppButton(
-                label: prompt.primaryLabel,
-                variant: AppButtonVariant.primary,
-                onPressed: prompt.onPrimary,
-              ),
+              if (prompt.primaryLabel case final label?)
+                AppButton(
+                  label: label,
+                  variant: AppButtonVariant.primary,
+                  onPressed: prompt.onPrimary,
+                ),
             ],
           ),
         ],

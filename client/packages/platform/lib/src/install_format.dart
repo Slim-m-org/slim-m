@@ -100,13 +100,15 @@ InstallFormat resolveInstallFormat({
   if (env.containsKey('FLATPAK_ID') || flatpakInfoExists) {
     return InstallFormat.flatpak;
   }
-  if (executablePath.startsWith('/usr/') ||
-      executablePath.startsWith('/opt/')) {
-    // Root-owned; reported as rpm, whose copy says "your package manager".
-    return InstallFormat.rpm;
-  }
-  return InstallFormat.tarball;
+  return _isRpmBundle(executablePath)
+      ? InstallFormat.rpm
+      : InstallFormat.tarball;
 }
+
+/// The rpm ships its whole bundle under `%{_libdir}/slim-m-client`; anything
+/// else, even under `/usr` or `/opt`, is a tarball somebody extracted.
+bool _isRpmBundle(String executablePath) =>
+    RegExp(r'^/usr/lib(64)?/slim-m-client/').hasMatch(executablePath);
 
 InstallFormat _parse(String raw) => switch (raw.trim().toLowerCase()) {
       'appimage' => InstallFormat.appImage,

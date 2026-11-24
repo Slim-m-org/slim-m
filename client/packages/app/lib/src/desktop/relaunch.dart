@@ -68,24 +68,36 @@ String _executableToRun() {
   return target?.launcher.path ?? relaunchLauncherOverride ?? executable;
 }
 
-({String program, List<String> arguments})? _thisProcessCommand([
+List<String> _launchArguments = const [];
+
+/// Remembers the arguments `main` received, so a relaunch passes them on
+/// (a login start stays hidden in the tray, a `slimm://` link survives).
+void rememberLaunchArguments(List<String> args) {
+  _launchArguments = [
+    for (final arg in args)
+      if (arg != windowsRelaunchArgument) arg,
+  ];
+}
+
+/// The command that relaunches this process with the arguments it started with.
+({String program, List<String> arguments})? thisProcessRelaunchCommand([
   String? executable,
 ]) => relaunchCommand(
   os: Platform.operatingSystem,
   environment: Platform.environment,
   executable: executable ?? _executableToRun(),
-  executableArguments: Platform.executableArguments,
+  executableArguments: _launchArguments,
   pid: pid,
 );
 
 /// Whether [spawnRelaunch] can do anything for this process.
-bool canRelaunchThisProcess() => _thisProcessCommand() != null;
+bool canRelaunchThisProcess() => thisProcessRelaunchCommand() != null;
 
 /// Starts the detached child that brings the app back once this process has
 /// exited. The caller quits afterwards; this never does. [executable] names
 /// what to start when it is not this process's own install.
 Future<void> spawnRelaunch({String? executable}) async {
-  final command = _thisProcessCommand(executable);
+  final command = thisProcessRelaunchCommand(executable);
   if (command == null) return;
   await Process.start(
     command.program,

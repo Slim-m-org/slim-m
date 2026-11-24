@@ -120,6 +120,7 @@ class SelfUpdateController {
   final AdoptInstall _adopt;
   final http.Client Function() _newClient;
   final Future<void> Function() _restart;
+  Completer<void>? _running;
 
   /// Installs the newest verified release and returns its version, or null
   /// when there was nothing to install or it failed; a failure is left in
@@ -193,6 +194,7 @@ class SelfUpdateController {
     ref.read(selfUpdateInstallingProvider.notifier).state = true;
     ref.read(selfUpdateFailureProvider.notifier).state = null;
     final client = _newClient();
+    final running = _running = Completer<void>();
     try {
       return await body(client);
     } on SelfUpdateFailure catch (failure, stack) {
@@ -215,6 +217,7 @@ class SelfUpdateController {
     } finally {
       client.close();
       ref.read(selfUpdateInstallingProvider.notifier).state = false;
+      running.complete();
     }
   }
 
@@ -297,7 +300,14 @@ class SelfUpdateController {
     }
     target.markStarted();
     await Future<void>.delayed(settle);
-    target.confirmCleanStart();
+    // An install that outlived startup owns the staging folders; the next launch cleans up.
+    if (ref.read(selfUpdateInstallingProvider)) {
+      await _running?.future;
+    } else {
+      target.confirmCleanStart(
+        resolvedExecutable ?? Platform.resolvedExecutable,
+      );
+    }
     await _noteOutdatedLauncher(resolvedExecutable, os);
   }
 

@@ -65,7 +65,8 @@ Future<void> installWindowsUpdate({
   try {
     await _publishVersion(update, layout, unpack, rename, backoff);
     final before = layout.pointedVersion(LayoutNames.current);
-    if (before != null && before != update.version) {
+    final unproven = layout.pointedVersion(LayoutNames.pending) == before;
+    if (before != null && before != update.version && !unproven) {
       writeWindowsPointer(layout, LayoutNames.previous, before);
     }
     File(layout.path(LayoutNames.pending)).writeAsStringSync(update.version);
@@ -134,24 +135,36 @@ void writeWindowsPointer(
 
 /// Run once the new version has stayed up: clears the pending-start marker so
 /// the launcher stops counting, and prunes every version folder except
-/// `current` and `previous` (the one kept for rollback).
-void confirmWindowsCleanStart(WindowsInstallLayout layout) {
+/// `current`, `previous` (the one kept for rollback) and the one running.
+/// No version is pruned unless both pointers could be read.
+void confirmWindowsCleanStart(
+  WindowsInstallLayout layout,
+  String runningExecutable,
+) {
   safeDelete(File(layout.path(LayoutNames.pending)));
   safeDelete(File(layout.path(LayoutNames.pendingTries)));
   safeDelete(File(layout.path(LayoutNames.pendingStarted)));
+  final current = layout.pointedVersion(LayoutNames.current);
+  final previous = layout.pointedVersion(LayoutNames.previous);
+  final pointersRead =
+      current != null &&
+      (previous != null || !pointerExists(layout.path(LayoutNames.previous)));
+  final runningFolder = runningFolderName(layout.root.path, runningExecutable);
   final keep = {
-    layout.pointedVersion(LayoutNames.current),
-    layout.pointedVersion(LayoutNames.previous),
+    current,
+    previous,
+    if (runningFolder != null)
+      WindowsInstallLayout.versionOfFolder(runningFolder),
   };
   for (final entry in layout.root.listSync(followLinks: false)) {
     final name = p.basename(entry.path);
     final version = WindowsInstallLayout.versionOfFolder(name);
-    final stale =
-        entry is Directory &&
-        ((version != null && !keep.contains(version)) ||
-            name == LayoutNames.staging ||
-            name.startsWith(LayoutNames.unpackPrefix));
-    if (stale) safeDelete(entry);
+    final scratch =
+        name == LayoutNames.staging ||
+        name.startsWith(LayoutNames.unpackPrefix);
+    final staleVersion =
+        pointersRead && version != null && !keep.contains(version);
+    if (entry is Directory && (scratch || staleVersion)) safeDelete(entry);
   }
 }
 

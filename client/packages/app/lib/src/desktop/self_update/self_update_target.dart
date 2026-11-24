@@ -30,7 +30,7 @@ abstract interface class SelfUpdateTarget {
 
   /// [unpack] overrides how the verified artifact is extracted.
   Future<void> install(VerifiedUpdate update, {linux.Unpack? unpack});
-  void confirmCleanStart();
+  void confirmCleanStart(String runningExecutable);
 
   /// Records that this run reached the app, for launchers that count failed starts.
   void markStarted();
@@ -102,7 +102,8 @@ class _LinuxTarget implements SelfUpdateTarget {
       );
 
   @override
-  void confirmCleanStart() => linux.confirmCleanStart(layout);
+  void confirmCleanStart(String runningExecutable) =>
+      linux.confirmCleanStart(layout, runningExecutable);
 
   @override
   void markStarted() => markStartedIn(layout.path);
@@ -142,7 +143,8 @@ class _WindowsTarget implements SelfUpdateTarget {
       );
 
   @override
-  void confirmCleanStart() => windows.confirmWindowsCleanStart(layout);
+  void confirmCleanStart(String runningExecutable) =>
+      windows.confirmWindowsCleanStart(layout, runningExecutable);
 
   @override
   void markStarted() => markStartedIn(layout.path);
@@ -182,7 +184,8 @@ class _MacosTarget implements SelfUpdateTarget {
       );
 
   @override
-  void confirmCleanStart() => macos.confirmMacosCleanStart(layout);
+  void confirmCleanStart(String runningExecutable) =>
+      macos.confirmMacosCleanStart(layout);
 
   @override
   void markStarted() {}

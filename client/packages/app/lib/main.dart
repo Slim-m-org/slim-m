@@ -41,6 +41,7 @@ import 'src/desktop/desktop_chrome.dart';
 import 'src/desktop/desktop_quit_shortcut.dart';
 import 'src/desktop/desktop_window_shell.dart';
 import 'src/desktop/platform_startup.dart';
+import 'src/desktop/relaunch.dart' show rememberLaunchArguments;
 import 'src/desktop/providers/desktop_splash_preference.dart';
 import 'src/desktop/splash_floor.dart';
 import 'src/desktop/startup_screen.dart';
@@ -104,6 +105,7 @@ import 'src/widgets/toast_overlay.dart';
 /// window mapped at the native 1280x720 default instead of the small splash
 /// size. Waiting for the real first frame avoids that race entirely.
 Future<void> main([List<String> args = const []]) async {
+  rememberLaunchArguments(args);
   final binding = WidgetsFlutterBinding.ensureInitialized();
   final shell = await startPlatform(binding);
 

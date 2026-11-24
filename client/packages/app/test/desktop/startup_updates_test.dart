@@ -82,6 +82,13 @@ class _Dnf implements RpmUpdater {
   Future<String?> installedVersion() async => '1.0.0';
 }
 
+/// A dnf that never answers, like one waiting on another package manager's lock.
+class _HungDnf extends _Dnf {
+  @override
+  Future<RpmUpdateResult> apply({String? currentVersion}) =>
+      Completer<RpmUpdateResult>().future;
+}
+
 class _FakeSelfUpdate extends SelfUpdateController {
   _FakeSelfUpdate(
     super.ref, {
@@ -154,7 +161,7 @@ void main() {
     }
     expect(prompt, isNotNull, reason: 'the splash never asked anything');
     final asked = prompt!;
-    primary ? asked.onPrimary() : asked.onSecondary();
+    primary ? asked.onPrimary!() : asked.onSecondary();
     return asked;
   }
 
@@ -330,6 +337,59 @@ void main() {
     );
     expect(c.read(startupStatusProvider), 'Restarting into 9.9.9');
   });
+
+  test(
+    'a dnf that never answers releases the splash at the deadline',
+    () async {
+      SharedPreferences.setMockInitialValues({autoUpdateKey: true});
+      final c = container();
+
+      await runStartupUpdates(
+        c,
+        StartupUpdateDeps(
+          check: _Check(_update()).call,
+          rpm: _HungDnf(),
+          relaunch: () async => fail('a stalled dnf must not restart'),
+          format: InstallFormat.rpm,
+          currentVersion: '1.0.0',
+          deadline: const Duration(milliseconds: 100),
+          skipAfter: const Duration(milliseconds: 10),
+        ),
+      );
+
+      expect(
+        c.read(selfUpdateFailureProvider)?.kind,
+        SelfUpdateFailureKind.downloadFailed,
+      );
+      expect(c.read(startupPromptProvider), isNull);
+    },
+  );
+
+  test(
+    'Skip on a slow dnf starts the installed build without a banner',
+    () async {
+      SharedPreferences.setMockInitialValues({autoUpdateKey: true});
+      final c = container();
+      final sub = c.listen(startupPromptProvider, (_, next) {
+        if (next != null && next.secondaryLabel == 'Skip') next.onSecondary();
+      });
+      addTearDown(sub.close);
+
+      await runStartupUpdates(
+        c,
+        StartupUpdateDeps(
+          check: _Check(_update()).call,
+          rpm: _HungDnf(),
+          relaunch: () async => fail('a skipped install must not restart'),
+          format: InstallFormat.rpm,
+          currentVersion: '1.0.0',
+          skipAfter: const Duration(milliseconds: 10),
+        ),
+      );
+
+      expect(c.read(selfUpdateFailureProvider), isNull);
+    },
+  );
 
   test('a dnf that fails falls back to offering the release, and does not '
       'pretend it installed anything', () async {

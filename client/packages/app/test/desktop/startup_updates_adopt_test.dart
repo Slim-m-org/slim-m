@@ -86,7 +86,7 @@ void main() {
     }
     expect(prompt?.primaryLabel, 'Move and update');
     expect(prompt?.detail, contains('moves into your account'));
-    accept ? prompt!.onPrimary() : prompt!.onSecondary();
+    accept ? prompt!.onPrimary!() : prompt!.onSecondary();
     await pass;
   }
 

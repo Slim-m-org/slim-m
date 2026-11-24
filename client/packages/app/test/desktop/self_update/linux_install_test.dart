@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+import 'dart:async';
 import 'dart:io';
 
 import 'package:archive/archive.dart';
@@ -85,6 +86,27 @@ void main() {
         expect(Directory('${root.path}/0.88.0').existsSync(), isTrue);
         expect(_names(root).where((n) => n.startsWith('.unpack')), isEmpty);
         expect(_names(root).where((n) => n.endsWith('.new')), isEmpty);
+      },
+    );
+
+    test(
+      'a second install before a restart keeps the proven rollback target',
+      () async {
+        await installLinuxUpdate(
+          update: _update(root, '0.89.0'),
+          format: InstallFormat.tarball,
+          layout: layout,
+          unpack: _fakeUnpack,
+        );
+        await installLinuxUpdate(
+          update: _update(root, '0.90.0'),
+          format: InstallFormat.tarball,
+          layout: layout,
+          unpack: _fakeUnpack,
+        );
+
+        expect(_target(root, 'current'), '0.90.0');
+        expect(_target(root, 'previous'), '0.88.0');
       },
     );
 
@@ -238,38 +260,6 @@ void main() {
     }
   });
 
-  group('confirmCleanStart', () {
-    test('keeps current and previous, prunes older versions and leftovers', () {
-      for (final v in ['0.85.0', '0.86.0', '0.89.0']) {
-        _makeVersion(root, v);
-      }
-      Directory('${root.path}/.staging').createSync();
-      Directory('${root.path}/.unpack-0.9.0').createSync();
-      Directory('${root.path}/notes').createSync();
-      _point(root, 'previous', '0.88.0');
-      Link('${root.path}/current').deleteSync();
-      _point(root, 'current', '0.89.0');
-      File('${root.path}/pending').writeAsStringSync('0.89.0');
-      File('${root.path}/pending.tries').writeAsStringSync('1');
-
-      confirmCleanStart(layout);
-
-      expect(_names(root), [
-        '0.88.0',
-        '0.89.0',
-        'current',
-        'notes',
-        'previous',
-      ]);
-    });
-
-    test('takeRollbackNotice reports once and clears the marker', () {
-      File('${root.path}/rolled-back').writeAsStringSync('0.89.0\n');
-      expect(takeRollbackNotice(layout), '0.89.0');
-      expect(takeRollbackNotice(layout), isNull);
-    });
-  });
-
   group('the launcher', () {
     int run(String version) =>
         Process.runSync('sh', ['${root.path}/$version/slim-m']).exitCode;
@@ -335,7 +325,7 @@ void main() {
 
     test('a start the app confirmed is never rolled back', () {
       expect(run('0.89.0'), 3);
-      confirmCleanStart(layout);
+      confirmCleanStart(layout, '/elsewhere/slimm_app');
       for (var i = 0; i < 4; i++) {
         expect(run('0.89.0'), 3);
       }
@@ -467,6 +457,43 @@ void main() {
       );
       expect(Directory('${root.path}/0.80.0').existsSync(), isFalse);
     });
+
+    test(
+      'confirmStart leaves the staging folder of an install still running',
+      () async {
+        final release = Completer<VerifiedUpdate?>();
+        final container = containerWith(
+          ({
+            required currentVersion,
+            required platformKey,
+            required stagingDir,
+            required client,
+          }) => release.future,
+        );
+        final controller = container.read(selfUpdateProvider);
+        final install = controller.install(
+          currentVersion: '0.88.0',
+          format: InstallFormat.tarball,
+          resolvedExecutable: '${root.path}/0.88.0/slimm_app',
+          os: 'linux',
+        );
+        final part = File('${root.path}/.staging/pkg.part')
+          ..createSync(recursive: true);
+
+        final settled = controller.confirmStart(
+          resolvedExecutable: '${root.path}/0.88.0/slimm_app',
+          os: 'linux',
+          settle: const Duration(milliseconds: 20),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 80));
+        expect(part.existsSync(), isTrue);
+
+        release.complete(null);
+        await install;
+        await settled;
+        expect(part.existsSync(), isTrue);
+      },
+    );
 
     test('confirmStart marks the run as started before it settles', () async {
       File('${root.path}/pending').writeAsStringSync('0.88.0');

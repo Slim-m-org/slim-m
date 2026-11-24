@@ -45,6 +45,8 @@ Future<void> _realRelaunch() async {
 /// and starts the version already installed.
 const startupUpdateDeadline = Duration(minutes: 5);
 
+const startupSkipDelay = Duration(seconds: 3);
+
 /// The seams of [runStartupUpdates], each defaulting to the real thing.
 class StartupUpdateDeps {
   const StartupUpdateDeps({
@@ -56,6 +58,7 @@ class StartupUpdateDeps {
     this.selfApplies,
     this.adoptable,
     this.deadline = startupUpdateDeadline,
+    this.skipAfter = startupSkipDelay,
     this.installedLauncher = _installedLauncher,
   });
 
@@ -70,6 +73,9 @@ class StartupUpdateDeps {
   /// layout; defaults to asking the running executable.
   final bool? adoptable;
   final Duration deadline;
+
+  /// How long a privileged install runs before the splash offers to skip it.
+  final Duration skipAfter;
 
   /// The per-user launcher this bare copy should hand over to, if one holds this version or newer.
   final File? Function(String version) installedLauncher;
@@ -97,6 +103,7 @@ Future<void> runStartupUpdates(
     :selfApplies,
     :adoptable,
     :deadline,
+    :skipAfter,
     :installedLauncher,
   ) = deps;
   if (!isDesktopHost || updateChecksDisabled()) return;
@@ -123,7 +130,15 @@ Future<void> runStartupUpdates(
     if (update == null) return;
 
     if (update.format == InstallFormat.rpm) {
-      await _installWithDnf(container, version, update, rpm, relaunch);
+      await _installWithDnf(
+        container,
+        version,
+        update,
+        rpm,
+        relaunch,
+        deadline,
+        skipAfter,
+      );
       return;
     }
     if (update.format == InstallFormat.tarball &&
@@ -163,10 +178,27 @@ Future<void> _installWithDnf(
   ClientUpdate update,
   RpmUpdater rpm,
   Relaunch relaunch,
+  Duration deadline,
+  Duration skipAfter,
 ) async {
   container.read(startupStatusProvider.notifier).state =
       'Installing ${update.version}';
-  final result = await rpm.apply(currentVersion: currentVersion);
+  final RpmUpdateResult? result;
+  try {
+    result = await _applyWithSkip(
+      container,
+      update,
+      rpm,
+      currentVersion,
+      skipAfter,
+    ).timeout(deadline);
+  } on TimeoutException {
+    container.read(startupPromptProvider.notifier).state = null;
+    _startWithoutUpdate(container);
+    return;
+  }
+  container.read(startupPromptProvider.notifier).state = null;
+  if (result == null) return;
   if (!result.ok) {
     AppLog.warning(
       LogTag.platform,
@@ -180,6 +212,46 @@ Future<void> _installWithDnf(
   container.read(startupStatusProvider.notifier).state =
       'Restarting into ${update.version}';
   await relaunch();
+}
+
+/// Runs dnf, offering Skip once it has taken [skipAfter]; null when skipped.
+Future<RpmUpdateResult?> _applyWithSkip(
+  ProviderContainer container,
+  ClientUpdate update,
+  RpmUpdater rpm,
+  String currentVersion,
+  Duration skipAfter,
+) async {
+  final skipped = Completer<RpmUpdateResult?>();
+  final timer = Timer(skipAfter, () {
+    container.read(startupPromptProvider.notifier).state = StartupPrompt(
+      title: 'Installing ${update.version}',
+      detail: 'Waiting on your package manager.',
+      secondaryLabel: 'Skip',
+      onSecondary: () => skipped.complete(null),
+    );
+  });
+  try {
+    return await Future.any([
+      rpm.apply(currentVersion: currentVersion),
+      skipped.future,
+    ]);
+  } finally {
+    timer.cancel();
+  }
+}
+
+void _startWithoutUpdate(ProviderContainer container) {
+  AppLog.warning(
+    LogTag.platform,
+    'The package manager did not finish in time; starting the installed build',
+  );
+  container
+      .read(selfUpdateFailureProvider.notifier)
+      .state = const SelfUpdateFailure(
+    SelfUpdateFailureKind.downloadFailed,
+    'The update was taking too long, so slim-m started without it.',
+  );
 }
 
 /// The per-user tarball path: install into a new version directory, then
