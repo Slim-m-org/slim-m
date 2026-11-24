@@ -25,7 +25,13 @@ def git(repo: Path, *args: str) -> str:
     return result.stdout.strip()
 
 
-def commit(repo: Path, subject: str) -> str:
+MANIFEST = ".release-please-manifest.server.json"
+
+
+def commit(repo: Path, subject: str, touching: str = "") -> str:
+    if touching:
+        (repo / touching).write_text(subject)
+        git(repo, "add", touching)
     git(repo, "commit", "--allow-empty", "-m", subject)
     return git(repo, "rev-parse", "HEAD")
 
@@ -51,7 +57,7 @@ class SchemaGateBaseTest(unittest.TestCase):
         git(self.repo, "tag", "schema-v0.1.0")
         commit(self.repo, "feat: breaking change")
         commit(self.repo, "fix: later")
-        commit(self.repo, "chore(main): release server 0.2.0 (#1)")
+        commit(self.repo, "chore: release main (#1)", MANIFEST)
         result = base_of(self.repo)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.strip(), "schema-v0.1.0")
@@ -61,24 +67,30 @@ class SchemaGateBaseTest(unittest.TestCase):
         git(self.repo, "tag", "schema-v0.1.0")
         commit(self.repo, "feat: b")
         git(self.repo, "tag", "schema-v0.2.0")
-        commit(self.repo, "chore(main): release server 0.3.0 (#2)")
+        commit(self.repo, "chore: release main (#2)", MANIFEST)
         self.assertEqual(base_of(self.repo).stdout.strip(), "schema-v0.2.0")
 
     def test_a_release_commit_is_not_its_own_base(self):
         commit(self.repo, "feat: a")
-        commit(self.repo, "chore(main): release server 0.2.0 (#2)")
+        commit(self.repo, "chore: release main (#2)", MANIFEST)
         git(self.repo, "tag", "schema-v0.2.0")
         self.assertNotEqual(base_of(self.repo).returncode, 0)
+
+    def test_the_subject_does_not_decide_what_a_release_is(self):
+        commit(self.repo, "feat: a")
+        git(self.repo, "tag", "schema-v0.1.0")
+        commit(self.repo, "chore(main): release server 0.2.0 (#5)")
+        self.assertEqual(base_of(self.repo).stdout.strip(), "HEAD~1")
 
     def test_a_client_release_keeps_the_parent_base(self):
         commit(self.repo, "feat: a")
         git(self.repo, "tag", "schema-v0.1.0")
-        commit(self.repo, "chore(main): release client 0.5.0 (#3)")
+        commit(self.repo, "chore(main): release client 0.5.0 (#3)", ".release-please-manifest.client.json")
         self.assertEqual(base_of(self.repo).stdout.strip(), "HEAD~1")
 
     def test_a_release_with_no_tag_behind_it_fails_closed(self):
         commit(self.repo, "feat: a")
-        commit(self.repo, "chore(main): release server 0.1.0 (#4)")
+        commit(self.repo, "chore: release main (#4)", MANIFEST)
         result = base_of(self.repo)
         self.assertEqual(result.returncode, 1)
         self.assertIn("schema-v*", result.stderr)

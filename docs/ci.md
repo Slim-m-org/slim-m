@@ -112,7 +112,7 @@ That commit is the merge base of the PR and its base branch, found by `scripts/p
 This is not redundant with the PR-time gate: `verify-release-checks.yml` (see below) polls check-runs on the exact commit a release verifies, a squash-merge mints a brand-new SHA that the PR-time gate's check-run was never attached to, and a release-please commit never touches `schema/**` at all - so `breaking-change-gate` structurally cannot ever appear on the commit a release actually checks, no matter how the required-checks list is written.
 `breaking-change-gate-main` is what can: it is unconditioned on any path filter and runs on literally every push to `main`, trivially passing (an empty diff) on the overwhelming majority that never touch `schema/openapi.yaml` at all.
 This relies on this repo's squash-merge-only convention (see "Contribution conventions" in `CLAUDE.md`): `HEAD~1` is exactly the one commit a merged PR added.
-A server release commit (`chore(main): release server ...`) is the exception: `scripts/schema-gate-base.sh` picks the newest `schema-v*` tag reachable from its parent as the base, so the check covers every commit since the last release rather than only the last one.
+A server release commit (one that changes `.release-please-manifest.server.json`) is the exception: `scripts/schema-gate-base.sh` picks the newest `schema-v*` tag reachable from its parent as the base, so the check covers every commit since the last release rather than only the last one.
 That is why the job checks out the full history and tags; a release with no earlier `schema-v*` tag fails closed.
 
 Details, in [ci-details.md](ci-details.md#schema-ci): OpenAPI 3.0 `nullable` in a 3.1 schema.

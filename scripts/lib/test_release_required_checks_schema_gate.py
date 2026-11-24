@@ -249,6 +249,9 @@ class ServerReleaseRequiresItsImageSuitesTest(unittest.TestCase):
             self.assertIn(name, checks)
         job = _block_after(self.release_text, r"^  web-image:\s*$", 3)
         self.assertIn("verify-web-ci", job.split("uses:", 1)[0])
+        needs = re.search(r"^\s+needs:\s*\[([^\]]*)\]", job, re.M)
+        self.assertIsNotNone(needs)
+        self.assertIn("verify-web-ci", [n.strip() for n in needs.group(1).split(",")])
 
 
 if __name__ == "__main__":

@@ -5,8 +5,8 @@
 # A server release commit is checked against the newest schema-v* tag before it, so one breaking change cannot ride in on an earlier commit; any other commit against its parent.
 set -euo pipefail
 
-subject="$(git log -1 --format=%s HEAD)"
-if [[ "$subject" == "chore(main): release server "* ]]; then
+# A release-please server release always bumps the server manifest; a client-only release does not.
+if git diff --name-only HEAD~1 HEAD | grep -qx '.release-please-manifest.server.json'; then
   if ! tag="$(git describe --tags --abbrev=0 --match 'schema-v*' HEAD~1)"; then
     echo "::error::no schema-v* tag is reachable from the parent of this release commit; this gate cannot pass without one" >&2
     exit 1
