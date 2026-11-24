@@ -118,4 +118,84 @@ void main() {
       expect(second, first);
     });
   });
+
+  group('DevicePushKeys, concurrent creation', () {
+    test('two instances racing over one store agree on one keypair', () async {
+      final store = InMemoryKeyStore();
+      final keys = await Future.wait([
+        DevicePushKeys(store).publicKeyBase64(),
+        DevicePushKeys(store).publicKeyBase64(),
+      ]);
+
+      expect(keys[0], keys[1]);
+      final later = await DevicePushKeys(store).publicKeyBase64();
+      expect(later, keys[0]);
+    });
+  });
+
+  group('DevicePushKeys, the legacy delete', () {
+    test('a group-scoped legacy store leaves the push-group copy alone',
+        () async {
+      final keychain = _Keychain();
+      final legacy = _GroupStore(keychain, legacyKeychainAccessGroup);
+      final push = _GroupStore(keychain, pushKeychainAccessGroup);
+      await legacy.put(devicePushKeyHandle, base64Encode(List.filled(32, 7)));
+
+      await DevicePushKeys(push, legacy: legacy).publicKeyBase64();
+
+      expect(await push.read(devicePushKeyHandle), isNotNull);
+      expect(await legacy.read(devicePushKeyHandle), isNull);
+    });
+
+    test('an unscoped legacy store would take the push-group copy with it',
+        () async {
+      final keychain = _Keychain();
+      final unscoped = _GroupStore(keychain, null);
+      final push = _GroupStore(keychain, pushKeychainAccessGroup);
+      await keychain.write(
+        legacyKeychainAccessGroup,
+        base64Encode(List.filled(32, 7)),
+      );
+
+      await DevicePushKeys(push, legacy: unscoped).publicKeyBase64();
+
+      expect(await push.read(devicePushKeyHandle), isNull);
+    });
+  });
+}
+
+/// A keychain keyed by access group; a delete with no group matches them all.
+class _Keychain {
+  final items = <String, String>{};
+
+  Future<void> write(String group, String value) async => items[group] = value;
+}
+
+class _GroupStore extends InMemoryKeyStore {
+  _GroupStore(this._keychain, this._group);
+
+  final _Keychain _keychain;
+  final String? _group;
+
+  @override
+  Future<KeyHandle> put(String name, String secret) async {
+    items_[_group ?? legacyKeychainAccessGroup] = secret;
+    return name;
+  }
+
+  @override
+  Future<String?> read(KeyHandle handle) async => _group == null
+      ? _keychain.items[legacyKeychainAccessGroup]
+      : _keychain.items[_group];
+
+  @override
+  Future<void> delete(KeyHandle handle) async {
+    if (_group == null) {
+      _keychain.items.clear();
+    } else {
+      _keychain.items.remove(_group);
+    }
+  }
+
+  Map<String, String> get items_ => _keychain.items;
 }

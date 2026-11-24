@@ -202,6 +202,17 @@ void main() {
     });
   });
 
+  group('SecureKeyStore.forLegacyPushKey', () {
+    test(
+        'it names the default group, so its delete cannot reach the push group',
+        () {
+      final options = SecureKeyStore.forLegacyPushKey().debugStorage.iOptions;
+      expect(options.groupId, legacyKeychainAccessGroup);
+      expect(options.groupId, isNot(pushKeychainAccessGroup));
+      expect(options.accessibility, KeychainAccessibility.unlocked_this_device);
+    });
+  });
+
   group('SecureKeyStore.forPushKey', () {
     test(
         'it is in the group the extension claims, and not the app default '
