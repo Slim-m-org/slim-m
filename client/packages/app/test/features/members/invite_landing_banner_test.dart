@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart';
+import 'package:slimm_app/src/providers/bounded_image_decode.dart';
 import 'package:slimm_app/src/features/members/widgets/invite_landing_card.dart';
 import 'package:slimm_app/src/features/members/widgets/invite_landing_section.dart';
 import 'package:slimm_app/src/providers/providers.dart';
@@ -113,7 +114,10 @@ Future<void> _pump(
 }
 
 final _bannerImage = find.byWidgetPredicate(
-  (w) => w is Image && w.image is MemoryImage,
+  (w) =>
+      w is Image &&
+      w.image is ResizeImage &&
+      (w.image as ResizeImage).imageProvider is BoundedMemoryImage,
 );
 
 final _card = find.byWidgetPredicate((w) => w is InviteLandingCard);

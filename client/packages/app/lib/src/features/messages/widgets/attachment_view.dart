@@ -18,6 +18,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../providers/app_lifecycle.dart';
+import '../../../providers/bounded_image_decode.dart';
 import '../providers/attachment_bytes.dart';
 import '../providers/attachment_preview_bytes.dart';
 import '../providers/attachment_preview_quality.dart';
@@ -256,11 +257,11 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
                   child: Image(
                     image: tile == null
                         ? ResizeImage(
-                            MemoryImage(playBytes),
+                            BoundedMemoryImage(playBytes),
                             width: decodeWidth,
                           )
                         : CoverResizeImage(
-                            MemoryImage(playBytes),
+                            BoundedMemoryImage(playBytes),
                             edge: decodeWidth,
                           ),
                     fit: fit,
@@ -394,8 +395,8 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
     final fit = tile == null ? BoxFit.scaleDown : BoxFit.cover;
     return Image(
       image: tile == null
-          ? ResizeImage(MemoryImage(bytes), width: decodeWidth)
-          : CoverResizeImage(MemoryImage(bytes), edge: decodeWidth),
+          ? ResizeImage(BoundedMemoryImage(bytes), width: decodeWidth)
+          : CoverResizeImage(BoundedMemoryImage(bytes), edge: decodeWidth),
       fit: fit,
       semanticLabel: attachment.filename,
       // The still stays drawn while the original decodes, so the box never collapses in between.
@@ -405,7 +406,9 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
         filename: attachment.filename,
         width: kInlineImageMax,
         tileEdge: tile,
-        message: 'Could not open',
+        message: error is ImageTooLargeException
+            ? 'Too large to show'
+            : 'Could not open',
         onRetry: () => _refetch(decodeWidth),
       ),
     );

@@ -11,7 +11,9 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:flutter/foundation.dart' show kIsWeb, visibleForTesting;
+import 'package:flutter/foundation.dart'
+    show immutable, kIsWeb, visibleForTesting;
+import 'package:flutter/painting.dart';
 
 /// The declared size of an image was past the ceiling the caller allows.
 class ImageTooLargeException implements Exception {
@@ -103,4 +105,44 @@ Future<ui.Image> decodeBoundedViaPostDecodeCheck(
     picture.dispose();
     image.dispose();
   }
+}
+
+/// The most pixels a sender-chosen picture may declare before it is refused:
+/// a 100 MP bitmap is 400 MB, past it a phone is killed for memory.
+const int kMaxDeclaredPixels = 100 * 1000 * 1000;
+
+/// Throws [ImageTooLargeException] when [buffer] declares more than
+/// [maxPixels], before any pixel is allocated. The web engine cannot read a
+/// declared size, so there the check is skipped.
+Future<void> checkDeclaredSize(
+  ui.ImmutableBuffer buffer, {
+  int maxPixels = kMaxDeclaredPixels,
+}) async {
+  if (kIsWeb) return;
+  final descriptor = await ui.ImageDescriptor.encoded(buffer);
+  final width = descriptor.width;
+  final height = descriptor.height;
+  descriptor.dispose();
+  if (width * height > maxPixels) throw ImageTooLargeException(width, height);
+}
+
+/// A [MemoryImage] that refuses a picture declaring more than
+/// [kMaxDeclaredPixels], so it fails like any undecodable image does.
+@immutable
+class BoundedMemoryImage extends MemoryImage {
+  const BoundedMemoryImage(super.bytes);
+
+  @override
+  ImageStreamCompleter loadImage(
+    MemoryImage key,
+    ImageDecoderCallback decode,
+  ) => super.loadImage(key, (buffer, {getTargetSize}) async {
+    try {
+      await checkDeclaredSize(buffer);
+    } catch (_) {
+      buffer.dispose();
+      rethrow;
+    }
+    return decode(buffer, getTargetSize: getTargetSize);
+  });
 }

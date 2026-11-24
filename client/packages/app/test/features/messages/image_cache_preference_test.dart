@@ -3,6 +3,7 @@
 /// applied to the live cache and persisted, and a restore reapplies it.
 library;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -17,6 +18,8 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUp(() {
+    debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
     SharedPreferences.setMockInitialValues({});
     PaintingBinding.instance.imageCache.maximumSizeBytes = 100 << 20;
   });
@@ -100,5 +103,38 @@ void main() {
     await c.read(imageCacheLimitControllerProvider.notifier).restore();
 
     expect(c.read(imageCacheLimitControllerProvider), 100);
+  });
+
+  group('on a phone', () {
+    for (final platform in [TargetPlatform.iOS, TargetPlatform.android]) {
+      test('$platform offers neither 1 GB nor No limit', () {
+        debugDefaultTargetPlatformOverride = platform;
+        expect(imageCacheLimitChoices(), [50, 100, 200, 500]);
+      });
+    }
+
+    test('a stored 1 GB or No limit is brought down to 500 MB', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      for (final stored in [1000, imageCacheNoLimitMb]) {
+        SharedPreferences.setMockInitialValues({imageCacheLimitKey: stored});
+        final c = container();
+        await c.read(imageCacheLimitControllerProvider.notifier).restore();
+        expect(c.read(imageCacheLimitControllerProvider), 500);
+        expect(_liveCapMb, 500);
+      }
+    });
+
+    test('selecting No limit applies the 500 MB ceiling', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      final c = container();
+      await c
+          .read(imageCacheLimitControllerProvider.notifier)
+          .select(imageCacheNoLimitMb);
+      expect(_liveCapMb, 500);
+    });
+  });
+
+  test('a desktop still offers every cap', () {
+    expect(imageCacheLimitChoices(), imageCacheLimitChoicesMb);
   });
 }
