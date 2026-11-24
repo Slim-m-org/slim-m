@@ -26,8 +26,9 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{Semaphore, watch};
 use tower::ServiceExt;
 
-/// How long a peer has to deliver a request head, or its first byte.
-pub const HEADER_READ_TIMEOUT: Duration = Duration::from_secs(30);
+/// How long a peer has to deliver a request head; it also closes idle keep-alive
+/// sockets, so it stays above proxy upstream idle times (Traefik 90 s) to avoid 502s.
+pub const HEADER_READ_TIMEOUT: Duration = Duration::from_secs(150);
 
 /// The most connections served at once.
 pub const MAX_CONNECTIONS: usize = 8192;
