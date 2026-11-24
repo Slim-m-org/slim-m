@@ -40,9 +40,10 @@ use serde::{Deserialize, Serialize};
 use super::AppState;
 use super::dock::validate_module_id;
 use super::error::ApiError;
-use super::extract::{AuthedLimited, Json, MODULE};
+use super::extract::{Json, MODULE};
 use super::module_host;
 use super::module_run::RunContext;
+use super::participant::{Participant, require_participant};
 use crate::ids::{ChannelId, MessageId, UserId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
@@ -163,7 +164,8 @@ impl CommandOutcome {
 /// Gates and runs `command` on `module_id` for `user_id`, the one place a
 /// module is ever executed. Shared by [`run_command`] (the generic route) and
 /// the message-scoped code-block run (`super::code_runs`), so both apply the
-/// exact same install/enable/permission checks before `ModuleHost::run`.
+/// exact same checks before `ModuleHost::run`: the join gate and timeout, sight
+/// of the run's channel, and install, enable and module permission.
 ///
 /// The run is untrusted: `input` is not necessarily the invoker's own (a code
 /// block's text is whoever wrote the message), so it is offered no
@@ -231,6 +233,16 @@ async fn execute_gated(
 ) -> Result<CommandOutcome, ApiError> {
     validate_module_id(module_id)?;
     validate_command_name(command)?;
+    require_participant(state, user_id).await?;
+    if let Some(channel) = context.channel {
+        let sees = state
+            .store
+            .has_permission(user_id, channel, Permissions::VIEW_CHANNEL)
+            .await?;
+        if !sees {
+            return Err(ApiError::Forbidden);
+        }
+    }
 
     let module = state
         .store
@@ -308,7 +320,7 @@ pub(crate) async fn execute_code_runner(
 }
 
 async fn run_command(
-    AuthedLimited(ctx): AuthedLimited<MODULE>,
+    Participant(ctx): Participant<MODULE>,
     State(state): State<AppState>,
     Path((module_id, command)): Path<(String, String)>,
     Json(req): Json<RunCommandRequest>,

@@ -254,3 +254,27 @@ async fn a_manager_cannot_send_a_module_into_a_channel_they_cannot_see_or_post_i
     assert_eq!(module.schedule_channel_id, None);
     assert_eq!(run_scheduled_modules(&w.state, 0).await.unwrap(), 0);
 }
+
+#[tokio::test]
+async fn removing_the_module_s_principal_stops_its_scheduled_posts() {
+    let w = world("slimm-modsched-removed").await;
+    let token = admin_token(&w).await;
+    let feed = w.store.create_channel("feed", "text").await.unwrap();
+    ticker(&w, &feed.id.to_string(), &["schedule", "message.post"]).await;
+    let bot = w.store.ensure_module_bot("ticker", "Ticker").await.unwrap();
+    set_channel(&w, &token, "ticker", Some(feed.id.to_string())).await;
+    let removal = Request::builder()
+        .method("PUT")
+        .uri(format!("/members/{bot}/removal"))
+        .header("authorization", format!("Bearer {token}"))
+        .header("content-type", "application/json")
+        .body(Body::from("{}"))
+        .unwrap();
+    let response = w.router.clone().oneshot(removal).await.unwrap();
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+
+    assert_eq!(run_scheduled_modules(&w.state, 0).await.unwrap(), 0);
+
+    let landed = w.store.list_messages(feed.id, None, 10).await.unwrap();
+    assert!(landed.is_empty(), "a removed principal posts nothing");
+}

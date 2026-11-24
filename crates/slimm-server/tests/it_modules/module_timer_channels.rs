@@ -158,3 +158,108 @@ async fn a_timer_armed_in_a_dm_posts_nothing_because_the_principal_is_no_partici
 
     assert!(texts(&w, dm.id).await.is_empty());
 }
+
+const ASKS: &[u8] =
+    br#"{"ok":true,"output":"ok","run_after":{"command":"run","after_ms":1,"key":"c1"}}"#;
+
+/// Lets `nia` run a `pomo` that answers with a timer, the way a reminder command does.
+async fn install_asker(w: &World) {
+    w.install(Install {
+        id: "pomo",
+        wasm: support::wasm_fixtures::canned_raw_wasm(ASKS),
+        declared: &["schedule"],
+        approved_host: &["schedule"],
+    })
+    .await;
+    w.store.ensure_module_bot("pomo", "Pomo").await.unwrap();
+}
+
+async fn armed_channels(w: &World) -> Vec<Option<ChannelId>> {
+    let due = w.store.due_module_timers(far_future(), 16).await.unwrap();
+    due.into_iter().map(|t| t.channel_id).collect()
+}
+
+async fn overwrite_everyone(w: &World, channel: ChannelId, deny: Permissions) {
+    let entry = OverwriteBatchEntry {
+        target_type: "role",
+        target_id: w.everyone.0,
+        allow: Permissions::NONE,
+        deny,
+    };
+    w.store
+        .set_channel_overwrites_batch(channel, &[entry])
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn a_run_from_a_channel_the_invoker_may_post_in_arms_its_timer_there() {
+    let w = world("slimm-timer-chan-invoker-ok").await;
+    let a = w.store.create_channel("a", "text").await.unwrap();
+    install_asker(&w).await;
+
+    let answer = w.run_in("pomo", Some(a.id)).await;
+
+    assert_eq!(answer["ok"], true, "{answer}");
+    assert_eq!(armed_channels(&w).await, vec![Some(a.id)]);
+}
+
+#[tokio::test]
+async fn a_run_from_a_channel_the_invoker_cannot_see_is_refused_and_arms_nothing() {
+    let w = world("slimm-timer-chan-invoker-hidden").await;
+    let staff = w.store.create_channel("staff", "text").await.unwrap();
+    overwrite_everyone(&w, staff.id, Permissions::VIEW_CHANNEL).await;
+    install_asker(&w).await;
+
+    let answer = w.run_in("pomo", Some(staff.id)).await;
+
+    assert_ne!(answer["ok"], true, "{answer}");
+    assert_eq!(w.store.pending_module_timers("pomo").await.unwrap(), 0);
+}
+
+#[tokio::test]
+async fn a_timer_armed_where_the_invoker_may_not_post_keeps_no_channel_and_posts_nowhere() {
+    let w = world("slimm-timer-chan-invoker-readonly").await;
+    let news = w.store.create_channel("news", "text").await.unwrap();
+    overwrite_everyone(&w, news.id, Permissions::SEND_MESSAGES).await;
+    install_asker(&w).await;
+
+    let answer = w.run_in("pomo", Some(news.id)).await;
+
+    assert_eq!(
+        answer["ok"], true,
+        "a read-only channel still runs the command: {answer}"
+    );
+    assert_eq!(armed_channels(&w).await, vec![None]);
+    install_poster(&w, &news.id).await;
+    let bot = w.store.ensure_module_bot("pomo", "Pomo").await.unwrap();
+    w.store
+        .set_member_overwrite(news.id, bot, Permissions::SEND_MESSAGES, Permissions::NONE)
+        .await
+        .unwrap();
+    run_module_timers(&w.state, far_future()).await.unwrap();
+    assert!(texts(&w, news.id).await.is_empty());
+}
+
+#[tokio::test]
+async fn a_removed_principal_s_timer_posts_nothing() {
+    let w = world("slimm-timer-chan-removed").await;
+    let a = w.store.create_channel("a", "text").await.unwrap();
+    install_poster(&w, &a.id).await;
+    let bot = w.store.ensure_module_bot("pomo", "Pomo").await.unwrap();
+    arm(&w, Some(a.id)).await;
+    let admin = w
+        .store
+        .create_role("admin", Permissions::ADMINISTRATOR, false)
+        .await
+        .unwrap();
+    w.store.assign_role(w.user.id, admin).await.unwrap();
+    w.store
+        .remove_from_space(bot, w.user.id, None)
+        .await
+        .unwrap();
+
+    assert_eq!(run_module_timers(&w.state, far_future()).await.unwrap(), 0);
+
+    assert!(texts(&w, a.id).await.is_empty());
+}

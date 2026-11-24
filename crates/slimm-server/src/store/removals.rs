@@ -138,6 +138,12 @@ impl Store {
         Ok(restored)
     }
 
+    /// Whether `user_id` is removed from the Space.
+    pub async fn is_removed(&self, user_id: UserId) -> anyhow::Result<bool> {
+        let mut conn = self.pool.acquire().await?;
+        Ok(removed(&mut conn, user_id).await?)
+    }
+
     /// Every removal in force, newest first, with enough identity to show a
     /// row for somebody the member list deliberately no longer carries.
     pub async fn list_removals(&self) -> anyhow::Result<Vec<SpaceRemoval>> {
