@@ -2,6 +2,8 @@
 """Signs everyone out of a restored database, so a snapshot cannot revive a revoked login."""
 import sqlite3
 import time
+from pathlib import Path
+from urllib.parse import quote
 
 # Each statement is skipped when the snapshot predates its table.
 _STATEMENTS = (
@@ -19,10 +21,18 @@ _LIVE_BOTS = (
 )
 
 
+def _open_existing(database):
+    """Opens an existing database file read-write, never creating one, from a quoted file URI."""
+    path = Path(database).resolve()
+    if not path.is_file():
+        raise FileNotFoundError(f"{path} is not an existing database file")
+    return sqlite3.connect(f"file:{quote(str(path))}?mode=rw", uri=True)
+
+
 def revoke_all(database, now_ms=None):
     """Revokes every session and returns the names of the bots whose token that ended."""
     now = now_ms if now_ms is not None else int(time.time() * 1000)
-    conn = sqlite3.connect(str(database))
+    conn = _open_existing(database)
     try:
         try:
             bots = [row[0] for row in conn.execute(_LIVE_BOTS)]
