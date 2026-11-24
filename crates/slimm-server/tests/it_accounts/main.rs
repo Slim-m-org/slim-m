@@ -61,6 +61,7 @@ mod new_device_sign_in;
 mod participant_guard;
 mod password_change;
 mod picture_uploads;
+mod profile_pictures;
 mod reauth_throttle;
 mod recovery;
 mod recovery_expired;

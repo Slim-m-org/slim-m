@@ -28,7 +28,8 @@ use crate::ratelimit::Class;
 /// one mutable image per user, keyed by user id rather than content hash, and
 /// replaced wholesale rather than accumulated - see migration 0013.
 ///
-/// The file is written before the database row is updated, so a crash
+/// The file and row change under [`media::Media::profile_guard`], so a delete from another device
+/// cannot land between them. The file is written before the database row is updated, so a crash
 /// between the two steps leaves the old row pointing at bytes that were just
 /// overwritten (self-heals on the next successful upload) rather than a row
 /// that promises an avatar no file backs.
@@ -57,9 +58,11 @@ pub(super) async fn upload_avatar(
     )?;
 
     let user_id = ctx.user_id.to_string();
+    let body = media::fit_profile_image(body.to_vec(), media::AVATAR_SIDE).await;
+    let _guard = state.media.profile_guard().await;
     state
         .media
-        .write_avatar(&user_id, body.to_vec())
+        .write_avatar(&user_id, body)
         .await
         .map_err(|err| {
             tracing::error!(error = %err, "failed to write an uploaded avatar");
@@ -83,6 +86,7 @@ pub(super) async fn delete_avatar(
     State(state): State<AppState>,
 ) -> Result<StatusCode, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
+    let _guard = state.media.profile_guard().await;
     state.store.clear_avatar(ctx.user_id).await?;
     if let Err(err) = state.media.delete_avatar(&ctx.user_id.to_string()).await {
         tracing::warn!(error = %err, "failed to delete a cleared avatar file");

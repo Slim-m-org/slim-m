@@ -62,14 +62,11 @@ async fn upload_banner(
             too_large: "banner must be at most 4096 pixels on a side",
         },
     )?;
-    state
-        .media
-        .write_space_banner(body.to_vec())
-        .await
-        .map_err(|err| {
-            tracing::error!(error = %err, "failed to write the space banner");
-            ApiError::Internal
-        })?;
+    let body = crate::media::fit_profile_image(body.to_vec(), crate::media::BANNER_SIDE).await;
+    state.media.write_space_banner(body).await.map_err(|err| {
+        tracing::error!(error = %err, "failed to write the space banner");
+        ApiError::Internal
+    })?;
     let at = now_ms();
     state.store.set_space_banner(Some(at)).await?;
     Ok(Json(BannerDto {

@@ -270,7 +270,7 @@ fn reduced(bytes: &[u8], header: &ImageHeader) -> Option<(DynamicImage, Orientat
     Some((image, orientation))
 }
 
-fn decode(bytes: &[u8]) -> Option<(DynamicImage, Orientation)> {
+pub(super) fn decode(bytes: &[u8]) -> Option<(DynamicImage, Orientation)> {
     let mut reader = ImageReader::new(Cursor::new(bytes))
         .with_guessed_format()
         .ok()?;
