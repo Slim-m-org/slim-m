@@ -85,6 +85,8 @@ runs:
         flutter-version: 3.47.0
 
     - uses: ./.github/actions/native-hooks-cache
+      with:
+        cache: 'false'
     - name: build ipa
       shell: "bash -e {0}"
       env:

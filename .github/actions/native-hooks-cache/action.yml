@@ -22,14 +22,21 @@
 name: native hooks cache
 description: Restore and save the native build hooks' shared download directory.
 
+inputs:
+  cache:
+    description: "'false' restores no cached build input, which a release job sets because a restored file is never re-verified."
+    required: false
+    default: 'true'
+
 runs:
   using: composite
   steps:
-    - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+    - if: inputs.cache != 'false'
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: client/.dart_tool/hooks_runner/shared
         key: native-hooks-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('client/pubspec.lock', 'client/pubspec.yaml') }}
-    - if: runner.os == 'Linux'
+    - if: inputs.cache != 'false' && runner.os == 'Linux'
       uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: client/packages/app/build/linux/x64/release/mimalloc-*.tar.gz

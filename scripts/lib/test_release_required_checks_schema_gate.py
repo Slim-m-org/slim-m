@@ -89,6 +89,14 @@ def _job_owner(workflows: Path) -> dict[str, str]:
     return owner
 
 
+def _owning_workflow(check: str, owner: dict[str, str]) -> str | None:
+    """The workflow of the job a check-run comes from, including a matrix leg's `name (leg)`."""
+    if check in owner:
+        return owner[check]
+    leg = re.match(r"^(.+) \(.+\)$", check)
+    return owner.get(leg.group(1)) if leg else None
+
+
 def _push_block(text: str) -> str | None:
     """A workflow's `on: push:` body, or None when it has no push trigger."""
     on = re.search(r"^on:(.*?)(?=^[a-z])", text, re.M | re.S)
@@ -138,7 +146,7 @@ class EveryRequiredCheckRunsOnPushTest(unittest.TestCase):
         for entries in self.lists:
             for check in entries.split("|"):
                 with self.subTest(check=check):
-                    workflow = self.owner.get(check)
+                    workflow = _owning_workflow(check, self.owner)
                     self.assertIsNotNone(
                         workflow,
                         f"{check!r} is no job's name; see "
@@ -168,7 +176,7 @@ class ReleaseRequiredChecksSchemaGateTest(unittest.TestCase):
         lists = _required_checks(self.release_text)
         self.assertEqual(
             len(lists),
-            2,
+            3,
             "expected exactly one required_checks string per verify-release-checks call",
         )
         for entries in lists:
@@ -217,6 +225,30 @@ class ReleaseRequiredChecksSchemaGateTest(unittest.TestCase):
             "for a check-run that never gets created",
         )
         self.assertIn("branches: [main]", push_block)
+
+
+class ServerReleaseRequiresItsImageSuitesTest(unittest.TestCase):
+    """The web and supervisor images are signed on a server release, so their own suites gate it."""
+
+    def setUp(self):
+        self.release_text = RELEASE_WORKFLOW.read_text()
+
+    def _checks_of(self, job: str) -> list[str]:
+        block = _block_after(self.release_text, rf"^  {re.escape(job)}:\s*$", 3)
+        self.assertIsNotNone(block, f"release.yml has no {job} job")
+        return _required_checks(block)[0].split("|")
+
+    def test_verify_server_ci_requires_the_supervisor_suites(self):
+        checks = self._checks_of("verify-server-ci")
+        for name in ("docker-tests", "supervisor image (ubuntu-24.04)", "supervisor image (ubuntu-24.04-arm)"):
+            self.assertIn(name, checks)
+
+    def test_the_web_image_waits_on_the_client_web_suites(self):
+        checks = self._checks_of("verify-web-ci")
+        for name in ("test and web build", "logic tests compiled to javascript (chrome)"):
+            self.assertIn(name, checks)
+        job = _block_after(self.release_text, r"^  web-image:\s*$", 3)
+        self.assertIn("verify-web-ci", job.split("uses:", 1)[0])
 
 
 if __name__ == "__main__":

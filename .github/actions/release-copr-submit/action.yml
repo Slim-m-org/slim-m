@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 #
-# Needs, from the calling job's env: COPR_CONFIG. The calling job checks it before this runs, in a fedora container with git and copr-cli installed.
+# Needs, from the calling job's env: COPR_CONFIG. The calling job checks it before this runs, in a fedora container with git and copr-cli installed, and downloads the linux-client job's tarball into dist/.
 name: release copr submit
 description: Submit the Fedora package for the client release to COPR.
 
@@ -27,10 +27,8 @@ runs:
         printf '%s\n' "$COPR_CONFIG" > ~/.config/copr
         chmod 600 ~/.config/copr
         rpmdev-setuptree
-        # A macro file rather than a --define, because spectool and rpmbuild both read it and only one of them is guaranteed to take the flag.
         printf '%%app_version %s\n' "$VER" >> ~/.rpmmacros
         cp "$spec" ~/rpmbuild/SPECS/slim-m-client.spec
-        # spectool below fetches remote sources only, so the local ones have to be placed by hand or rpmbuild -bs fails on a missing Source.
         cp packaging/rpm/top.npcserver.slimm.desktop packaging/rpm/slim-m-client.repo \
           packaging/rpm/slim-m-client-update-helper packaging/rpm/top.npcserver.slimm.update.policy \
           packaging/linux/icons/top.npcserver.slimm*.png \
@@ -39,8 +37,8 @@ runs:
         if ! grep -q '^Version:.*%{' ~/rpmbuild/SPECS/slim-m-client.spec; then
           sed -i "s/^Version:.*/Version:        ${VER}/" ~/rpmbuild/SPECS/slim-m-client.spec
         fi
-        # COPR's buildroot has no network, so Source0 has to travel inside the SRPM. spectool downloads it here, while there is still a network.
-        spectool -g -R ~/rpmbuild/SPECS/slim-m-client.spec
+        # COPR's buildroot has no network, so Source0 travels inside the SRPM: the tarball linux-client built, not a second download of the release asset.
+        cp "dist/slim-m-client-${VER}-linux-amd64.tar.gz" ~/rpmbuild/SOURCES/
         rpmbuild -bs ~/rpmbuild/SPECS/slim-m-client.spec >/dev/null
         srpm=$(ls ~/rpmbuild/SRPMS/slim-m-client-*.src.rpm)
         if copr-cli build nc1107/slim-m "$srpm" --nowait; then
