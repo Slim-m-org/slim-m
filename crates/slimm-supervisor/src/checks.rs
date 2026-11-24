@@ -30,6 +30,13 @@ impl Readiness {
     }
 }
 
+/// The cheap half of [`check`], re-run on every create and start: only `/version` and `/info`.
+pub async fn recheck(runtime: &Runtime, wanted: Requirements) -> Result<Vec<String>, ApiError> {
+    let version = runtime.get("/version").await?.json();
+    let info = runtime.get("/info").await?.json();
+    Ok(judge_info(&version, &info, wanted).problems)
+}
+
 /// Reads `/version` and `/info`, checks the egress network and the supervisor's own image,
 /// and creates and removes an internal network as a probe.
 pub async fn check(

@@ -147,15 +147,39 @@ pub fn parse_tunnelled_head(head: &[u8]) -> Result<Origin, &'static str> {
 
 fn request_line(head: &[u8]) -> Result<(&str, &str, &str, Vec<&str>), &'static str> {
     let text = std::str::from_utf8(head).map_err(|_| "the request head is not UTF-8")?;
+    reject_smuggling(text)?;
     let mut lines = text.split("\r\n");
     let request_line = lines.next().ok_or("empty request")?;
     let mut parts = request_line.split(' ');
     match (parts.next(), parts.next(), parts.next(), parts.next()) {
-        (Some(m), Some(t), Some(v), None) if v.starts_with("HTTP/1.") => {
+        (Some(m), Some(t), Some(v), None) if matches!(v, "HTTP/1.0" | "HTTP/1.1") => {
             Ok((m, t, v, lines.collect()))
         }
         _ => Err("malformed request line"),
     }
+}
+
+/// Refuses framing a line-splitting proxy and the upstream could read differently.
+fn reject_smuggling(text: &str) -> Result<(), &'static str> {
+    let bytes = text.as_bytes();
+    for (i, &b) in bytes.iter().enumerate() {
+        let paired = match b {
+            b'\r' => bytes.get(i + 1) == Some(&b'\n'),
+            b'\n' => i > 0 && bytes[i - 1] == b'\r',
+            _ => true,
+        };
+        if !paired || b == 0 {
+            return Err("malformed line ending or control character in the request head");
+        }
+    }
+    if text
+        .split("\r\n")
+        .skip(1)
+        .any(|l| l.starts_with([' ', '\t']))
+    {
+        return Err("folded header lines are refused");
+    }
+    Ok(())
 }
 
 /// Headers a connector could claim another address with, and hop-by-hop ones the gateway sets.
@@ -305,6 +329,25 @@ mod tests {
         ] {
             assert!(parse_head(bad).is_err(), "{}", String::from_utf8_lossy(bad));
         }
+    }
+
+    #[test]
+    fn bare_line_feeds_folds_and_odd_versions_are_refused() {
+        for bad in [
+            &b"GET http://server:8080/ HTTP/1.1\nX-Forwarded-For: 1.2.3.4\r\nHost: server:8080"[..],
+            b"GET http://server:8080/ HTTP/1.1\r\nHost: server:8080\nX-Forwarded-For: 1.2.3.4",
+            b"GET http://server:8080/ HTTP/1.1\r\nHost: server:8080\r\nX-A: b\rX-Forwarded-For: 1",
+            b"GET http://server:8080/ HTTP/1.1\r\nHost: server:8080\n\nGET / HTTP/1.1",
+            b"GET http://server:8080/ HTTP/1.1\r\nX-A: b\r\n X-Forwarded-For: 1.2.3.4",
+            b"GET http://server:8080/ HTTP/1.1\r\nX-A: b\r\n\tmore",
+            b"GET http://server:8080/ HTTP/1.1\r\nX-A: b\0c",
+            b"GET http://server:8080/ HTTP/1.1x",
+            b"GET http://server:8080/ HTTP/1.9",
+        ] {
+            assert!(parse_head(bad).is_err(), "{}", String::from_utf8_lossy(bad));
+            assert!(parse_tunnelled_head(bad).is_err());
+        }
+        assert!(parse_head(b"GET http://server:8080/ HTTP/1.0\r\nHost: s").is_ok());
     }
 
     /// M1: a connector must not choose the address the server keys it by.

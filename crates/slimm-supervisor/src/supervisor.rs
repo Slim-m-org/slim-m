@@ -97,7 +97,7 @@ impl Supervisor {
     async fn require_ready(&self) -> Result<(), ApiError> {
         let cached = self.readiness.read().await.clone();
         let readiness = match cached {
-            Some(r) if r.ready() => return Ok(()),
+            Some(r) if r.ready() => self.recheck_readiness(r).await?,
             _ => self.refresh_readiness().await?,
         };
         if readiness.ready() {
@@ -107,6 +107,17 @@ impl Supervisor {
             "the runtime cannot enforce the sandbox: {}",
             readiness.problems.join("; ")
         )))
+    }
+
+    /// Re-reads what the runtime enforces; a runtime weakened since the last full check is no longer ready.
+    async fn recheck_readiness(&self, cached: Readiness) -> Result<Readiness, ApiError> {
+        let problems = checks::recheck(&self.runtime, self.config.requirements).await?;
+        if problems.is_empty() {
+            return Ok(cached);
+        }
+        let weakened = Readiness { problems, ..cached };
+        *self.readiness.write().await = Some(weakened.clone());
+        Ok(weakened)
     }
 
     /// Probes the runtime only until it is ready; afterwards a down runtime shows as `list` failing.
@@ -380,3 +391,96 @@ fn egress_of(inspected: &Value) -> (Vec<HostPort>, bool, bool) {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod readiness_tests {
+    use super::*;
+    use std::collections::HashMap;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::net::UnixListener;
+
+    const GOOD_INFO: &str = r#"{"CgroupVersion":"2","MemoryLimit":true,"CpuCfsQuota":true,"PidsLimit":true,"SecurityOptions":["name=apparmor","name=seccomp,profile=builtin"]}"#;
+    const WEAK_INFO: &str = r#"{"CgroupVersion":"1","MemoryLimit":true,"CpuCfsQuota":true,"PidsLimit":true,"SecurityOptions":["name=apparmor","name=seccomp,profile=builtin"]}"#;
+
+    fn serve_runtime(socket: std::path::PathBuf, weak: Arc<AtomicBool>) {
+        let listener = UnixListener::bind(&socket).unwrap();
+        tokio::spawn(async move {
+            loop {
+                let Ok((mut stream, _)) = listener.accept().await else {
+                    return;
+                };
+                let mut buf = [0u8; 2048];
+                let n = stream.read(&mut buf).await.unwrap_or(0);
+                let head = String::from_utf8_lossy(&buf[..n]);
+                let body = if head.starts_with("GET /version") {
+                    r#"{"Version":"28.0.0","Components":[{"Name":"Engine"}]}"#
+                } else if weak.load(Ordering::SeqCst) {
+                    WEAK_INFO
+                } else {
+                    GOOD_INFO
+                };
+                let reply = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                    body.len()
+                );
+                let _ = stream.write_all(reply.as_bytes()).await;
+            }
+        });
+    }
+
+    #[tokio::test]
+    async fn a_runtime_weakened_after_start_fails_the_next_create_and_start() {
+        let dir =
+            std::env::temp_dir().join(format!("slimm-sup-ready-{}", uuid::Uuid::now_v7().simple()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let runtime_socket = dir.join("rt.sock");
+        let env: HashMap<String, String> = [
+            (
+                "SLIMM_SUPERVISOR_SECRET",
+                "test-secret-0123456789abcdef0123456789".to_owned(),
+            ),
+            (
+                "SLIMM_SUPERVISOR_SERVER_URL",
+                "http://server:8080".to_owned(),
+            ),
+            ("SLIMM_SUPERVISOR_EGRESS_NETWORK", "egress".to_owned()),
+            ("SLIMM_SUPERVISOR_IMAGE", "supervisor:test".to_owned()),
+            (
+                "SLIMM_SUPERVISOR_SOCKET",
+                dir.join("api.sock").display().to_string(),
+            ),
+            (
+                "SLIMM_SUPERVISOR_STATE_DIR",
+                dir.join("state").display().to_string(),
+            ),
+            ("SLIMM_SUPERVISOR_SERVER_UID", "1000".to_owned()),
+            ("SLIMM_RUNTIME_SOCKET", runtime_socket.display().to_string()),
+        ]
+        .into_iter()
+        .map(|(k, v)| (k.to_owned(), v))
+        .collect();
+        let mut config = Config::from_map(&env).unwrap();
+        config.requirements = checks::Requirements { lsm: false };
+        let weak = Arc::new(AtomicBool::new(false));
+        serve_runtime(runtime_socket, weak.clone());
+        let supervisor = Supervisor::new(config, "aaaaaaaaaaaaaaaa".into());
+        *supervisor.readiness.write().await = Some(Readiness {
+            runtime: "docker",
+            rootless: false,
+            problems: vec![],
+            own_image_id: Some("sha256:abc".into()),
+        });
+        supervisor.require_ready().await.unwrap();
+        weak.store(true, Ordering::SeqCst);
+        let err = supervisor.require_ready().await.unwrap_err();
+        assert!(err.detail.contains("cgroup v2"), "{}", err.detail);
+        assert!(
+            supervisor
+                .start("0196f2a0-0000-7000-8000-000000000001")
+                .await
+                .is_err()
+        );
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+}
