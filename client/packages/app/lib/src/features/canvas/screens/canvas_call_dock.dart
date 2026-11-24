@@ -59,6 +59,7 @@ import '../../voice/providers/voice_flags.dart';
 import '../../../widgets/floating_dock_card.dart';
 import 'canvas_compact_dock.dart';
 import 'canvas_dock_toggle.dart';
+import 'canvas_dock_group.dart';
 import 'canvas_dock_tools.dart';
 import '../providers/canvas_pen_style.dart';
 import 'canvas_tools_row.dart';
@@ -330,9 +331,7 @@ class CanvasCallDock extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Flexible(child: CanvasDockToolsRow(canvas: canvas)),
-            const SizedBox(width: AppSpacing.s8),
-            const DockVerticalDivider(),
-            const SizedBox(width: AppSpacing.s8),
+            const CanvasDockGroupDivider(),
             _callRow(call, toggle: _toggle(canvas), alone: alone),
           ],
         ),
@@ -386,7 +385,7 @@ class CanvasCallDock extends ConsumerWidget {
       : CanvasDockToggle(open: true, onPressed: canvas.onClose);
 
   static List<Widget> _toggleAfterGap(CanvasDockData canvas) => [
-    const SizedBox(width: AppSpacing.s8),
+    const CanvasDockGroupDivider(),
     _toggle(canvas),
   ];
 }

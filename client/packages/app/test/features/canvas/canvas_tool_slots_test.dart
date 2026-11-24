@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Arming a tool never moves the buttons: pen, shape and stamp each keep
-/// their caret slot, and every caret points the same way.
+/// A caret takes room only while its tool is armed, so the unarmed gaps stay
+/// even, and every caret points the same way.
 library;
 
 import 'package:flutter/material.dart';
@@ -18,28 +18,24 @@ Widget _row(CanvasTool tool, {bool? touch}) => ProviderScope(
 );
 
 void main() {
-  testWidgets('no button moves when a tool is armed on a pointer layout', (
-    tester,
-  ) async {
+  testWidgets('arming a tool moves only the buttons after its caret, by the '
+      'caret width', (tester) async {
     Future<Map<String, double>> lefts(CanvasTool tool) async {
       await tester.pumpWidget(_row(tool, touch: false));
       return {
-        for (final label in [
-          'Pan',
-          'Pen',
-          'Note',
-          'Text',
-          'Shape',
-          'Stamp',
-          'Eraser',
-        ])
+        for (final label in ['Pan', 'Pen', 'Eraser', 'Note', 'Text', 'Shape'])
           label: tester.getTopLeft(find.bySemanticsLabel(label).first).dx,
       };
     }
 
     final baseline = await lefts(CanvasTool.pan);
-    for (final tool in [CanvasTool.pen, CanvasTool.shape, CanvasTool.stamp]) {
-      expect(await lefts(tool), baseline, reason: 'armed: $tool');
+    final armed = await lefts(CanvasTool.pen);
+    expect(armed['Pan'], baseline['Pan']);
+    expect(armed['Pen'], baseline['Pen']);
+    final shift = armed['Eraser']! - baseline['Eraser']!;
+    expect(shift, AppSizes.rowPointer);
+    for (final label in ['Note', 'Text', 'Shape']) {
+      expect(armed[label]! - baseline[label]!, shift, reason: label);
     }
   });
 
