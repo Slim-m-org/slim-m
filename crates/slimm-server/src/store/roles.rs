@@ -411,34 +411,35 @@ impl Store {
 
         // Built rather than a fixed `query!` because the id list is variable
         // length and SQLite has no array binding.
-        let mut builder = QueryBuilder::new(
-            "SELECT mr.user_id AS user_id, r.id AS role_id, r.name AS name, r.color AS color, \
-             r.position AS position \
-             FROM member_roles mr JOIN roles r ON r.id = mr.role_id \
-             WHERE r.is_everyone = 0 AND mr.user_id IN (",
-        );
-        let mut separated = builder.separated(", ");
-        for id in user_ids {
-            separated.push_bind(*id);
-        }
-        builder.push(") ORDER BY mr.user_id, r.position DESC, r.created_at");
-
-        let rows = builder.build().fetch_all(&self.pool).await?;
-
         use sqlx::Row;
         let mut grouped: Vec<(UserId, Vec<HeldRole>)> = Vec::new();
-        for row in rows {
-            let user_id: UserId = row.try_get("user_id")?;
-            let role = HeldRole {
-                id: row.try_get("role_id")?,
-                name: row.try_get("name")?,
-                color: row.try_get("color")?,
-                position: row.try_get("position")?,
-            };
-            // Rows arrive grouped by user, so a member's roles are always the last entry.
-            match grouped.last_mut() {
-                Some((id, roles)) if *id == user_id => roles.push(role),
-                _ => grouped.push((user_id, vec![role])),
+        for chunk in user_ids.chunks(crate::store::MAX_IDS_PER_QUERY) {
+            let mut builder = QueryBuilder::new(
+                "SELECT mr.user_id AS user_id, r.id AS role_id, r.name AS name, r.color AS color, \
+                 r.position AS position \
+                 FROM member_roles mr JOIN roles r ON r.id = mr.role_id \
+                 WHERE r.is_everyone = 0 AND mr.user_id IN (",
+            );
+            let mut separated = builder.separated(", ");
+            for id in chunk {
+                separated.push_bind(*id);
+            }
+            builder.push(") ORDER BY mr.user_id, r.position DESC, r.created_at");
+
+            let rows = builder.build().fetch_all(&self.pool).await?;
+            for row in rows {
+                let user_id: UserId = row.try_get("user_id")?;
+                let role = HeldRole {
+                    id: row.try_get("role_id")?,
+                    name: row.try_get("name")?,
+                    color: row.try_get("color")?,
+                    position: row.try_get("position")?,
+                };
+                // Rows arrive grouped by user, so a member's roles are always the last entry.
+                match grouped.last_mut() {
+                    Some((id, roles)) if *id == user_id => roles.push(role),
+                    _ => grouped.push((user_id, vec![role])),
+                }
             }
         }
         Ok(grouped)

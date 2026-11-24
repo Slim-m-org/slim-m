@@ -393,50 +393,56 @@ impl Store {
         if channels.is_empty() {
             return Ok(Vec::new());
         }
-        let mut builder = sqlx::QueryBuilder::new(
-            "SELECT l.transcript_id, t.channel_id, l.seq, l.speaker_id, l.at, l.end_at,
-                    l.language, l.text,
-                    highlight(call_transcript_lines_fts, 0, ",
-        );
-        builder.push_bind(HIGHLIGHT_OPEN.to_string());
-        builder.push(", ");
-        builder.push_bind(HIGHLIGHT_CLOSE.to_string());
-        builder.push(
-            ") AS highlight
-             FROM call_transcript_lines_fts f
-             JOIN call_transcript_lines l ON l.id = f.rowid
-             JOIN call_transcripts t ON t.id = l.transcript_id
-             WHERE call_transcript_lines_fts MATCH ",
-        );
-        builder.push_bind(query.as_str().to_owned());
-        builder.push(" AND t.channel_id IN (");
-        let mut ids = builder.separated(", ");
-        for channel in channels {
-            ids.push_bind(*channel);
-        }
-        builder.push(")");
-        match before {
-            Some(TranscriptCursor {
-                at,
-                line: Some((transcript, seq)),
-            }) => {
-                builder.push(" AND (l.at, l.transcript_id, l.seq) < (");
-                builder.push_bind(at);
-                builder.push(", ");
-                builder.push_bind(transcript);
-                builder.push(", ");
-                builder.push_bind(seq);
-                builder.push(")");
+        let mut rows = Vec::new();
+        for chunk in channels.chunks(crate::store::MAX_IDS_PER_QUERY) {
+            let mut builder = sqlx::QueryBuilder::new(
+                "SELECT l.transcript_id, t.channel_id, l.seq, l.speaker_id, l.at, l.end_at,
+                        l.language, l.text,
+                        highlight(call_transcript_lines_fts, 0, ",
+            );
+            builder.push_bind(HIGHLIGHT_OPEN.to_string());
+            builder.push(", ");
+            builder.push_bind(HIGHLIGHT_CLOSE.to_string());
+            builder.push(
+                ") AS highlight
+                 FROM call_transcript_lines_fts f
+                 JOIN call_transcript_lines l ON l.id = f.rowid
+                 JOIN call_transcripts t ON t.id = l.transcript_id
+                 WHERE call_transcript_lines_fts MATCH ",
+            );
+            builder.push_bind(query.as_str().to_owned());
+            builder.push(" AND t.channel_id IN (");
+            let mut ids = builder.separated(", ");
+            for channel in chunk {
+                ids.push_bind(*channel);
             }
-            Some(TranscriptCursor { at, line: None }) => {
-                builder.push(" AND l.at < ");
-                builder.push_bind(at);
+            builder.push(")");
+            match before {
+                Some(TranscriptCursor {
+                    at,
+                    line: Some((transcript, seq)),
+                }) => {
+                    builder.push(" AND (l.at, l.transcript_id, l.seq) < (");
+                    builder.push_bind(at);
+                    builder.push(", ");
+                    builder.push_bind(transcript);
+                    builder.push(", ");
+                    builder.push_bind(seq);
+                    builder.push(")");
+                }
+                Some(TranscriptCursor { at, line: None }) => {
+                    builder.push(" AND l.at < ");
+                    builder.push_bind(at);
+                }
+                None => {}
             }
-            None => {}
+            builder.push(" ORDER BY l.at DESC, l.transcript_id DESC, l.seq DESC LIMIT ");
+            builder.push_bind(limit);
+            rows.extend(builder.build().fetch_all(&self.pool).await?);
         }
-        builder.push(" ORDER BY l.at DESC, l.transcript_id DESC, l.seq DESC LIMIT ");
-        builder.push_bind(limit);
-        let rows = builder.build().fetch_all(&self.pool).await?;
+        // Each chunk returned its own newest `limit`, so the merge re-sorts and cuts again.
+        rows.sort_by_key(|row| std::cmp::Reverse(transcript_order(row)));
+        rows.truncate(usize::try_from(limit).unwrap_or(0));
         rows.into_iter()
             .map(|row| -> Result<TranscriptHit, sqlx::Error> {
                 Ok(TranscriptHit {
@@ -456,4 +462,9 @@ impl Store {
             .collect::<Result<Vec<_>, _>>()
             .map_err(SearchError::from)
     }
+}
+
+fn transcript_order(row: &sqlx::sqlite::SqliteRow) -> (i64, CallTranscriptId, i64) {
+    use sqlx::Row;
+    (row.get("at"), row.get("transcript_id"), row.get("seq"))
 }

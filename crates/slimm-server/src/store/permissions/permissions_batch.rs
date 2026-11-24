@@ -121,20 +121,23 @@ impl Store {
         let owner = self.space_owner().await?;
 
         // One built query (no array binding in SQLite), joined from `users` so a webhook is recognised too.
-        let mut builder = sqlx::QueryBuilder::new(format!(
-            "SELECT u.id AS user_id, u.is_webhook AS is_webhook, {CAP_COLUMN} AS cap, \
-                    r.id AS role_id, r.permissions AS permissions \
-             FROM users u \
-             LEFT JOIN member_roles mr ON mr.user_id = u.id \
-             LEFT JOIN roles r ON r.id = mr.role_id AND r.is_everyone = 0 \
-             WHERE u.id IN ("
-        ));
-        let mut separated = builder.separated(", ");
-        for id in candidates {
-            separated.push_bind(*id);
+        let mut role_rows = Vec::new();
+        for chunk in candidates.chunks(crate::store::MAX_IDS_PER_QUERY) {
+            let mut builder = sqlx::QueryBuilder::new(format!(
+                "SELECT u.id AS user_id, u.is_webhook AS is_webhook, {CAP_COLUMN} AS cap, \
+                        r.id AS role_id, r.permissions AS permissions \
+                 FROM users u \
+                 LEFT JOIN member_roles mr ON mr.user_id = u.id \
+                 LEFT JOIN roles r ON r.id = mr.role_id AND r.is_everyone = 0 \
+                 WHERE u.id IN ("
+            ));
+            let mut separated = builder.separated(", ");
+            for id in chunk {
+                separated.push_bind(*id);
+            }
+            builder.push(")");
+            role_rows.extend(builder.build().fetch_all(&self.pool).await?);
         }
-        builder.push(")");
-        let role_rows = builder.build().fetch_all(&self.pool).await?;
 
         use sqlx::Row;
         use std::collections::HashMap;

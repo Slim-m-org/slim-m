@@ -268,35 +268,38 @@ impl Store {
             return Ok(Vec::new());
         }
         // One batched query, built (no array binding in SQLite), the same shape roles_for_users uses.
-        let mut builder = sqlx::QueryBuilder::new(
-            "SELECT id, user_id, platform, push_token_ref, voip_push_token_ref, \
-                    push_public_key, lifecycle_state, lifecycle_reported_at, \
-                    COALESCE((SELECT u.push_include_content FROM users u \
-                               WHERE u.id = devices.user_id), ",
-        );
-        builder.push_bind(DEFAULT_PUSH_PREVIEW);
-        builder.push(
-            ") AS push_include_content \
-             FROM devices \
-             WHERE push_token_ref IS NOT NULL \
-               AND push_public_key IS NOT NULL AND platform IS NOT NULL \
-               AND EXISTS ( \
-                     SELECT 1 FROM sessions s \
-                     JOIN refresh_tokens r ON r.session_id = s.id \
-                      WHERE s.device_id = devices.id \
-                        AND s.revoked_at IS NULL \
-                        AND r.used_at IS NULL \
-                        AND r.revoked_at IS NULL \
-                        AND r.expires_at > ",
-        );
-        builder.push_bind(now_ms());
-        builder.push(") AND user_id IN (");
-        let mut separated = builder.separated(", ");
-        for id in user_ids {
-            separated.push_bind(*id);
+        let mut rows = Vec::new();
+        for chunk in user_ids.chunks(crate::store::MAX_IDS_PER_QUERY) {
+            let mut builder = sqlx::QueryBuilder::new(
+                "SELECT id, user_id, platform, push_token_ref, voip_push_token_ref, \
+                        push_public_key, lifecycle_state, lifecycle_reported_at, \
+                        COALESCE((SELECT u.push_include_content FROM users u \
+                                   WHERE u.id = devices.user_id), ",
+            );
+            builder.push_bind(DEFAULT_PUSH_PREVIEW);
+            builder.push(
+                ") AS push_include_content \
+                 FROM devices \
+                 WHERE push_token_ref IS NOT NULL \
+                   AND push_public_key IS NOT NULL AND platform IS NOT NULL \
+                   AND EXISTS ( \
+                         SELECT 1 FROM sessions s \
+                         JOIN refresh_tokens r ON r.session_id = s.id \
+                          WHERE s.device_id = devices.id \
+                            AND s.revoked_at IS NULL \
+                            AND r.used_at IS NULL \
+                            AND r.revoked_at IS NULL \
+                            AND r.expires_at > ",
+            );
+            builder.push_bind(now_ms());
+            builder.push(") AND user_id IN (");
+            let mut separated = builder.separated(", ");
+            for id in chunk {
+                separated.push_bind(*id);
+            }
+            builder.push(")");
+            rows.extend(builder.build().fetch_all(&self.pool).await?);
         }
-        builder.push(")");
-        let rows = builder.build().fetch_all(&self.pool).await?;
 
         use sqlx::Row;
         rows.into_iter()

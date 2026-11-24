@@ -160,56 +160,58 @@ impl Store {
             return Ok(HashMap::new());
         }
 
-        // Built, not a fixed `query!`: the id list is variable length; see `user_profiles`.
-        let mut builder = QueryBuilder::new(
-            "SELECT u.id AS id, \
-             COALESCE(c.preference, p.preference, CASE WHEN EXISTS (SELECT 1 FROM category_mutes m \
-               WHERE m.user_id = u.id AND m.category_id IN (d.category_id, d.category_parent_id)) \
-               THEN 'nothing' END, CASE \
-               WHEN 'nothing' IN (d.level, u.notification_preference) THEN 'nothing' \
-               WHEN 'mentions' IN (d.level, d.voice_level, u.notification_preference) THEN 'mentions' \
-               ELSE 'everything' END) AS preference, \
-             COALESCE(c.preference, p.preference) IS NOT NULL AS overridden \
-             FROM users u \
-             LEFT JOIN (SELECT COALESCE(pc.default_notification, cc.default_notification) AS level, \
-               CASE COALESCE(pc.kind, cc.kind) WHEN 'voice' THEN 'mentions' END AS voice_level, \
-               cat.id AS category_id, cat.parent_id AS category_parent_id \
-               FROM channels cc LEFT JOIN channels pc ON pc.id = ",
-        );
-        builder.push_bind(parent_channel_id);
-        builder.push(
-            " LEFT JOIN channel_categories cat \
-             ON cat.id = COALESCE(pc.category_id, cc.category_id) AND cat.deleted_at IS NULL \
-             WHERE cc.id = ",
-        );
-        builder.push_bind(channel_id);
-        builder.push(
-            ") d ON 1 \
-             LEFT JOIN channel_notification_prefs c ON c.user_id = u.id AND c.channel_id = ",
-        );
-        builder.push_bind(channel_id);
-        builder.push(
-            " LEFT JOIN channel_notification_prefs p ON p.user_id = u.id AND p.channel_id = ",
-        );
-        builder.push_bind(parent_channel_id);
-        builder.push(" WHERE u.deleted_at IS NULL AND u.id IN (");
-        let mut separated = builder.separated(", ");
-        for id in user_ids {
-            separated.push_bind(*id);
-        }
-        builder.push(")");
-
-        let rows = builder.build().fetch_all(&self.pool).await?;
         use sqlx::Row;
-        let mut preferences = HashMap::with_capacity(rows.len());
-        for row in rows {
-            let id: UserId = row.try_get("id")?;
-            let raw: String = row.try_get("preference")?;
-            let choice = NotificationChoice {
-                preference: NotificationPreference::parse(&raw).unwrap_or_default(),
-                overridden: row.try_get("overridden")?,
-            };
-            preferences.insert(id, choice);
+        let mut preferences = HashMap::with_capacity(user_ids.len());
+        for chunk in user_ids.chunks(crate::store::MAX_IDS_PER_QUERY) {
+            // Built, not a fixed `query!`: the id list is variable length; see `user_profiles`.
+            let mut builder = QueryBuilder::new(
+                "SELECT u.id AS id, \
+                 COALESCE(c.preference, p.preference, CASE WHEN EXISTS (SELECT 1 FROM category_mutes m \
+                   WHERE m.user_id = u.id AND m.category_id IN (d.category_id, d.category_parent_id)) \
+                   THEN 'nothing' END, CASE \
+                   WHEN 'nothing' IN (d.level, u.notification_preference) THEN 'nothing' \
+                   WHEN 'mentions' IN (d.level, d.voice_level, u.notification_preference) THEN 'mentions' \
+                   ELSE 'everything' END) AS preference, \
+                 COALESCE(c.preference, p.preference) IS NOT NULL AS overridden \
+                 FROM users u \
+                 LEFT JOIN (SELECT COALESCE(pc.default_notification, cc.default_notification) AS level, \
+                   CASE COALESCE(pc.kind, cc.kind) WHEN 'voice' THEN 'mentions' END AS voice_level, \
+                   cat.id AS category_id, cat.parent_id AS category_parent_id \
+                   FROM channels cc LEFT JOIN channels pc ON pc.id = ",
+            );
+            builder.push_bind(parent_channel_id);
+            builder.push(
+                " LEFT JOIN channel_categories cat \
+                 ON cat.id = COALESCE(pc.category_id, cc.category_id) AND cat.deleted_at IS NULL \
+                 WHERE cc.id = ",
+            );
+            builder.push_bind(channel_id);
+            builder.push(
+                ") d ON 1 \
+                 LEFT JOIN channel_notification_prefs c ON c.user_id = u.id AND c.channel_id = ",
+            );
+            builder.push_bind(channel_id);
+            builder.push(
+                " LEFT JOIN channel_notification_prefs p ON p.user_id = u.id AND p.channel_id = ",
+            );
+            builder.push_bind(parent_channel_id);
+            builder.push(" WHERE u.deleted_at IS NULL AND u.id IN (");
+            let mut separated = builder.separated(", ");
+            for id in chunk {
+                separated.push_bind(*id);
+            }
+            builder.push(")");
+
+            let rows = builder.build().fetch_all(&self.pool).await?;
+            for row in rows {
+                let id: UserId = row.try_get("id")?;
+                let raw: String = row.try_get("preference")?;
+                let choice = NotificationChoice {
+                    preference: NotificationPreference::parse(&raw).unwrap_or_default(),
+                    overridden: row.try_get("overridden")?,
+                };
+                preferences.insert(id, choice);
+            }
         }
         Ok(preferences)
     }
