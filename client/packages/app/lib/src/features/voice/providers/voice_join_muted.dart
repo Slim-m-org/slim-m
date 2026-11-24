@@ -11,6 +11,7 @@
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 import '../../../providers/providers.dart';
 import 'voice_state.dart';
@@ -18,12 +19,22 @@ import 'voice_state.dart';
 class VoiceJoinMuted {
   bool _restoreOn = false;
 
-  /// Whether [channelId] asks members to join with the mic off. False when
-  /// the local store has not loaded or does not know the channel.
+  /// Whether [channelId] asks members to join with the mic off. Waits for the
+  /// local store to open; false when it fails or does not know the channel.
   Future<bool> asksFor(Ref ref, String channelId) async {
-    final store = ref.read(storeProvider).valueOrNull;
-    final row = await store?.channelRow(channelId);
-    return row?.joinMuted ?? false;
+    try {
+      final store = await ref.read(storeProvider.future);
+      final row = await store.channelRow(channelId);
+      return row?.joinMuted ?? false;
+    } on Object catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.voice,
+        'Could not read the join muted setting',
+        error,
+        stack,
+      );
+      return false;
+    }
   }
 
   /// The mic preference a join starts from, undoing the previous call's mute.

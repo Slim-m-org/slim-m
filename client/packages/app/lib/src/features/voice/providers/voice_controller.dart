@@ -347,8 +347,8 @@ class VoiceController extends StateNotifier<VoiceState> {
     // The mic/camera preference survives the reset (no lobby left to re-set them on); justLeftChannelId/justLeftAt are set only here, see VoiceState.rejoinGuardWindow.
     final left = VoiceState(
       microphoneEnabled: _joinMuted.preferenceAtLeave(state.microphoneEnabled),
-      // The live camera is still on here; a call never hands its camera to the next one, only a held preference.
-      cameraEnabled: _cameraPreference.atLeave(false),
+      // A call never hands its live camera to the next one, only the saved preference.
+      cameraEnabled: _cameraPreference.atLeave(),
       recap: recap,
       justLeftChannelId: channelId,
       justLeftAt: channelId == null ? null : _now(),

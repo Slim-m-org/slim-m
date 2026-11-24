@@ -17,6 +17,7 @@ import 'package:slimm_rtc/rtc.dart' show AudioDevice, resolveAudioDevice;
 import '../../../api_failure.dart';
 import '../../../audio/call_start_yields.dart';
 import '../../../audio/call_holds_audio_session.dart';
+import '../../../providers/app_lifecycle.dart';
 import '../../../providers/session_provider.dart';
 import '../../accounts/providers/account_slot.dart';
 import '../../voice/providers/voice_controller.dart';
@@ -166,6 +167,10 @@ class VoiceRecorder
     final signIns = _dropOnAccountChange();
     ref.listen(accountActiveProvider, (_, onScreen) {
       if (!onScreen) unawaited(_giveWay(forCall: false));
+    });
+    ref.listen(appVisibleProvider, (_, visible) {
+      final onPhone = ref.read(voiceRecordingYieldsToCallProvider);
+      if (!visible && onPhone) unawaited(_finish(forCall: false));
     });
     listenSelf((_, next) {
       _holdWhile(next.holdsAudio);

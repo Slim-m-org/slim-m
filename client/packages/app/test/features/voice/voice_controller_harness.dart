@@ -7,13 +7,16 @@
 /// and the same provider wiring around them.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
+import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/diagnostics/debug_log.dart';
+import 'package:slimm_data/data.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/voice/providers/call_foreground_keeper.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_auto_rejoin.dart';
@@ -49,6 +52,7 @@ const tokens = TokenPair(
 /// change to how `/voice/token` answers.
 /// [listedOnThisDevice] has the room list this account: on this device, or on another when false.
 /// [rosterUnreadable] answers the room's list with a 503 for as long as it says so.
+/// [holdHeartbeat] keeps a heartbeat POST unanswered until it completes.
 /// [refuseComeback] refuses a token asked with `automatic=true`, as a server whose account is on a call elsewhere does.
 http.Client voiceApi({
   int status = 200,
@@ -60,6 +64,7 @@ http.Client voiceApi({
   bool Function()? rosterUnreadable,
   bool refuseComeback = false,
   void Function(http.Request request)? onRequest,
+  Future<void>? holdHeartbeat,
 }) {
   final listed = listedOnThisDevice == null
       ? ''
@@ -71,6 +76,7 @@ http.Client voiceApi({
       if (failHeartbeat && request.method == 'POST') {
         return http.Response('', 503);
       }
+      if (request.method == 'POST') await holdHeartbeat;
       return http.Response('', 204);
     }
     if (request.url.path.endsWith('/voice/roster')) {
@@ -166,6 +172,12 @@ class VoiceHarness {
     final container = ProviderContainer(
       overrides: [
         keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+        // A join reads the channel's join-muted flag, which waits for the store to open.
+        storeProvider.overrideWith((ref) async {
+          final store = MessageStore(SlimmDatabase(NativeDatabase.memory()));
+          ref.onDispose(() => unawaited(store.db.close()));
+          return store;
+        }),
         sessionProvider.overrideWithValue(SessionStore(tokens: tokens)),
         apiProvider.overrideWith((ref) {
           final api = SlimmApi(

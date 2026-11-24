@@ -161,4 +161,33 @@ void main() {
       );
     });
   });
+
+  test('a heartbeat still in flight lands before the leave request', () async {
+    final events = <String>[];
+    final gate = Completer<void>();
+    final session = FakeSession();
+    final controller = harness.controllerWith(
+      session,
+      voiceApi(
+        holdHeartbeat: gate.future,
+        onRequest: (r) {
+          if (r.url.path.endsWith('/voice/heartbeat')) {
+            events.add('${r.method} sent');
+          }
+        },
+      ),
+      voiceHeartbeatInterval: interval,
+    );
+
+    await controller.join('channel-1');
+    session.emitState(VoiceSessionState.connected);
+    await pumpEventQueue();
+    await controller.leave();
+    await pumpEventQueue();
+    events.add('beat answered');
+    gate.complete();
+    await pumpEventQueue();
+
+    expect(events, ['POST sent', 'beat answered', 'DELETE sent']);
+  });
 }

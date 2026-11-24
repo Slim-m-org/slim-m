@@ -10,10 +10,12 @@ library;
 import 'dart:async';
 
 import 'package:flutter/foundation.dart' show listEquals;
+import 'package:flutter/widgets.dart' show AppLifecycleState;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_rtc/rtc.dart';
 
+import '../../../providers/app_lifecycle.dart';
 import '../../../providers/live_events.dart';
 import '../../../providers/providers.dart';
 import '../../../providers/sync_controller.dart';
@@ -178,8 +180,10 @@ class CallRosterGapNotifier extends AutoDisposeNotifier<CallRosterGap> {
       );
     }
 
+    bool visible() => isWindowVisible(ref.read(appLifecycleProvider));
+
     Future<void> poll() async {
-      if (inFlight || gone) return;
+      if (inFlight || gone || !visible()) return;
       timer?.cancel();
       inFlight = true;
       try {
@@ -201,8 +205,20 @@ class CallRosterGapNotifier extends AutoDisposeNotifier<CallRosterGap> {
       } finally {
         inFlight = false;
       }
-      if (!gone) timer = Timer(kRosterGapPoll, () => unawaited(poll()));
+      if (!gone && visible()) {
+        timer = Timer(kRosterGapPoll, () => unawaited(poll()));
+      }
     }
+
+    ref.listen<AppLifecycleState>(appLifecycleProvider, (was, now) {
+      final shown = isWindowVisible(now);
+      if (was != null && isWindowVisible(was) == shown) return;
+      if (shown) {
+        unawaited(poll());
+      } else {
+        timer?.cancel();
+      }
+    });
 
     ref.listen(voiceParticipantsProvider, (_, _) {
       if (!gone) state = tracker.forget(state, shown());

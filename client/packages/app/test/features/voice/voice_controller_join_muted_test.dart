@@ -3,6 +3,8 @@
 /// member's own sticky mic preference must come out of it unchanged.
 library;
 
+import 'dart:async';
+
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -95,5 +97,34 @@ void main() {
     await controller.join('lounge');
 
     expect(session.askedForMicrophoneOnJoin, isFalse);
+  });
+
+  test('a join that beats the local store opening still joins muted', () async {
+    final store = MessageStore(SlimmDatabase(NativeDatabase.memory()));
+    addTearDown(store.db.close);
+    await store.upsertChannels([
+      const api.Channel(
+        id: 'stage',
+        name: 'stage',
+        kind: 'voice',
+        createdAt: 0,
+        joinMuted: true,
+      ),
+    ]);
+    final opening = Completer<MessageStore>();
+    final session = FakeSession();
+    final controller = harness.controllerWith(
+      session,
+      voiceApi(),
+      extraOverrides: [storeProvider.overrideWith((ref) => opening.future)],
+    );
+
+    final joining = controller.join('stage');
+    await pumpEventQueue();
+    opening.complete(store);
+    await joining;
+
+    expect(session.askedForMicrophoneOnJoin, isFalse);
+    expect(controller.state.joinedMuted, isTrue);
   });
 }
