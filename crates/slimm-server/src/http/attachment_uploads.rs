@@ -200,18 +200,64 @@ async fn append(
 }
 
 /// Hashes the assembled file and stores it as an attachment, exactly as
-/// `POST /attachments` would have.
+/// `POST /attachments` would have. A repeated call after a lost response
+/// answers with the attachment the first one made.
 async fn complete(
     AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path(upload_id): Path<String>,
     Query(params): Query<CompleteParams>,
     State(state): State<AppState>,
 ) -> Result<(StatusCode, Json<AttachmentDto>), ApiError> {
-    let (id, meta, offset) = owned_session(&state, ctx.user_id, &upload_id).await?;
+    let (id, meta, offset) = match owned_session(&state, ctx.user_id, &upload_id).await {
+        Ok(session) => session,
+        Err(missing) => return replay_completed(&state, ctx.user_id, &upload_id, missing).await,
+    };
     may_attach(&state, ctx.user_id, params.channel_id.as_deref()).await?;
+    if meta.size > effective_attachment_max(&state).await? {
+        state.media.uploads().discard(id).await.map_err(io_error)?;
+        return Err(ApiError::PayloadTooLarge);
+    }
     if offset != meta.size {
         return Err(ApiError::Conflict("upload is not complete"));
     }
+    let summary = store_completed(&state, ctx.user_id, (id, meta)).await?;
+    state
+        .media
+        .uploads()
+        .remember_completed(id, ctx.user_id.0.to_string(), summary.id.clone());
+    Ok((StatusCode::CREATED, Json(AttachmentDto::from(summary))))
+}
+
+/// The attachment a finished session became, when `upload_id` is one that just finished.
+async fn replay_completed(
+    state: &AppState,
+    user_id: UserId,
+    upload_id: &str,
+    missing: ApiError,
+) -> Result<(StatusCode, Json<AttachmentDto>), ApiError> {
+    let found = Uuid::parse_str(upload_id)
+        .ok()
+        .and_then(|id| {
+            state
+                .media
+                .uploads()
+                .completed_attachment(id, &user_id.0.to_string())
+        })
+        .and_then(|hex| media::from_hex(&hex));
+    let Some(sha256) = found else {
+        return Err(missing);
+    };
+    match state.store.attachment_summary(&sha256).await? {
+        Some(summary) => Ok((StatusCode::CREATED, Json(AttachmentDto::from(summary)))),
+        None => Err(missing),
+    }
+}
+
+async fn store_completed(
+    state: &AppState,
+    user_id: UserId,
+    (id, meta): (Uuid, UploadMeta),
+) -> Result<AttachmentSummary, ApiError> {
     let uploads = state.media.uploads();
     let finished = uploads
         .finish(id)
@@ -224,15 +270,10 @@ async fn complete(
         .ok_or(ApiError::Conflict("upload is not complete"))?;
     let content_type = media::attachment_content_type(sniffable(&finished.sniff_prefix));
     let size = i64::try_from(finished.size).unwrap_or(i64::MAX);
-    let mut reservation = match reserve_room(&state, size, Some(id)).await {
-        Ok(reservation) => reservation,
-        Err(err) => {
-            uploads.discard(id).await.ok();
-            return Err(err);
-        }
-    };
+    // A refusal leaves the session in place, so the client can complete it again once there is room.
+    let mut reservation = reserve_room(state, size, Some(id)).await?;
     if let Some(replacement) = super::attachment_compress::prepare(
-        &state,
+        state,
         &uploads.data_path(id),
         finished.size,
         &finished.sniff_prefix,
@@ -245,8 +286,7 @@ async fn complete(
             &mut reservation,
             media::Reservation::none(),
         ));
-        let summary = replacement.store(&state, ctx.user_id, received).await?;
-        return Ok((StatusCode::CREATED, Json(AttachmentDto::from(summary))));
+        return replacement.store(state, user_id, received).await;
     }
     // Bytes before the metadata row, the same order `POST /attachments` keeps.
     let placing = state.media.blob_guard().await;
@@ -258,30 +298,21 @@ async fn complete(
         media::from_hex(&finished.hex_id).expect("a hex id from sha256 is well-formed hex");
     state
         .store
-        .store_attachment(
-            &sha256,
-            size,
-            content_type,
-            &meta.filename,
-            Some(ctx.user_id),
-        )
+        .store_attachment(&sha256, size, content_type, &meta.filename, Some(user_id))
         .await?;
     drop(placing);
     drop(reservation);
     state.media.prewarm_preview(&finished.hex_id, content_type);
-    Ok((
-        StatusCode::CREATED,
-        Json(AttachmentDto::from(AttachmentSummary {
-            id: finished.hex_id,
-            filename: meta.filename,
-            content_type: content_type.to_owned(),
-            size,
-            spoiler: false,
-            voice: None,
-            transcript: None,
-            original: None,
-        })),
-    ))
+    Ok(AttachmentSummary {
+        id: finished.hex_id,
+        filename: meta.filename,
+        content_type: content_type.to_owned(),
+        size,
+        spoiler: false,
+        voice: None,
+        transcript: None,
+        original: None,
+    })
 }
 
 async fn discard(

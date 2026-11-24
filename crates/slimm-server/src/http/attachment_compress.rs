@@ -30,6 +30,14 @@ impl Received {
         }
     }
 
+    /// The session whose declared size is already counted, so storing its bytes is not charged twice.
+    fn session_id(&self) -> Option<Uuid> {
+        match self {
+            Self::Pending(_) => None,
+            Self::Session(_, id) => Some(*id),
+        }
+    }
+
     async fn discard(self) -> std::io::Result<()> {
         match self {
             Self::Pending(pending) => pending.abandon().await,
@@ -255,10 +263,14 @@ impl Replacement {
         } = self;
         let size = i64::try_from(compressed.bytes.len()).unwrap_or(i64::MAX);
         let kept = original.as_ref().map_or(0, |o| o.size);
-        let _reservation = match reserve_room(state, size.saturating_add(kept), None).await {
+        let exclude = received.session_id();
+        let _reservation = match reserve_room(state, size.saturating_add(kept), exclude).await {
             Ok(reservation) => reservation,
             Err(err) => {
-                received.discard().await.ok();
+                // A refused session stays, so the client can complete it again once there is room.
+                if exclude.is_none() {
+                    received.discard().await.ok();
+                }
                 return Err(err);
             }
         };
