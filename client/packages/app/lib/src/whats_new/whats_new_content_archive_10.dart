@@ -415,4 +415,39 @@ const List<WhatsNewEntry> whatsNewArchiveEntries10 = [
       ),
     ],
   ),
+  WhatsNewEntry(
+    version: '0.136.0',
+    headline: 'Group DMs for everyone, sharper images, and a security pass',
+    points: [
+      WhatsNewPoint(
+        'Everyone in a group DM can rename it, leave it or delete it from '
+        'its row menu. A DM with someone who left the Space or deleted '
+        'their account now says so.',
+      ),
+      WhatsNewPoint(
+        'Image grids are sharp again: each tile loads a preview big enough '
+        'for its size.',
+      ),
+      WhatsNewPoint(
+        'A token for a bot or connector with Administrator rights now asks '
+        'for your password.',
+        warn: true,
+      ),
+      WhatsNewPoint(
+        'Names for channels, categories, roles, sounds and the Space need '
+        'at least one visible character, and reactions use the built-in '
+        'emoji or the Space\'s own.',
+        warn: true,
+      ),
+      WhatsNewPoint(
+        'Lock screen previews keep spoilers hidden, and a call that ended '
+        'no longer rings again.',
+      ),
+      WhatsNewPoint(
+        'Plus: a large round of fixes from the pre-1.0 audit across '
+        'sign-in, sessions, invites, permissions, uploads, account '
+        'deletion and module commands.',
+      ),
+    ],
+  ),
 ];
