@@ -180,7 +180,7 @@ class _CanvasEdgeLayerState extends ConsumerState<CanvasEdgeLayer> {
       ),
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.s8),
-        child: compact
+        child: compact && _editing == null
             ? SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: body,

@@ -54,14 +54,13 @@ Future<CanvasPaneFixture> _open(
           'canvas_edges': edges,
         })
       : null;
-  fixture
-    ..objects = [
-      _note('a', 100, 100, 1),
-      _note('b', 400, 100, 2),
-      _note('c', 400, 300, 3),
-      _edge('e', 'a', 'b', 4),
-      ...extra,
-    ];
+  fixture.objects = [
+    _note('a', 100, 100, 1),
+    _note('b', 400, 100, 2),
+    _note('c', 400, 300, 3),
+    _edge('e', 'a', 'b', 4),
+    ...extra,
+  ];
   final container = fixture.container();
   addTearDown(container.dispose);
   addTearDown(fixture.events.close);
