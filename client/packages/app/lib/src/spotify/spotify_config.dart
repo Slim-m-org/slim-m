@@ -7,6 +7,7 @@
 /// `--dart-define=SLIMM_SPOTIFY_CLIENT_ID=<id>`.
 library;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 const _clientId = String.fromEnvironment('SLIMM_SPOTIFY_CLIENT_ID');
@@ -17,5 +18,7 @@ const spotifyRedirectUri = 'slimm://spotify-callback';
 /// The one permission asked for: what is playing, nothing else.
 const spotifyScope = 'user-read-currently-playing';
 
-/// Empty when this build has no Spotify app behind it. Overridden in tests.
-final spotifyClientIdProvider = Provider<String>((ref) => _clientId);
+/// Empty when this build has no Spotify app behind it, and on the web, where the `slimm://` redirect can never come back to a tab. Overridden in tests.
+final spotifyClientIdProvider = Provider<String>(
+  (ref) => kIsWeb ? '' : _clientId,
+);

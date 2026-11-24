@@ -12,6 +12,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../external_link.dart';
 import '../providers/button_presses.dart';
+import '../../../widgets/link_destination.dart';
 import 'message_select.dart';
 
 /// A failure stays a readable line under the row, not a full-width banner.
@@ -151,7 +152,7 @@ class _ButtonView extends StatelessWidget {
       busy: busy,
       onPressed: isLink ? _linkPressed(url) : onPressed,
     );
-    if (isLink) return _WithHost(host: _hostOf(url), child: build(busy: false));
+    if (isLink) return _WithHost(url: url, child: build(busy: false));
     if (!pending) return build(busy: false);
     // The invisible copy holds the label's width so the spinner swaps in without a reflow.
     return Stack(
@@ -169,26 +170,17 @@ class _ButtonView extends StatelessWidget {
   }
 }
 
-/// The destination a link button opens, read off the url rather than the label.
-String? _hostOf(String? url) {
-  if (url == null) return null;
-  final host = Uri.tryParse(url)?.host;
-  if (host == null || host.isEmpty) return null;
-  return host;
-}
-
 /// Puts the destination host under a link button, so a label cannot pose as another site.
 class _WithHost extends StatelessWidget {
-  const _WithHost({required this.host, required this.child});
+  const _WithHost({required this.url, required this.child});
 
-  final String? host;
+  final String? url;
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    final host = this.host;
-    if (host == null) return child;
-    final tokens = Theme.of(context).extension<AppTokens>()!;
+    final url = this.url;
+    if (url == null || destinationHostOf(url) == null) return child;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -198,12 +190,7 @@ class _WithHost extends StatelessWidget {
           padding: const EdgeInsets.only(top: AppSpacing.s4),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: _hostMaxWidth),
-            child: Text(
-              host,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppText.caption.copyWith(color: tokens.textSecondary),
-            ),
+            child: LinkDestination(url: url),
           ),
         ),
       ],

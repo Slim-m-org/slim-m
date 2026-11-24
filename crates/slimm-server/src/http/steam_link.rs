@@ -22,6 +22,7 @@ use serde::{Deserialize, Serialize};
 use super::AppState;
 use super::error::ApiError;
 use super::extract::{Authed, Json, Query, enforce};
+use super::invite_page::request_origin;
 use super::link_handoff::handoff_page;
 use super::linked_accounts::{MAX_NAME_CHARS, STATE_LIFETIME_MS, STEAM, page};
 use super::page_shell::respond;
@@ -278,7 +279,7 @@ async fn callback(
         .await?;
     Ok(respond(
         StatusCode::OK,
-        handoff_page(STEAM, "Steam", &handoff),
+        handoff_page(STEAM, "Steam", &handoff, request_origin(&parts).as_deref()),
     ))
 }
 

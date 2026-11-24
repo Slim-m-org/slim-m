@@ -16,8 +16,8 @@ import 'package:slimm_app/src/features/messages/widgets/message_inline.dart';
 
 String _link({String server = 'https://slim.example.top'}) => buildMessageLink(
   server: Uri.parse(server),
-  channelId: 'c1',
-  messageId: 'm1',
+  channelId: '018f0000-0000-7000-8000-0000000000c1',
+  messageId: '018f0000-0000-7000-8000-0000000000a1',
 );
 
 List<InlineNode> _parse(String text) => parseInline(text);
@@ -69,7 +69,7 @@ void main() {
       for (final raw in [
         'slimm://settings?x=1',
         'slimm://open?url=file:///etc/passwd',
-        'slimm://messages?channel=c1&id=m1',
+        'slimm://messages?channel=018f0000-0000-7000-8000-0000000000c1&id=018f0000-0000-7000-8000-0000000000a1',
       ]) {
         expect(
           _parse(raw).whereType<InlineMessageLink>(),

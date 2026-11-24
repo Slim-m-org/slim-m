@@ -36,6 +36,9 @@ String buildInviteLink({required Uri server, required String code}) => Uri(
   ],
 ).toString();
 
+/// Whether [uri] has an invite link's `slimm://` scheme and host, valid or not.
+bool isInviteLinkUri(Uri uri) => uri.scheme == _scheme && uri.host == _host;
+
 /// The `slimm://join` form of the link, which opens the installed app.
 String buildDeepInviteLink({required Uri server, required String code}) => Uri(
   scheme: _scheme,

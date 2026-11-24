@@ -183,7 +183,7 @@ void main() {
                   onPressed: () => copyMessageLink(
                     ref,
                     context,
-                    channelId: 'c1',
+                    channelId: '018f0000-0000-7000-8000-0000000000c1',
                     message: message(),
                   ),
                   child: const Text('copy'),
@@ -203,8 +203,8 @@ void main() {
         text,
         buildMessageLink(
           server: Uri.parse('https://slim.example'),
-          channelId: 'c1',
-          messageId: 'm1',
+          channelId: '018f0000-0000-7000-8000-0000000000c1',
+          messageId: message().id,
         ),
         reason: 'the clipboard gets the link this message actually resolves to',
       );

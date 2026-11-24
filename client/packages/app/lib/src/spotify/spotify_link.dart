@@ -20,6 +20,7 @@ import 'package:http/http.dart' as http;
 import 'package:slimm_platform/platform.dart';
 
 import '../features/members/providers/activity_sharing_settings.dart';
+import '../link_query.dart';
 import '../providers/background_key_store.dart';
 import '../providers/providers.dart';
 import 'spotify_client.dart';
@@ -197,7 +198,8 @@ class SpotifyLinker {
       _timer?.cancel();
       return _strayCallback();
     }
-    final params = uri.queryParameters;
+    final params = queryOrNull(uri);
+    if (params == null) return false;
     // Only the redirect that carries this attempt's state may spend it.
     if (params['state'] != pending.state) {
       AppLog.info(LogTag.ui, 'Ignored a Spotify redirect for another sign-in');

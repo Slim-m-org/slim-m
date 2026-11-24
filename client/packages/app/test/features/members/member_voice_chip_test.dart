@@ -14,7 +14,6 @@ import 'package:slimm_app/src/features/members/widgets/member_pane_rows.dart';
 import 'package:slimm_app/src/features/members/widgets/member_voice_chip.dart';
 import 'package:slimm_app/src/features/voice/providers/member_voice_channel.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
-import 'package:slimm_app/src/routing/routes.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -42,7 +41,7 @@ Future<GoRouter> _pump(
         ),
       ),
       GoRoute(
-        path: Routes.channel(':id'),
+        path: '/channels/:id',
         builder: (_, state) => Text('opened ${state.pathParameters['id']}'),
       ),
     ],
@@ -271,7 +270,7 @@ void main() {
           ),
         ),
         GoRoute(
-          path: Routes.channel(':id'),
+          path: '/channels/:id',
           builder: (_, state) => Text('opened ${state.pathParameters['id']}'),
         ),
       ],

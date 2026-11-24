@@ -26,6 +26,9 @@ import 'link_query.dart';
 const _scheme = 'slimm';
 const _host = 'message';
 
+/// Whether [uri] has a message link's scheme and host, valid or not.
+bool isMessageLinkUri(Uri uri) => uri.scheme == _scheme && uri.host == _host;
+
 /// What a message link points at.
 typedef MessageLink = ({Uri server, String channelId, String messageId});
 
@@ -59,13 +62,20 @@ MessageLink? parseMessageLink(String text) {
   final rawServer = query['server']?.trim() ?? '';
   final channelId = query['channel']?.trim() ?? '';
   final messageId = query['id']?.trim() ?? '';
-  if (rawServer.isEmpty || channelId.isEmpty || messageId.isEmpty) return null;
+  if (rawServer.isEmpty || !_isIdShaped(channelId) || !_isIdShaped(messageId)) {
+    return null;
+  }
 
   final server = Uri.tryParse(rawServer);
   if (server == null || !server.hasScheme || server.host.isEmpty) return null;
 
   return (server: server, channelId: channelId, messageId: messageId);
 }
+
+/// The shape of every id the server issues; anything else cannot be spliced into a route.
+final _idShape = RegExp(r'^[0-9A-Fa-f-]{32,36}$');
+
+bool _isIdShaped(String id) => _idShape.hasMatch(id);
 
 /// Whether [link] names the deployment this client is signed into.
 ///

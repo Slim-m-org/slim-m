@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 
 import '../features/settings/screens/personal_settings_screen.dart';
 import '../features/settings/screens/space_settings_screen.dart';
+import '../link_query.dart';
 import 'modal_page.dart';
 import 'routes.dart';
 
@@ -21,33 +22,32 @@ String? resolveSpacePaneId(String? id) => _spacePaneAliases[id] ?? id;
 
 /// `replace` rather than `go`: it keeps the page, so picking a pane neither
 /// replays the transition nor drops the shell the modal sits over.
-Page<void> personalSettingsPage(BuildContext context, GoRouterState state) =>
-    modalPage(
-      context,
-      PersonalSettingsScreen(
-        initialPaneId: state.uri.queryParameters[settingsPaneQuery],
-        initialPageId: state.uri.queryParameters[settingsPageQuery],
-        focusAbout:
-            state.uri.queryParameters[settingsFocusQuery] == settingsFocusAbout,
-        onPaneChanged: (id) => context.replace(
-          id == null
-              ? Routes.personalSettings
-              : Routes.personalSettingsPane(id),
-        ),
-        onPageChanged: (pane, page) => context.replace(
-          page == null
-              ? Routes.personalSettingsPane(pane)
-              : Routes.personalSettingsPage(pane, page),
-        ),
-      ),
-    );
+Page<void> personalSettingsPage(
+  BuildContext context,
+  GoRouterState state,
+) => modalPage(
+  context,
+  PersonalSettingsScreen(
+    initialPaneId: queryParam(state.uri, settingsPaneQuery),
+    initialPageId: queryParam(state.uri, settingsPageQuery),
+    focusAbout: queryParam(state.uri, settingsFocusQuery) == settingsFocusAbout,
+    onPaneChanged: (id) => context.replace(
+      id == null ? Routes.personalSettings : Routes.personalSettingsPane(id),
+    ),
+    onPageChanged: (pane, page) => context.replace(
+      page == null
+          ? Routes.personalSettingsPane(pane)
+          : Routes.personalSettingsPage(pane, page),
+    ),
+  ),
+);
 
 Page<void> spaceSettingsPage(BuildContext context, GoRouterState state) =>
     modalPage(
       context,
       SpaceSettingsScreen(
         initialPaneId: resolveSpacePaneId(
-          state.uri.queryParameters[settingsPaneQuery],
+          queryParam(state.uri, settingsPaneQuery),
         ),
         onPaneChanged: (id) => context.replace(
           id == null ? Routes.spaceSettings : Routes.spaceSettingsPane(id),

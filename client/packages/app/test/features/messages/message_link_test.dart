@@ -20,23 +20,23 @@ void main() {
     test('a built link parses back to what went in', () {
       final link = buildMessageLink(
         server: Uri.parse('https://slim.example.top'),
-        channelId: 'c1',
-        messageId: 'm1',
+        channelId: '018f0000-0000-7000-8000-0000000000c1',
+        messageId: '018f0000-0000-7000-8000-0000000000a1',
       );
 
       final parsed = parseMessageLink(link);
 
       expect(parsed, isNotNull);
       expect(parsed!.server, Uri.parse('https://slim.example.top'));
-      expect(parsed.channelId, 'c1');
-      expect(parsed.messageId, 'm1');
+      expect(parsed.channelId, '018f0000-0000-7000-8000-0000000000c1');
+      expect(parsed.messageId, '018f0000-0000-7000-8000-0000000000a1');
     });
 
     test('a port survives, because a self-hosted deployment may need one', () {
       final link = buildMessageLink(
         server: Uri.parse('https://slim.example.top:8443'),
-        channelId: 'c1',
-        messageId: 'm1',
+        channelId: '018f0000-0000-7000-8000-0000000000c1',
+        messageId: '018f0000-0000-7000-8000-0000000000a1',
       );
 
       expect(parseMessageLink(link)!.server.port, 8443);
@@ -45,8 +45,8 @@ void main() {
     test('the link is a slimm scheme, never http', () {
       final link = buildMessageLink(
         server: Uri.parse('https://slim.example.top'),
-        channelId: 'c1',
-        messageId: 'm1',
+        channelId: '018f0000-0000-7000-8000-0000000000c1',
+        messageId: '018f0000-0000-7000-8000-0000000000a1',
       );
 
       expect(link, startsWith('slimm://message?'));
@@ -64,7 +64,12 @@ void main() {
     });
 
     test('a web address is not one', () {
-      expect(parseMessageLink('https://slim.example.top/channels/c1'), isNull);
+      expect(
+        parseMessageLink(
+          'https://slim.example.top/channels/018f0000-0000-7000-8000-0000000000c1',
+        ),
+        isNull,
+      );
     });
 
     test('a bare word, empty text and whitespace are not one', () {
@@ -75,21 +80,38 @@ void main() {
 
     test('a message link missing any part is not one', () {
       const server = 'server=https%3A%2F%2Fa.top';
-      expect(parseMessageLink('slimm://message?$server&channel=c1'), isNull);
-      expect(parseMessageLink('slimm://message?$server&id=m1'), isNull);
-      expect(parseMessageLink('slimm://message?channel=c1&id=m1'), isNull);
+      expect(
+        parseMessageLink(
+          'slimm://message?$server&channel=018f0000-0000-7000-8000-0000000000c1',
+        ),
+        isNull,
+      );
+      expect(
+        parseMessageLink(
+          'slimm://message?$server&id=018f0000-0000-7000-8000-0000000000a1',
+        ),
+        isNull,
+      );
+      expect(
+        parseMessageLink(
+          'slimm://message?channel=018f0000-0000-7000-8000-0000000000c1&id=018f0000-0000-7000-8000-0000000000a1',
+        ),
+        isNull,
+      );
       expect(parseMessageLink('slimm://message'), isNull);
     });
 
     test('a server that is not a usable address is not one', () {
       expect(
-        parseMessageLink('slimm://message?server=nonsense&channel=c1&id=m1'),
+        parseMessageLink(
+          'slimm://message?server=nonsense&channel=018f0000-0000-7000-8000-0000000000c1&id=018f0000-0000-7000-8000-0000000000a1',
+        ),
         isNull,
         reason: 'no scheme, so nothing could be reached',
       );
       expect(
         parseMessageLink(
-          'slimm://message?server=https%3A%2F%2F&channel=c1&id=m1',
+          'slimm://message?server=https%3A%2F%2F&channel=018f0000-0000-7000-8000-0000000000c1&id=018f0000-0000-7000-8000-0000000000a1',
         ),
         isNull,
         reason: 'no host',
@@ -99,8 +121,8 @@ void main() {
     test('surrounding whitespace is tolerated', () {
       final link = buildMessageLink(
         server: Uri.parse('https://a.top'),
-        channelId: 'c1',
-        messageId: 'm1',
+        channelId: '018f0000-0000-7000-8000-0000000000c1',
+        messageId: '018f0000-0000-7000-8000-0000000000a1',
       );
 
       expect(parseMessageLink('  $link  '), isNotNull);
@@ -108,8 +130,11 @@ void main() {
   });
 
   group('scoping to this deployment', () {
-    MessageLink linkTo(String server) =>
-        (server: Uri.parse(server), channelId: 'c1', messageId: 'm1');
+    MessageLink linkTo(String server) => (
+      server: Uri.parse(server),
+      channelId: '018f0000-0000-7000-8000-0000000000c1',
+      messageId: '018f0000-0000-7000-8000-0000000000a1',
+    );
 
     test('the same server is here', () {
       expect(

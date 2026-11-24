@@ -18,3 +18,6 @@ Map<String, String>? queryOrNull(Uri uri) {
     return null;
   }
 }
+
+/// One query parameter of [uri], or null when it is absent or the query is unreadable.
+String? queryParam(Uri uri, String key) => queryOrNull(uri)?[key];

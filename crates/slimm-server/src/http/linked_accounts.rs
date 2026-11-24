@@ -24,6 +24,7 @@ use serde::{Deserialize, Serialize};
 use super::AppState;
 use super::error::ApiError;
 use super::extract::{Authed, Json, Query, enforce};
+use super::invite_page::request_origin;
 use super::link_handoff::{self, handoff_page};
 use super::linked_avatar;
 use super::messages::parse_uuid;
@@ -329,7 +330,12 @@ async fn callback(
         .await?;
     Ok(respond(
         StatusCode::OK,
-        handoff_page(DISCORD, "Discord", &handoff),
+        handoff_page(
+            DISCORD,
+            "Discord",
+            &handoff,
+            request_origin(&parts).as_deref(),
+        ),
     ))
 }
 
