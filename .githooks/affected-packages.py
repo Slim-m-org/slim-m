@@ -18,6 +18,7 @@ packages = root / "client" / "packages"
 GLOBAL = ("client/pubspec.yaml", "client/pubspec.lock", "client/analysis_options.yaml")
 TEST_INPUTS = (
     (r"schema/", "api"),
+    (r"schema/test-vectors/canvas_edge_hull\.json$", "voice_canvas"),
     (r"crates/slimm-server/tests/fixtures/", "app"),
     (r"crates/slimm-server/src/emoji/", "app"),
     (r"docs/design/wording\.md$", "app"),
