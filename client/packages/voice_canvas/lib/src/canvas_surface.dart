@@ -297,9 +297,20 @@ class _CanvasSurfaceState extends State<CanvasSurface>
   );
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final ratio = MediaQuery.maybeDevicePixelRatioOf(context);
+    if (ratio != null) _painters.setDevicePixelRatio(widget, ratio);
+  }
+
+  @override
   void didUpdateWidget(CanvasSurface oldWidget) {
     super.didUpdateWidget(oldWidget);
     _painters.refresh(oldWidget, widget);
+    if (oldWidget.cursors != widget.cursors) {
+      oldWidget.cursors?.removeListener(_onCursorsChanged);
+      widget.cursors?.addListener(_onCursorsChanged);
+    }
     if (oldWidget.document != widget.document) {
       oldWidget.document.removeListener(_onDocumentChanged);
       widget.document.addListener(_onDocumentChanged);

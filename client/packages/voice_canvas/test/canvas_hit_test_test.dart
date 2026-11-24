@@ -115,7 +115,9 @@ void main() {
     expect(strokeHitAt(document, const Offset(50, 0)), isNull);
   });
 
-  test('allowed skips a disallowed candidate for the one behind it', () {
+  test(
+      'allowed refusing the topmost candidate is a miss unless it falls through',
+      () {
     final document = CanvasDocument()..setViewport(const Size(800, 600));
     document
       ..applyPlaced(horizontalStroke('foreign', zIndex: 2))
@@ -127,6 +129,15 @@ void main() {
       strokeHitAt(
         document,
         const Offset(50, 0),
+        allowed: (stroke) => stroke.id == 'mine',
+      ),
+      isNull,
+    );
+    expect(
+      hitTestTopmost(
+        document,
+        const Offset(50, 0),
+        fallThrough: true,
         allowed: (stroke) => stroke.id == 'mine',
       ),
       'mine',
@@ -238,7 +249,7 @@ void main() {
     expect(boxHitAt(document, const Offset(100.2, 120)), 'shape');
   });
 
-  test('allowed skips a disallowed image for the one behind it', () {
+  test('a disallowed image on top hides the one behind it', () {
     final document = CanvasDocument()..setViewport(const Size(800, 600));
     document
       ..applyPlaced(imageAt('foreign', x: 0, y: 0, w: 50, h: 50, zIndex: 2))
@@ -251,7 +262,7 @@ void main() {
         const Offset(10, 10),
         allowed: (stroke) => stroke.id == 'mine',
       ),
-      'mine',
+      isNull,
     );
   });
 

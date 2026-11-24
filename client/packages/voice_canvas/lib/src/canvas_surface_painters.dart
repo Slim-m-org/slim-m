@@ -37,6 +37,7 @@ class CanvasSurfacePainters {
   late RemoteDraftPainter? _remoteDrafts;
   late CursorPainter? _cursors;
   late SelectionPainter? _selection;
+  double? _devicePixelRatio;
 
   StrokePainter get strokes => _strokes;
   DraftPainter get draft => _draft;
@@ -51,12 +52,24 @@ class CanvasSurfacePainters {
   /// Null when the surface has no selection outline colour.
   SelectionPainter? get selection => _selection;
 
+  /// Gives committed ink a texture at [ratio], as sharp as the live ink on the screen it is now on.
+  void setDevicePixelRatio(CanvasSurface w, double ratio) {
+    if (_strokes.devicePixelRatio == ratio) return;
+    _strokes.dispose();
+    _devicePixelRatio = ratio;
+    _strokes = _buildStrokes(w);
+  }
+
   /// Rebuilds each painter whose inputs differ between [o] and [w].
   void refresh(CanvasSurface o, CanvasSurface w) {
-    if (o.penInk != w.penInk || o.strokeWidth != w.strokeWidth) {
+    final documentChanged = o.document != w.document;
+    if (documentChanged ||
+        o.penInk != w.penInk ||
+        o.strokeWidth != w.strokeWidth) {
       _draft = _buildDraft(w);
     }
-    if (o.ink != w.ink ||
+    if (documentChanged ||
+        o.ink != w.ink ||
         !mapEquals(o.inkColors, w.inkColors) ||
         o.noteColor != w.noteColor ||
         o.shapeColor != w.shapeColor ||
@@ -69,16 +82,27 @@ class CanvasSurfacePainters {
       _strokes.dispose();
       _strokes = _buildStrokes(w);
     }
-    if (o.shapeColor != w.shapeColor || o.ink != w.ink) {
+    if (documentChanged || o.shapeColor != w.shapeColor || o.ink != w.ink) {
       _shapeDraft = _buildShapeDraft(w);
     }
-    if (!listEquals(o.cursorColors, w.cursorColors) ||
-        o.cursorLabelFontFamily != w.cursorLabelFontFamily) {
+    final colorsChanged = !listEquals(o.cursorColors, w.cursorColors);
+    if (documentChanged ||
+        colorsChanged ||
+        o.remoteDrafts != w.remoteDrafts ||
+        o.ink != w.ink ||
+        !mapEquals(o.inkColors, w.inkColors)) {
       _remoteDrafts = _buildRemoteDrafts(w);
+    }
+    if (documentChanged ||
+        colorsChanged ||
+        o.cursors != w.cursors ||
+        o.cursorGlide != w.cursorGlide ||
+        o.cursorLabelFontFamily != w.cursorLabelFontFamily) {
       _cursors?.disposeLabels();
       _cursors = _buildCursors(w);
     }
-    if (o.selectionOutline != w.selectionOutline ||
+    if (documentChanged ||
+        o.selectionOutline != w.selectionOutline ||
         o.selectionHandleFill != w.selectionHandleFill ||
         o.selectionHandleBorder != w.selectionHandleBorder ||
         o.touchHandles != w.touchHandles) {
@@ -91,7 +115,13 @@ class CanvasSurfacePainters {
     _strokes.dispose();
   }
 
-  StrokePainter _buildStrokes(CanvasSurface w) => StrokePainter(
+  StrokePainter _buildStrokes(CanvasSurface w) {
+    final painter = _newStrokes(w);
+    if (_devicePixelRatio case final ratio?) painter.devicePixelRatio = ratio;
+    return painter;
+  }
+
+  StrokePainter _newStrokes(CanvasSurface w) => StrokePainter(
         document: w.document,
         ink: w.ink,
         inkColors: w.inkColors,

@@ -463,10 +463,23 @@ class CanvasDocument extends ChangeNotifier {
     }
     stroke.image?.dispose();
     _strokes[slot] = null;
+    _forgetGroupSlot(stroke.groupId, slot);
     // A killed stroke was already counted out.
     if (stroke.alive) objectCount.value = objectCount.value - 1;
     _paintOrder.removed(slot);
     _changed();
+  }
+
+  @visibleForTesting
+  int get debugGroupSlotCount =>
+      _slotsByGroup.values.fold(0, (sum, slots) => sum + slots.length);
+
+  void _forgetGroupSlot(String? group, int slot) {
+    if (group == null) return;
+    final members = _slotsByGroup[group];
+    if (members == null) return;
+    members.remove(slot);
+    if (members.isEmpty) _slotsByGroup.remove(group);
   }
 
   void _disposeImages() {
