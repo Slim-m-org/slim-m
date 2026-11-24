@@ -123,7 +123,7 @@ class TroubleshootingHeading extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (!ref.watch(debugLogOpenProvider)) {
+    if (!(ref.watch(debugLogOpenProvider) && _isWide(context))) {
       return SettingsPaneHeading('Troubleshooting', onClose: onClose);
     }
     final tokens = Theme.of(context).extension<AppTokens>()!;

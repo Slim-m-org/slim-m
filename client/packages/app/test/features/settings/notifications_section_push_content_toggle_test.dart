@@ -18,6 +18,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/push/providers/push_controller.dart';
+import 'package:slimm_app/src/features/settings/widgets/notification_settings_rows.dart';
 import 'package:slimm_app/src/features/settings/widgets/personal_status_sections.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
@@ -222,5 +223,20 @@ void main() {
       expect(find.bySemanticsLabel(_label), findsOneWidget);
       handle.dispose();
     });
+  });
+
+  test('a phone browser has no lock screen preview to offer', () {
+    expect(
+      pushPreviewAvailable(web: true, platform: TargetPlatform.android),
+      isFalse,
+    );
+    expect(
+      pushPreviewAvailable(web: false, platform: TargetPlatform.iOS),
+      isTrue,
+    );
+    expect(
+      pushPreviewAvailable(web: false, platform: TargetPlatform.linux),
+      isFalse,
+    );
   });
 }

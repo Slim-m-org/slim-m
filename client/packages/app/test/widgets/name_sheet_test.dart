@@ -103,6 +103,22 @@ void main() {
     expect(find.text('Rename Lobby'), findsNothing);
   });
 
+  testWidgets('a second Enter while the sheet closes saves nothing more', (
+    tester,
+  ) async {
+    final sheet = await _open(tester);
+    await tester.enterText(_field, 'Den');
+    await tester.pump();
+    await tester.tap(_save);
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('Saving...'), findsOneWidget, reason: 'still closing');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await pumpFrames(tester, frames: 20);
+
+    expect(sheet.saved, ['Den']);
+  });
+
   testWidgets('a refusal stays on the sheet as an inline error', (
     tester,
   ) async {

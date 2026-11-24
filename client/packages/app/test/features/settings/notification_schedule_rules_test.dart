@@ -52,6 +52,20 @@ void main() {
       expect(at(8, 59), OffHoursState.offMentionsAndDms);
     });
 
+    test('an end of 23:59 covers its own last minute', () {
+      final schedule = _schedule(
+        days: [_day(_friday, 0, 23 * 60 + 59)],
+        mode: api.OffHoursMode.nothing,
+      );
+      expect(
+        evaluateNotificationSchedule(
+          schedule,
+          now: DateTime(2024, 3, 8, 23, 59),
+        ),
+        OffHoursState.onHours,
+      );
+    });
+
     test('a weekday with no window is off hours all day', () {
       final schedule = _schedule(days: [_day(_friday, 0, 23 * 60)]);
       expect(

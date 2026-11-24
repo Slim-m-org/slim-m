@@ -12,7 +12,7 @@ library;
 
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show defaultTargetPlatform;
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
@@ -29,6 +29,10 @@ import '../providers/settings_actions.dart';
 /// The platforms that can open a sealed push preview.
 const pushPreviewPlatforms = {TargetPlatform.iOS, TargetPlatform.android};
 
+/// A phone browser reports a phone platform but has no sealed preview to open.
+bool pushPreviewAvailable({bool web = kIsWeb, TargetPlatform? platform}) =>
+    !web && pushPreviewPlatforms.contains(platform ?? defaultTargetPlatform);
+
 /// The "show message text on the lock screen" toggle.
 ///
 /// Mobile only: iOS opens the sealed preview in its Notification Service
@@ -39,9 +43,7 @@ class PushContentPreviewRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (!pushPreviewPlatforms.contains(defaultTargetPlatform)) {
-      return const SizedBox.shrink();
-    }
+    if (!pushPreviewAvailable()) return const SizedBox.shrink();
     final enabled = ref.watch(pushContentPreviewSettingsProvider);
 
     return SettingsToggleRow(
