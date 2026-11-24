@@ -36,6 +36,7 @@ pub struct Names {
     pub network: String,
     pub volume: String,
     pub chown: String,
+    pub measure: String,
 }
 
 impl Names {
@@ -49,6 +50,7 @@ impl Names {
             network: format!("slimm-n-{tail}"),
             volume: format!("slimm-v-{tail}"),
             chown: format!("slimm-o-{tail}"),
+            measure: format!("slimm-q-{tail}"),
         }
     }
 
@@ -213,6 +215,22 @@ pub fn chown_container(names: &Names, image: &str) -> Value {
         "Cmd": ["chown-data"],
         "User": "0:0",
         "Labels": names.labels("chown"),
+        "HostConfig": host,
+    })
+}
+
+/// The one-shot that sizes the volume by allocated disk: read-only mount, no network, and only
+/// the capability to look into directories the connector made unreadable.
+pub fn measure_container(names: &Names, image: &str, limit_bytes: u64) -> Value {
+    let mut host = hardened_host_config("none", 128 * MIB, GATEWAY_NANO_CPUS, 16);
+    host["CapAdd"] = json!(["DAC_READ_SEARCH"]);
+    host["Mounts"] =
+        json!([{"Type": "volume", "Source": names.volume, "Target": "/data", "ReadOnly": true}]);
+    json!({
+        "Image": image,
+        "Cmd": ["measure-data", limit_bytes.to_string()],
+        "User": "0:0",
+        "Labels": names.labels("measure"),
         "HostConfig": host,
     })
 }

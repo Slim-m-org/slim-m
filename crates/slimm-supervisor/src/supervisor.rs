@@ -20,6 +20,7 @@ use crate::sandbox::{
 
 mod gateway_plan;
 mod objects;
+mod sizing;
 pub mod volumes;
 
 /// The host's own LAN address is a private address like any other, so the Private network
@@ -32,6 +33,10 @@ pub struct Supervisor {
     pub runtime: Runtime,
     readiness: RwLock<Option<Readiness>>,
     verbs: Mutex<()>,
+    /// One readiness refresh at a time: they share one probe network name.
+    refreshing: Mutex<()>,
+    /// One volume measurement at a time: the helper container has one name per connector.
+    measuring: Mutex<()>,
     volumes: RwLock<std::collections::HashMap<String, volumes::Usage>>,
     /// Volume checks in a row that could not read the sizes; see `volumes::check_volumes`.
     blind_checks: std::sync::atomic::AtomicU32,
@@ -61,6 +66,8 @@ impl Supervisor {
             runtime,
             readiness: RwLock::new(None),
             verbs: Mutex::new(()),
+            refreshing: Mutex::new(()),
+            measuring: Mutex::new(()),
             volumes: RwLock::new(Default::default()),
             blind_checks: std::sync::atomic::AtomicU32::new(0),
         })
@@ -72,6 +79,7 @@ impl Supervisor {
 
     /// Runs the startup checks again and remembers the answer.
     pub async fn refresh_readiness(&self) -> Result<Readiness, ApiError> {
+        let _one_at_a_time = self.refreshing.lock().await;
         let result = checks::check(
             &self.runtime,
             &self.instance,
@@ -148,6 +156,8 @@ impl Supervisor {
         if spec.egress_private && self.config.lan_deny.is_empty() {
             return Err(ApiError::policy(PRIVATE_NEEDS_DENY));
         }
+        self.require_ready().await?;
+        self.ensure_image(&spec.image).await?;
         let _guard = self.verbs.lock().await;
         self.require_ready().await?;
         let names = self.names(id);
@@ -177,7 +187,6 @@ impl Supervisor {
     }
 
     async fn build(&self, names: &Names, spec: &Spec) -> Result<(), ApiError> {
-        self.ensure_image(&spec.image).await?;
         self.ensure_network(names).await?;
         if spec.volume {
             self.ensure_volume(names).await?;
@@ -219,6 +228,10 @@ impl Supervisor {
             )));
         }
         let _guard = self.verbs.lock().await;
+        self.ensure_network(&names).await?;
+        if egress_of(&existing).2 {
+            self.ensure_volume(&names).await?;
+        }
         self.recreate_gateway(&names).await?;
         self.start_container(&names.gateway).await?;
         self.start_container(&names.container).await
@@ -389,6 +402,10 @@ fn egress_of(inspected: &Value) -> (Vec<HostPort>, bool, bool) {
     (egress, private, volume)
 }
 
+#[cfg(test)]
+mod fake_runtime;
+#[cfg(test)]
+mod sweep_tests;
 #[cfg(test)]
 mod tests;
 
