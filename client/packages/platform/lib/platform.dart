@@ -32,6 +32,8 @@ export 'src/now_playing.dart';
 export 'src/global_hotkeys.dart';
 export 'src/global_hotkeys_keys.dart'
     show portalTriggerFor, windowsVirtualKeyFor;
+export 'src/linux_key_store.dart';
+export 'src/migrating_key_store.dart';
 export 'src/persistent_key_store.dart';
 export 'src/polled_stream.dart';
 export 'src/shared_stream.dart';
