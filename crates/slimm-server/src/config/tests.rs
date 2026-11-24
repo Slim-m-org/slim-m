@@ -285,3 +285,14 @@ fn a_short_livekit_secret_is_refused() {
     config.livekit_api_secret = Some("short".into());
     assert!(config.livekit_settings().unwrap().is_none());
 }
+
+#[test]
+fn the_free_space_floor_is_automatic_unless_set() {
+    let blank =
+        std::collections::HashMap::from([("MIN_FREE_DISK_BYTES".to_owned(), String::new())]);
+    let config: Config = envy::from_iter(blank).expect("blank parses");
+    assert_eq!(config.min_free_disk_bytes, None);
+    let set = std::collections::HashMap::from([("MIN_FREE_DISK_BYTES".to_owned(), "0".to_owned())]);
+    let config: Config = envy::from_iter(set).expect("a number parses");
+    assert_eq!(config.min_free_disk_bytes, Some(0));
+}

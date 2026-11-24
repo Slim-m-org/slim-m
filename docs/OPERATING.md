@@ -27,6 +27,7 @@ To set one of those you need a compose override file that adds it to the `server
 | `SLIMM_MODULES_DIR` | a `modules` directory beside the database | One small SQLite file per installed module that keeps structured data, named `<module id>.db`. Created on first use, owner-only. Uninstalling keeps a module's file unless you ask to delete its data. | no, the image keeps it in `/data/modules` |
 | `SLIMM_ATTACHMENT_MAX_BYTES` | `1073741824` (1 GiB) | Largest single upload. Over it is a 413. | yes |
 | `SLIMM_MAX_TOTAL_ATTACHMENT_BYTES` | unset, no ceiling | Most bytes held in attachments and custom emoji together. Over it is a 507. Avatars are outside it. | yes, example sets 2 GiB |
+| `SLIMM_MIN_FREE_DISK_BYTES` | unset, the larger of 2 GiB and 2% of the media volume | Free space uploads must leave on the media volume. Under it a new upload is a 507, so a full disk never stops the database writing. `0` turns it off. | no |
 | `SLIMM_HASH_CONCURRENCY` | `4` | How many Argon2id password hashes run at once, about 19 MiB each while running. | yes |
 | `SLIMM_LOG` | `info` | Log filter in tracing `EnvFilter` syntax: the floor every [server logging](#server-logs) mode adds to. | yes |
 | `SLIMM_LOG_DIR` | a `logs` directory beside the database | Where the rotating log files go. | no, the image keeps them in `/data/logs` |

@@ -31,6 +31,12 @@ pub const UPLOAD_PART_MAX_BYTES: u64 = 64 * 1024 * 1024;
 /// How long an unfinished session keeps its bytes before the sweep drops it.
 pub const UPLOAD_SESSION_TTL: Duration = Duration::from_secs(24 * 60 * 60);
 
+/// How long a session may go without a byte before it stops holding room against the ceiling.
+pub const UPLOAD_SESSION_IDLE: Duration = Duration::from_secs(10 * 60);
+
+/// How long a finished session's id still answers a repeated completion.
+const COMPLETED_RETENTION: Duration = Duration::from_secs(10 * 60);
+
 /// Open sessions one member may hold at once, since each reserves disk.
 pub const MAX_OPEN_SESSIONS_PER_USER: usize = 8;
 
@@ -80,6 +86,15 @@ pub struct Uploads {
     attachments_dir: PathBuf,
     in_flight: Arc<Mutex<HashSet<Uuid>>>,
     running: Arc<Mutex<HashMap<Uuid, RunningHash>>>,
+    completed: Arc<Mutex<HashMap<Uuid, CompletedUpload>>>,
+}
+
+/// Which attachment a finished session became, kept briefly so a lost response can be replayed.
+#[derive(Debug, Clone)]
+struct CompletedUpload {
+    user_id: String,
+    attachment_id: String,
+    at: std::time::Instant,
 }
 
 /// The hash of a session's first `offset` bytes, carried between parts.
@@ -139,7 +154,37 @@ impl Uploads {
             attachments_dir,
             in_flight: Arc::default(),
             running: Arc::default(),
+            completed: Arc::default(),
         }
+    }
+
+    fn lock_completed(&self) -> std::sync::MutexGuard<'_, HashMap<Uuid, CompletedUpload>> {
+        self.completed
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
+    /// Remembers the attachment a finished session became, for [`completed_attachment`](Self::completed_attachment).
+    pub fn remember_completed(&self, id: Uuid, user_id: String, attachment_id: String) {
+        let mut completed = self.lock_completed();
+        completed.retain(|_, done| done.at.elapsed() < COMPLETED_RETENTION);
+        let at = std::time::Instant::now();
+        completed.insert(
+            id,
+            CompletedUpload {
+                user_id,
+                attachment_id,
+                at,
+            },
+        );
+    }
+
+    /// The attachment `user_id`'s finished session `id` became, while it is still remembered.
+    pub fn completed_attachment(&self, id: Uuid, user_id: &str) -> Option<String> {
+        let completed = self.lock_completed();
+        let done = completed.get(&id)?;
+        (done.user_id == user_id && done.at.elapsed() < COMPLETED_RETENTION)
+            .then(|| done.attachment_id.clone())
     }
 
     fn lock_running(&self) -> std::sync::MutexGuard<'_, HashMap<Uuid, RunningHash>> {
@@ -205,10 +250,13 @@ impl Uploads {
         .await
     }
 
-    /// Declared bytes of every unexpired session except `exclude`.
+    /// Declared bytes of every unexpired session except `exclude`, leaving out
+    /// a session that has gone [`UPLOAD_SESSION_IDLE`] without receiving a byte.
     pub async fn reserved_bytes(&self, exclude: Option<Uuid>, now_ms: i64) -> io::Result<u64> {
         let dir = self.dir.clone();
         let cutoff = now_ms - UPLOAD_SESSION_TTL.as_millis() as i64;
+        let idle_cutoff = now_ms - UPLOAD_SESSION_IDLE.as_millis() as i64;
+        let in_flight = self.in_flight.clone();
         blocking(move || {
             Ok(list_sessions(&dir)?
                 .filter(|(path, meta)| {
@@ -216,7 +264,14 @@ impl Uploads {
                         .file_name()
                         .and_then(|n| n.to_str())
                         .and_then(|n| Uuid::parse_str(n).ok());
-                    meta.created_at >= cutoff && (own.is_none() || own != exclude)
+                    let writing = own.is_some_and(|id| {
+                        in_flight
+                            .lock()
+                            .unwrap_or_else(std::sync::PoisonError::into_inner)
+                            .contains(&id)
+                    });
+                    let active = writing || last_activity_ms(path, meta) >= idle_cutoff;
+                    meta.created_at >= cutoff && active && (own.is_none() || own != exclude)
                 })
                 .fold(0u64, |sum, (_, meta)| sum.saturating_add(meta.size)))
         })
@@ -378,6 +433,15 @@ impl Uploads {
 fn read_meta(dir: &Path) -> Option<UploadMeta> {
     let bytes = std::fs::read(dir.join(META_FILE)).ok()?;
     serde_json::from_slice(&bytes).ok()
+}
+
+/// When the session last received a byte; the creation time until one arrives.
+fn last_activity_ms(dir: &Path, meta: &UploadMeta) -> i64 {
+    std::fs::metadata(dir.join(DATA_FILE))
+        .and_then(|m| m.modified())
+        .ok()
+        .and_then(|at| at.duration_since(std::time::UNIX_EPOCH).ok())
+        .map_or(meta.created_at, |since| since.as_millis() as i64)
 }
 
 fn read_status(dir: &Path) -> io::Result<Option<(UploadMeta, u64)>> {

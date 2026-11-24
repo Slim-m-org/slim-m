@@ -22,13 +22,13 @@ use tower::ServiceExt;
 use crate::support;
 /// A one-pixel PNG, so `sniff_content_type` accepts it. The trailing bytes are
 /// varied per call to make each upload a different hash.
-fn png(tag: u8) -> Vec<u8> {
+pub(crate) fn png(tag: u8) -> Vec<u8> {
     let mut bytes = support::images::small_png();
     bytes.extend(std::iter::repeat_n(tag, 240));
     bytes
 }
 
-async fn new_store(name: &str) -> (Store, support::TestDbGuard) {
+pub(crate) async fn new_store(name: &str) -> (Store, support::TestDbGuard) {
     let (path, guard) = support::TestDbGuard::new(name);
     let config = Config {
         port: 0,
@@ -46,7 +46,7 @@ fn app(store: Store, ceiling: Option<u64>) -> Router {
         .router()
 }
 
-async fn admin(store: &Store, username: &str) -> (UserId, String) {
+pub(crate) async fn admin(store: &Store, username: &str) -> (UserId, String) {
     let account = store
         .create_account(username, username, "not-a-real-hash")
         .await
@@ -60,7 +60,7 @@ async fn admin(store: &Store, username: &str) -> (UserId, String) {
     (account.id, token)
 }
 
-fn upload(token: &str, bytes: Vec<u8>) -> Request<Body> {
+pub(crate) fn upload(token: &str, bytes: Vec<u8>) -> Request<Body> {
     Request::builder()
         .method("POST")
         .uri("/attachments?filename=shot.png")
@@ -294,7 +294,7 @@ async fn a_report_reason_is_capped_too() {
 }
 
 /// Incompressible bytes, so the compressor keeps them and a stored size is the uploaded size.
-fn blob(tag: u8) -> Vec<u8> {
+pub(crate) fn blob(tag: u8) -> Vec<u8> {
     let mut state = u32::from(tag) + 1;
     (0..4096)
         .map(|_| {
@@ -304,15 +304,15 @@ fn blob(tag: u8) -> Vec<u8> {
         .collect()
 }
 
-fn media_with(ceiling: u64) -> slimm_server::media::Media {
+pub(crate) fn media_with(ceiling: u64) -> slimm_server::media::Media {
     slimm_server::media::Media::for_tests().with_total_ceiling(Some(ceiling))
 }
 
-fn app_on(store: Store, media: slimm_server::media::Media) -> Router {
+pub(crate) fn app_on(store: Store, media: slimm_server::media::Media) -> Router {
     support::app::builder(store).media(media).router()
 }
 
-fn open_session(token: &str, size: usize) -> Request<Body> {
+pub(crate) fn open_session(token: &str, size: usize) -> Request<Body> {
     Request::builder()
         .method("POST")
         .uri("/attachments/uploads")
@@ -324,7 +324,10 @@ fn open_session(token: &str, size: usize) -> Request<Body> {
         .unwrap()
 }
 
-async fn status_of(app: &Router, request: Request<Body>) -> (StatusCode, serde_json::Value) {
+pub(crate) async fn status_of(
+    app: &Router,
+    request: Request<Body>,
+) -> (StatusCode, serde_json::Value) {
     let response = app.clone().oneshot(request).await.unwrap();
     let status = response.status();
     let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
