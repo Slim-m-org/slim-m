@@ -26,6 +26,7 @@ use serde::{Deserialize, Serialize};
 use super::AppState;
 use super::error::ApiError;
 use super::extract::{AUTHED_READ, AuthedLimited, Json, WRITE};
+use super::hidden_chars::is_hidden_in_prose;
 use super::messages::parse_uuid;
 use crate::ids::UserId;
 use crate::store::UserNote;
@@ -113,6 +114,11 @@ async fn put_note(
     let trimmed = req.body.trim();
     if trimmed.chars().count() > MAX_NOTE_CHARS {
         return Err(ApiError::BadRequest("that note is too long"));
+    }
+    if trimmed.chars().any(is_hidden_in_prose) {
+        return Err(ApiError::BadRequest(
+            "that note must not contain control or invisible characters",
+        ));
     }
     let body = (!trimmed.is_empty()).then_some(trimmed);
     let note = state

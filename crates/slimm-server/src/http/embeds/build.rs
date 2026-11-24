@@ -3,6 +3,7 @@
 //! webhook and send routes. Caps are Discord's own limits; see
 //! `docs/decisions/0030-incoming-webhooks.md`.
 
+use crate::hidden_chars::{draws_nothing, strip_reading_rewrites};
 use serde::Deserialize;
 
 use super::super::error::ApiError;
@@ -107,7 +108,7 @@ fn check_visible(value: &str, label: &str) -> Result<(), ApiError> {
     Ok(())
 }
 
-/// Trims `value`, treats blank as absent, and caps it at `max`.
+/// Strips reading rewrites, trims `value`, treats blank-looking as absent, and caps it at `max`.
 fn optional_text(
     value: Option<String>,
     max: usize,
@@ -116,8 +117,9 @@ fn optional_text(
     let Some(value) = value else {
         return Ok((None, 0));
     };
-    let trimmed = value.trim();
-    if trimmed.is_empty() {
+    let cleaned = strip_reading_rewrites(&value);
+    let trimmed = cleaned.trim();
+    if draws_nothing(trimmed) {
         return Ok((None, 0));
     }
     let len = check_len(trimmed, max, label)?;
@@ -203,8 +205,9 @@ pub(crate) fn build_embeds(
                 ));
             }
             check_visible(name, "an embed field name")?;
-            let value = field.value.trim();
-            if value.is_empty() {
+            let value = strip_reading_rewrites(&field.value);
+            let value = value.trim();
+            if draws_nothing(value) {
                 return Err(ApiError::BadRequest(
                     "an embed field value must not be empty",
                 ));

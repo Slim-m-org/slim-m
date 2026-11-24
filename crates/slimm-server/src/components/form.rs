@@ -56,7 +56,10 @@ fn visible_text(
     what: &'static str,
 ) -> Result<(), &'static str> {
     *text = text.trim().to_owned();
-    if text.is_empty() || text.chars().count() > limit || text.chars().any(hidden) {
+    if crate::hidden_chars::draws_nothing(text)
+        || text.chars().count() > limit
+        || text.chars().any(hidden)
+    {
         return Err(what);
     }
     Ok(())

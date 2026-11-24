@@ -183,7 +183,7 @@ fn validate_options(
 
 fn checked_label(label: &str, hidden: fn(char) -> bool) -> Result<String, &'static str> {
     let label = label.trim();
-    if label.is_empty() {
+    if crate::hidden_chars::draws_nothing(label) {
         return Err("an entry needs a label");
     }
     if label.chars().count() > MAX_LABEL_CHARS {

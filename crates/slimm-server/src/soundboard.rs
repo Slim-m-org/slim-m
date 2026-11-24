@@ -45,7 +45,8 @@ pub fn normalize_name(raw: &str) -> Option<String> {
     let name = raw.trim();
     let usable = !name.is_empty()
         && name.chars().count() <= MAX_NAME_CHARS
-        && !name.chars().any(crate::hidden_chars::is_hidden_char);
+        && !name.chars().any(crate::hidden_chars::is_hidden_char)
+        && !crate::hidden_chars::draws_nothing(name);
     usable.then(|| name.to_owned())
 }
 

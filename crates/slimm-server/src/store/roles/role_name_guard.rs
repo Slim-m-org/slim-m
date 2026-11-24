@@ -6,9 +6,9 @@ use sqlx::SqliteConnection;
 
 use crate::ids::RoleId;
 
-/// What a member would read a role name as, whatever its case or a leading `@`.
+/// What a member would read a role name as, whatever its case, width, invisible marks or a leading `@`.
 pub fn fold_role_name(name: &str) -> String {
-    name.trim_start_matches('@').trim().to_lowercase()
+    crate::hidden_chars::fold_name(name)
 }
 
 /// Whether another role already reads as `name`; a role keeping its own folded name never collides,

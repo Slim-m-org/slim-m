@@ -46,7 +46,7 @@ fn validate_short_field(
             "must not contain control or text-direction characters",
         ));
     }
-    Ok(if trimmed.is_empty() {
+    Ok(if crate::hidden_chars::draws_nothing(trimmed) {
         None
     } else {
         Some(trimmed.to_owned())

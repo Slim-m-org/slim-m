@@ -2,7 +2,7 @@
 //! What a channel's name, topic and `join_muted` and default notification level may be, on create and update.
 
 use super::super::error::ApiError;
-use super::super::hidden_chars::is_hidden_char;
+use super::super::hidden_chars::{draws_nothing, is_hidden_char};
 use crate::notifications::NotificationPreference;
 
 /// A one-line header, not a description field: long enough for a real
@@ -65,6 +65,9 @@ pub(in crate::http) fn validate_channel_name(name: &str) -> Result<&str, ApiErro
         return Err(ApiError::BadRequest(
             "name must not contain control or invisible characters",
         ));
+    }
+    if draws_nothing(trimmed) {
+        return Err(ApiError::BadRequest("name must not be blank"));
     }
     Ok(trimmed)
 }

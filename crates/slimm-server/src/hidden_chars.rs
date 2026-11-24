@@ -11,7 +11,8 @@ use std::borrow::Cow;
 ///
 /// The blank ones are here because a label made only of U+3164 or U+2800
 /// passed the direction-only list and rendered as an empty button. U+FE0F is
-/// deliberately absent: it is what makes a heart an emoji.
+/// deliberately absent: it is what makes a heart an emoji. Together with
+/// [`is_variation_selector`] this covers every Default_Ignorable_Code_Point.
 pub(crate) fn is_hidden_char(c: char) -> bool {
     c.is_control()
         || matches!(c,
@@ -29,8 +30,11 @@ pub(crate) fn is_hidden_char(c: char) -> bool {
             | '\u{3164}'               // hangul filler
             | '\u{FEFF}'               // zero-width no-break space / BOM
             | '\u{FFA0}'               // halfwidth hangul filler
-            | '\u{FFF9}'..='\u{FFFC}'  // interlinear annotation, object replacement
-            | '\u{E0000}'..='\u{E007F}' // tag characters
+            | '\u{FFF0}'..='\u{FFFC}'  // reserved specials, interlinear annotation, object replacement
+            | '\u{1BCA0}'..='\u{1BCA3}' // shorthand format controls
+            | '\u{1D173}'..='\u{1D17A}' // musical symbol formatting
+            | '\u{E0000}'..='\u{E00FF}' // tag characters and reserved ignorables
+            | '\u{E01F0}'..='\u{E0FFF}' // reserved ignorables
         )
 }
 
@@ -39,6 +43,7 @@ pub(crate) fn is_hidden_char(c: char) -> bool {
 pub(crate) fn is_variation_selector(c: char) -> bool {
     matches!(c,
         '\u{180B}'..='\u{180D}'
+        | '\u{180F}'
         | '\u{FE00}'..='\u{FE0F}'
         | '\u{E0100}'..='\u{E01EF}')
 }
@@ -47,6 +52,22 @@ pub(crate) fn is_variation_selector(c: char) -> bool {
 pub(crate) fn draws_nothing(text: &str) -> bool {
     text.chars()
         .all(|c| c.is_whitespace() || is_hidden_char(c) || is_variation_selector(c))
+}
+
+/// A hidden character in multi-line prose, where line breaks and tabs are ordinary text.
+pub(crate) fn is_hidden_in_prose(c: char) -> bool {
+    !matches!(c, '\t' | '\n' | '\r') && is_hidden_char(c)
+}
+
+/// What a member would read `name` as: compatibility-folded (fullwidth and look-alike
+/// forms), without ignorable characters, case-folded, and without a leading `@`.
+pub(crate) fn fold_name(name: &str) -> String {
+    use unicode_normalization::UnicodeNormalization;
+    let folded: String = name
+        .nfkc()
+        .filter(|c| !is_hidden_char(*c) && !is_variation_selector(*c))
+        .collect();
+    folded.trim_start_matches('@').trim().to_lowercase()
 }
 
 /// A control other than a line break or tab, or a bidi override. These rewrite how the
@@ -129,7 +150,7 @@ pub(crate) fn hides_text_outside_emoji(text: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        draws_nothing, hides_text_outside_emoji, is_hidden_char, is_pictographic,
+        draws_nothing, fold_name, hides_text_outside_emoji, is_hidden_char, is_pictographic,
         is_variation_selector, strip_reading_rewrites,
     };
 
@@ -182,6 +203,34 @@ mod tests {
         ] {
             assert_eq!(strip_reading_rewrites(kept), kept, "{kept:?}");
         }
+    }
+
+    #[test]
+    fn default_ignorable_characters_are_all_classified() {
+        for c in [
+            '\u{1D173}',
+            '\u{1D17A}',
+            '\u{1BCA0}',
+            '\u{1BCA3}',
+            '\u{FFF0}',
+            '\u{FFF8}',
+            '\u{E0080}',
+            '\u{E00FF}',
+            '\u{E01F0}',
+            '\u{E0FFF}',
+        ] {
+            assert!(is_hidden_char(c), "{c:?}");
+            assert!(draws_nothing(&c.to_string()), "{c:?}");
+        }
+        assert!(is_variation_selector('\u{180F}'));
+        assert!(draws_nothing("\u{FE0F}\u{FE00}"));
+    }
+
+    #[test]
+    fn folded_names_ignore_width_case_and_invisible_marks() {
+        assert_eq!(fold_name("@\u{FF21}dmin\u{FE0F}"), "admin");
+        assert_eq!(fold_name("Ad\u{200B}min"), "admin");
+        assert_eq!(fold_name("\u{FF45}veryone"), "everyone");
     }
 
     #[test]
