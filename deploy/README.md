@@ -57,6 +57,7 @@ Phones need a little care here, so it is worth reading before you pick plain htt
 
   `LIVEKIT_DOMAIN` must also resolve on the LAN to this host and carry a certificate the devices trust, as above.
 - **The web client** cannot use the microphone or screen capture from a plain `http://` page, because browsers require a secure context. Desktop and phone apps are not affected.
+- **The web client** cannot reach a plain `http://` server on another address than the page it was loaded from, because the web image's content security policy and the browser's mixed-content rules block it. Sign-in says so; serve the Space over https, or open it at its own address.
 - **What degrades offline:** push notifications (they go through the push relay to FCM and APNs), link previews and GIF search. Text, DMs, attachments, voice and the canvas do not depend on the internet.
 
 ## One-command walkthrough
