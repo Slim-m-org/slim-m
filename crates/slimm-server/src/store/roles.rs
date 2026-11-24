@@ -24,6 +24,7 @@ pub(super) mod role_bots;
 pub(super) mod role_hierarchy;
 pub(super) mod role_hoist;
 pub(super) mod role_mentions;
+pub(super) mod role_name_guard;
 pub(super) mod role_reorder;
 pub(super) mod role_update;
 
@@ -72,6 +73,8 @@ pub enum RoleGuardError {
     IsBotsRole,
     /// This change would leave the deployment with no administrator.
     LastAdministrator,
+    /// Another role already reads as the new name; see [`role_name_guard`].
+    NameTaken,
     Internal(anyhow::Error),
 }
 
@@ -116,6 +119,8 @@ pub enum CreateRoleError {
     /// themselves - that is what `create_role` is for - so there is no
     /// column here to key a second case off.
     IdConflict,
+    /// Another role already reads as this name; see [`role_name_guard`].
+    NameTaken,
     Internal(anyhow::Error),
 }
 
@@ -160,6 +165,29 @@ impl Store {
         permissions: Permissions,
         is_everyone: bool,
     ) -> Result<CreatedRole, CreateRoleError> {
+        self.insert_role(id, name, permissions, is_everyone, false)
+            .await
+    }
+
+    /// [`Store::create_role_with_id`] for an ordinary role whose name no other role may read as,
+    /// checked in the same write transaction as the insert.
+    pub async fn create_distinct_role(
+        &self,
+        id: RoleId,
+        name: &str,
+        permissions: Permissions,
+    ) -> Result<CreatedRole, CreateRoleError> {
+        self.insert_role(id, name, permissions, false, true).await
+    }
+
+    async fn insert_role(
+        &self,
+        id: RoleId,
+        name: &str,
+        permissions: Permissions,
+        is_everyone: bool,
+        distinct: bool,
+    ) -> Result<CreatedRole, CreateRoleError> {
         let mut tx = self.begin_write().await?;
 
         let existing = sqlx::query_scalar!(
@@ -174,6 +202,9 @@ impl Store {
                 return Err(CreateRoleError::IdConflict);
             }
             return Ok(CreatedRole { id, fresh: false });
+        }
+        if distinct && role_name_guard::name_taken(&mut tx, name, id).await? {
+            return Err(CreateRoleError::NameTaken);
         }
 
         let now = now_ms();
@@ -230,6 +261,9 @@ impl Store {
             Ok(created) => Ok(created.id),
             Err(CreateRoleError::IdConflict) => {
                 anyhow::bail!("a freshly generated role id collided with an existing row")
+            }
+            Err(CreateRoleError::NameTaken) => {
+                anyhow::bail!("an undistinguished create checked a name")
             }
             Err(CreateRoleError::Internal(err)) => Err(err),
         }

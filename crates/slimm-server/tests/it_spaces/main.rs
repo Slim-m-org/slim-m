@@ -50,6 +50,7 @@ mod moderation_audit;
 mod moderation_audit_routes;
 mod nested_categories;
 mod overwrite_atomicity;
+mod overwrite_bits;
 mod overwrite_escalation_body;
 mod overwrite_ladder;
 mod overwrites;

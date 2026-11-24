@@ -94,3 +94,52 @@ async fn a_role_already_named_like_a_mention_or_another_role_can_still_be_edited
         StatusCode::CONFLICT
     );
 }
+
+/// Many managers naming roles alike at once still end with one role of that name.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn concurrent_creates_and_renames_to_one_name_leave_one_role() {
+    let app = std::sync::Arc::new(TestApp::start("slimm-role-names-race").await);
+    let mut spare = Vec::new();
+    for index in 0..4 {
+        let (_, role) = create(
+            &app,
+            json!({ "name": format!("spare {index}"), "permissions": 0 }),
+        )
+        .await;
+        spare.push(role["id"].as_str().unwrap().to_owned());
+    }
+    let mut calls = Vec::new();
+    for index in 0..8 {
+        let app = app.clone();
+        let target = spare.get(index / 2).filter(|_| index % 2 == 0).cloned();
+        calls.push(tokio::spawn(async move {
+            match target {
+                Some(id) => rename(&app, &id, "Mods").await,
+                None => {
+                    create(&app, json!({ "name": "mods", "permissions": 0 }))
+                        .await
+                        .0
+                }
+            }
+        }));
+    }
+    let mut won = 0;
+    for call in calls {
+        let status = call.await.unwrap();
+        assert!(
+            status == StatusCode::OK || status == StatusCode::CONFLICT,
+            "{status}"
+        );
+        won += usize::from(status == StatusCode::OK);
+    }
+    let named: Vec<_> = app
+        .store
+        .list_roles()
+        .await
+        .unwrap()
+        .into_iter()
+        .filter(|r| r.name.to_lowercase() == "mods")
+        .collect();
+    assert_eq!(named.len(), 1, "{named:?}");
+    assert_eq!(won, 1);
+}

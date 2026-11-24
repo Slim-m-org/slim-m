@@ -118,8 +118,14 @@ impl Ladder {
     }
 }
 
-/// Refuses a hand grant or revoke of a role that bots hold by being bots.
+/// Refuses a hand grant or revoke of `@everyone`, which every member holds, or of a role that bots
+/// hold by being bots.
 pub(in crate::http) fn hand_assignable(role: &Role) -> Result<(), ApiError> {
+    if role.is_everyone {
+        return Err(ApiError::BadRequest(
+            "every member holds the @everyone role",
+        ));
+    }
     if role.managed_bot_id.is_some() || role.is_bots_role {
         Err(ApiError::Coded {
             status: StatusCode::CONFLICT,

@@ -273,3 +273,75 @@ async fn head_on_a_get_route_meets_the_same_gate_as_get() {
         assert_eq!(head, StatusCode::FORBIDDEN, "HEAD {uri}");
     }
 }
+
+/// A channel `@everyone` may not view, made by hand so the test owns its overwrite.
+async fn private_channel(w: &World) -> slimm_server::ids::ChannelId {
+    let channel = w.store.create_channel("private", "text").await.unwrap();
+    let everyone: slimm_server::ids::RoleId =
+        sqlx::query_scalar("SELECT id FROM roles WHERE is_everyone = 1")
+            .fetch_one(&w.pool)
+            .await
+            .unwrap();
+    w.store
+        .set_role_overwrite(
+            channel.id,
+            everyone,
+            Permissions::NONE,
+            Permissions::VIEW_CHANNEL,
+        )
+        .await
+        .unwrap();
+    channel.id
+}
+
+#[tokio::test]
+async fn an_administrator_role_given_later_does_not_pass_a_channel_deny() {
+    let w = world("slimm-conn-admin-deny", &["view_channel", "send_messages"]).await;
+    let token = w.installed(SEND).await;
+    let private = private_channel(&w).await;
+    grant_everything_later(&w).await;
+    let principal = principal(&w).await;
+
+    let held = w
+        .store
+        .permissions_in_channel(principal, private)
+        .await
+        .unwrap();
+    assert!(!held.contains(Permissions::VIEW_CHANNEL), "{held:?}");
+    let batched = w
+        .store
+        .permissions_in_channels(principal, &[private])
+        .await
+        .unwrap();
+    assert_eq!(batched[&private], Permissions::NONE);
+    let viewers = w.store.viewers_among(private, &[principal]).await.unwrap();
+    assert!(viewers.is_empty(), "fan-out must not reach the connector");
+
+    let (status, _) = w
+        .as_token(
+            &token,
+            "GET",
+            &format!("/channels/{private}/messages"),
+            None,
+        )
+        .await;
+    assert!(!status.is_success(), "read the history: {status}");
+    assert!(!w.post(&token, &private.to_string()).await.is_success());
+    let (status, listed) = w.as_token(&token, "GET", "/channels", None).await;
+    assert_eq!(status, StatusCode::OK, "{listed}");
+    assert!(!listed.to_string().contains(&private.to_string()));
+    assert!(w.post(&token, &w.general().await).await.is_success());
+}
+
+#[tokio::test]
+async fn a_connector_approved_nothing_cannot_drive_the_link_preview_fetcher() {
+    let w = world("slimm-conn-preview", &[]).await;
+    let token = w.installed(0).await;
+    for uri in [
+        "/link-preview?url=https%3A%2F%2Fexample.com%2F",
+        "/link-preview/image/abc",
+    ] {
+        let (status, body) = w.as_token(&token, "GET", uri, None).await;
+        assert_eq!(status, StatusCode::FORBIDDEN, "{uri}: {body}");
+    }
+}

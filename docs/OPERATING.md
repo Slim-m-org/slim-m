@@ -266,6 +266,9 @@ So treat a bot token like an admin password if the bot holds a powerful role.
 If one leaks, revoke the bot: its WebSocket closes and its next request returns 401 immediately.
 Removing a bot from the Space also revokes its session, and restoring it brings the same token back unless you revoked the token yourself first.
 A bot cannot create another bot.
+If you upgraded across 0.128.0, check the channel and category permissions of each bot that had a role of its own with no permissions.
+That upgrade removed those roles together with their per-channel rows, so a channel that kept such a bot out may now let it in.
+Setting a bot's permissions to none today keeps every deny its role carried, as a deny on the bot itself.
 [bots/building-bots.md](bots/building-bots.md) covers what a bot can do, and the choice between webhook, bot and module is decision 0035.
 
 ## Backups and restore

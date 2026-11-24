@@ -36,6 +36,9 @@ struct ReorderRolesRequest {
     /// current set: no id may be missing, duplicated, unknown, or name
     /// `@everyone`, which never reorders.
     role_ids: Vec<String>,
+    /// The order the client started from, top to bottom; a 409 when the live order moved since.
+    #[serde(default)]
+    expected_role_ids: Option<Vec<String>>,
 }
 
 /// Sets the deployment's role order. Requires MANAGE_ROLES. Publishes
@@ -55,10 +58,23 @@ async fn reorder(
         .iter()
         .map(|id| parse_uuid(id).map(RoleId))
         .collect::<Result<Vec<_>, _>>()?;
+    let expected = req
+        .expected_role_ids
+        .as_deref()
+        .map(|ids| {
+            ids.iter()
+                .map(|id| parse_uuid(id).map(RoleId))
+                .collect::<Result<Vec<_>, _>>()
+        })
+        .transpose()?;
 
     let ladder = Ladder::of(&state, ctx.user_id).await?;
     let caller = (!ladder.exempt()).then_some(ctx.user_id);
-    match state.store.reorder_roles_below(&ordered, caller).await {
+    let reordered = state
+        .store
+        .reorder_roles_below(&ordered, caller, expected.as_deref())
+        .await;
+    match reordered {
         Ok(outcome) => {
             for role_id in &outcome.moved {
                 state.hub.publish(Event::RoleChanged {
@@ -73,6 +89,9 @@ async fn reorder(
             mismatch_message(&missing, &extra),
         )),
         Err(ReorderRolesError::AboveCaller) => Err(ladder.role_out_of_reach()),
+        Err(ReorderRolesError::Stale) => Err(ApiError::Conflict(
+            "the role order changed since you loaded it",
+        )),
         Err(ReorderRolesError::Internal(e)) => Err(e.into()),
     }
 }

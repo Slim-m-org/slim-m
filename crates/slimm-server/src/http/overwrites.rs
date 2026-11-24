@@ -39,7 +39,7 @@ use super::error::ApiError;
 use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce};
 use super::messages::parse_uuid;
 use super::overwrite_changes::{publish_changed, visible_before};
-use super::role_ladder::Ladder;
+use super::role_ladder::{LADDER_CODE, Ladder};
 use crate::ids::{ChannelId, RoleId, UserId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
@@ -146,18 +146,48 @@ pub(super) fn parse_target(kind: &str, id: &str) -> Result<Target, ApiError> {
 }
 
 /// Refuses a target the caller does not outrank. `@everyone` ranks below every role, and a
-/// caller's own member overwrite needs no rank.
+/// caller's own member overwrite needs no rank but may grant them only VIEW_CHANNEL, which keeps
+/// them in a place they make private (decision 0125), and what `@everyone` holds: any other bit
+/// would outlive the role it was copied from. The Space owner is exempt.
 pub(super) async fn reach_target(
     state: &AppState,
     ladder: &Ladder,
+    caller: UserId,
     target: Target,
+    granted: Permissions,
 ) -> Result<(), ApiError> {
     match target {
+        Target::Member(user_id) if user_id == caller => {
+            let (_, everyone) = state.store.everyone_role().await?;
+            let kept = everyone.union(Permissions::VIEW_CHANNEL);
+            match granted.remove(kept) == Permissions::NONE || ladder.exempt() {
+                true => Ok(()),
+                false => Err(ApiError::Coded {
+                    status: StatusCode::FORBIDDEN,
+                    message: "an overwrite on yourself cannot give you a permission your roles give you",
+                    code: LADDER_CODE,
+                }),
+            }
+        }
         Target::Member(user_id) => ladder.reach_other(state, user_id).await,
         Target::Role(role_id) => match state.store.role(role_id).await? {
             Some(role) => ladder.reach(&role),
             None => Ok(()),
         },
+    }
+}
+
+/// Refuses a member target that is missing, or a webhook, which holds nothing (decision 0030).
+pub(super) async fn require_member_target(
+    state: &AppState,
+    user_id: UserId,
+) -> Result<(), ApiError> {
+    match state.store.user_profile(user_id).await? {
+        None => Err(ApiError::NotFound("user not found")),
+        Some(profile) if profile.is_webhook => {
+            Err(ApiError::BadRequest("a webhook holds no overwrites"))
+        }
+        Some(_) => Ok(()),
     }
 }
 
@@ -208,11 +238,16 @@ pub(super) fn refuse_ungrantable(
     }
 }
 
-/// Refuses bits this server does not define, and a pair that both allows and
-/// denies one bit: the evaluator would have to pick a winner silently.
+/// Refuses bits this server does not define, ADMINISTRATOR, which only a role grants, and a pair
+/// that both allows and denies one bit: the evaluator would have to pick a winner silently.
 pub(super) fn check_bits(allow: Permissions, deny: Permissions) -> Result<(), ApiError> {
     if !Permissions::ALL.contains(allow) || !Permissions::ALL.contains(deny) {
         return Err(ApiError::BadRequest("unknown permission bits"));
+    }
+    if allow.union(deny).contains(Permissions::ADMINISTRATOR) {
+        return Err(ApiError::BadRequest(
+            "an overwrite cannot carry the administrator permission",
+        ));
     }
     if allow.bits() & deny.bits() != 0 {
         return Err(ApiError::BadRequest(
@@ -259,7 +294,8 @@ async fn set(
         .unwrap_or((Permissions::NONE, Permissions::NONE));
     let granted = allow.remove(old_allow).union(old_deny.remove(deny));
     refuse_ungrantable(caller_permissions, granted)?;
-    reach_target(&state, &Ladder::of(&state, ctx.user_id).await?, target).await?;
+    let ladder = Ladder::of(&state, ctx.user_id).await?;
+    reach_target(&state, &ladder, ctx.user_id, target, granted).await?;
 
     let before = visible_before(&state, &[channel_id], &[target]).await?;
     match target {
@@ -273,9 +309,7 @@ async fn set(
                 .await?;
         }
         Target::Member(user_id) => {
-            if state.store.user_profile(user_id).await?.is_none() {
-                return Err(ApiError::NotFound("user not found"));
-            }
+            require_member_target(&state, user_id).await?;
             state
                 .store
                 .set_member_overwrite(channel_id, user_id, allow, deny)
@@ -352,10 +386,8 @@ async fn batch_set(
             Target::Role(role_id) if state.store.role(role_id).await?.is_none() => {
                 return Err(ApiError::NotFound("role not found"));
             }
-            Target::Member(user_id) if state.store.user_profile(user_id).await?.is_none() => {
-                return Err(ApiError::NotFound("user not found"));
-            }
-            _ => {}
+            Target::Member(user_id) => require_member_target(&state, user_id).await?,
+            Target::Role(_) => {}
         }
 
         // Compares against what the write really grants, denies included; see `set`.
@@ -366,7 +398,7 @@ async fn batch_set(
             .unwrap_or((Permissions::NONE, Permissions::NONE));
         let granted = allow.remove(old_allow).union(old_deny.remove(deny));
         refuse_ungrantable(caller_permissions, granted)?;
-        reach_target(&state, &ladder, target).await?;
+        reach_target(&state, &ladder, ctx.user_id, target, granted).await?;
 
         targets.push(target);
         entries.push(OverwriteBatchEntry {
@@ -426,14 +458,14 @@ async fn clear(
         Target::Role(role_id) => ("role", role_id.0),
         Target::Member(user_id) => ("member", user_id.0),
     };
-    if let Some((_, old_deny)) = state
+    let old_deny = state
         .store
         .overwrite_for(channel_id, target_type, target_id)
         .await?
-    {
-        refuse_ungrantable(caller_permissions, old_deny)?;
-    }
-    reach_target(&state, &Ladder::of(&state, ctx.user_id).await?, target).await?;
+        .map_or(Permissions::NONE, |(_, deny)| deny);
+    refuse_ungrantable(caller_permissions, old_deny)?;
+    let ladder = Ladder::of(&state, ctx.user_id).await?;
+    reach_target(&state, &ladder, ctx.user_id, target, old_deny).await?;
 
     let before = visible_before(&state, &[channel_id], &[target]).await?;
     match target {

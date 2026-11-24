@@ -186,6 +186,7 @@ What changed:
   The role DTO carries `is_bots_role`, additively.
 - **The managed role is optional.** `POST /bots` with permissions 0 creates no managed role, and `Bot.role_id` is null.
   `PATCH /bots/{botId}/permissions` creates the managed role when the bot has none and the new bits are non-zero, and deletes it, with its assignment and overwrites, when set to 0.
+  Before the role's overwrites go, each deny bit they carried is copied onto a member overwrite for every holder of the role (amended 2026-11-23), so dropping the role never opens a channel a deny kept the bot out of; allows are not copied, so access fails closed.
   The escalation guard and the audit trail are unchanged, and a bot without a managed role is guarded as holding 0 bits.
 - **A bot is identified by its record, not by its role.** A bot is a live `users.is_bot` row with a `bot_tokens` row; a module principal has none and still is not a bot (`Store::is_bot_account`).
 - **Migration.** `0184` assigns the Bots role to every existing bot with a token record, and deletes managed roles whose permissions are 0.

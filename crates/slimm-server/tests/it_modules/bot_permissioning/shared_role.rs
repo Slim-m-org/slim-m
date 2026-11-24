@@ -221,3 +221,44 @@ async fn the_bots_role_cannot_be_deleted_but_can_be_edited() {
         .unwrap();
     assert_eq!(bots["name"], "Bots");
 }
+
+#[tokio::test]
+async fn setting_a_bot_to_zero_keeps_the_channel_denies_its_role_carried() {
+    let (store, _pool, _guard) = harness("slimm-bot-shared-zero-deny").await;
+    let (_admin, root) = admin(&store, "root").await;
+    let app = app(store.clone());
+    let manage = Permissions::MANAGE_MESSAGES.bits();
+    let (bot_id, _, _) = create_bot(&app, &root, "logger", manage).await;
+    let bot = UserId(bot_id.parse().unwrap());
+    let role = store.role_for_bot(bot).await.unwrap().unwrap().id;
+    let hidden = store.create_channel("hidden", "text").await.unwrap().id;
+    let quiet = store.create_channel("quiet", "text").await.unwrap().id;
+    let view = Permissions::VIEW_CHANNEL;
+    let send = Permissions::SEND_MESSAGES;
+    store
+        .set_role_overwrite(hidden, role, Permissions::NONE, view)
+        .await
+        .unwrap();
+    store
+        .set_role_overwrite(quiet, role, Permissions::NONE, send)
+        .await
+        .unwrap();
+    store
+        .set_member_overwrite(quiet, bot, Permissions::NONE, Permissions::ADD_REACTIONS)
+        .await
+        .unwrap();
+
+    let (status, body) = patch(&app, &root, &bot_id, 0).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert!(store.role_for_bot(bot).await.unwrap().is_none());
+
+    let in_hidden = store.permissions_in_channel(bot, hidden).await.unwrap();
+    assert!(!in_hidden.contains(view), "{in_hidden:?}");
+    let in_quiet = store.permissions_in_channel(bot, quiet).await.unwrap();
+    assert!(in_quiet.contains(view), "{in_quiet:?}");
+    assert!(!in_quiet.contains(send), "{in_quiet:?}");
+    assert!(
+        !in_quiet.contains(Permissions::ADD_REACTIONS),
+        "{in_quiet:?}"
+    );
+}

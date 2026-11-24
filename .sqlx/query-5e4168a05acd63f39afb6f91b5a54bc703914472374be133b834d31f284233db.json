@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT MAX(r.position) AS \"position: i64\" FROM member_roles mr\n               JOIN roles r ON r.id = mr.role_id WHERE mr.user_id = ?",
+  "query": "SELECT MAX(r.position) AS \"position: i64\" FROM member_roles mr\n               JOIN roles r ON r.id = mr.role_id WHERE mr.user_id = ? AND r.is_everyone = 0",
   "describe": {
     "columns": [
       {
@@ -17,5 +17,5 @@
       true
     ]
   },
-  "hash": "11ad20d06664ef9c971e68faa3f0c499fd1c36530db5f0d3f6ed3f474463672d"
+  "hash": "5e4168a05acd63f39afb6f91b5a54bc703914472374be133b834d31f284233db"
 }
