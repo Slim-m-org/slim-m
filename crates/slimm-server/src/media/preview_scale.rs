@@ -10,7 +10,8 @@ use image::{DynamicImage, GrayAlphaImage, GrayImage, RgbImage, RgbaImage, imageo
 /// `img` fitted within `bucket` on the longest side, keeping its aspect ratio.
 pub(super) fn fit(img: &DynamicImage, bucket: u32) -> DynamicImage {
     let longest = img.width().max(img.height());
-    let factor = (longest / bucket) as usize;
+    let shortest = img.width().min(img.height());
+    let factor = (longest / bucket).min(shortest) as usize;
     let reduced = if factor < 2 {
         None
     } else {
@@ -103,6 +104,16 @@ mod tests {
         let img = DynamicImage::ImageRgb8(RgbImage::new(6000, 4000));
         let fitted = fit(&img, 320);
         assert_eq!((fitted.width(), fitted.height()), (320, 213));
+    }
+
+    #[test]
+    fn a_thin_strip_keeps_its_pixels() {
+        let img =
+            DynamicImage::ImageRgb8(RgbImage::from_pixel(10_000, 10, image::Rgb([200, 40, 40])));
+        let fitted = fit(&img, 320);
+        assert_eq!(fitted.width(), 320);
+        assert!(fitted.height() >= 1);
+        assert!(fitted.to_rgb8().pixels().all(|p| p.0[0] > 150));
     }
 
     #[test]
