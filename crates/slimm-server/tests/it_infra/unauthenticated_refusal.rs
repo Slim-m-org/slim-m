@@ -33,6 +33,10 @@ use support::openapi::{Method, SchemaRoute, extract_schema_routes};
 const PUBLIC: &[(&str, &str)] = &[
     ("getHealth", "liveness probe"),
     ("getVersion", "probed from the login screen"),
+    (
+        "proveIdentity",
+        "a client checks the server's key before it trusts it",
+    ),
     ("register", "makes the account a token comes from"),
     ("login", "trades a password for a token"),
     ("refresh", "trades a refresh token for a token"),
