@@ -15,8 +15,9 @@ use axum::response::Response;
 use super::AppState;
 use super::attachments::serve;
 use super::error::ApiError;
-use super::extract::{ASSET, Authed, AuthedLimited, Bytes, Json, enforce};
+use super::extract::{ASSET, Authed, AuthedLimited, Bytes, Json, UPLOAD, enforce};
 use super::messages::parse_uuid;
+use super::participant::Participant;
 use super::users::{AVATAR_MAX_BYTES, UserDto, to_dto};
 use crate::hub::Event;
 use crate::ids::UserId;
@@ -36,13 +37,10 @@ use crate::ratelimit::Class;
 /// attachment and not a valid avatar, and neither is an animated GIF. The
 /// content type itself is not stored here; [`get_avatar`] re-sniffs it from disk.
 pub(super) async fn upload_avatar(
-    Authed(ctx): Authed,
-    parts: Parts,
+    Participant(ctx): Participant<UPLOAD>,
     State(state): State<AppState>,
     Bytes(body): Bytes,
 ) -> Result<Json<UserDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Upload)?;
-
     if body.is_empty() {
         return Err(ApiError::BadRequest("avatar is empty"));
     }

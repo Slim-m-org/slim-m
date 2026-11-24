@@ -121,7 +121,11 @@ async fn remove(
 ) -> Result<StatusCode, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let message_id = MessageId(parse_uuid(&message_id)?);
-    let channel_id = authorize(&state, ctx.user_id, message_id).await?;
+    // Withdrawing needs only sight, so a timeout or overwrite never strands a reaction.
+    let channel_id = viewable_message(&state, ctx.user_id, message_id)
+        .await?
+        .0
+        .channel_id;
     let emoji = canonical(&emoji).into_owned();
 
     let removed = state

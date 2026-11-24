@@ -86,6 +86,7 @@ mod linked_avatar;
 mod manager_limited;
 mod member_permissions;
 mod members;
+mod participant;
 pub mod steam_api;
 pub mod steam_link;
 pub mod steam_presence;

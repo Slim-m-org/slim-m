@@ -136,8 +136,9 @@ async fn posts_somewhere(state: &AppState, channel: ChannelId) -> Result<bool, A
 /// is charged directly against the limiter.
 ///
 /// A malformed id is a 400. Every other failure past the rate limit - an
-/// unknown id, a wrong token, or a revoked one - answers with the same 404, so
-/// this route is never an existence oracle for which webhook ids are live.
+/// unknown id, a wrong token, a revoked one, or a removed principal - answers
+/// with the same 404, so this route is never an existence oracle for which
+/// webhook ids are live. Only a caller holding the real token learns of a timeout.
 async fn deliver(
     _limited: RateLimited<WEBHOOK>,
     State(state): State<AppState>,
@@ -153,6 +154,8 @@ async fn deliver(
 
     let principal_key = format!("u:{}", context.principal_id);
     state.limiter.admit(Class::Webhook, &principal_key)?;
+    // Delivery checks no permission bit, so a timeout on the principal is applied here.
+    super::participant::require_not_timed_out(&state, context.principal_id).await?;
     if !posts_somewhere(&state, context.channel_id).await? {
         return Err(ApiError::NotFound("no such webhook"));
     }

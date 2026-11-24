@@ -5,7 +5,6 @@
 //! the token once.
 
 use axum::extract::{Path, State};
-use axum::http::request::Parts;
 use serde::Serialize;
 
 use super::connector_guard::{
@@ -17,10 +16,10 @@ use super::validate_module_id;
 use super::wire::InstalledModuleDto;
 use crate::http::AppState;
 use crate::http::error::ApiError;
-use crate::http::extract::{Authed, Json, enforce, require_human, require_manage_server};
+use crate::http::extract::{Json, WRITE, require_human, require_manage_server};
+use crate::http::participant::Participant;
 use crate::ids::{SessionId, UserId};
 use crate::permissions::Permissions;
-use crate::ratelimit::Class;
 use crate::store::{
     ConnectorInstall, DockProvenance, InstallModuleRequest, InstalledModule,
     ModuleExtensionPointSpec, ModulePermissionSpec, ModuleRuntimeLimits,
@@ -150,11 +149,9 @@ pub(super) struct ConnectorTokenDto {
 /// Replaces a connector's token for an admin who lost it; the new one is shown once.
 pub(super) async fn reissue_token(
     State(state): State<AppState>,
-    parts: Parts,
-    Authed(ctx): Authed,
+    Participant(ctx): Participant<WRITE>,
     Path(id): Path<String>,
 ) -> Result<Json<ConnectorTokenDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_server(&state, ctx.user_id).await?;
     require_human(&state, ctx.user_id).await?;
     validate_module_id(&id)?;

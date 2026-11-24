@@ -17,8 +17,9 @@ use serde::{Deserialize, Serialize};
 
 use super::AppState;
 use super::error::ApiError;
-use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, Query, enforce};
+use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, PRESENCE_ACTIVITY, Query, enforce};
 use super::messages::parse_uuid;
+use super::participant::Participant;
 use crate::hub::Event;
 use crate::ids::UserId;
 use crate::presence::{self, Visibility};
@@ -146,12 +147,10 @@ async fn set_visibility(
 /// Sets what the caller is doing. Held only in memory against their live
 /// socket, so a caller with none is accepted and simply forgotten.
 async fn set_activity(
-    Authed(ctx): Authed,
-    parts: Parts,
+    Participant(ctx): Participant<PRESENCE_ACTIVITY>,
     State(state): State<AppState>,
     Json(activity): Json<Activity>,
 ) -> Result<StatusCode, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::PresenceActivity)?;
     activity
         .validate_from_client()
         .map_err(ApiError::BadRequest)?;

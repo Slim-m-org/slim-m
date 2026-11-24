@@ -236,10 +236,10 @@ impl Store {
     }
 
     /// Resolves a presented `(webhook_id, token)` pair, or `None` if the id
-    /// is unknown, the token is wrong, or the webhook has been revoked - the
-    /// three cases the delivery route must answer identically (a uniform
-    /// 404), which is why this collapses them into one `None` rather than
-    /// telling the caller which.
+    /// is unknown, the token is wrong, or the webhook has been revoked or its
+    /// principal removed - the cases the delivery route must answer identically
+    /// (a uniform 404), which is why this collapses them into one `None` rather
+    /// than telling the caller which.
     pub async fn authenticate_webhook(
         &self,
         webhook_id: WebhookId,
@@ -248,7 +248,8 @@ impl Store {
         let hash = hash_secret(token);
         let row = sqlx::query!(
             r#"SELECT user_id AS "user_id!: UserId", channel_id AS "channel_id!: ChannelId"
-               FROM webhooks WHERE id = ? AND token_hash = ?"#,
+               FROM webhooks WHERE id = ? AND token_hash = ?
+                 AND NOT EXISTS (SELECT 1 FROM space_removals WHERE user_id = webhooks.user_id)"#,
             webhook_id,
             hash
         )

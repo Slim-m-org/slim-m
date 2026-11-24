@@ -54,6 +54,7 @@ mod me_profile_fields;
 mod me_timeout;
 mod member_invites;
 mod new_device_sign_in;
+mod participant_guard;
 mod password_change;
 mod picture_uploads;
 mod reauth_throttle;

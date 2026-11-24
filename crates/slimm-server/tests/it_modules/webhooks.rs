@@ -328,3 +328,51 @@ fn post_json_with_auth(uri: &str, token: &str, body: Value) -> Request<Body> {
         .body(Body::from(body.to_string()))
         .unwrap()
 }
+
+/// Moderating the account a webhook posts as reaches its deliveries, the way it reaches a member's posts.
+#[tokio::test]
+async fn timing_out_or_removing_a_webhooks_principal_stops_its_deliveries() {
+    let (store, _guard) = new_store("slimm-webhooks-moderated").await;
+    let (_root, channel_id, admin_id) = fixture(&store, "root").await;
+    let app = app(store.clone());
+    let deliver = |webhook: &slimm_server::store::NewWebhook| {
+        let path = format!("/webhooks/{}/{}", webhook.webhook.id, webhook.token);
+        let app = app.clone();
+        async move {
+            let response = app
+                .oneshot(post_json(&path, json!({ "content": "spam" })))
+                .await
+                .unwrap();
+            let status = response.status();
+            (status, json_body(response).await)
+        }
+    };
+
+    let timed = store
+        .create_webhook(channel_id, "timed", admin_id)
+        .await
+        .unwrap();
+    assert_eq!(deliver(&timed).await.0, StatusCode::NO_CONTENT);
+    let until = support::totp_clock::now_ms() + 3_600_000;
+    store
+        .set_member_timeout(timed.webhook.principal_id, until, None, admin_id)
+        .await
+        .unwrap();
+    let (status, body) = deliver(&timed).await;
+    assert_eq!(status, StatusCode::FORBIDDEN, "{body}");
+    assert_eq!(body["code"], "timed_out");
+
+    let removed = store
+        .create_webhook(channel_id, "removed", admin_id)
+        .await
+        .unwrap();
+    store
+        .remove_from_space(removed.webhook.principal_id, admin_id, None)
+        .await
+        .unwrap();
+    assert_eq!(
+        deliver(&removed).await.0,
+        StatusCode::NOT_FOUND,
+        "a removed principal answers like a revoked webhook"
+    );
+}

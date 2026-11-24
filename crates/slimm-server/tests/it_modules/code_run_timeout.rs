@@ -188,3 +188,43 @@ async fn a_timed_out_member_cannot_write_shared_run_output() {
         "timed-out member overwrote shared run output"
     );
 }
+
+/// A run is broadcast like a message, so a read-only channel and a block bar it too.
+#[tokio::test]
+async fn a_member_who_may_not_post_cannot_write_shared_run_output() {
+    let (s, _guard) = new_store("slimm-code-run-read-only").await;
+    let (author, runner, channel_id, runner_token) = scene(&s).await;
+    let router = app(s.clone());
+    let id = post_block(&s, channel_id, &author, "```js\nroll()\n```").await;
+    assert_eq!(
+        run(&router, id, &runner_token, "roll()").await,
+        StatusCode::OK
+    );
+
+    s.set_member_overwrite(
+        channel_id,
+        runner.id,
+        Permissions::NONE,
+        Permissions::SEND_MESSAGES,
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        run(&router, id, &runner_token, "roll()").await,
+        StatusCode::FORBIDDEN,
+        "a read-only channel takes no run output"
+    );
+
+    let dm = s.open_dm(author.id, runner.id).await.unwrap();
+    let in_dm = post_block(&s, dm.id, &author, "```js\nroll()\n```").await;
+    assert_eq!(
+        run(&router, in_dm, &runner_token, "roll()").await,
+        StatusCode::OK
+    );
+    s.block_user(author.id, runner.id).await.unwrap();
+    assert_eq!(
+        run(&router, in_dm, &runner_token, "roll()").await,
+        StatusCode::FORBIDDEN,
+        "a blocked member cannot push run output into the DM"
+    );
+}

@@ -16,8 +16,9 @@ use super::AppState;
 use super::auth::{validate_label, validate_username};
 use super::error::ApiError;
 use super::escalation::escalation_guard;
-use super::extract::{Authed, Json, Query, enforce, require_human, require_manage_server};
+use super::extract::{Authed, Json, Query, WRITE, enforce, require_human, require_manage_server};
 use super::messages::parse_uuid;
+use super::participant::Participant;
 use super::role_ladder::Ladder;
 use super::roles::grantable;
 use crate::hub::Event;
@@ -184,11 +185,9 @@ async fn suggested_prefix(
 /// right-to-left override that a person is refused at register and at `/me`.
 async fn create(
     State(state): State<AppState>,
-    parts: Parts,
-    Authed(ctx): Authed,
+    Participant(ctx): Participant<WRITE>,
     Json(body): Json<CreateBotDto>,
 ) -> Result<(StatusCode, Json<NewBotDto>), ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_server(&state, ctx.user_id).await?;
     require_human(&state, ctx.user_id).await?;
 
@@ -273,11 +272,9 @@ async fn revoke(
 /// its session stop working in the same transaction; the new one is shown once.
 async fn reissue_token(
     State(state): State<AppState>,
-    parts: Parts,
-    Authed(ctx): Authed,
+    Participant(ctx): Participant<WRITE>,
     Path(bot_id): Path<String>,
 ) -> Result<Json<NewBotDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_server(&state, ctx.user_id).await?;
     require_human(&state, ctx.user_id).await?;
     let bot_id = UserId(parse_uuid(&bot_id)?);

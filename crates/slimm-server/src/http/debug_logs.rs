@@ -15,6 +15,7 @@ use super::AppState;
 use super::device_client_info::validate_client_info;
 use super::error::ApiError;
 use super::extract::{Authed, AuthedLimited, Json, UPLOAD, enforce, require_manage_server};
+use super::participant::require_admitted;
 use crate::ratelimit::Class;
 use crate::store::{DebugLogFull, DebugLogSummary, NewDebugLog};
 
@@ -109,6 +110,8 @@ async fn submit(
     State(state): State<AppState>,
     Json(req): Json<SubmitRequest>,
 ) -> Result<(StatusCode, Json<SubmittedDto>), ApiError> {
+    // Only the gate: a timed-out member still reports a bug to the admins, who alone read it.
+    require_admitted(&state, ctx.user_id).await?;
     if req.log.trim().is_empty() {
         return Err(ApiError::BadRequest("the debug log is empty"));
     }
