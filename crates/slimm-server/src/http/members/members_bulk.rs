@@ -113,7 +113,10 @@ async fn bulk_remove(
 
     for target in &targets {
         session_revocation::account_sessions_revoked(&state, *target, None);
-        state.hub.publish(Event::MemberRemoved(*target));
+        state.hub.publish(Event::MemberRemoved {
+            user_id: *target,
+            deleted: false,
+        });
     }
     evict_all_from_voice(&state, &targets).await;
     Ok(StatusCode::NO_CONTENT)

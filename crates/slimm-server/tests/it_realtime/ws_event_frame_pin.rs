@@ -113,7 +113,10 @@ fn sample_events(channel: ChannelId, alice: UserId, bob: UserId) -> Vec<Event> {
             until: Some(1_700_000_000_003),
         },
         Event::JoinGateChanged { user_id: Some(bob) },
-        Event::MemberRemoved(UserId(id(6))),
+        Event::MemberRemoved {
+            user_id: UserId(id(6)),
+            deleted: false,
+        },
         Event::MemberRestored(UserId(id(7))),
         Event::MemberJoined(UserId(id(8))),
         Event::OwnerChanged(bob),
@@ -489,7 +492,14 @@ fn sample_events(channel: ChannelId, alice: UserId, bob: UserId) -> Vec<Event> {
         })),
         Event::Stamped {
             seq: 41,
-            event: Box::new(Event::MemberRemoved(UserId(id(14)))),
+            event: Box::new(Event::MemberRemoved {
+                user_id: UserId(id(14)),
+                deleted: false,
+            }),
+        },
+        Event::MemberRemoved {
+            user_id: UserId(id(23)),
+            deleted: true,
         },
     ]
 }

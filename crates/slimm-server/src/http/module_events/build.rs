@@ -42,7 +42,7 @@ pub(super) fn classify(event: &Event) -> Option<Kind> {
         }
         Event::MemberRoleChanged { .. } => ("member.roles.changed", None),
         Event::MemberJoined(_) => ("member.joined", None),
-        Event::MemberRemoved(_) => ("member.left", None),
+        Event::MemberRemoved { .. } => ("member.left", None),
         Event::VoiceSessionClosed { channel_id, .. } => ("voice.session.closed", Some(*channel_id)),
         _ => return None,
     };
@@ -225,7 +225,7 @@ pub(super) async fn build(store: &Store, event: &Event, now_ms: i64) -> anyhow::
             },
         }],
         Event::MemberJoined(user) => vec![member("member-join", *user, now_ms)],
-        Event::MemberRemoved(user) => vec![member("member-leave", *user, now_ms)],
+        Event::MemberRemoved { user_id, .. } => vec![member("member-leave", *user_id, now_ms)],
         Event::VoiceSessionClosed {
             session_id,
             user_id,

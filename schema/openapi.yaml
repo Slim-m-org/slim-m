@@ -24363,9 +24363,10 @@ components:
       type: object
       required: [type, user_id]
       description: >
-        A member was removed from the Space. Their authored content stays,
-        so this is not an account deletion and a client should not treat it
-        as one; what it means is that the account can no longer sign in.
+        A member left the Space and can no longer sign in. Without `deleted`
+        it is a removal, which an admin can undo, and their authored content
+        stays. With `deleted: true` the account itself was deleted, which
+        cannot be undone, so a bot should purge what it stores for them.
       properties:
         type:
           type: string
@@ -24377,6 +24378,9 @@ components:
         user_id:
           type: string
           format: uuid
+        deleted:
+          type: boolean
+          description: True when the account was deleted; absent for a removal.
 
     MemberRestored:
       type: object

@@ -71,7 +71,7 @@ pub(super) fn is_moderation(event: &Event) -> bool {
     matches!(
         event,
         Event::MemberTimeoutChanged { .. }
-            | Event::MemberRemoved(_)
+            | Event::MemberRemoved { .. }
             | Event::MemberRestored(_)
             | Event::MemberRoleChanged { .. }
             | Event::RoleChanged { .. }

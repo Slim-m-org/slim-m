@@ -64,8 +64,9 @@ pub enum Event {
     JoinGateChanged { user_id: Option<UserId> },
     /// A member was removed from the Space. Their own sockets close on the
     /// `SessionRevoked` events that accompany this; everyone else's member
-    /// list uses this to drop them without waiting for a refetch.
-    MemberRemoved(UserId),
+    /// list uses this to drop them without waiting for a refetch. `deleted` marks an account
+    /// deletion, which unlike a removal cannot be undone, so a bot may purge what it holds.
+    MemberRemoved { user_id: UserId, deleted: bool },
     /// A removed member was let back in. The mirror of
     /// [`Event::MemberRemoved`], for the session that watched them vanish:
     /// without it a remove-then-restore leaves the member invisible in every

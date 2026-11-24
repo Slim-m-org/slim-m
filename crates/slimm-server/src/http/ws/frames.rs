@@ -194,6 +194,8 @@ pub(super) enum ServerFrame {
         user_id: String,
         #[serde(skip_serializing_if = "Option::is_none")]
         seq: Option<u64>,
+        #[serde(skip_serializing_if = "std::ops::Not::not")]
+        deleted: bool,
     },
     #[serde(rename = "member.restored")]
     MemberRestored {

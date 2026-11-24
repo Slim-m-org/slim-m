@@ -131,6 +131,17 @@ It carries only the id; call `GET /members` (or wait for your own roster cache t
 This is the event a greeter bot listens for.
 Post your welcome message from the handler rather than inferring a join from someone's first message or a presence frame - see `bots/greeter` in [slim-bots](https://github.com/Slim-m-org/slim-bots).
 
+## Member leave events
+
+```json
+{ "type": "member.removed", "user_id": "...", "seq": 42 }
+{ "type": "member.removed", "user_id": "...", "seq": 43, "deleted": true }
+```
+
+A removal can be undone with `member.restored`, so keep what you store for that member and stop acting for them.
+`deleted: true` means the account itself was deleted, which cannot be undone.
+Delete what your bot stores for them then: the server has already purged their personal data and anonymized what they wrote.
+
 ## Sending a message
 
 ```

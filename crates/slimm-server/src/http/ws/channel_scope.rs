@@ -68,7 +68,7 @@ pub(super) fn channel_of(event: &Event) -> Option<ChannelId> {
         | Event::PresenceChanged(_)
         | Event::MemberTimeoutChanged { .. }
         | Event::JoinGateChanged { .. }
-        | Event::MemberRemoved(_)
+        | Event::MemberRemoved { .. }
         | Event::MemberRestored(_)
         | Event::MemberJoined(_)
         | Event::OwnerChanged(_)
