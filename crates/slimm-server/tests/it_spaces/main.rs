@@ -8,6 +8,7 @@ mod admin_alerts;
 mod admin_audit;
 mod admin_audit_exempt;
 mod admin_audit_hardening;
+mod admin_audit_slow_body;
 mod audit_moderation;
 mod blocking_reach;
 mod categories;

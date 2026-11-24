@@ -7,7 +7,6 @@
 //! mutating route is neither audited nor listed as exempt.
 
 use axum::Router;
-use axum::body::Bytes;
 use axum::body::{Body, HttpBody, to_bytes};
 use axum::extract::{FromRequestParts, MatchedPath, Query, RawPathParams, Request, State};
 use axum::http::request::Parts;
@@ -15,7 +14,6 @@ use axum::http::{Method, header};
 use axum::middleware::Next;
 use axum::response::Response;
 use axum::routing::get;
-use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
@@ -26,8 +24,11 @@ use crate::ratelimit::Class;
 use crate::store::AdminAuditEntry;
 
 mod audited_routes;
+mod body_tap;
 mod redaction;
 mod replay;
+
+use body_tap::{BodyTap, Seen};
 
 pub use audited_routes::{AUDITED_ROUTES, AuditedRoute};
 
@@ -38,8 +39,6 @@ const MAX_NAME_CHARS: usize = 100;
 /// Well under the 4096 characters the table's CHECK allows, so a row is never refused for its detail.
 const MAX_DETAIL_CHARS: usize = 3500;
 const RECORD_ATTEMPTS: u32 = 3;
-/// How long a body may take to arrive before it is passed on uninspected.
-const INSPECTION_WAIT: std::time::Duration = std::time::Duration::from_millis(500);
 const PAGE_DEFAULT: i64 = 50;
 const PAGE_MAX: i64 = 200;
 
@@ -66,7 +65,7 @@ pub async fn record(State(state): State<AppState>, request: Request, next: Next)
     let (mut parts, body) = request.into_parts();
     let actor = Authed::from_request_parts(&mut parts, &state).await.ok();
     let params = path_params(&mut parts, &state).await;
-    let (body, request_json, uninspected) = inspect_json(&parts.headers, body).await;
+    let (body, tap, declared_large) = inspect_json(&parts.headers, body);
     let response = next.run(Request::from_parts(parts, body)).await;
     let Some(Authed(ctx)) = actor else {
         return response;
@@ -74,6 +73,11 @@ pub async fn record(State(state): State<AppState>, request: Request, next: Next)
     if !response.status().is_success() {
         return response;
     }
+    let (request_json, uninspected) = match tap.map(BodyTap::finish) {
+        Some(Seen::Json(json)) => (Some(json), false),
+        Some(Seen::Unread) => (None, true),
+        Some(Seen::NotJson) | None => (None, declared_large),
+    };
     let (response, target) = match route.target {
         Some(name) => (
             response,
@@ -173,10 +177,9 @@ fn is_json(headers: &axum::http::HeaderMap) -> bool {
         .is_some_and(|value| value.starts_with("application/json"))
 }
 
-/// Reads a small JSON body so its field names can be logged, and hands back an equivalent body for
-/// the handler, with whether the body was left unread. A body without a length is buffered up to the
-/// cap, so leaving out Content-Length hides nothing from the log.
-async fn inspect_json(headers: &axum::http::HeaderMap, body: Body) -> (Body, Option<Value>, bool) {
+/// Wraps a JSON body so the log can read it after the handler has, without holding the request
+/// back: nothing is awaited here, so a slow body costs the handler's own timing and no more.
+fn inspect_json(headers: &axum::http::HeaderMap, body: Body) -> (Body, Option<BodyTap>, bool) {
     if !is_json(headers) {
         return (body, None, false);
     }
@@ -187,34 +190,8 @@ async fn inspect_json(headers: &axum::http::HeaderMap, body: Body) -> (Body, Opt
     if declared.is_some_and(|length| length > MAX_INSPECTED_BODY) {
         return (body, None, true);
     }
-    buffer_up_to_cap(body).await
-}
-
-/// Buffers a body up to the inspection cap or the wait, whichever comes first; what is left is chained back on.
-///
-/// The wait keeps a stalled body from holding a connection ahead of the handler's own rate-limit charge.
-async fn buffer_up_to_cap(body: Body) -> (Body, Option<Value>, bool) {
-    let mut stream = body.into_data_stream();
-    let mut buffered = Vec::new();
-    let deadline = tokio::time::Instant::now() + INSPECTION_WAIT;
-    loop {
-        match tokio::time::timeout_at(deadline, stream.next()).await {
-            Ok(None) => break,
-            Ok(Some(Err(_))) => return (Body::empty(), None, false),
-            Ok(Some(Ok(chunk))) => buffered.extend_from_slice(&chunk),
-            Err(_) => return (rejoin(buffered, stream), None, true),
-        }
-        if buffered.len() > MAX_INSPECTED_BODY {
-            return (rejoin(buffered, stream), None, true);
-        }
-    }
-    let json = serde_json::from_slice(&buffered).ok();
-    (Body::from(buffered), json, false)
-}
-
-fn rejoin(buffered: Vec<u8>, rest: axum::body::BodyDataStream) -> Body {
-    let head = futures_util::stream::iter([Ok(Bytes::from(buffered))]);
-    Body::from_stream(head.chain(rest))
+    let (body, tap) = body_tap::tap(body, MAX_INSPECTED_BODY);
+    (body, Some(tap), false)
 }
 
 /// Whether the body is known to fit the inspection cap; one that may not is passed through whole.
