@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!: CallTranscriptId\" FROM call_transcripts WHERE channel_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: CallTranscriptId",
+        "ordinal": 0,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "call_transcripts",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "5b0a504ea7e286d10c7c3f93031c69c582524f702ef446ae51d1337aa8d48143"
+}

@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!: CallTranscriptId\" FROM call_transcripts\n                   WHERE ended_at IS NOT NULL AND ended_at < ? AND id > ?\n                   ORDER BY id LIMIT ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: CallTranscriptId",
+        "ordinal": 0,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "call_transcripts",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "8676d5446230b6fec759f4bc7c5b19e034aa0fb02543103ce11b2cac9bdb6b0e"
+}

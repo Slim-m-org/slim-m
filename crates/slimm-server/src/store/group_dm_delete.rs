@@ -35,6 +35,7 @@ impl Store {
         .await?
         .rows_affected();
         if deleted > 0 {
+            self.forget_call_transcripts(channel_id).await;
             return Ok(true);
         }
         if self.is_group_dm_member(actor, channel_id).await? {

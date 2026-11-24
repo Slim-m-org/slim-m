@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id AS \"id!: CallTranscriptId\" FROM call_transcripts\n                   WHERE ended_at IS NOT NULL AND ended_at < ? LIMIT ?",
+  "query": "SELECT t.id AS \"id!: CallTranscriptId\" FROM call_transcripts t\n               JOIN channels c ON c.id = t.channel_id\n               WHERE c.deleted_at IS NOT NULL ORDER BY t.id LIMIT ?",
   "describe": {
     "columns": [
       {
@@ -16,11 +16,11 @@
       }
     ],
     "parameters": {
-      "Right": 2
+      "Right": 1
     },
     "nullable": [
       false
     ]
   },
-  "hash": "d7514439eb98760a416fbdd2398ecb92cca38348437dd4b53008b8d462de2aa2"
+  "hash": "131751b60dcb9e89fe6f83a2e089882b3742a9678fdda3ff5ebe9dcc386681ae"
 }
