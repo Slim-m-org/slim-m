@@ -13,6 +13,7 @@ import '../../../desktop/desktop_window_shell.dart';
 import '../../../diagnostics/debug_log.dart';
 import '../../../diagnostics/debug_log_persistence.dart';
 import '../../../diagnostics/debug_log_router.dart';
+import '../../../providers/app_lock_controller.dart';
 import '../../../providers/media_disk_caches.dart';
 import '../../../providers/providers.dart';
 import '../../../providers/startup_restores.dart';
@@ -27,6 +28,7 @@ import 'account_providers.dart';
 import 'account_restore.dart';
 import 'account_services.dart';
 import 'account_slot.dart';
+import 'process_app_lock.dart';
 import 'account_store.dart';
 
 /// Runs [body] so every record it logs belongs to the account [container] serves.
@@ -60,6 +62,8 @@ AccountHost createAccountHost(DesktopWindowShell shell, Uri official) {
   // The native callbacks and handlers are process-wide, so they cannot belong to a container that gets disposed.
   final apnsToken = ApnsTokenChannel();
   final notificationTaps = NotificationTapChannel();
+  // One lock for every container, or a link or switch into an account not yet opened would skip it.
+  late final appLock = createProcessAppLock(host);
   final notifications = LocalNotifications(
     onActivated: (payload) => openNotificationTarget(shell, host, payload),
   );
@@ -89,6 +93,7 @@ AccountHost createAccountHost(DesktopWindowShell shell, Uri official) {
         accountHostProvider.overrideWith((ref) => host),
         callStartYieldsProvider.overrideWithValue(callStartYields),
         callKeybindsStoreProvider.overrideWithValue(callKeybinds),
+        appLockControllerProvider.overrideWith((ref) => appLock),
         crossTabProvider.overrideWithValue(crossTab),
         officialServerProvider.overrideWithValue(official),
         desktopWindowShellProvider.overrideWithValue(shell),

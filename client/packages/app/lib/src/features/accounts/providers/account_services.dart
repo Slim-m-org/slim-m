@@ -20,6 +20,7 @@ import 'account_providers.dart';
 import 'account_slot.dart';
 import '../../../providers/sync_controller.dart';
 import '../../../providers/viewing_reporter.dart';
+import '../../auth/providers/new_device_alert.dart';
 import '../../channels/providers/channel_notification_overrides_controller.dart';
 import '../../members/providers/activity_publisher.dart';
 import '../../members/providers/presence_activity_reporter.dart';
@@ -70,6 +71,7 @@ void startAccountServices(ProviderContainer container) {
   container.listen(retentionSweepControllerProvider, (_, _) {});
   container.listen(callRestoreWatchProvider, (_, _) {});
   container.listen(debugLogDetailProvider, (_, _) {});
+  container.listen(newDeviceAlertProvider, (_, _) {});
   unawaited(container.read(offScreenCallRestoreProvider)());
 }
 

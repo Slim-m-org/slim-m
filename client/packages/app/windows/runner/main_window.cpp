@@ -22,6 +22,7 @@
 #include "now_playing_channel.h"
 #include "popout_window_proc.h"
 #include "screen_overlay_channel.h"
+#include "session_lock_channel.h"
 #include "single_instance.h"
 #include "taskbar_attention_channel.h"
 #include "windows_toasts_channel.h"
@@ -124,6 +125,7 @@ std::optional<LRESULT> HandleTopLevelMessage(HWND window, UINT message,
     return 0;
   }
   if (message == TaskbarButtonCreatedMessage()) OnTaskbarButtonCreated();
+  OnSessionLockMessage(message, wparam);
   if (message == WM_FONTCHANGE) g_engine->ReloadSystemFonts();
   return std::nullopt;
 }
@@ -158,6 +160,7 @@ bool AdoptMainWindow() {
   RegisterScreenOverlayChannel(messenger);
   RegisterClipboardImageChannel(messenger, g_window);
   RegisterTaskbarAttentionChannel(messenger, g_window);
+  RegisterSessionLockChannel(messenger, g_window);
   RegisterWindowsToastsChannel(messenger);
   RegisterYoutubePlayerChannel(g_engine, content);
   return true;
@@ -221,6 +224,7 @@ void ServeMainWindowReady(flutter::FlutterEngine* engine) {
 
 void DestroyDartWindows() {
   // Off screen first, so a teardown that stalls never leaves an empty window behind.
+  UnregisterSessionLockChannel();
   if (g_window != nullptr) ::ShowWindow(g_window, SW_HIDE);
   // The framework's own teardown call, which parks the view before the window goes so the raster thread never sees it freed.
   const auto destroy = reinterpret_cast<DestroyHostWindow>(::GetProcAddress(

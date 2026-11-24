@@ -26,7 +26,7 @@ import '../../support/window_lifecycle.dart';
 import 'voice_controller_harness.dart';
 
 class _AlwaysLocked extends AppLockController {
-  _AlwaysLocked(super.ref) {
+  _AlwaysLocked(super.host) {
     state = true;
   }
 }
@@ -273,7 +273,9 @@ void main() {
       tester,
       const SizedBox.shrink(),
       extraOverrides: [
-        appLockControllerProvider.overrideWith(_AlwaysLocked.new),
+        appLockControllerProvider.overrideWith(
+          (ref) => _AlwaysLocked(AppLockHost.forRef(ref)),
+        ),
       ],
     );
     await controller.toggleMicrophone();
