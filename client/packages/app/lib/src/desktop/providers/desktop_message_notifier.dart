@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Desktop-only: posts an OS notification when a message arrives while the
-/// window is not in the foreground.
+/// Desktop and web: posts an OS or browser notification when a message arrives
+/// while the window or tab is not in the foreground.
 ///
 /// The desktop has no remote push - nothing wakes a closed app the way FCM or
 /// APNs wakes a phone - so the only notifications it can show are for messages
@@ -8,6 +8,11 @@
 /// into OS notifications through [LocalNotifications.show]; on Android and
 /// iOS the platform push already
 /// does this, so this stays inert there.
+///
+/// Each conversation files under its own notification id, so a burst in one
+/// collapses and a second conversation keeps its banner. What a reconnect's
+/// catch-up stored never came as a live frame, so its DMs and mentions get one
+/// summary banner per conversation.
 ///
 /// Also flashes the Windows taskbar button until the window is focused.
 ///
@@ -34,6 +39,7 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_platform/platform.dart';
@@ -50,17 +56,26 @@ import '../../features/members/providers/mention_names.dart'
     show mentionNamesFrom;
 import '../../features/messages/providers/message_alert_policy.dart';
 import '../../providers/providers.dart';
+import '../../push/android_push_messages.dart' show previewNotificationId;
 import '../../push/providers/push_controller.dart';
 
 final desktopMessageNotifierProvider = Provider<void>((ref) {
-  // Android and iOS notify from platform push; only the desktop needs this.
-  if (!isDesktopHost) return;
+  // Android and iOS notify from platform push; only the desktop and a browser tab need this.
+  if (!isDesktopHost && !kIsWeb) return;
 
   // Kept alive so an alert reads the roster from memory instead of refetching it.
   ref.listen(membersProvider, (_, _) {});
   final notifier = _DesktopMessageNotifier(ref);
-  final sub = ref.read(liveEventsProvider).listen(notifier.onServerEvent);
-  ref.onDispose(sub.cancel);
+  final subs = [
+    ref.read(liveEventsProvider).listen(notifier.onServerEvent),
+    ref.read(caughtUpMessagesProvider).listen(notifier.onCaughtUp),
+  ];
+  ref.onDispose(() {
+    notifier.disposed = true;
+    for (final sub in subs) {
+      unawaited(sub.cancel());
+    }
+  });
 });
 
 class _DesktopMessageNotifier {
@@ -68,24 +83,88 @@ class _DesktopMessageNotifier {
 
   final Ref _ref;
 
+  /// Set when the account container goes away, so work in flight stops touching it.
+  bool disposed = false;
+
   void onServerEvent(api.ServerEvent event) {
     if (event case api.MessageCreated(:final message)) {
-      unawaited(_onMessageCreated(message));
+      unawaited(
+        _guarded('announce a message', () => _onMessageCreated(message)),
+      );
     }
   }
 
+  void onCaughtUp(List<api.Message> messages) => unawaited(
+    _guarded('announce missed messages', () => _announceMissed(messages)),
+  );
+
+  Future<void> _guarded(String what, Future<void> Function() body) async {
+    try {
+      await body();
+    } catch (error, stack) {
+      if (disposed) return;
+      api.AppLog.swallowed(
+        api.LogTag.platform,
+        'Could not $what',
+        error,
+        stack,
+      );
+    }
+  }
+
+  /// Whether the person is looking at this account, so the rail already shows its unread.
+  bool get _watching =>
+      _ref.read(appFocusedProvider) && _ref.read(accountActiveProvider);
+
   Future<void> _onMessageCreated(api.Message message) async {
     // Skip while focused: a foreground app shows unread in the rail already, but only for the account on screen.
-    final foreground = _ref.read(appFocusedProvider);
-    if (foreground && _ref.read(accountActiveProvider)) return;
+    if (_watching) return;
 
     final alert = await _ref.read(messageAlertPolicyProvider).evaluate(message);
-    if (alert == null) return;
+    if (alert == null || disposed) return;
+    final text = await _textFor(message, isDm: alert.isDm);
+    if (disposed) return;
+    _present(text, message.channelId, mentionsSelf: alert.mentionsSelf);
+  }
 
+  /// One banner per conversation for what a reconnect's catch-up stored: only DMs and mentions, as a missed ordinary message is not worth waking anyone.
+  Future<void> _announceMissed(List<api.Message> messages) async {
+    if (_watching) return;
+    final missed = <String, List<api.Message>>{};
+    final mentioned = <String>{};
+    for (final message in messages) {
+      final alert = await _ref
+          .read(messageAlertPolicyProvider)
+          .evaluate(message);
+      if (disposed) return;
+      if (alert == null || !(alert.isDm || alert.mentionsSelf)) continue;
+      (missed[message.channelId] ??= []).add(message);
+      if (alert.mentionsSelf) mentioned.add(message.channelId);
+    }
+    for (final MapEntry(key: channelId, value: held) in missed.entries) {
+      final latest = held.last;
+      final text = await _textFor(latest, isDm: !mentioned.contains(channelId));
+      if (disposed) return;
+      final summary = held.length == 1
+          ? text
+          : (
+              title: text.title,
+              body: mentioned.contains(channelId)
+                  ? '${held.length} new messages, with a mention'
+                  : '${held.length} new messages',
+            );
+      _present(summary, channelId, mentionsSelf: mentioned.contains(channelId));
+    }
+  }
+
+  Future<({String? title, String body})> _textFor(
+    api.Message message, {
+    required bool isDm,
+  }) async {
     // Read from storage, not the controller: the controller loads asynchronously and may still hold its default.
     final prefs = await _ref.read(preferencesProvider.future);
     final showText = prefs.getBool(desktopMessageTextKey) ?? true;
-    final channel = showText && !alert.isDm
+    final channel = showText && !isDm
         ? await (await _ref.read(
             storeProvider.future,
           )).channelRow(message.channelId)
@@ -95,34 +174,45 @@ class _DesktopMessageNotifier {
       for (final m in showText ? await _roster() : const <api.UserProfile>[])
         live[m.id] ?? m,
     ];
-    final text = desktopNotificationText(
+    return desktopNotificationText(
       message,
       showText: showText,
-      isDm: alert.isDm,
+      isDm: isDm,
       channelName: channel?.name,
       mentionNames: mentionNamesFrom(AsyncData(members)),
       authorName: _authorName(members, message),
     );
+  }
+
+  void _present(
+    ({String? title, String body}) text,
+    String channelId, {
+    required bool mentionsSelf,
+  }) {
     final origin = _ref.read(accountSlotProvider)?.account?.origin;
     final payload = origin == null
         ? null
-        : NotificationTarget(
-            origin: origin,
-            channelId: message.channelId,
-          ).encode();
-    final notifications = _ref.read(localNotificationsProvider);
-    if (!foreground) unawaited(_ref.read(taskbarAttentionProvider).flash());
+        : NotificationTarget(origin: origin, channelId: channelId).encode();
+    if (isDesktopHost && !_ref.read(appFocusedProvider)) {
+      unawaited(_ref.read(taskbarAttentionProvider).flash());
+    }
     // The per-kind OS control only reaches a banner filed under the kind it is; see LocalAlertChannel.
-    final alertChannel = alert.mentionsSelf
+    final alertChannel = mentionsSelf
         ? LocalAlertChannel.mentions
         : LocalAlertChannel.messages;
-    // Fire-and-forget: a failed notification must never break event handling.
+    // Fire-and-forget behind a catch: a failed notification must never break event handling.
     unawaited(
-      notifications.show(
-        text.body,
-        channel: alertChannel,
-        title: text.title,
-        payload: payload,
+      _guarded(
+        'show a notification',
+        () => _ref
+            .read(localNotificationsProvider)
+            .show(
+              text.body,
+              channel: alertChannel,
+              title: text.title,
+              payload: payload,
+              id: previewNotificationId(channelId),
+            ),
       ),
     );
   }

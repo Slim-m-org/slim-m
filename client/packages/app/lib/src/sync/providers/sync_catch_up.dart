@@ -2,6 +2,7 @@
 /// Catch-up: pulling every known scope up to the server's head over REST.
 library;
 
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -38,6 +39,23 @@ class SyncCatchUp {
 
   final Ref _ref;
   final bool Function(int generation) _isCurrent;
+
+  final _held = <String, Message>{};
+  final _batches = StreamController<List<Message>>.broadcast();
+
+  /// Messages a reconnect's catch-up stored, which no live frame announced.
+  Stream<List<Message>> get reconnectBatches => _batches.stream;
+
+  /// Starts collecting the messages the coming catch-up stores.
+  void beginBatch() => _held.clear();
+
+  /// Hands the collected messages to [reconnectBatches] after a reconnect, or drops them on a first connect.
+  void endBatch({required bool reconnect}) {
+    if (reconnect && _held.isNotEmpty) _batches.add(_held.values.toList());
+    _held.clear();
+  }
+
+  void dispose() => unawaited(_batches.close());
 
   /// Catches every known scope up, round after round until none is behind.
   ///
@@ -154,6 +172,9 @@ class SyncCatchUp {
     }
     await store.applyMessages(delta.messages, advance: CursorAdvance.always);
     if (!isCurrent()) return null;
+    for (final message in delta.messages) {
+      _held[message.id] = message;
+    }
     _ref.read(messageExtrasProvider.notifier).applyMessages(delta.messages);
 
     // After the messages: an edit cannot precede the message it names.

@@ -15,6 +15,7 @@ export 'src/call_service.dart';
 export 'src/clipboard_image_png.dart' show isPng, toPng;
 export 'src/clipboard_file_writer.dart';
 export 'src/clipboard_image_writer.dart';
+export 'src/browser_attention.dart';
 export 'src/cross_tab.dart';
 export 'src/device_name.dart';
 export 'src/device_push_keys.dart';
