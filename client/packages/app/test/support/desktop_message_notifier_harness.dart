@@ -23,6 +23,8 @@ class FakeNotifications implements LocalNotifications {
   final shown = <String>[];
   final channels = <LocalAlertChannel>[];
   final payloads = <String?>[];
+  final ids = <int?>[];
+  Object? failWith;
 
   @override
   Future<void> show(
@@ -32,6 +34,8 @@ class FakeNotifications implements LocalNotifications {
     String? payload,
     int? id,
   }) async {
+    if (failWith case final error?) throw error;
+    ids.add(id);
     shown.add(title == null ? text : '$title: $text');
     payloads.add(payload);
     channels.add(channel);
@@ -80,6 +84,7 @@ class NotifierSetup {
     this.notifications,
     this.db,
     this.taskbar,
+    this.caughtUp,
   );
 
   final ProviderContainer container;
@@ -87,10 +92,12 @@ class NotifierSetup {
   final FakeNotifications notifications;
   final SlimmDatabase db;
   final FakeTaskbarAttention taskbar;
+  final StreamController<List<api.Message>> caughtUp;
 
   Future<void> dispose() async {
     container.dispose();
     await events.close();
+    await caughtUp.close();
     await db.close();
   }
 }
@@ -108,6 +115,7 @@ Future<NotifierSetup> wireNotifier({List<Override> extra = const []}) async {
   ]);
 
   final events = StreamController<api.ServerEvent>.broadcast();
+  final caughtUp = StreamController<List<api.Message>>.broadcast();
   final notifications = FakeNotifications();
   final taskbar = FakeTaskbarAttention();
 
@@ -119,6 +127,7 @@ Future<NotifierSetup> wireNotifier({List<Override> extra = const []}) async {
       ),
       storeProvider.overrideWith((ref) async => store),
       liveEventsProvider.overrideWithValue(events.stream),
+      caughtUpMessagesProvider.overrideWithValue(caughtUp.stream),
       localNotificationsProvider.overrideWithValue(notifications),
       taskbarAttentionProvider.overrideWithValue(taskbar),
       ...extra,
@@ -150,7 +159,7 @@ Future<NotifierSetup> wireNotifier({List<Override> extra = const []}) async {
   await container.read(channelNotificationOverridesProvider.notifier).refresh();
   container.read(desktopMessageNotifierProvider);
 
-  return NotifierSetup(container, events, notifications, db, taskbar);
+  return NotifierSetup(container, events, notifications, db, taskbar, caughtUp);
 }
 
 /// Pushes a message by "me" (never notified) behind whatever the test just

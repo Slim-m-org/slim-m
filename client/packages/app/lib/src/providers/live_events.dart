@@ -17,3 +17,8 @@ import 'sync_controller.dart';
 final liveEventsProvider = Provider<Stream<ServerEvent>>(
   (ref) => ref.watch(syncControllerProvider.notifier).liveEvents,
 );
+
+/// The messages each reconnect's catch-up stored, which the live socket never delivered.
+final caughtUpMessagesProvider = Provider<Stream<List<Message>>>(
+  (ref) => ref.watch(syncControllerProvider.notifier).caughtUpMessages,
+);

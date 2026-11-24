@@ -23,6 +23,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
+import 'browser_attention.dart';
 import 'host_platform.dart';
 
 const messagesChannelId = 'messages_v1';
@@ -198,7 +199,9 @@ class LocalNotifications {
     AndroidPermissionRequester? permissionRequester,
     Future<void> Function(String? payload)? onActivated,
     MethodChannel? windowsToasts,
+    BrowserAttention? browser,
   })  : _onActivated = onActivated,
+        _browser = browser,
         _windowsToasts =
             windowsToasts ?? const MethodChannel(windowsToastsChannelName),
         _plugin = plugin ?? FlutterLocalNotificationsPlugin(),
@@ -212,6 +215,7 @@ class LocalNotifications {
   final bool _isAndroid;
   final bool _isLinux;
   final bool _isWindows;
+  BrowserAttention? _browser;
 
   /// Called when the person clicks a notification, with the payload it was shown with.
   final Future<void> Function(String? payload)? _onActivated;
@@ -304,6 +308,14 @@ class LocalNotifications {
     String? payload,
     int? id,
   }) async {
+    if (kIsWeb) {
+      return _showInBrowser(
+        text,
+        title: title,
+        payload: payload,
+        id: id ?? channel.notificationId,
+      );
+    }
     if (!_supported) return;
     await _ensureReady();
     await _plugin.show(
@@ -329,6 +341,21 @@ class LocalNotifications {
         ),
       ),
       payload: payload,
+    );
+  }
+
+  Future<void> _showInBrowser(
+    String text, {
+    required String? title,
+    required String? payload,
+    required int id,
+  }) async {
+    (_browser ??= BrowserAttention()).notify(
+      title ?? 'slim-m',
+      text,
+      tag: '$id',
+      onClick: () =>
+          unawaited(_onActivated?.call(payload) ?? Future<void>.value()),
     );
   }
 
