@@ -17,6 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
 
 import '../../../providers/admin_providers.dart';
+import '../../../providers/media_disk_caches.dart';
 import 'emoji_image_cache.dart';
 import '../../../providers/providers.dart';
 
@@ -181,7 +182,9 @@ final customEmojiImageProvider = FutureProvider.family<Uint8List, String>((
   emojiId,
 ) async {
   final cache = ref.watch(emojiImageCacheProvider);
-  final cached = await cache.read(emojiId);
+  // Scoped by server so one deployment's bytes can never answer another's emoji id.
+  final cacheKey = serverScopedKey(ref.watch(serverUrlProvider), emojiId);
+  final cached = await cache.read(cacheKey);
   if (cached != null) return cached;
 
   final api = ref.watch(apiProvider);
@@ -203,7 +206,7 @@ final customEmojiImageProvider = FutureProvider.family<Uint8List, String>((
       _emojiImageFetchLimiter.release();
     }
     if (bytes != null) {
-      await cache.write(emojiId, bytes);
+      await cache.write(cacheKey, bytes);
       return bytes;
     }
     await Future<void>.delayed(retryAfter ?? delay);

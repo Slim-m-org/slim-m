@@ -18,7 +18,9 @@ import '../../features/messages/providers/message_extras.dart';
 import '../../features/voice/providers/dm_call_activity.dart';
 import '../../features/voice/providers/dm_call_ring_controller.dart';
 import '../../features/voice/providers/voice_controller.dart';
+import '../../providers/app_badge_sync.dart';
 import '../../providers/providers.dart';
+import '../../providers/session_media_caches.dart';
 import 'sync_failure.dart';
 import 'sync_status.dart';
 
@@ -76,7 +78,9 @@ Future<void> clearSessionState(Ref ref) async {
   unawaited(ref.read(voiceControllerProvider.notifier).leave());
   try {
     final store = await ref.read(storeProvider.future);
+    final channelIds = [for (final c in await store.allChannels()) c.id];
     await store.clear();
+    await clearDeliveredFor(ref, channelIds);
   } catch (error, stack) {
     AppLog.swallowed(
       LogTag.sync,
@@ -85,4 +89,5 @@ Future<void> clearSessionState(Ref ref) async {
       stack,
     );
   }
+  await clearSessionMediaCaches(ref.read);
 }

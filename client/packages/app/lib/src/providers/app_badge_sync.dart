@@ -40,3 +40,12 @@ final appBadgeSyncProvider = Provider<void>((ref) {
     ref.read(taskbarAttentionProvider).setBadge(count);
   });
 });
+
+/// Removes the delivered notifications [channelIds] raised, or all of them when no other account is left.
+Future<void> clearDeliveredFor(Ref ref, Iterable<String> channelIds) {
+  final host = ref.read(accountHostProvider);
+  final last = host == null || host.accounts.length <= 1;
+  return ref
+      .read(appBadgeChannelProvider)
+      .clearDelivered(channelIds: channelIds, all: last);
+}

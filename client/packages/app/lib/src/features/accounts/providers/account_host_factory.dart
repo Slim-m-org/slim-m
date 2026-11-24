@@ -4,6 +4,7 @@ library;
 
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_api/api.dart' show AppLog;
 import 'package:slimm_platform/platform.dart';
 
 import '../../../audio/call_start_yields.dart';
@@ -11,6 +12,7 @@ import '../../../default_server.dart';
 import '../../../desktop/desktop_window_shell.dart';
 import '../../../diagnostics/debug_log.dart';
 import '../../../diagnostics/debug_log_persistence.dart';
+import '../../../diagnostics/debug_log_router.dart';
 import '../../../providers/media_disk_caches.dart';
 import '../../../providers/providers.dart';
 import '../../../providers/startup_restores.dart';
@@ -35,11 +37,8 @@ AccountHost createAccountHost(DesktopWindowShell shell, Uri official) {
   final avatarCache = createAvatarCache();
   final originalCache = createAttachmentOriginalCache();
   final accounts = AccountStore(keyStore);
-  // One log for every account, since the error hooks are global.
-  final debugLog = DebugLog(
-    persistence: const PrefsDebugLogPersistence(),
-    echo: kDebugMode,
-  );
+  // The error hooks are global, so one router hands each record to its own account's log.
+  final debugLogs = DebugLogRouter();
   // One for every account, so a call joined in any of them makes the others' sounds give way.
   final callStartYields = CallStartYields();
   // The keybinds switch is per device, so a server not on screen drops its system-wide grabs too.
@@ -51,7 +50,19 @@ AccountHost createAccountHost(DesktopWindowShell shell, Uri official) {
     store: accounts,
     createContainer: (slot) => ProviderContainer(
       overrides: [
-        debugLogProvider.overrideWith((ref) => debugLog),
+        debugLogSinkProvider.overrideWithValue(debugLogs),
+        debugLogProvider.overrideWith((ref) {
+          final log = DebugLog(
+            persistence: PrefsDebugLogPersistence(
+              origin: () => slot.account?.origin,
+            ),
+            origin: () => slot.account?.origin,
+            echo: kDebugMode && debugLogs.isEmpty,
+          );
+          debugLogs.add(log);
+          ref.onDispose(() => debugLogs.remove(log));
+          return log;
+        }),
         emojiImageCacheProvider.overrideWithValue(emojiCache),
         attachmentPreviewCacheProvider.overrideWithValue(previewCache),
         avatarCacheProvider.overrideWithValue(avatarCache),
@@ -66,16 +77,19 @@ AccountHost createAccountHost(DesktopWindowShell shell, Uri official) {
         desktopWindowShellProvider.overrideWithValue(shell),
       ],
     ),
-    startServices: (r) async {
+    startServices: (r) => AppLog.scoped(() => r.account?.origin, () async {
       await restoreStartupPreferences(r.container);
       startAccountServices(r.container);
-    },
+    }),
     onActivate: (r) async {
       await resyncSharedPreferences(r.container);
       await resyncVoiceDevicePreferences(r.container);
     },
     readSession: (r) => restoreAccountSession(accounts, r),
-    signOutRuntime: (r) => signOutVia(r.container.read),
+    signOutRuntime: (r) => AppLog.scoped(
+      () => r.account?.origin,
+      () => signOutVia(r.container.read),
+    ),
   );
   return host;
 }

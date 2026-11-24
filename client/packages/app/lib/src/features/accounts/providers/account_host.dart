@@ -13,8 +13,8 @@ import 'package:slimm_rtc/rtc.dart';
 
 import '../../../providers/providers.dart'
     show sessionProvider, sessionRestoreNoteProvider;
-import '../../../providers/media_disk_caches.dart';
-import '../../messages/providers/attachment_preview_bytes.dart';
+import '../../../diagnostics/debug_log.dart' show debugLogProvider;
+import '../../../providers/session_media_caches.dart';
 import '../../voice/providers/voice_controller.dart';
 import '../../voice/providers/voice_flags.dart';
 import 'account.dart';
@@ -369,15 +369,8 @@ class AccountHost extends ChangeNotifier {
         await beginFresh();
       }
     }
-    await clearAttachmentPreviews(
-      runtime.container.read(attachmentPreviewCacheProvider),
-      Uri.parse(origin),
-    );
-    await clearMediaDiskCaches(
-      Uri.parse(origin),
-      avatars: runtime.container.read(avatarCacheProvider),
-      originals: runtime.container.read(attachmentOriginalCacheProvider),
-    );
+    await clearSessionMediaCaches(runtime.container.read);
+    await runtime.container.read(debugLogProvider.notifier).erase();
     _retire(runtime);
   }
 
