@@ -168,7 +168,8 @@ async fn a_fully_undone_remove_and_its_restore_are_swept_once_old_enough() {
     let (store, pool, _guard) = harness().await;
     let actor = register(&store, "root").await;
     let channel = general(&store).await;
-    let object = place(&store, channel, actor).await;
+    let author = store.create_user("nia", "Nia").await.unwrap().id;
+    let object = place(&store, channel, author).await;
 
     let remove_op = submit(
         &store,
@@ -400,9 +401,10 @@ async fn one_tick_sweeps_more_than_one_batch_of_each_kind() {
 #[tokio::test]
 async fn canvas_audit_log_actor_is_anonymized_on_account_deletion() {
     let (store, pool, _guard) = harness().await;
-    let actor = register(&store, "root").await;
+    let author = register(&store, "root").await;
     let channel = general(&store).await;
-    let object = place(&store, channel, actor).await;
+    let actor = store.create_user("nia", "Nia").await.unwrap().id;
+    let object = place(&store, channel, author).await;
     submit(
         &store,
         channel,

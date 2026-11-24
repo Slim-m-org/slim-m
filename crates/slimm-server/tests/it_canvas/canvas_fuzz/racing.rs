@@ -191,12 +191,13 @@ async fn race_batch(
     outcomes
 }
 
-/// Counts how often each op id applied fresh, noting erasures and audited objects.
+/// Counts how often each op id applied fresh, noting erasures and the audited objects the actor did not author (`own` is theirs).
 fn tally_outcomes(
     seed: u64,
     outcomes: Vec<Outcome>,
     erasures: &mut Vec<CanvasOpId>,
     audited: &mut i64,
+    own: &std::collections::HashSet<CanvasObjectId>,
 ) -> std::collections::HashMap<CanvasOpId, u32> {
     let mut fresh_per_op = std::collections::HashMap::<CanvasOpId, u32>::new();
     for (op, outcome) in outcomes {
@@ -207,7 +208,11 @@ fn tally_outcomes(
                     erasures.push(op);
                 }
                 if matches!(done.kind.as_str(), "remove" | "clear" | "restore") {
-                    *audited += done.touched_ids.len() as i64;
+                    *audited += done
+                        .touched_ids
+                        .iter()
+                        .filter(|id| !own.contains(id))
+                        .count() as i64;
                 }
             }
             Ok(_)
@@ -244,6 +249,7 @@ async fn racing_writers_keep_the_log_the_table_and_the_audit_trail_in_step() {
                 .await,
             );
         }
+        let own: std::collections::HashSet<_> = ids.iter().step_by(2).copied().collect();
         let mut erasures = Vec::new();
         let mut audited = 0i64;
         for _ in 0..14 {
@@ -262,7 +268,7 @@ async fn racing_writers_keep_the_log_the_table_and_the_audit_trail_in_step() {
                 }
             }
             let outcomes = race_batch(&store, channel, w0, batch).await;
-            let fresh_per_op = tally_outcomes(seed, outcomes, &mut erasures, &mut audited);
+            let fresh_per_op = tally_outcomes(seed, outcomes, &mut erasures, &mut audited, &own);
             assert!(
                 fresh_per_op.values().all(|n| *n == 1),
                 "seed {seed}: one op id applied twice: {fresh_per_op:?}"

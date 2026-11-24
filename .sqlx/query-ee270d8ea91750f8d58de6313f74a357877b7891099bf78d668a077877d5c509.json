@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM canvas_audit_log WHERE id IN (\n                     SELECT id FROM canvas_audit_log WHERE created_at < ? ORDER BY id LIMIT ?\n                 )",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "ee270d8ea91750f8d58de6313f74a357877b7891099bf78d668a077877d5c509"
+}

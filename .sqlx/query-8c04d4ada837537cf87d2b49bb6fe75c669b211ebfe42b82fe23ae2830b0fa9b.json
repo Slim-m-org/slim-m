@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM canvas_ops WHERE id IN (\n                   SELECT o.id FROM canvas_ops o\n                   WHERE o.kind = 'restore' AND o.created_at < ?1\n                     AND (o.created_at, o.channel_id, o.seq) > (?3, ?4, ?5)\n                     AND NOT EXISTS (\n                         SELECT 1 FROM canvas_ops t\n                         JOIN canvas_ops c ON c.channel_id = t.channel_id AND c.kind = 'clear'\n                           AND c.seq > t.seq AND c.seq < o.seq\n                         WHERE t.id = o.target_op\n                     )\n                   ORDER BY o.created_at, o.channel_id, o.seq\n                   LIMIT ?2\n               )\n               RETURNING created_at AS \"created_at!: i64\", channel_id AS \"channel_id!: ChannelId\", seq AS \"seq!: i64\"",
+  "describe": {
+    "columns": [
+      {
+        "name": "created_at!: i64",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "canvas_ops",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "name": "channel_id!: ChannelId",
+        "ordinal": 1,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "canvas_ops",
+            "name": "channel_id"
+          }
+        }
+      },
+      {
+        "name": "seq!: i64",
+        "ordinal": 2,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "canvas_ops",
+            "name": "seq"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": [
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "8c04d4ada837537cf87d2b49bb6fe75c669b211ebfe42b82fe23ae2830b0fa9b"
+}

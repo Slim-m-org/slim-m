@@ -11,6 +11,11 @@
 //! this table is that somewhere else. `place` is not logged: an object's
 //! `author_id` already carries that durably on `canvas_objects`, which is
 //! never swept.
+//!
+//! A member undoing or restoring their own ink is not logged: the object's
+//! author already says whose it was, and logging it would let one member
+//! grow the table without bound. The sweep ages the table out as well; see
+//! `canvas_ops_sweep`.
 
 use crate::ids::{CanvasObjectId, ChannelId, UserId};
 
@@ -34,10 +39,14 @@ pub(in crate::store) async fn record_canvas_audit(
         return Ok(());
     }
     for chunk in object_ids.chunks(AUDIT_ROWS_PER_INSERT) {
+        let others = not_authored_by(tx, actor_id, chunk).await?;
+        if others.is_empty() {
+            continue;
+        }
         let mut builder = sqlx::QueryBuilder::new(
             "INSERT INTO canvas_audit_log (channel_id, object_id, actor_id, action, created_at) ",
         );
-        builder.push_values(chunk, |mut row, object_id| {
+        builder.push_values(&others, |mut row, object_id| {
             row.push_bind(channel_id)
                 .push_bind(*object_id)
                 .push_bind(actor_id)
@@ -47,4 +56,21 @@ pub(in crate::store) async fn record_canvas_audit(
         builder.build().execute(&mut **tx).await?;
     }
     Ok(())
+}
+
+/// The ids of `ids` that `actor_id` did not author, which includes objects whose author is gone.
+async fn not_authored_by(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    actor_id: UserId,
+    ids: &[CanvasObjectId],
+) -> Result<Vec<CanvasObjectId>, sqlx::Error> {
+    let mut builder = sqlx::QueryBuilder::new("SELECT id FROM canvas_objects WHERE id IN (");
+    let mut separated = builder.separated(", ");
+    for id in ids {
+        separated.push_bind(*id);
+    }
+    builder.push(") AND (author_id IS NULL OR author_id != ");
+    builder.push_bind(actor_id);
+    builder.push(")");
+    builder.build_query_scalar().fetch_all(&mut **tx).await
 }

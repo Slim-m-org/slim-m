@@ -109,7 +109,10 @@ pub enum CanvasOpBody {
     },
     Edit {
         object_id: CanvasObjectId,
+        /// What this edit wrote, kept for moderators.
         props: String,
+        /// The target's props now; `None` once it is erased.
+        current_props: Option<String>,
     },
 }
 
@@ -213,6 +216,11 @@ impl Store {
                       o.move_x AS "move_x: f64", o.move_y AS "move_y: f64",
                       o.move_w AS "move_w: f64", o.move_h AS "move_h: f64",
                       o.reorder_z AS "reorder_z: i64", o.edit_props AS "edit_props: String",
+                      (SELECT p.props FROM canvas_op_targets t
+                         JOIN canvas_objects d ON d.id = t.object_id AND d.deleted_at IS NULL
+                         JOIN canvas_object_props p ON p.object_id = d.id
+                        WHERE o.kind = 'edit' AND t.channel_id = o.channel_id AND t.seq = o.seq
+                      ) AS "edit_current_props: String",
                       obj.id AS "obj_id?: CanvasObjectId", obj.kind AS "obj_kind?: String",
                       obj.z_index AS "obj_z_index?: i64", obj.x AS "obj_x?: f64",
                       obj.y AS "obj_y?: f64", obj.w AS "obj_w?: f64", obj.h AS "obj_h?: f64",
@@ -397,6 +405,7 @@ impl Store {
                                 .edit_props
                                 .clone()
                                 .context("canvas_op_edit_props guarantees this")?,
+                            current_props: row.edit_current_props.clone(),
                         }
                     }
                     other => anyhow::bail!("canvas_op_kind admits only 7 kinds, got {other}"),

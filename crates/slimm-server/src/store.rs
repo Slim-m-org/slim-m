@@ -190,7 +190,7 @@ pub use canvas_object_locks::LockError;
 pub use canvas_ops::{
     CANVAS_OP_GAP, CANVAS_OP_PAGE_BYTES, CanvasOpBody, CanvasOpEntry, CanvasOpsPage,
 };
-pub use canvas_ops_sweep::{CANVAS_OP_RETENTION_MS, SweptCanvasOps};
+pub use canvas_ops_sweep::{CANVAS_AUDIT_RETENTION_MS, CANVAS_OP_RETENTION_MS, SweptCanvasOps};
 pub use canvas_ops_write::{
     CanvasOpRequest, ClearScope, MAX_REMOVE_IDS_PER_OP, SubmitOpError, SubmittedOp,
 };

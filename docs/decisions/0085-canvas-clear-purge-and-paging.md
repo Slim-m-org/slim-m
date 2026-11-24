@@ -64,3 +64,12 @@ A moderator's delete also unlocks a locked object first; an author unlocks their
 The reply is the object's last row, so the client can undo: it places the same row again for as long as the session lasts.
 Other viewers drop the object through the erase frame the route publishes before the rows go.
 The eraser still removes ink and shapes with ordinary `remove` ops, which the retention sweep above handles.
+
+## Addendum 2026-11-24: bounds on what erasing leaves behind
+
+Retention off no longer means erased content grows without limit.
+A channel keeps at most its object cap of erased objects (never fewer than the default cap of 20,000); placing past that deletes the oldest erased ones first, in the same transaction.
+A channel's own retention override decides when its erased objects are purged, the same as for its messages.
+Edit ops older than 30 days are compacted to the latest per object, and moderation audit rows older than a year are swept.
+A member erasing or restoring their own ink writes no audit row.
+The op feed answers an edit with the note's current text, and with null once the note is erased, except to a moderator.

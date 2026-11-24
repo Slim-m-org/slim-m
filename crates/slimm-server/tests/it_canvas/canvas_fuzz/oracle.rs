@@ -150,7 +150,11 @@ impl Oracle {
             affected: res.affected,
         };
         if matches!(kind, "remove" | "clear" | "restore") {
-            self.audit += res.touched.len() as i64;
+            let others = res
+                .touched
+                .iter()
+                .filter(|t| self.objs[t].author != step.writer);
+            self.audit += others.count() as i64;
         }
         self.ops.insert(step.label, rec);
     }
