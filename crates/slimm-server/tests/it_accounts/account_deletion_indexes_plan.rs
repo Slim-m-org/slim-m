@@ -66,6 +66,7 @@ const SMALL_TABLES: &[(&str, &str)] = &[
     ("link_handoffs", "one per sign-in handoff in flight"),
     ("link_states", "one per linking attempt in flight"),
     ("member_nicknames", "one per member"),
+    ("module_data_purges", "one row per deletion still running"),
     (
         "password_reset_codes",
         "one per reset issued, swept on expiry",
