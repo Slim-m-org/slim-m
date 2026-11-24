@@ -15,8 +15,10 @@ library;
 import 'package:flutter/gestures.dart'
     show PointerDeviceKind, kDoubleTapTimeout;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:media_kit/media_kit.dart';
+import 'package:slimm_app/src/features/voice/widgets/video_controls_bar.dart';
 import 'package:slimm_app/src/features/voice/widgets/video_playback_controls.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -72,6 +74,25 @@ void main() {
   });
 
   tearDownAll(() => player.dispose());
+
+  testWidgets('a hidden bar is out of the focus order and Tab reveals it', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_harness(player: player, touchGestures: false));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(_barOpacity(tester), 0);
+    final excluded = find.ancestor(
+      of: find.byWidgetPredicate((w) => w is VideoControlsBar),
+      matching: find.byWidgetPredicate((w) => w is ExcludeFocus),
+    );
+    expect(tester.widget<ExcludeFocus>(excluded.first).excluding, isTrue);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(_barOpacity(tester), 1);
+    expect(tester.widget<ExcludeFocus>(excluded.first).excluding, isFalse);
+  });
 
   testWidgets('the forced dark theme is the same one across rebuilds', (
     tester,

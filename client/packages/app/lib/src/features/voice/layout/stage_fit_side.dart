@@ -26,7 +26,7 @@ const double _widestAspect = 2.2;
 /// centred in [box]; null when the stage is too narrow or the tiles would not keep their shape.
 ({StageBlock block, List<Rect> tiles})? sideBento(
   int people,
-  List<StageItem> content,
+  ContentFits fits,
   Rect box,
   double gap,
 ) {
@@ -39,7 +39,7 @@ const double _widestAspect = 2.2;
     box.right - column - gap,
     box.bottom,
   );
-  final block = bestContent(content, region, gap);
+  final block = fits.best(region);
   if (block == null) return null;
   final bounds = block.rects.reduce((a, b) => a.expandToInclude(b));
   final heights = _tileHeights(people, column, bounds.height, gap);
@@ -53,7 +53,7 @@ const double _widestAspect = 2.2;
     tiles.add(Rect.fromLTWH(x, y, column, h));
     y += h + gap;
   }
-  if (!_neverBeatsACamera(content, shifted, tiles.first)) return null;
+  if (!_neverBeatsACamera(fits.items, shifted, tiles.first)) return null;
   return (block: shifted, tiles: tiles);
 }
 

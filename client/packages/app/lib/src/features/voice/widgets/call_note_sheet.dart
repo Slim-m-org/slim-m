@@ -45,9 +45,7 @@ class _CallNoteSheetState extends ConsumerState<_CallNoteSheet> {
   String get _note => _text.text.trim();
 
   bool get _canSave =>
-      !_saving &&
-      _note.isNotEmpty &&
-      _note.characters.length <= callNoteMaxChars;
+      !_saving && _note.isNotEmpty && _note.runes.length <= callNoteMaxChars;
 
   Future<void> _save() async {
     setState(() {

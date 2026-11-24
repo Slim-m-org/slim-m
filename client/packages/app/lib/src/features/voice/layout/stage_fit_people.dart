@@ -90,14 +90,9 @@ List<Rect> _tiles(
 }
 
 /// Reserves the strip, column or chip row that gives [content] plus [people] tiles the most of [box].
-PeoplePlan planPeople(
-  int people,
-  List<StageItem> content,
-  Rect box,
-  double gap,
-) {
-  var best = _best(people, content, box, gap, column: false);
-  final column = _best(people, content, box, gap, column: true);
+PeoplePlan planPeople(int people, ContentFits fits, Rect box, double gap) {
+  var best = _best(people, fits, box, gap, column: false);
+  final column = _best(people, fits, box, gap, column: true);
   if (column != null && (best == null || column.$1 > best.$1 * 1.15)) {
     best = column;
   }
@@ -106,7 +101,7 @@ PeoplePlan planPeople(
 
 (double, PeoplePlan)? _best(
   int people,
-  List<StageItem> content,
+  ContentFits fits,
   Rect box,
   double gap, {
   required bool column,
@@ -118,7 +113,7 @@ PeoplePlan planPeople(
           ? _columnPlan(people, w, box, gap)
           : _stripPlan(people, w, box, gap, stretch: stretch);
       if (plan == null) continue;
-      final score = _score(plan, people, content, gap);
+      final score = _score(plan, people, fits);
       if (score != null) scored.add((score, plan));
     }
   }
@@ -138,13 +133,9 @@ typedef _Score = ({double fill, double content});
 
 bool _isWide(Rect box) => box.width >= _wideStage && box.width > box.height;
 
-_Score? _score(
-  PeoplePlan plan,
-  int people,
-  List<StageItem> content,
-  double gap,
-) {
-  final block = bestContent(content, plan.contentRegion, gap);
+_Score? _score(PeoplePlan plan, int people, ContentFits fits) {
+  final content = fits.items;
+  final block = fits.best(plan.contentRegion);
   if (block == null) return null;
   final tile = plan.tiles.first;
   final cameras = [

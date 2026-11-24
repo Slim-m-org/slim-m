@@ -202,7 +202,22 @@ class _SourceListState extends State<_SourceList> {
     return FutureBuilder<List<ScreenShareSource>>(
       future: _sources,
       builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return const AppMenuFootnote('Could not list your screens.');
+        }
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Padding(
+            padding: EdgeInsets.all(AppSpacing.s12),
+            child: Center(
+              child: AppSpinner(
+                size: AppSpinnerSize.sm,
+                semanticLabel: 'Loading screens',
+              ),
+            ),
+          );
+        }
         final sources = snapshot.data ?? const <ScreenShareSource>[];
+        if (sources.isEmpty) return const AppMenuFootnote('Nothing to share.');
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [

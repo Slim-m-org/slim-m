@@ -73,7 +73,8 @@ StageFit fitStage({
       fill: _area(tiles) / boxArea,
     );
   }
-  final side = sideBento(people, content, full, gap);
+  final fits = ContentFits(content, gap);
+  final side = sideBento(people, fits, full, gap);
   if (side != null) {
     return StageFit(
       items: {
@@ -88,9 +89,9 @@ StageFit fitStage({
       },
     );
   }
-  final plan = people == 0 ? null : planPeople(people, content, full, gap);
+  final plan = people == 0 ? null : planPeople(people, fits, full, gap);
   final region = plan?.contentRegion ?? full;
-  final block = bestContent(content, region, gap);
+  final block = fits.best(region);
   if (block == null) {
     return const StageFit(
       items: {},
