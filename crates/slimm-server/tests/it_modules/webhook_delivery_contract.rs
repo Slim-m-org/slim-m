@@ -141,6 +141,30 @@ async fn allowed_mentions_parsing_users_keeps_the_ordinary_mentions() {
 }
 
 #[tokio::test]
+async fn an_unreadable_allowed_mentions_never_refuses_the_delivery() {
+    for (name, allowed) in [
+        ("slimm-whd-mention-null-parse", json!({ "parse": null })),
+        ("slimm-whd-mention-numeric-user", json!({ "users": [123] })),
+        ("slimm-whd-mention-string", json!("x")),
+        ("slimm-whd-mention-null", Value::Null),
+    ] {
+        let (store, _guard) = new_store(name).await;
+        let (_root, channel_id, admin_id, _bob_token, _bob) = fixture(&store).await;
+        let minted = store
+            .create_webhook(channel_id, "alerts", admin_id)
+            .await
+            .unwrap();
+        let path = format!("/webhooks/{}/{}", minted.webhook.id, minted.token);
+        let body = json!({ "content": "paging @bob", "allowed_mentions": allowed });
+        let posted = app(store)
+            .oneshot(deliver(&path, None, body))
+            .await
+            .unwrap();
+        assert_eq!(posted.status(), StatusCode::NO_CONTENT, "{name}");
+    }
+}
+
+#[tokio::test]
 async fn a_body_less_or_non_json_delivery_answers_the_documented_error() {
     let (store, _guard) = new_store("slimm-whd-body").await;
     let (_root, channel_id, admin_id, _bob_token, _bob) = fixture(&store).await;

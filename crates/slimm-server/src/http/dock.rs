@@ -18,6 +18,7 @@ mod dock_host_run;
 mod dock_install;
 mod dock_package;
 mod fetch;
+mod index_cache;
 pub(super) mod keywords;
 pub(super) mod manifest;
 mod module_data;

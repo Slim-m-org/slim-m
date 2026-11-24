@@ -315,48 +315,46 @@ impl Store {
     /// belong to (its own, a thread's parent's, else the Space's; `0` keeps
     /// forever), advancing each channel's floor. Runs batch by batch, each one
     /// statement so no `begin_write` is needed - see `canvas_ops_sweep.rs` for
-    /// the same reasoning - until a batch comes back short.
+    /// the same reasoning - until a batch comes back short. One channel at a
+    /// time, through its `(channel_id, seq)` key, so a keep-forever channel's
+    /// old ops are never walked on the way to another channel's deletable ones.
     async fn reclaim_message_ops(&self, space_days: i64) -> anyhow::Result<u64> {
-        let channel_floor = sqlx::query_scalar!(
-            r#"SELECT MIN(retention_days) AS "days?: i64" FROM channel_retention WHERE retention_days > 0"#
-        )
-        .fetch_one(&self.pool)
-        .await?;
-        let shortest = [Some(space_days).filter(|days| *days > 0), channel_floor]
-            .into_iter()
-            .flatten()
-            .min();
-        let Some(shortest) = shortest else {
-            return Ok(0);
-        };
         let now = now_ms();
-        let loosest_cutoff = now - shortest * DAY_MS;
+        let windowed = sqlx::query!(
+            r#"SELECT c.id AS "channel_id!: ChannelId",
+                      COALESCE(cr.retention_days, ?1) AS "days!: i64"
+               FROM channels c
+               LEFT JOIN messages pm ON pm.id = c.parent_message_id
+               LEFT JOIN channel_retention cr
+                      ON cr.channel_id = COALESCE(pm.channel_id, c.id)
+               WHERE COALESCE(cr.retention_days, ?1) > 0"#,
+            space_days
+        )
+        .fetch_all(&self.pool)
+        .await?;
         let mut reclaimed = 0u64;
-        for _ in 0..OP_FLOOR_BATCHES_PER_TICK {
-            let batch = sqlx::query!(
-                r#"DELETE FROM message_ops WHERE (channel_id, seq) IN (
-                       SELECT o.channel_id, o.seq FROM message_ops o
-                       CROSS JOIN channels c ON c.id = o.channel_id
-                       LEFT JOIN messages pm ON pm.id = c.parent_message_id
-                       LEFT JOIN channel_retention cr
-                              ON cr.channel_id = COALESCE(pm.channel_id, c.id)
-                       WHERE o.created_at < ?1
-                         AND COALESCE(cr.retention_days, ?2) > 0
-                         AND o.created_at < ?3 - COALESCE(cr.retention_days, ?2) * ?4
-                       LIMIT ?5
-                   )"#,
-                loosest_cutoff,
-                space_days,
-                now,
-                DAY_MS,
-                OP_FLOOR_SWEEP_BATCH
-            )
-            .execute(&self.pool)
-            .await?
-            .rows_affected();
-            reclaimed += batch;
-            if batch < OP_FLOOR_SWEEP_BATCH as u64 {
-                break;
+        let mut batches = 0;
+        for channel in windowed {
+            let cutoff = now - channel.days * DAY_MS;
+            while batches < OP_FLOOR_BATCHES_PER_TICK {
+                batches += 1;
+                let batch = sqlx::query!(
+                    r#"DELETE FROM message_ops WHERE (channel_id, seq) IN (
+                           SELECT channel_id, seq FROM message_ops
+                           WHERE channel_id = ?1 AND created_at < ?2
+                           LIMIT ?3
+                       )"#,
+                    channel.channel_id,
+                    cutoff,
+                    OP_FLOOR_SWEEP_BATCH
+                )
+                .execute(&self.pool)
+                .await?
+                .rows_affected();
+                reclaimed += batch;
+                if batch < OP_FLOOR_SWEEP_BATCH as u64 {
+                    break;
+                }
             }
         }
         Ok(reclaimed)

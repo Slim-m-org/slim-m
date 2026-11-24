@@ -429,7 +429,8 @@ What the sweep found on 2026-11-19, each now with its own test beside the route:
 The rule they all broke is decision 0011's: a channel's permissions stop at the channel, whatever the caller holds deployment-wide, and only ADMINISTRATOR sees everything.
 A route that takes a channel, category or message id therefore answers a hidden one exactly as it answers one that does not exist, before any other validation of the request.
 
-The audit log no longer names a channel or category its reader cannot view, and both audit logs drop rows older than two years.
+The audit log no longer names a channel or category its reader cannot view.
+Both audit logs are kept forever until the owner decides a retention; `run_audit_log_sweep_pass` exists but no sweep runs it.
 The sweep still skips that route by name in `mod.rs`, since the manager's own rows stay readable.
 The sweep does not reach the websocket, push, voice with a live SFU, or call transcripts, which keep their own tests.
 The routes in `NEVER` (`probe.rs`) are not asked, because they end the session the sweep runs with or keep a limit of their own on disk.

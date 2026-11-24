@@ -1,0 +1,33 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT c.id AS \"channel_id!: ChannelId\",\n                      COALESCE(cr.retention_days, ?1) AS \"days!: i64\"\n               FROM channels c\n               LEFT JOIN messages pm ON pm.id = c.parent_message_id\n               LEFT JOIN channel_retention cr\n                      ON cr.channel_id = COALESCE(pm.channel_id, c.id)\n               WHERE COALESCE(cr.retention_days, ?1) > 0",
+  "describe": {
+    "columns": [
+      {
+        "name": "channel_id!: ChannelId",
+        "ordinal": 0,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "channels",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "days!: i64",
+        "ordinal": 1,
+        "type_info": "Null",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      null
+    ]
+  },
+  "hash": "9ffdfbc7c8f80a9f9155f3a79b10f30fb81519e4b7650f511206f2d128fe224e"
+}

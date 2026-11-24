@@ -5,7 +5,7 @@
 use super::message_forwards::ForwardSource;
 use super::row::{IdProbe, NewRow, insert_message_row, probe_id};
 use super::{ModuleStamp, NewMessage, SendError, Sent};
-use crate::ids::ChannelId;
+use crate::ids::{ChannelId, MessageId};
 use crate::store::attachments::link_attachments;
 use crate::store::{Store, now_ms};
 
@@ -101,16 +101,7 @@ impl Store {
         match probe_id(&mut tx, channel_id, author_id, id).await? {
             IdProbe::Free => {}
             IdProbe::Replay(message) => {
-                let deleted = sqlx::query_scalar!(
-                    r#"SELECT deleted_at IS NOT NULL AS "deleted!: bool" FROM messages WHERE id = ?"#,
-                    id
-                )
-                .fetch_one(&mut *tx)
-                .await?;
                 tx.commit().await?;
-                if deleted {
-                    return Err(SendError::Deleted);
-                }
                 return Ok(Sent {
                     message,
                     fresh: false,
@@ -226,4 +217,17 @@ async fn forward_source_is_live(
     )
     .fetch_one(tx)
     .await
+}
+
+impl Store {
+    /// Whether the message was soft-deleted, so a retried send of it can answer with its tombstone and do nothing else.
+    pub async fn message_is_deleted(&self, id: MessageId) -> anyhow::Result<bool> {
+        Ok(sqlx::query_scalar!(
+            r#"SELECT deleted_at IS NOT NULL AS "deleted!: bool" FROM messages WHERE id = ?"#,
+            id
+        )
+        .fetch_optional(&self.pool)
+        .await?
+        .unwrap_or(false))
+    }
 }

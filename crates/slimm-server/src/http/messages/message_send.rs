@@ -138,6 +138,10 @@ pub(super) async fn send(
         )
         .await?;
 
+    if !sent.fresh && state.store.message_is_deleted(id).await? {
+        return Ok(Json(sent.message.into()));
+    }
+
     if sent.fresh {
         intercepted.save_annotations(&state, id).await;
     }

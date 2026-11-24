@@ -115,6 +115,7 @@ async fn write_row(state: &AppState, route: &AuditedRoute, attempt: &Attempt<'_>
     let actor = attempt.actor.to_string();
     let identity = replay::Write {
         actor: &actor,
+        path: route.path,
         action: route.action,
         target: attempt.target,
         detail: attempt.detail,

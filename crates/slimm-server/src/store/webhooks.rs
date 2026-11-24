@@ -213,7 +213,7 @@ impl Store {
                 actor_id: renamed_by,
                 subject_id: user_id,
                 action: ModerationAction::WebhookRename,
-                reason: Some(label),
+                reason: None,
                 until: None,
                 created_at: now_ms(),
             },

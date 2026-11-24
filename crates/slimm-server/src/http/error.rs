@@ -365,7 +365,6 @@ impl From<SendError> for ApiError {
     fn from(err: SendError) -> Self {
         match err {
             SendError::IdConflict => ApiError::Conflict("message id already used"),
-            SendError::Deleted => ApiError::Conflict("message was deleted"),
             SendError::ForwardSourceGone => {
                 ApiError::BadRequest("forwarded_from_id must name a live message you can see")
             }

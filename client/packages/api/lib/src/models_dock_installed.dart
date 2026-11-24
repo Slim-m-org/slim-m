@@ -42,11 +42,15 @@ class InstalledDockModule {
     this.fuelLimit = 0,
     this.connectorPermissions,
     this.connectorToken,
+    this.withdrawnReason,
   });
 
   /// For a connector, the core permission bits the admin approved; null for a WASM module.
   final int? connectorPermissions;
   bool get isConnector => connectorPermissions != null;
+
+  /// Why the registry withdrew the installed version; null when it did not.
+  final String? withdrawnReason;
 
   /// A connector's token, only in the install answer that created it.
   final String? connectorToken;
@@ -181,5 +185,6 @@ class InstalledDockModule {
         fuelLimit: json['fuel_limit'] as int? ?? 0,
         connectorPermissions: json['connector_permissions'] as int?,
         connectorToken: json['connector_token'] as String?,
+        withdrawnReason: json['withdrawn_reason'] as String?,
       );
 }

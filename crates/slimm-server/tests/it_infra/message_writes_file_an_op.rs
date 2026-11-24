@@ -32,6 +32,7 @@ struct Site {
     file: String,
     function: String,
     body: String,
+    code: String,
 }
 
 fn is_ident(c: char) -> bool {
@@ -39,7 +40,7 @@ fn is_ident(c: char) -> bool {
 }
 
 /// Position-preserving scrub of comments, strings and chars, so braces and `fn` are real code.
-fn function_around(raw: &str, code: &str, at: usize) -> (String, String) {
+fn function_around(raw: &str, code: &str, at: usize) -> (String, String, String) {
     let start = code[..at]
         .match_indices("fn ")
         .filter(|(i, _)| !code[..*i].chars().next_back().is_some_and(is_ident))
@@ -66,7 +67,16 @@ fn function_around(raw: &str, code: &str, at: usize) -> (String, String) {
             _ => {}
         }
     }
-    (name, raw[start..=end].to_owned())
+    (
+        name,
+        raw[start..=end].to_owned(),
+        code[start..=end].to_owned(),
+    )
+}
+
+/// A call in real code, or the SQL literal; a comment that merely names `insert_message_op(` is neither.
+fn files_an_op(code: &str, raw: &str) -> bool {
+    code.contains("insert_message_op(") || raw.contains("INSERT INTO message_ops")
 }
 
 fn in_comment(raw: &str, at: usize) -> bool {
@@ -89,11 +99,12 @@ fn write_sites(src: &Path) -> Vec<Site> {
                 if in_comment(&raw, at) {
                     continue;
                 }
-                let (function, body) = function_around(&raw, &code, at);
+                let (function, body, code_body) = function_around(&raw, &code, at);
                 sites.push(Site {
                     file: file.clone(),
                     function,
                     body,
+                    code: code_body,
                 });
             }
         }
@@ -113,8 +124,7 @@ fn every_message_write_files_an_op_or_is_classified() {
     let unclassified: Vec<String> = sites
         .iter()
         .filter(|site| {
-            let files_op = site.body.contains("insert_message_op(")
-                || site.body.contains("INSERT INTO message_ops");
+            let files_op = files_an_op(&site.code, &site.body);
             let allowed = NO_OP_NEEDED
                 .iter()
                 .any(|(file, function, _)| *file == site.file && *function == site.function);
@@ -140,4 +150,12 @@ fn the_classified_writers_still_exist() {
             "{file}::{function} no longer writes message state; drop it from NO_OP_NEEDED"
         );
     }
+}
+
+#[test]
+fn a_comment_naming_the_op_call_does_not_count_as_filing_one() {
+    let raw = "fn w() {\n    // no insert_message_op( needed\n    sqlx::query(\"UPDATE messages SET x\");\n}";
+    assert!(!files_an_op(&support::code_only(raw), raw));
+    let real = "fn w() {\n    insert_message_op(&mut tx);\n}";
+    assert!(files_an_op(&support::code_only(real), real));
 }

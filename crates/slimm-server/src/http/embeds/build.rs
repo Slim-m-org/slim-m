@@ -231,13 +231,8 @@ pub(crate) fn build_embeds(
             )));
         }
 
-        if embed
-            .timestamp
-            .is_some_and(|ms| !TIMESTAMP_RANGE_MS.contains(&ms))
-        {
-            return Err(ApiError::BadRequest("an embed timestamp is out of range"));
-        }
         // Out of range is dropped rather than refused; a decorative field must never block the message.
+        let timestamp = embed.timestamp.filter(|ms| TIMESTAMP_RANGE_MS.contains(ms));
         let color = embed.color.filter(|c| (0..=0xFF_FFFF).contains(c));
         let image_url = embed
             .image
@@ -259,7 +254,7 @@ pub(crate) fn build_embeds(
             author_name,
             author_url,
             footer_text,
-            timestamp: embed.timestamp,
+            timestamp,
             image_url,
             thumbnail_url,
             fields,

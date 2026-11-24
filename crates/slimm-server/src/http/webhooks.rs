@@ -91,25 +91,30 @@ struct DeliverRequest {
     embeds: Vec<embeds::WebhookEmbed>,
     /// Narrows which mentions resolve; never widens them.
     #[serde(default)]
-    allowed_mentions: Option<AllowedMentions>,
+    allowed_mentions: Option<serde_json::Value>,
 }
 
-#[derive(Deserialize)]
-struct AllowedMentions {
-    #[serde(default)]
-    parse: Vec<String>,
-    #[serde(default)]
-    users: Vec<String>,
+/// The only members a mention may reach, or `None` when `parse` still allows every user.
+/// A shape that cannot be read narrows nothing, and a user that cannot be read is skipped.
+fn only_mentioned(allowed: &serde_json::Value) -> Option<Vec<UserId>> {
+    let strings = |field: &str| -> Vec<String> {
+        let items = allowed.get(field).and_then(serde_json::Value::as_array);
+        items.into_iter().flatten().map(string_or_number).collect()
+    };
+    allowed.as_object()?;
+    if strings("parse").iter().any(|kind| kind == "users") {
+        return None;
+    }
+    let listed = strings("users")
+        .into_iter()
+        .filter_map(|id| Uuid::parse_str(&id).ok());
+    Some(listed.map(UserId).collect())
 }
 
-impl AllowedMentions {
-    /// The only members a mention may reach, or `None` when `parse` still allows every user.
-    fn only(&self) -> Option<Vec<UserId>> {
-        if self.parse.iter().any(|kind| kind == "users") {
-            return None;
-        }
-        let listed = self.users.iter().filter_map(|id| Uuid::parse_str(id).ok());
-        Some(listed.map(UserId).collect())
+fn string_or_number(value: &serde_json::Value) -> String {
+    match value {
+        serde_json::Value::String(text) => text.clone(),
+        other => other.to_string(),
     }
 }
 
@@ -272,10 +277,7 @@ async fn deliver(
         "its embeds",
         embeds::store_and_reload(&state, sent.message.id, sent.fresh, &embeds).await,
     );
-    let mention_only = body
-        .allowed_mentions
-        .as_ref()
-        .and_then(AllowedMentions::only);
+    let mention_only = body.allowed_mentions.as_ref().and_then(only_mentioned);
     after_commit(
         "its mentions",
         super::message_mentions::resolve_and_store_under(

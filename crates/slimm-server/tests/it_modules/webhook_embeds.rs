@@ -469,7 +469,7 @@ async fn a_delivery_with_no_content_and_nothing_visible_in_its_embeds_is_still_a
 }
 
 #[tokio::test]
-async fn an_embed_timestamp_outside_the_calendar_is_refused() {
+async fn an_embed_timestamp_outside_the_calendar_is_dropped_and_the_message_posts() {
     let (store, _guard) = new_store("slimm-webhook-embeds-timestamp-range").await;
     let (_viewer, channel_id, admin_id) = fixture(&store, "root").await;
     let minted = store
@@ -481,7 +481,7 @@ async fn an_embed_timestamp_outside_the_calendar_is_refused() {
     for timestamp in [i64::MAX, i64::MIN, -1, 253_402_300_800_000_i64] {
         let body = json!({ "embeds": [{ "title": "t", "timestamp": timestamp }] });
         let posted = app.clone().oneshot(post_json(&path, body)).await.unwrap();
-        assert_eq!(posted.status(), StatusCode::BAD_REQUEST, "{timestamp}");
+        assert_eq!(posted.status(), StatusCode::NO_CONTENT, "{timestamp}");
     }
     let body = json!({ "embeds": [{ "title": "t", "timestamp": 253_402_300_799_999_i64 }] });
     let posted = app.oneshot(post_json(&path, body)).await.unwrap();

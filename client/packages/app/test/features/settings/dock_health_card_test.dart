@@ -19,6 +19,7 @@ api.InstalledDockModule _module({
   String? reason,
   int dropped = 0,
   int queued = 0,
+  String? withdrawn,
 }) => api.InstalledDockModule.fromJson({
   'id': 'xp',
   'name': 'xp',
@@ -32,6 +33,7 @@ api.InstalledDockModule _module({
   'disabled_reason': ?reason,
   'events_dropped': dropped,
   'queue_depth': queued,
+  'withdrawn_reason': ?withdrawn,
 });
 
 Future<void> _pump(
@@ -51,6 +53,15 @@ void main() {
   test('a healthy module has no news', () {
     expect(dockHasHealthNews(_module()), isFalse);
     expect(dockHasHealthNews(null), isFalse);
+  });
+
+  testWidgets('a withdrawn version shows the registry reason', (tester) async {
+    expect(dockHasHealthNews(_module(withdrawn: 'a security fix')), isTrue);
+    await _pump(tester, _module(withdrawn: 'a security fix'));
+    expect(
+      find.text('The registry withdrew this version: a security fix'),
+      findsOneWidget,
+    );
   });
 
   test('events waiting count as news', () {

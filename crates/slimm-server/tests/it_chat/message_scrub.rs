@@ -244,7 +244,7 @@ async fn the_migration_scrubs_messages_deleted_before_it() {
 }
 
 #[tokio::test]
-async fn a_retried_send_of_a_deleted_message_is_refused_not_replayed() {
+async fn a_retried_send_of_a_deleted_message_answers_with_the_tombstone() {
     let (s, _pool, _guard) = harness("slimm-scrub-replay").await;
     let admin = register(&s, "root").await;
     let channel = general(&s).await;
@@ -258,7 +258,9 @@ async fn a_retried_send_of_a_deleted_message_is_refused_not_replayed() {
         .send_message(NewMessage::plain(channel, admin, id, "hello"))
         .await;
 
-    assert!(matches!(retry, Err(SendError::Deleted)), "got {retry:?}");
+    let retry = retry.expect("a retry of a deleted send is not an error");
+    assert!(!retry.fresh);
+    assert!(s.message_is_deleted(id).await.unwrap());
 }
 
 #[tokio::test]

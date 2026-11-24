@@ -28,7 +28,7 @@ pub enum GroupDmError {
     NotFound,
     /// An account named does not exist or has been deleted.
     UserNotFound,
-    /// A block, in either direction, sits between the caller and someone they named, or the new member and a member.
+    /// A block, in either direction, sits between two of the people involved.
     Blocked,
     /// A new group needs 2 to 9 others besides the caller.
     BadSize,
@@ -108,18 +108,14 @@ impl Store {
         Ok((!members.is_empty()).then_some(members))
     }
 
-    /// Whether `creator` and any of `others` have a block between them, in either direction.
-    ///
-    /// Blocks between two other people are not looked at: refusing on them would tell
-    /// the creator about a block they are not part of.
-    async fn any_block_involving(
-        &self,
-        creator: UserId,
-        others: &[UserId],
-    ) -> anyhow::Result<bool> {
-        let blockers = self.blockers_of(creator).await?;
-        Ok(!self.blocked_among(creator, others).await?.is_empty()
-            || others.iter().any(|other| blockers.contains(other)))
+    /// Whether any two of `people` have a block between them, in either direction.
+    async fn any_block_among(&self, people: &[UserId]) -> anyhow::Result<bool> {
+        for &person in people {
+            if !self.blocked_among(person, people).await?.is_empty() {
+                return Ok(true);
+            }
+        }
+        Ok(false)
     }
 
     /// Starts a group with `creator` and `others`, 3 to 8 people in all.
@@ -149,7 +145,7 @@ impl Store {
         if self.user_profiles(&people).await?.len() != people.len() {
             return Err(GroupDmError::UserNotFound);
         }
-        if self.any_block_involving(creator, &people[1..]).await? {
+        if self.any_block_among(&people).await? {
             return Err(GroupDmError::Blocked);
         }
 

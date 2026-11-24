@@ -190,7 +190,6 @@ async fn serve(config: config::Config, logging: &'static logging::Logging) -> an
     sweeps::spawn_call_sweep(store.clone(), voice.clone(), hub.clone());
     voice_session_sweeps::spawn_retention_sweep(store.clone());
     sweeps::spawn_call_history_sweep(store.clone());
-    sweeps::spawn_audit_log_sweep(store.clone());
     sweeps::spawn_room_sweep(store.clone(), voice.clone(), hub.clone());
     sweeps::spawn_ring_sweep(voice.clone(), hub.clone(), store.clone(), push.clone());
     sweeps::spawn_message_retention_sweep(store.clone(), media.clone(), hub.clone());

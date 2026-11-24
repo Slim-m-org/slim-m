@@ -22,8 +22,7 @@ pub use voice::{
 
 use crate::{hub, media, store};
 
-const AUDIT_LOG_SWEEP_INTERVAL: std::time::Duration = std::time::Duration::from_secs(24 * 60 * 60);
-/// How long both audit logs keep a row; two years covers any review the owner would still make.
+/// A cutoff for [`run_audit_log_sweep_pass`]; no background sweep runs it until the owner decides a retention.
 pub const AUDIT_LOG_RETENTION_MS: i64 = 730 * 24 * 60 * 60 * 1000;
 
 /// Deletes audit rows past [`AUDIT_LOG_RETENTION_MS`]; answers how many went.
@@ -31,18 +30,6 @@ pub async fn run_audit_log_sweep_pass(store: &store::Store) -> anyhow::Result<u6
     store
         .prune_audit_logs(store::now_ms() - AUDIT_LOG_RETENTION_MS)
         .await
-}
-
-/// Runs the audit log retention sweep in the background; see [`spawn_token_sweep`].
-pub(crate) fn spawn_audit_log_sweep(store: store::Store) {
-    spawn_sweep(AUDIT_LOG_SWEEP_INTERVAL, move || {
-        let store = store.clone();
-        async move {
-            if let Err(err) = run_audit_log_sweep_pass(&store).await {
-                tracing::warn!(%err, "could not sweep old audit log rows");
-            }
-        }
-    });
 }
 
 /// The sweeps that record a run in `sweep_status`, with how often each one ticks.

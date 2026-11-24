@@ -19516,7 +19516,7 @@ components:
             timestamp and the delivery still posts. A null `embeds` or a null
             embed `fields` reads as empty. `SendMessageRequest.embeds` is
             unchanged and still refuses a string timestamp with 400. An
-            integer timestamp outside 1970 through 9999 answers 400.
+            integer timestamp outside 1970 through 9999 is dropped.
         avatar_url:
           description: >-
             Accepted and discarded, permanently. Honouring it would mean

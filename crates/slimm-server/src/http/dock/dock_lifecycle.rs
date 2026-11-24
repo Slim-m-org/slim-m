@@ -15,6 +15,7 @@ use super::super::overwrites::Target;
 use super::capabilities::held_hooks;
 use super::connector_guard;
 use super::fetch_index;
+use super::index_cache;
 use super::keywords::{self, ensure_slash_keywords_free};
 use super::manifest::IndexEntry;
 use super::sources::Origin;
@@ -297,7 +298,7 @@ async fn official_index(state: &AppState, modules: &[InstalledModule]) -> Vec<In
         return Vec::new();
     }
     let origin = Origin::Remote(dock.official_bases.clone());
-    fetch_index(dock, &origin).await.unwrap_or_default()
+    index_cache::official(async { fetch_index(dock, &origin).await.ok() }).await
 }
 
 fn withdrawal(index: &[IndexEntry], module: &InstalledModule) -> Option<String> {

@@ -232,15 +232,16 @@ async fn the_orphaned_copy_lookup_never_scans_messages() {
 }
 
 #[tokio::test]
-async fn the_op_log_reclaim_pass_never_scans_message_ops() {
+async fn the_op_log_reclaim_pass_seeks_one_channel_by_its_key() {
     let (pool, _guard) = new_pool("retention-op-plan").await;
     let source = read_source("src/store/messages/message_retention.rs");
     let sql = extract_containing(&source, "DELETE FROM message_ops");
-    let plan = plan_of(&pool, &sql, &[NOW - 7 * DAY_MS, 7, NOW, DAY_MS, 2_000]).await;
+    let plan = plan_of(&pool, &sql, &[7, NOW - 7 * DAY_MS, 2_000]).await;
     assert_no_scan(&plan, "the op-log reclaim pass");
     assert!(
-        plan.iter()
+        !plan
+            .iter()
             .any(|step| step.contains("message_ops_created_at")),
-        "the op-log reclaim pass no longer seeks by age; the plan is {plan:?}"
+        "the op-log reclaim pass walks the age index across every channel; the plan is {plan:?}"
     );
 }

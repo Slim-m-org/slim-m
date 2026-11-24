@@ -38,8 +38,7 @@ A group is never converted to a pair, and a pair never grows into a group; addin
   When the last participant leaves, the channel is deleted.
   A deleted account is removed from its groups the same way, so no group keeps naming a tombstone.
 - **Blocks.**
-  A group cannot be created with anyone who has a block with its creator in either direction, and nobody can be added to a group whose members include someone with a block against them.
-  Creation does not look at blocks between two other invitees, so its answer never tells the creator about a block they are not part of.
+  A group cannot be created with, and nobody can be added to, a set of people in which any pair has a block in either direction.
   The refusal says so in words the person can act on and does not say who blocked whom.
   A block made after the group exists does not remove anybody and does not change the group's permissions: the group is shared by people who did not block each other, and one pair's block must not silence a third person's conversation.
   The blocker keeps the tools they already have (client-side hiding of the blocked person's messages, push suppression, muting, leaving).

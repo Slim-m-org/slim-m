@@ -367,7 +367,7 @@ async fn author_and_message_two(d: &Deployment) -> MessageId {
 }
 
 #[tokio::test]
-async fn renaming_a_webhook_is_recorded_with_the_new_label() {
+async fn renaming_a_webhook_is_recorded_without_its_label_as_the_reason() {
     let d = deployment("slimm-audit-webhook-rename").await;
     let channel = d.general;
     let minted = d
@@ -392,7 +392,7 @@ async fn renaming_a_webhook_is_recorded_with_the_new_label() {
     assert!(
         rows.contains(&(
             "webhook_rename".to_owned(),
-            Some("Staff Alice".to_owned()),
+            None,
             minted.webhook.principal_id
         )),
         "{rows:?}"
@@ -449,4 +449,58 @@ async fn two_different_puts_to_one_target_write_two_rows() {
         .filter(|e| e["action"] == "channel.overwrite_set")
         .count();
     assert_eq!(puts, 2, "{entries:?}");
+}
+
+#[tokio::test]
+async fn an_overwrite_toggled_back_to_an_earlier_value_still_writes_its_row() {
+    let d = deployment("slimm-audit-toggle-puts").await;
+    let router = app(d.store.clone());
+    let role_id = new_role(&router, &d.admin_token).await;
+    let channel = d.store.create_channel("gated", "text").await.unwrap().id;
+    let uri = format!("/channels/{channel}/overwrites/role/{role_id}");
+
+    for allow in [4, 2, 4] {
+        let put = json_request(
+            "PUT",
+            &uri,
+            &d.admin_token,
+            &json!({ "allow": allow, "deny": 0 }),
+        );
+        let status = router.clone().oneshot(put).await.unwrap().status();
+        assert!(status.is_success(), "{status}");
+    }
+
+    let entries = log(&router, &d.admin_token).await;
+    let puts = entries
+        .iter()
+        .filter(|e| e["action"] == "channel.overwrite_set")
+        .count();
+    assert_eq!(puts, 3, "{entries:?}");
+}
+
+#[tokio::test]
+async fn assign_unassign_assign_of_one_role_writes_three_rows() {
+    let d = deployment("slimm-audit-assign-cycle").await;
+    let router = app(d.store.clone());
+    let role_id = new_role(&router, &d.admin_token).await;
+    let (member, _) = member_with(&d.store, "target", Permissions::NONE).await;
+    let uri = format!("/members/{member}/roles/{role_id}");
+
+    for method in ["PUT", "DELETE", "PUT"] {
+        let status = router
+            .clone()
+            .oneshot(bare(method, &uri, &d.admin_token))
+            .await
+            .unwrap()
+            .status();
+        assert!(status.is_success(), "{status}");
+    }
+
+    let entries = log(&router, &d.admin_token).await;
+    let actions: Vec<_> = entries
+        .iter()
+        .map(|e| e["action"].as_str().unwrap())
+        .filter(|a| a.starts_with("role.") && *a != "role.create")
+        .collect();
+    assert_eq!(actions.len(), 3, "{entries:?}");
 }
