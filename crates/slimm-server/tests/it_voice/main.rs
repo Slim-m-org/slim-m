@@ -7,6 +7,7 @@ mod support;
 mod block_evicts_shared_call;
 mod call_audio;
 mod call_audio_privacy;
+mod call_audio_resume;
 mod call_records;
 mod call_stats;
 mod call_stats_scale;
