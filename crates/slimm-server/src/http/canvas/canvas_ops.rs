@@ -103,8 +103,7 @@ enum CanvasOpBodyDto {
     },
     Edit {
         object_id: String,
-        /// Null for a reader without `MANAGE_CANVAS` once the object is erased.
-        props: Option<serde_json::Value>,
+        props: serde_json::Value,
     },
 }
 
@@ -124,7 +123,7 @@ impl CanvasOpDto {
     /// nothing while making two reads of the same fact disagree.
     ///
     /// An `edit` answers with its target's current props for everyone but a
-    /// moderator, and with none once the target is erased, so superseded and
+    /// moderator, and with `{}` once the target is erased, so superseded and
     /// erased text is not served; a replay still converges because the
     /// final edit carries the current props.
     ///
@@ -196,7 +195,10 @@ impl CanvasOpDto {
                 } else {
                     current_props
                 }
-                .map(|raw| serde_json::from_str(&raw).unwrap_or(serde_json::Value::Null)),
+                .map_or_else(
+                    || serde_json::json!({}),
+                    |raw| serde_json::from_str(&raw).unwrap_or(serde_json::Value::Null),
+                ),
             },
         };
         Self {

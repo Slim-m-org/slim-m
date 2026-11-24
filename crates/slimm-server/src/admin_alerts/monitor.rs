@@ -111,7 +111,9 @@ impl Monitor {
         };
         let health = self.store.module_health().await.unwrap_or_default();
         for module_id in subjects {
-            let streak = health.get(&module_id).map_or(0, |h| h.consecutive_failures);
+            let streak = health
+                .get(&module_id)
+                .map_or(0, |h| h.consecutive_failures.max(h.hook_failures));
             if streak >= FAILURE_LIMIT {
                 continue;
             }

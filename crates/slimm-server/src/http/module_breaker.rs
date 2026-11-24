@@ -31,30 +31,36 @@ pub(super) async fn note_background_run(
     if outcome.is_some_and(was_turned_away) {
         return;
     }
-    let noted = match result {
-        RunResult::Ok => state.store.record_module_background_ok(&module.id).await,
-        RunResult::Failed(error) => count_failure(state, module, error, keep_on).await,
+    let noted = match (result, keep_on) {
+        (RunResult::Ok, true) => state.store.record_module_hook_ok(&module.id).await,
+        (RunResult::Ok, false) => state.store.record_module_background_ok(&module.id).await,
+        (RunResult::Failed(_), true) => keep_on_failure(state, module).await,
+        (RunResult::Failed(error), false) => count_failure(state, module, error).await,
     };
     if let Err(err) = noted {
         tracing::warn!(%err, module = %module.id, "could not update a module's failure count");
     }
 }
 
+/// A fail-closed hook that keeps failing stays on and raises the alert, counted apart from the module's other runs.
+async fn keep_on_failure(state: &AppState, module: &InstalledModule) -> anyhow::Result<()> {
+    let streak = state.store.record_module_hook_failure(&module.id).await?;
+    if streak >= FAILURE_LIMIT {
+        raise_alert(state, module, &format!("{} keeps failing its checks ({streak} in a row). It stays on because its hook refuses what it cannot check.", module.name)).await;
+    }
+    Ok(())
+}
+
 async fn count_failure(
     state: &AppState,
     module: &InstalledModule,
     error: &str,
-    keep_on: bool,
 ) -> anyhow::Result<()> {
     let streak = state
         .store
         .record_module_background_failure(&module.id)
         .await?;
     if streak < FAILURE_LIMIT {
-        return Ok(());
-    }
-    if keep_on {
-        raise_alert(state, module, &format!("{} keeps failing its checks ({streak} in a row). It stays on because its hook refuses what it cannot check.", module.name)).await;
         return Ok(());
     }
     let reason = disabled_reason(streak, error);

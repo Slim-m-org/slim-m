@@ -23,7 +23,7 @@ const ANALYSIS_LIMIT: u32 = 400;
 
 /// Cap on the write-ahead log file kept after a checkpoint, so one large transaction does not
 /// leave the data volume inflated until restart.
-const WAL_SIZE_LIMIT_BYTES: u64 = 64 * 1024 * 1024;
+pub(crate) const WAL_SIZE_LIMIT_BYTES: u64 = 64 * 1024 * 1024;
 
 /// Opens the SQLite pool, creating the database and its parent directory if
 /// needed, then runs forward-only migrations to the current schema.

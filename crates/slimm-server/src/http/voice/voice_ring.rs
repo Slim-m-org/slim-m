@@ -166,12 +166,16 @@ async fn ring(
         let ring_id = ended_at_once(&state, channel_id, CallRingOutcome::Answered);
         return Ok(Json(RingResponse::ended(ring_id, Vec::new())));
     }
-    let callees = without_blocked_pairs(&state, ctx.user_id, callees).await?;
+    let (callees, blockers) = without_blocked_pairs(&state, ctx.user_id, callees).await?;
     let DoNotDisturb {
-        rung: callees,
-        quiet,
+        mut rung,
+        mut quiet,
         shown: do_not_disturb,
     } = split_off_do_not_disturb(&state, callees).await?;
+    // A blocker is rung silently, so the caller cannot tell a block from a quiet callee.
+    rung.extend(&blockers);
+    quiet.extend(&blockers);
+    let callees = rung;
     if callees.is_empty() {
         // Another participant's own pending ring is theirs to end.
         if let Some(own) = state.voice.rings().cancel(channel_id, ctx.user_id) {
@@ -222,18 +226,19 @@ impl RingResponse {
     }
 }
 
-/// Drops callees on either side of a block with the caller; a group keeps everyone's permissions after a block.
+/// Splits off callees on either side of a block with the caller: those the caller blocked are dropped, and those who blocked the caller come back apart; a group keeps everyone's permissions after a block.
 async fn without_blocked_pairs(
     state: &AppState,
     caller: UserId,
     callees: Vec<UserId>,
-) -> Result<Vec<UserId>, ApiError> {
+) -> Result<(Vec<UserId>, Vec<UserId>), ApiError> {
     let blockers = state.store.blockers_of(caller).await?;
     let blocked = state.store.blocked_ids(caller).await?;
-    Ok(callees
+    let (blocking, rest): (Vec<_>, Vec<_>) = callees
         .into_iter()
-        .filter(|callee| !blockers.contains(callee) && !blocked.contains(callee))
-        .collect())
+        .filter(|callee| !blocked.contains(callee))
+        .partition(|callee| blockers.contains(callee));
+    Ok((rest, blocking))
 }
 
 /// The callees split by Do not disturb, which blocks a ring on every device.

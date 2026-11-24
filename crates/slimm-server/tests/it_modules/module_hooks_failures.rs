@@ -119,6 +119,41 @@ async fn a_fail_closed_hook_that_keeps_failing_keeps_refusing_and_alerts() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn a_kept_on_hook_s_failures_do_not_switch_the_module_off_through_its_other_runs() {
+    let w = world("slimm-hooks-closed-streak").await;
+    let channel = general(&w).await;
+    w.install_hook_module(HookModule {
+        id: "strict",
+        wasm: trapping(),
+        hooks: vec![
+            interceptor(SEND, "reject", &["content"]),
+            interceptor(EDIT, "reject", &["content"]),
+        ],
+    })
+    .await;
+    let (status, posted) = w.say(channel, "first").await;
+    assert_eq!(status, 200, "{posted}");
+    let closed = HookChange {
+        priority: None,
+        fail_closed: Some(true),
+    };
+    let key = (HookKind::Interceptor, SEND, "reject");
+    w.store
+        .update_module_hook("strict", key, closed)
+        .await
+        .unwrap();
+    for n in 0..6 {
+        w.say(channel, &format!("message {n}")).await;
+    }
+
+    w.edit(channel, posted["id"].as_str().unwrap(), "changed")
+        .await;
+
+    let module = w.store.installed_module("strict").await.unwrap().unwrap();
+    assert!(module.enabled, "one fail-open failure must not trip it");
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn the_monitor_keeps_a_kept_on_hooks_alert_open_while_it_still_fails() {
     let w = world("slimm-hooks-closed-monitor").await;
     let channel = general(&w).await;
@@ -202,6 +237,60 @@ async fn each_hook_of_a_module_reports_its_own_stats() {
     };
     assert_eq!(runs_of(SEND), json!(1), "{list}");
     assert_eq!(runs_of(EDIT), json!(0), "{list}");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_reinstall_drops_run_stats_no_declared_hook_owns() {
+    let w = world("slimm-hooks-stale-stats").await;
+    let hooks = || {
+        vec![
+            interceptor(SEND, "reject", &["content"]),
+            interceptor(EDIT, "reject", &["content"]),
+        ]
+    };
+    let module = |hooks| HookModule {
+        id: "any",
+        wasm: answering(&json!({ "action": "allow" })),
+        hooks,
+    };
+    w.install_hook_module(module(hooks())).await;
+    for key in ["@intercept", "@allow", "@intercept:old.hook:reject"] {
+        let timing = slimm_server::store::RunTiming {
+            at: 1,
+            duration_ms: 1,
+            fuel_used: None,
+        };
+        let ok = slimm_server::store::RunResult::Ok;
+        w.store
+            .record_module_run("any", key, &ok, timing)
+            .await
+            .unwrap();
+    }
+    let own = format!("@intercept:{SEND}:reject");
+    let timing = slimm_server::store::RunTiming {
+        at: 1,
+        duration_ms: 1,
+        fuel_used: None,
+    };
+    let ok = slimm_server::store::RunResult::Ok;
+    w.store
+        .record_module_run("any", &own, &ok, timing)
+        .await
+        .unwrap();
+
+    w.install_hook_module(module(hooks())).await;
+
+    let kept: Vec<String> = w
+        .store
+        .module_run_stats()
+        .await
+        .unwrap()
+        .remove("any")
+        .unwrap_or_default()
+        .into_iter()
+        .map(|stat| stat.command)
+        .collect();
+    assert_eq!(kept, vec![own]);
 }
 
 #[tokio::test(flavor = "multi_thread")]

@@ -394,8 +394,8 @@ impl Store {
         Ok(removed)
     }
 
-    /// Drops a just-deleted channel's transcripts; a failure is left to the sweep.
-    pub(super) async fn forget_call_transcripts(&self, channel: ChannelId) {
+    /// Drops a just-deleted channel's transcripts, off the request path; a failure is left to the sweep.
+    pub async fn forget_call_transcripts(&self, channel: ChannelId) {
         if let Err(err) = self.delete_channel_call_transcripts(channel).await {
             tracing::warn!(error = %err, "call transcripts of a deleted channel left to the sweep");
         }

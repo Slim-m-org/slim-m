@@ -143,14 +143,59 @@ impl Store {
         Ok(())
     }
 
-    /// Folds the write-ahead log into the database file and truncates it, so it does not stay
-    /// at the size of the largest transaction. Returns without error when readers hold it back.
+    /// Stamps that the sweep `name` is starting a pass, before it can crash the process.
+    pub async fn record_sweep_attempt(&self, name: &str) -> anyhow::Result<()> {
+        let now = super::now_ms();
+        sqlx::query!(
+            "INSERT INTO sweep_attempts (name, attempted_at) VALUES (?, ?)
+             ON CONFLICT (name) DO UPDATE SET attempted_at = excluded.attempted_at",
+            name,
+            now
+        )
+        .execute(&self.pool)
+        .await
+        .context("record sweep attempt")?;
+        Ok(())
+    }
+
+    /// The later of the sweep's last finished run and its last started pass.
+    pub async fn last_sweep_activity(&self, name: &str) -> anyhow::Result<Option<i64>> {
+        let latest = sqlx::query_scalar!(
+            r#"SELECT MAX(at) AS "at: i64" FROM (
+                   SELECT last_run_at AS at FROM sweep_status WHERE name = ?1
+                   UNION ALL
+                   SELECT attempted_at AS at FROM sweep_attempts WHERE name = ?1)"#,
+            name
+        )
+        .fetch_one(&self.pool)
+        .await
+        .context("read the last sweep activity")?;
+        Ok(latest)
+    }
+
+    /// Folds the write-ahead log into the database file without ever blocking a writer, and
+    /// truncates it only once it holds a sizeable share of its size limit.
     pub async fn checkpoint_wal(&self) -> anyhow::Result<()> {
-        sqlx::query("PRAGMA wal_checkpoint(TRUNCATE)")
+        sqlx::query("PRAGMA wal_checkpoint(PASSIVE)")
             .execute(&self.pool)
             .await
             .context("checkpoint the write-ahead log")?;
+        if self.wal_file_bytes().await? > crate::db::WAL_SIZE_LIMIT_BYTES / 4 {
+            sqlx::query("PRAGMA wal_checkpoint(TRUNCATE)")
+                .execute(&self.pool)
+                .await
+                .context("truncate the write-ahead log")?;
+        }
         Ok(())
+    }
+
+    async fn wal_file_bytes(&self) -> anyhow::Result<u64> {
+        let file: String =
+            sqlx::query_scalar("SELECT file FROM pragma_database_list WHERE name = 'main'")
+                .fetch_one(&self.pool)
+                .await
+                .context("find the database file")?;
+        Ok(std::fs::metadata(format!("{file}-wal")).map_or(0, |meta| meta.len()))
     }
 
     /// Every sweep that has recorded at least one run, in no particular

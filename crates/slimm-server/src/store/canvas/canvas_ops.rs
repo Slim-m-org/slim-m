@@ -279,7 +279,9 @@ impl Store {
             let bytes = if row.kind == "place" {
                 row.obj_props.as_ref().map_or(0, std::string::String::len)
             } else if row.kind == "edit" {
-                row.edit_props.as_ref().map_or(0, std::string::String::len)
+                let written = row.edit_props.as_ref().map_or(0, String::len);
+                let current = row.edit_current_props.as_ref().map_or(0, String::len);
+                written.max(current)
             } else {
                 target_counts.get(&row.seq).copied().unwrap_or(0) as usize
                     * CANVAS_OP_TARGET_BYTES_ESTIMATE

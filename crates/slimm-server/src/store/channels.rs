@@ -226,7 +226,6 @@ impl Store {
 
         if affected > 0 {
             tx.commit().await?;
-            self.forget_call_transcripts(id).await;
             return Ok(true);
         }
 

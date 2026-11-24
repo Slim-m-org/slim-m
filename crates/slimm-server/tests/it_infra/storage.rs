@@ -179,6 +179,17 @@ async fn a_recorded_sweep_run_shows_up_in_sweeps() {
     assert!(sweeps[0]["last_run_at"].as_i64().unwrap() > 0);
 }
 
+#[tokio::test]
+async fn a_started_pass_counts_as_sweep_activity_but_is_not_a_finished_run() {
+    let (s, _guard) = store("slimm-storage-sweep-attempt").await;
+    assert_eq!(s.last_sweep_activity("token").await.unwrap(), None);
+
+    s.record_sweep_attempt("token").await.unwrap();
+
+    assert!(s.last_sweep_activity("token").await.unwrap().unwrap() > 0);
+    assert!(s.sweep_statuses().await.unwrap().is_empty());
+}
+
 /// A manager's ranked list names only the channels they can see; the total still counts the rest.
 #[tokio::test]
 async fn top_channels_leaves_out_a_channel_the_manager_cannot_see() {

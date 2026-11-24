@@ -227,6 +227,7 @@ async fn delete(
     super::module_rooms::end_channel(&state, channel_id);
     if deleted {
         state.hub.publish(Event::ChannelDeleted { channel_id });
+        super::channels::forget_transcripts_in_background(&state, channel_id);
         // Prune now rather than at the next 6 hourly tick: the conversation is meant to be gone.
         let (store, media, hub) = (state.store.clone(), state.media.clone(), state.hub.clone());
         tokio::spawn(async move {

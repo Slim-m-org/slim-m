@@ -75,7 +75,7 @@ async fn a_group_member_the_caller_blocked_is_not_rung() {
 }
 
 #[tokio::test]
-async fn a_group_call_where_every_callee_blocked_the_caller_ends_at_once() {
+async fn a_group_call_where_every_callee_blocked_the_caller_rings_out_like_an_offline_one() {
     let rig = rig("slimm-ring-block-all").await;
     let mut alice = rig.person("alice").await;
     let mut bob = rig.person("bob").await;
@@ -87,10 +87,9 @@ async fn a_group_call_where_every_callee_blocked_the_caller_ends_at_once() {
 
     let started = rig.ring(&channel, &alice).await;
 
-    assert_eq!(started["timeout_ms"], 0);
+    assert!(started["timeout_ms"].as_i64().unwrap() > 0);
     assert_eq!(started["do_not_disturb"], json!([]));
-    let ended = read_frame_of_type(&mut alice.ws, "call.ring_ended").await;
-    assert_eq!(ended["ring_id"], started["ring_id"]);
+    assert_no_frame_of_type(&mut alice.ws, "call.ring_ended").await;
     assert_no_frame_of_type(&mut bob.ws, "call.ringing").await;
     assert_eq!(incoming(&rig, &bob).await, json!([]));
 }

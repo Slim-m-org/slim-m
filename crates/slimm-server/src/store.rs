@@ -257,7 +257,7 @@ pub use modules::{
     HostRun, HostRunSpec, InstallModuleRequest, InstalledConnector, InstalledModule,
     ModuleExtensionPoint, ModuleExtensionPointSpec, ModuleHook, ModulePermissionSpec,
     ModulePlatform, ModuleRuntimeLimits, ModuleSchedule, ModuleSettingDef, ModuleSlot,
-    SettingChoice, SettingKind, TimerSpec, TurnedOff,
+    SettingChoice, SettingKind, TimerSpec, TurnedOff, hook_stats_key,
 };
 pub use notification_schedule::{DaySetting, NotificationScheduleDetail};
 pub use overwrites_batch::OverwriteBatchEntry;

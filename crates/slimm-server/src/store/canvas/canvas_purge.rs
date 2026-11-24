@@ -170,41 +170,102 @@ impl Store {
             tx.commit().await?;
             purged += due.len() as u64;
         }
+        purged += self.drain_erased_backlog().await?;
         Ok(purged)
+    }
+
+    /// Brings channels already past the erased ceiling back under it, one batch at a time.
+    async fn drain_erased_backlog(&self) -> anyhow::Result<u64> {
+        let mut tx = self.begin_write().await?;
+        let ceiling = erased_ceiling(super::super::space::read_canvas_object_cap(&mut *tx).await?);
+        let over = sqlx::query_scalar!(
+            r#"SELECT channel_id AS "channel_id!: ChannelId" FROM canvas_objects
+               WHERE deleted_at IS NOT NULL
+               GROUP BY channel_id HAVING COUNT(*) > ?"#,
+            ceiling
+        )
+        .fetch_all(&mut *tx)
+        .await?;
+        tx.commit().await?;
+        let mut evicted = 0u64;
+        let mut batches = 0;
+        for channel_id in over {
+            while batches < PURGE_BATCHES_PER_TICK {
+                let mut tx = self.begin_write().await?;
+                let excess = erased_count(&mut tx, channel_id).await? - ceiling;
+                let taken = if excess > 0 {
+                    evict_oldest(&mut tx, channel_id, excess.min(PURGE_BATCH as i64)).await?
+                } else {
+                    0
+                };
+                tx.commit().await?;
+                batches += 1;
+                if taken == 0 {
+                    break;
+                }
+                evicted += taken as u64;
+            }
+        }
+        Ok(evicted)
     }
 }
 
-/// Hard-deletes a channel's oldest erased objects (lowest seq first) until `adding` more fit under the erased ceiling, `cap` or [`ERASED_KEPT_FLOOR`] if higher.
+/// Hard-deletes a channel's oldest self-erased objects (lowest seq first) until `adding` more fit under the erased ceiling, twice `cap` or [`ERASED_KEPT_FLOOR`] if higher; at most `adding` plus one batch per call, and a moderator's erasures, which have audit rows, are never taken.
 pub(super) async fn evict_erased_over_cap(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     channel_id: ChannelId,
     adding: i64,
     cap: i64,
 ) -> Result<(), sqlx::Error> {
-    let erased = sqlx::query_scalar!(
+    let erased = erased_count(tx, channel_id).await?;
+    let excess = erased + adding - erased_ceiling(cap);
+    let mut left = excess.min(adding + PURGE_BATCH as i64);
+    while left > 0 {
+        let evicted = evict_oldest(tx, channel_id, left.min(PURGE_BATCH as i64)).await?;
+        if evicted == 0 {
+            break;
+        }
+        left -= evicted;
+    }
+    Ok(())
+}
+
+fn erased_ceiling(cap: i64) -> i64 {
+    cap.max(ERASED_KEPT_FLOOR) * 2
+}
+
+async fn erased_count(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    channel_id: ChannelId,
+) -> Result<i64, sqlx::Error> {
+    sqlx::query_scalar!(
         r#"SELECT COUNT(*) AS "count!: i64" FROM canvas_objects
            WHERE channel_id = ? AND deleted_at IS NOT NULL"#,
         channel_id
     )
     .fetch_one(&mut **tx)
+    .await
+}
+
+/// Hard-deletes up to `limit` of the channel's oldest erased objects that carry no audit row; returns how many.
+async fn evict_oldest(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    channel_id: ChannelId,
+    limit: i64,
+) -> Result<i64, sqlx::Error> {
+    let oldest = sqlx::query_scalar!(
+        r#"SELECT id AS "id!: CanvasObjectId" FROM canvas_objects
+           WHERE channel_id = ? AND deleted_at IS NOT NULL
+             AND NOT EXISTS (SELECT 1 FROM canvas_audit_log a WHERE a.object_id = canvas_objects.id)
+           ORDER BY seq LIMIT ?"#,
+        channel_id,
+        limit
+    )
+    .fetch_all(&mut **tx)
     .await?;
-    let mut excess = erased + adding - cap.max(ERASED_KEPT_FLOOR);
-    while excess > 0 {
-        let batch = excess.min(PURGE_BATCH as i64);
-        let oldest = sqlx::query_scalar!(
-            r#"SELECT id AS "id!: CanvasObjectId" FROM canvas_objects
-               WHERE channel_id = ? AND deleted_at IS NOT NULL
-               ORDER BY seq LIMIT ?"#,
-            channel_id,
-            batch
-        )
-        .fetch_all(&mut **tx)
-        .await?;
-        if oldest.is_empty() {
-            break;
-        }
-        hard_delete(tx, channel_id, &oldest).await?;
-        excess -= oldest.len() as i64;
+    if oldest.is_empty() {
+        return Ok(0);
     }
-    Ok(())
+    hard_delete(tx, channel_id, &oldest).await?;
+    Ok(oldest.len() as i64)
 }

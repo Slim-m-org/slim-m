@@ -79,7 +79,7 @@ async fn the_feed_withholds_the_text_of_an_erased_note_from_everyone_but_a_moder
     assert_eq!(status, StatusCode::CREATED);
 
     let (_, ops) = get_ops(&app, channel, &carol, "after_seq=0").await;
-    assert_eq!(edit_props(&ops), vec![Value::Null]);
+    assert_eq!(edit_props(&ops), vec![json!({})]);
     assert!(!ops.to_string().contains("private words"), "{ops}");
     let (_, ops) = get_ops(&app, channel, &root, "after_seq=0").await;
     assert_eq!(
@@ -115,7 +115,7 @@ async fn a_place_and_erase_loop_stays_under_the_erased_ceiling() {
     let (store, pool, _guard) = new_store_and_pool().await;
     let (_, author) = register(&store, "root").await;
     let channel = general(&store).await;
-    let ceiling = MAX_OBJECTS_PER_CHANNEL;
+    let ceiling = MAX_OBJECTS_PER_CHANNEL * 2;
     sqlx::query(
         "WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < ?)
          INSERT INTO canvas_objects
@@ -146,6 +146,90 @@ async fn a_place_and_erase_loop_stays_under_the_erased_ceiling() {
     )
     .await;
     assert_eq!(oldest, 0, "the oldest erased objects go first");
+}
+
+async fn seed_erased(pool: &SqlitePool, channel: ChannelId, author: UserId, n: i64, first: i64) {
+    sqlx::query(
+        "WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < ?)
+         INSERT INTO canvas_objects
+             (id, channel_id, channel_key, kind, z_index, x, y, w, h,
+              author_id, seq, created_at, deleted_at)
+         SELECT randomblob(16), ?, 0, 'stroke', i, 0, 0, 1, 1, ?, i + ?, 0, 1 FROM n",
+    )
+    .bind(n)
+    .bind(channel)
+    .bind(author)
+    .bind(first)
+    .execute(pool)
+    .await
+    .unwrap();
+    crate::support::canvas::backfill_props(pool).await;
+}
+
+#[tokio::test]
+async fn eviction_never_takes_an_object_a_moderator_erased() {
+    let (store, pool, _guard) = new_store_and_pool().await;
+    let (_, root) = register(&store, "root").await;
+    let (_, bob) = member(&store, "bob").await;
+    let channel = general(&store).await;
+    let evidence = place(&store, channel, bob).await;
+    erase(&store, channel, root, evidence).await;
+    seed_erased(&pool, channel, bob, MAX_OBJECTS_PER_CHANNEL * 2, 1_000).await;
+
+    for _ in 0..5 {
+        place(&store, channel, bob).await;
+    }
+
+    let kept = count(&pool, "SELECT COUNT(*) FROM canvas_audit_log").await;
+    assert_eq!(kept, 1, "the moderator's audit row survives");
+    let still = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM canvas_objects WHERE id = ?")
+        .bind(evidence)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(still, 1, "the object it names survives");
+}
+
+#[tokio::test]
+async fn a_placement_evicts_a_bounded_slice_of_an_old_backlog_and_the_sweep_drains_the_rest() {
+    let (store, pool, _guard) = new_store_and_pool().await;
+    let (_, author) = register(&store, "root").await;
+    let channel = general(&store).await;
+    let ceiling = MAX_OBJECTS_PER_CHANNEL * 2;
+    seed_erased(&pool, channel, author, ceiling + 1_000, -100_000).await;
+
+    place(&store, channel, author).await;
+
+    let after_place = count(&pool, "SELECT COUNT(*) FROM canvas_objects").await;
+    assert!(
+        after_place > ceiling,
+        "one placement drained the backlog: {after_place}"
+    );
+    store.sweep_canvas_ops().await.unwrap();
+    let after_sweep = count(
+        &pool,
+        "SELECT COUNT(*) FROM canvas_objects WHERE deleted_at IS NOT NULL",
+    )
+    .await;
+    assert!(after_sweep <= ceiling, "{after_sweep} left after the sweep");
+}
+
+#[tokio::test]
+async fn the_erased_count_and_eviction_use_the_erased_index() {
+    let (_store, pool, _guard) = new_store_and_pool().await;
+    let rows: Vec<(i64, i64, i64, String)> = sqlx::query_as(
+        "EXPLAIN QUERY PLAN SELECT COUNT(*) FROM canvas_objects
+         WHERE channel_id = x'00' AND deleted_at IS NOT NULL",
+    )
+    .fetch_all(&pool)
+    .await
+    .unwrap();
+    let detail = rows
+        .iter()
+        .map(|r| r.3.as_str())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(detail.contains("canvas_objects_channel_erased"), "{detail}");
 }
 
 #[tokio::test]

@@ -79,8 +79,8 @@ const OVERDUE_START_DELAY: std::time::Duration = std::time::Duration::from_secs(
 
 /// [`spawn_sweep`] for a sweep that records its runs under `name`: the first pass is timed from
 /// the recorded `last_run_at`, so a server that restarts more often than `interval` still
-/// sweeps. A recent run keeps the crash-loop protection; an overdue or unrecorded one runs
-/// after [`OVERDUE_START_DELAY`].
+/// sweeps. A recent run or started pass keeps the crash-loop protection, so a pass that crashes
+/// the process still waits its interval; an overdue or unrecorded one runs after [`OVERDUE_START_DELAY`].
 pub(crate) fn spawn_recorded_sweep<F, Fut>(
     store: store::Store,
     name: &'static str,
@@ -90,12 +90,10 @@ pub(crate) fn spawn_recorded_sweep<F, Fut>(
     F: Fn() -> Fut + Send + 'static,
     Fut: std::future::Future<Output = ()> + Send,
 {
+    let attempts = store.clone();
     let first = async move {
-        let last_run_at = match store.sweep_statuses().await {
-            Ok(rows) => rows
-                .iter()
-                .find(|row| row.name == name)
-                .map(|row| row.last_run_at),
+        let last_run_at = match store.last_sweep_activity(name).await {
+            Ok(last) => last,
             Err(err) => {
                 tracing::warn!(error = %err, sweep = name, "could not read the last sweep run");
                 return interval;
@@ -103,7 +101,21 @@ pub(crate) fn spawn_recorded_sweep<F, Fut>(
         };
         first_delay(last_run_at, store::now_ms(), interval)
     };
-    spawn_sweep_after(first, interval, pass);
+    spawn_sweep_after(first, interval, move || {
+        let stamped = stamp_attempt(attempts.clone(), name);
+        let running = pass();
+        async move {
+            stamped.await;
+            running.await;
+        }
+    });
+}
+
+/// Stamps a pass as started, so a pass that crashes the process still waits its interval after the next boot.
+async fn stamp_attempt(store: store::Store, name: &'static str) {
+    if let Err(err) = store.record_sweep_attempt(name).await {
+        tracing::warn!(error = %err, sweep = name, "could not stamp a sweep attempt");
+    }
 }
 
 /// When the first pass is due given the last recorded run, if any.

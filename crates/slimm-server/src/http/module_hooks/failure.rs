@@ -26,11 +26,7 @@ pub(crate) fn failure_category(outcome: &CommandOutcome) -> &'static str {
 
 /// The run-stats key of one hook, so each hook of a module keeps its own counts.
 pub(crate) fn stats_key(command: &str, decl: &HookDecl) -> String {
-    if decl.phase.is_empty() {
-        format!("{command}:{}", decl.hook)
-    } else {
-        format!("{command}:{}:{}", decl.hook, decl.phase)
-    }
+    crate::store::hook_stats_key(command, decl)
 }
 
 #[cfg(test)]

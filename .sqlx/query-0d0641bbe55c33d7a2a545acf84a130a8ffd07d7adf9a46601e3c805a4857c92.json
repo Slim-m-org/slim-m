@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id AS \"id!: CanvasObjectId\" FROM canvas_objects\n               WHERE channel_id = ? AND deleted_at IS NOT NULL\n               ORDER BY seq LIMIT ?",
+  "query": "SELECT id AS \"id!: CanvasObjectId\" FROM canvas_objects\n           WHERE channel_id = ? AND deleted_at IS NOT NULL\n             AND NOT EXISTS (SELECT 1 FROM canvas_audit_log a WHERE a.object_id = canvas_objects.id)\n           ORDER BY seq LIMIT ?",
   "describe": {
     "columns": [
       {
@@ -22,5 +22,5 @@
       false
     ]
   },
-  "hash": "f87002760ee40fcfd1c50270314c84865fad66285065d67bb2c13fe08eb1a2b1"
+  "hash": "0d0641bbe55c33d7a2a545acf84a130a8ffd07d7adf9a46601e3c805a4857c92"
 }

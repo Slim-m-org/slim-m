@@ -79,6 +79,12 @@ async fn deleting_a_channel_removes_its_transcripts_even_when_retention_is_off()
         .unwrap();
 
     assert!(store.delete_channel(channel).await.unwrap());
+    assert_eq!(
+        rows(&store, channel).await,
+        1,
+        "the delete itself leaves the purge to the background"
+    );
+    store.forget_call_transcripts(channel).await;
 
     assert_eq!(rows(&store, channel).await, 0);
     assert!(
@@ -105,6 +111,8 @@ async fn deleting_a_group_dm_removes_its_transcripts() {
     say(&store, id, bob, "private words").await;
 
     assert!(store.delete_group_dm(alice, group.id).await.unwrap());
+    assert_eq!(rows(&store, group.id).await, 1);
+    store.forget_call_transcripts(group.id).await;
 
     assert_eq!(rows(&store, group.id).await, 0);
 }
