@@ -4,7 +4,6 @@ library;
 import 'dart:async';
 import 'models.dart';
 import 'client.dart';
-import 'logging/app_log.dart';
 import 'client_transport.dart';
 
 /// The whole `messages` tag: sending, reading, editing, deleting,
@@ -17,6 +16,22 @@ extension SlimmApiMessages on SlimmApi {
   /// page backwards. [around] reads the page centred on that `seq` instead and
   /// is never combined with [before].
   Future<List<Message>> listMessages(
+    String channelId, {
+    int? before,
+    int? around,
+    int? limit,
+  }) async =>
+      (await listMessagePage(
+        channelId,
+        before: before,
+        around: around,
+        limit: limit,
+      ))
+          .messages;
+
+  /// [listMessages] with the raw item count and oldest raw seq, which paging
+  /// decisions must use because an unreadable item is missing from the list.
+  Future<MessagePage> listMessagePage(
     String channelId, {
     int? before,
     int? around,
@@ -215,7 +230,7 @@ extension SlimmApiMessages on SlimmApi {
       '/channels/$channelId/messages/search',
       query: query,
     );
-    return parseMessagePage(json as List<dynamic>);
+    return parseMessagePage(json as List<dynamic>).messages;
   }
 
   /// [searchMessages], scoped to every channel the caller can view instead
@@ -257,7 +272,7 @@ extension SlimmApiMessages on SlimmApi {
       beforeId: beforeId,
     );
     final json = await send('GET', '/search/messages', query: query);
-    return parseMessagePage(json as List<dynamic>);
+    return parseMessagePage(json as List<dynamic>).messages;
   }
 
   /// Reacts to a message with one [emoji]. Idempotent: reacting twice with
@@ -535,22 +550,3 @@ Map<String, String> _searchQuery({
       if (beforeId != null) 'before_id': beforeId,
       'include_threads': 'true',
     };
-
-/// Parses a page of messages, skipping one this build cannot read so the
-/// rest of the page still loads.
-List<Message> parseMessagePage(List<dynamic> raw) {
-  final messages = <Message>[];
-  for (final item in raw) {
-    try {
-      messages.add(Message.fromJson(item as Map<String, dynamic>));
-    } on Object catch (error, stack) {
-      AppLog.swallowed(
-        LogTag.sync,
-        'Skipped a message this build cannot read',
-        error,
-        stack,
-      );
-    }
-  }
-  return messages;
-}

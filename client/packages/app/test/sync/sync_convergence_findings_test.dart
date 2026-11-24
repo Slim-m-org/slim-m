@@ -63,6 +63,28 @@ api.Message _copyOf(ModelMessage message) =>
     api.Message.fromJson(message.toJson('c1'));
 
 void main() {
+  group('a full catch-up page with an unreadable message', () {
+    test(
+      'keeps the older rows held instead of reading it as the start',
+      () async {
+        final world = SyncModelWorld(server: SyncModelServer(newestPage: 3));
+        await world.open();
+        addTearDown(world.close);
+        final server = world.server;
+        for (var i = 1; i <= 6; i++) {
+          server.send('m$i');
+        }
+        server.edit(server.messages.first, 'm1');
+        await world.store.applyMessages(server.messages.map(_copyOf));
+        server.unreadableSeqs.add(4);
+        await world.controller.reconcile();
+
+        expect(await world.contentOf('m1'), 'm1');
+        expect(await world.contentOf('m2'), 'm2');
+      },
+    );
+  });
+
   group('a live op whose write fails', () {
     Future<(SyncModelWorld, _FailsOnce)> failing() async {
       final world = SyncModelWorld(makeStore: _FailsOnce.new);

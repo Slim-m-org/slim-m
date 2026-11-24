@@ -241,14 +241,14 @@ class SyncCatchUp {
     int? before;
     for (var fetched = 0; fetched < maxPages; fetched++) {
       final page = await retryWhenRateLimited(
-        () => api.listMessages(channelId, before: before, limit: limit),
+        () => api.listMessagePage(channelId, before: before, limit: limit),
         wait: _ref.read(rateLimitWaitProvider),
       );
       if (!_isCurrent(generation)) return null;
-      rows.addAll(page);
-      if (page.length < limit) return (rows: rows, from: 0);
-      before = page.map((m) => m.seq).reduce(min);
-      if (before <= oldestHeld) break;
+      rows.addAll(page.messages);
+      if (page.isShort(limit)) return (rows: rows, from: 0);
+      before = page.minRawSeq;
+      if (before == null || before <= oldestHeld) break;
     }
     return (rows: rows, from: before ?? 0);
   }

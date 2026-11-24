@@ -110,6 +110,25 @@ void main() {
     expect(page.map((m) => m.id), ['m1', 'm3']);
   });
 
+  test('a page reports its raw count and oldest raw seq past a skipped item',
+      () async {
+    final api = _api(
+      (_) => http.Response(
+        jsonEncode([
+          {..._message('m3'), 'seq': 3},
+          {..._message('m2'), 'seq': 2, 'poll': 'not a poll'},
+        ]),
+        200,
+        headers: _json,
+      ),
+    );
+    final page = await api.listMessagePage('c1', limit: 2);
+    expect(page.messages.map((m) => m.id), ['m3']);
+    expect(page.rawCount, 2);
+    expect(page.minRawSeq, 2);
+    expect(page.isShort(2), isFalse);
+  });
+
   group('creates that a lost reply can retry', () {
     test('createRole sends the sheet id', () async {
       late Map<String, dynamic> body;

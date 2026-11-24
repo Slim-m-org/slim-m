@@ -149,17 +149,20 @@ class MessageExtrasController
 
   /// [applyMessages] for a page fetched below [before] (the newest when null),
   /// recording the seqs it covered: to its oldest row, or the start if short.
+  /// [rawCount] and [minRawSeq] count rows this build could not parse too.
   void applyPage(
     String channelId,
     List<api.Message> page, {
     required int? before,
     required int limit,
+    int? rawCount,
+    int? minRawSeq,
   }) {
     applyMessages(page);
     final top = before == null ? HydratedRanges.newest : before - 1;
-    final oldest = page.length < limit
+    final oldest = (rawCount ?? page.length) < limit
         ? 0
-        : page.map((m) => m.seq).reduce(math.min);
+        : minRawSeq ?? page.map((m) => m.seq).reduce(math.min);
     final ranges = _hydrated.putIfAbsent(channelId, HydratedRanges.new);
     ranges.add(math.min(oldest, top), top);
   }

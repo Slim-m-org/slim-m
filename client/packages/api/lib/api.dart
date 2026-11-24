@@ -82,6 +82,7 @@ export 'src/client.dart'
         SlimmApiLinkPreview,
         SlimmApiMemberModeration,
         SlimmApiMessages,
+        MessagePage,
         SlimmApiMetrics,
         SlimmApiModeration,
         SlimmApiModuleCommands,
