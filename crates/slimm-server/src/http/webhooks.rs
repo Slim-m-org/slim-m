@@ -14,9 +14,10 @@
 //! - No `Authed`. The credential is a `(webhook_id, token)` pair in the path,
 //!   never a bearer token, so this never goes through the extractor every
 //!   other route shares - there is no session for it to resolve to.
-//! - No permission check. A webhook has exactly one verb on exactly one
+//! - No permission bit check. A webhook has exactly one verb on exactly one
 //!   channel, fixed at mint, so the only question is whether the credential
-//!   still resolves at all; see `Store::authenticate_webhook`'s own doc.
+//!   still resolves at all; see `Store::authenticate_webhook`'s own doc. A
+//!   module's deny-only `message.send` hook still runs, as on every send.
 //! - Two rate-limit buckets in a specific order, the second charged directly
 //!   against the limiter rather than through `enforce`: see [`deliver`]'s
 //!   own doc.
@@ -41,7 +42,7 @@ use super::embeds;
 use super::error::ApiError;
 use super::extract::{Json, Query, RateLimited, WEBHOOK};
 use super::messages::{parse_uuid, validate_content};
-use super::module_hooks::{Draft, HookPoint, intercept};
+use super::module_hooks::{Draft, Field, HookPoint, guard_write};
 use super::post_commit::{after_commit, run_to_completion};
 use crate::hub::{Event, MessageEvent};
 use crate::ids::{ChannelId, MessageId, WebhookId};
@@ -160,14 +161,14 @@ async fn deliver(
         return Err(ApiError::NotFound("no such webhook"));
     }
 
-    let embeds = embeds::build_embeds(
+    let mut embeds = embeds::build_embeds(
         body.embeds.into_iter().map(Into::into).collect(),
         &state.link_previews,
     )?;
     // Sonarr, Radarr and the like send an embed per event and no content at all.
     let carries_more = embeds::any_visible(&embeds);
     let content = &*validate_content(body.content.as_deref().unwrap_or(""), carries_more)?;
-    let username = match body.username.as_deref().map(str::trim) {
+    let mut username = match body.username.as_deref().map(str::trim) {
         Some(name) if !name.is_empty() => {
             if name.chars().count() > USERNAME_MAX_CHARS {
                 return Err(ApiError::BadRequestDetail(format!(
@@ -183,7 +184,7 @@ async fn deliver(
                     "username must not contain control or invisible characters",
                 ));
             }
-            Some(name)
+            Some(name.to_owned())
         }
         _ => None,
     };
@@ -196,21 +197,26 @@ async fn deliver(
         false => enforce_slow_mode(&state, channel_id, context.principal_id).await?,
     };
 
-    let intercepted = match stored_already {
-        true => Default::default(),
-        false => {
-            let draft = Draft {
-                point: HookPoint::PreSend,
-                channel_id,
-                actor: context.principal_id,
-                reply_to: None,
-                content,
-                carries_more,
-                own_module: None,
-            };
-            intercept(&state, &draft).await?
-        }
+    let draft = Draft {
+        point: HookPoint::PreSend,
+        channel_id,
+        actor: context.principal_id,
+        reply_to: None,
+        content: (!stored_already).then_some(content),
+        carries_more,
+        own_module: None,
     };
+    // A retry stores nothing new: its embeds and label are written only by a fresh delivery.
+    let mut fields = Vec::new();
+    if !stored_already {
+        fields = embeds::text_fields(&mut embeds);
+        fields.extend(
+            username
+                .as_mut()
+                .map(|name| Field::new(name, USERNAME_MAX_CHARS)),
+        );
+    }
+    let intercepted = guard_write(&state, &draft, &mut fields).await?;
     let sent = state
         .store
         .send_message_with_slow_mode(
@@ -228,7 +234,7 @@ async fn deliver(
     }
 
     if sent.fresh {
-        if let Some(username) = username {
+        if let Some(username) = username.as_deref() {
             after_commit(
                 "its username",
                 state

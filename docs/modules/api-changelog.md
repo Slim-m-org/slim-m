@@ -22,6 +22,9 @@ The policy behind the levels is decision [0100](../decisions/0100-module-safety-
 - A connector's token is held to a route table before any handler runs: a disabled connector reaches only `GET /connectors/me`, a person's own routes (account, devices, push, notifications, favorites, saved, blocks, reports, invites, exports, diagnostics, presence, read states) answer 403, DMs need `send_messages`, uploads `attach_files`, a channel's voice routes `connect` and directory reads `view_channel`. `/bots/{id}/token`, `/revoke`, `/permissions` and `/prefix` answer 404 for a connector's principal.
 - A posted command answer (`post_output`) reaches `@everyone` and `@here` only when both the member who ran it and the module's principal hold `mention_everyone`; this applies to WASM modules too.
 - Nothing is removed or changed in meaning. A module that declares `addon_api_max` of 6 must be updated to run on a level 7 server, as at every level.
+- From the audit of 2026-11-23, still inside level 7 before its release (decision [0100](../decisions/0100-module-safety-contracts.md#where-they-run)): `message.pre_send` interceptors also run over a poll's caption, question and options, an app launch's caption, embed titles, descriptions, author names, footers and field names and values, a webhook's `username` label, and button and select labels and placeholders. Each is its own run with that text as `content`, through the reject and rewrite phases only; a rewrite of one must be non-empty and fit that field's own limit, or it counts as a failed run.
+- `message.pre_edit` also runs when a bot replaces its embeds on an edit or its buttons with `PUT .../components`, and `reply_to_id` now carries the edited message's parent instead of always null.
+- The `message.send` permission hook is now asked for polls, app launches, edits, webhook deliveries and a bot changing its buttons, not only `POST /channels/{channel_id}/messages`.
 
 ## Level 6
 

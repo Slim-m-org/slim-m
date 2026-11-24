@@ -2,11 +2,12 @@
 //! The interceptor chain on a message before it is stored: reject, then
 //! annotate, then rewrite, each phase ordered by the admin's priority.
 
+use std::sync::Arc;
 use std::time::Instant;
 
 use serde_json::{Map, Value, json};
 
-use super::registry::Entry;
+use super::registry::{Entry, Snapshot};
 use super::runner::{Verdict, run};
 use super::{CHAIN_CAP, short};
 use crate::http::AppState;
@@ -44,7 +45,8 @@ pub(crate) struct Draft<'a> {
     pub(crate) channel_id: ChannelId,
     pub(crate) actor: UserId,
     pub(crate) reply_to: Option<MessageId>,
-    pub(crate) content: &'a str,
+    /// `None` when the write leaves the text as it is, such as an idempotent retry.
+    pub(crate) content: Option<&'a str>,
     /// Whether the message may have no text (attachments or a forward carry it).
     pub(crate) carries_more: bool,
     /// A module that posts is not filtered by its own interceptors.
@@ -84,46 +86,93 @@ pub(crate) async fn intercept(
     state: &AppState,
     draft: &Draft<'_>,
 ) -> Result<Intercepted, ApiError> {
-    let Some(snapshot) = state.dock.hooks().active(&state.store).await else {
+    let (Some(content), Some(pass)) = (draft.content, Pass::open(state, draft).await) else {
         return Ok(Intercepted::default());
     };
-    let started = Instant::now();
-    let is_bot = reads_bot(&snapshot.interceptors, draft.point)
-        && state.store.is_bot(draft.actor).await.unwrap_or(false);
-    let mut out = Intercepted::default();
-    let mut text = draft.content.to_owned();
-    for phase in PHASES {
-        let stage = snapshot
-            .interceptors
+    let carries_more = draft.carries_more;
+    pass.run(content, Target::Content { carries_more }).await
+}
+
+/// What one run of the chain reads as `content`.
+#[derive(Clone, Copy)]
+pub(super) enum Target {
+    /// The message's own text; `carries_more` lets a rewrite empty it.
+    Content { carries_more: bool },
+    /// A caption, label or embed text: never annotated, and a rewrite must fit `max_chars`.
+    Field { max_chars: usize },
+}
+
+/// One message on its way through the chain: the hooks read once, one clock for all its text.
+pub(super) struct Pass<'a> {
+    state: &'a AppState,
+    snapshot: Arc<Snapshot>,
+    draft: &'a Draft<'a>,
+    is_bot: bool,
+    started: Instant,
+}
+
+impl<'a> Pass<'a> {
+    /// `None` when no hook is installed.
+    pub(super) async fn open(state: &'a AppState, draft: &'a Draft<'a>) -> Option<Pass<'a>> {
+        let snapshot = state.dock.hooks().active(&state.store).await?;
+        let started = Instant::now();
+        let is_bot = reads_bot(&snapshot.interceptors, draft.point)
+            && state.store.is_bot(draft.actor).await.unwrap_or(false);
+        Some(Pass {
+            state,
+            snapshot,
+            draft,
+            is_bot,
+            started,
+        })
+    }
+
+    pub(super) async fn run(
+        &self,
+        original: &str,
+        target: Target,
+    ) -> Result<Intercepted, ApiError> {
+        let (state, draft) = (self.state, self.draft);
+        let mut out = Intercepted::default();
+        let mut text = original.to_owned();
+        let phases = PHASES
             .iter()
-            .filter(|e| e.decl.hook == draft.point.name() && e.decl.phase == phase)
-            .filter(|e| draft.own_module != Some(e.module.id.as_str()));
-        for entry in stage {
-            let sent = input((draft, is_bot), &entry.decl, &text, &out.annotations);
-            let remaining = CHAIN_CAP.saturating_sub(started.elapsed());
-            let verdict = run(state, entry, (COMMAND, draft.actor, &sent), remaining).await;
-            let step = verdict_step(verdict, phase, draft.carries_more);
-            match step {
-                Ok(Step::Allow) => {}
-                Ok(Step::Reject(reason)) => return Err(rejection(entry, &reason)),
-                Ok(Step::Notes(notes)) => out.annotations.push((entry.module.id.clone(), notes)),
-                Ok(Step::Rewrite(new)) => {
-                    text = new;
-                    out.content = Some(text.clone());
-                }
-                Err(why) => {
-                    tracing::info!(module = %entry.module.id, hook = draft.point.name(), %why, "interceptor failed");
-                    if entry.fail_closed {
-                        return Err(ApiError::ForbiddenDetail(format!(
-                            "{} could not check this message, so it was not sent",
-                            entry.module.name
-                        )));
+            .filter(|phase| matches!(target, Target::Content { .. }) || **phase != "annotate");
+        for &phase in phases {
+            let stage = self
+                .snapshot
+                .interceptors
+                .iter()
+                .filter(|e| e.decl.hook == draft.point.name() && e.decl.phase == phase)
+                .filter(|e| draft.own_module != Some(e.module.id.as_str()));
+            for entry in stage {
+                let sent = input((draft, self.is_bot), &entry.decl, &text, &out.annotations);
+                let remaining = CHAIN_CAP.saturating_sub(self.started.elapsed());
+                let verdict = run(state, entry, (COMMAND, draft.actor, &sent), remaining).await;
+                match verdict_step(verdict, phase, target) {
+                    Ok(Step::Allow) => {}
+                    Ok(Step::Reject(reason)) => return Err(rejection(entry, &reason)),
+                    Ok(Step::Notes(notes)) => {
+                        out.annotations.push((entry.module.id.clone(), notes));
+                    }
+                    Ok(Step::Rewrite(new)) => {
+                        text = new;
+                        out.content = Some(text.clone());
+                    }
+                    Err(why) => {
+                        tracing::info!(module = %entry.module.id, hook = draft.point.name(), %why, "interceptor failed");
+                        if entry.fail_closed {
+                            return Err(ApiError::ForbiddenDetail(format!(
+                                "{} could not check this message, so it was not sent",
+                                entry.module.name
+                            )));
+                        }
                     }
                 }
             }
         }
+        Ok(out)
     }
-    Ok(out)
 }
 
 /// Whether any interceptor at `point` asks to be told if the sender is a bot.
@@ -148,7 +197,7 @@ enum Step {
     Rewrite(String),
 }
 
-fn verdict_step(verdict: Verdict, phase: &str, carries_more: bool) -> Result<Step, String> {
+fn verdict_step(verdict: Verdict, phase: &str, target: Target) -> Result<Step, String> {
     match verdict {
         Verdict::Unavailable => Err("no time left to run it".into()),
         Verdict::Failed(why) => Err(why),
@@ -157,7 +206,7 @@ fn verdict_step(verdict: Verdict, phase: &str, carries_more: bool) -> Result<Ste
             match phase {
                 "reject" => reject_step(&value),
                 "annotate" => notes_step(&value),
-                _ => rewrite_step(&value, carries_more),
+                _ => rewrite_step(&value, target),
             }
         }
     }
@@ -192,19 +241,29 @@ fn notes_step(reply: &Value) -> Result<Step, String> {
     Ok(Step::Notes(notes.clone()))
 }
 
-fn rewrite_step(reply: &Value, carries_more: bool) -> Result<Step, String> {
+fn rewrite_step(reply: &Value, target: Target) -> Result<Step, String> {
     let Some(content) = reply.get("content") else {
         return Ok(Step::Allow);
     };
     let Some(content) = content.as_str() else {
         return Err("content is not text".into());
     };
-    let stored =
-        validate_content(content, carries_more).map_err(|_| "rewritten text is not allowed")?;
     if crate::http::module_host::hides_text(content) {
         return Err("rewritten text hides characters".into());
     }
-    Ok(Step::Rewrite(stored.into_owned()))
+    let stored = match target {
+        Target::Content { carries_more } => validate_content(content, carries_more)
+            .map_err(|_| "rewritten text is not allowed")?
+            .into_owned(),
+        Target::Field { max_chars } => {
+            let trimmed = content.trim();
+            if trimmed.is_empty() || trimmed.chars().count() > max_chars {
+                return Err("rewritten text does not fit where it goes".into());
+            }
+            trimmed.to_owned()
+        }
+    };
+    Ok(Step::Rewrite(stored))
 }
 
 /// What the module is sent: only the fields its manifest declared.
@@ -245,13 +304,17 @@ mod tests {
     use super::*;
     use crate::store::HookKind;
 
+    const CONTENT: Target = Target::Content {
+        carries_more: false,
+    };
+
     fn draft() -> Draft<'static> {
         Draft {
             point: HookPoint::PreSend,
             channel_id: ChannelId::generate(),
             actor: UserId::generate(),
             reply_to: None,
-            content: "the original",
+            content: Some("the original"),
             carries_more: false,
             own_module: None,
         }
@@ -286,26 +349,45 @@ mod tests {
     fn replies_are_read_by_the_phase_that_asked() {
         let ok = |text: &str| Verdict::Reply(text.into());
         assert!(matches!(
-            verdict_step(ok(r#"{"action":"allow"}"#), "reject", false),
+            verdict_step(ok(r#"{"action":"allow"}"#), "reject", CONTENT),
             Ok(Step::Allow)
         ));
         assert!(matches!(
-            verdict_step(ok(r#"{"action":"reject","reason":"no"}"#), "reject", false),
+            verdict_step(ok(r#"{"action":"reject","reason":"no"}"#), "reject", CONTENT),
             Ok(Step::Reject(reason)) if reason == "no"
         ));
-        assert!(verdict_step(ok(r#"{"action":"maybe"}"#), "reject", false).is_err());
-        assert!(verdict_step(ok("not json"), "reject", false).is_err());
-        assert!(verdict_step(ok(r#"{"annotations":{"k":1}}"#), "annotate", false).is_err());
-        assert!(verdict_step(ok(r#"{"content":""}"#), "rewrite", false).is_err());
-        assert!(verdict_step(ok(r#"{"content":""}"#), "rewrite", true).is_ok());
-        assert!(verdict_step(Verdict::Unavailable, "reject", false).is_err());
+        assert!(verdict_step(ok(r#"{"action":"maybe"}"#), "reject", CONTENT).is_err());
+        assert!(verdict_step(ok("not json"), "reject", CONTENT).is_err());
+        assert!(verdict_step(ok(r#"{"annotations":{"k":1}}"#), "annotate", CONTENT).is_err());
+        assert!(verdict_step(ok(r#"{"content":""}"#), "rewrite", CONTENT).is_err());
+        assert!(
+            verdict_step(
+                ok(r#"{"content":""}"#),
+                "rewrite",
+                Target::Content { carries_more: true }
+            )
+            .is_ok()
+        );
+        assert!(verdict_step(Verdict::Unavailable, "reject", CONTENT).is_err());
+    }
+
+    #[test]
+    fn a_rewritten_field_must_still_fit_where_it_goes() {
+        let label = Target::Field { max_chars: 5 };
+        let reply = |text: &str| Verdict::Reply(json!({ "content": text }).to_string());
+        assert!(matches!(
+            verdict_step(reply(" ***** "), "rewrite", label),
+            Ok(Step::Rewrite(text)) if text == "*****"
+        ));
+        assert!(verdict_step(reply("******"), "rewrite", label).is_err());
+        assert!(verdict_step(reply("  "), "rewrite", label).is_err());
     }
 
     #[test]
     fn a_rewrite_is_stored_the_way_a_direct_send_would_be() {
         let reply = Verdict::Reply(r#"{"content":"one\r\ntwo\rthree"}"#.into());
         assert!(matches!(
-            verdict_step(reply, "rewrite", false),
+            verdict_step(reply, "rewrite", CONTENT),
             Ok(Step::Rewrite(text)) if text == "one\ntwo\nthree"
         ));
     }

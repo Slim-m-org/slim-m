@@ -65,6 +65,7 @@ mod module_events_more;
 mod module_hooks;
 mod module_hooks_latency;
 mod module_hooks_paths;
+mod module_hooks_write_paths;
 mod module_install_atomic;
 mod module_log_read;
 mod module_net_lan;

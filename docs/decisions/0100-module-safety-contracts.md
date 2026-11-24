@@ -49,8 +49,15 @@ Every way a member-authored text message is created or edited passes through one
 - incoming webhooks;
 - a module posting with `message.post` (a module's own interceptors are skipped for its own post).
 
-Not intercepted, on purpose, and listed in the gate test that fails when a new path appears: the welcome post (admin-written text), poll and call messages, bot interaction messages (structured, not free text), and forwards (a copy of a message that already passed on creation).
+Not intercepted, on purpose, and listed in the gate test that fails when a new path appears: the welcome post (admin-written text), call messages, bot interaction messages (structured, not free text), and forwards (a copy of a message that already passed on creation).
 The gate test scans the server source for every call of the store's message write functions and fails if a file calls one without calling the chain, unless that file is on the list with a reason.
+
+Amended 2026-11-23 after an audit found the chain covered only a message's own text.
+Every route that stores words under a name goes through one helper, `module_hooks::guard_write`, which asks the `message.send` permission hook and then runs the chain: send, edit, polls, app launches, webhooks and a bot changing its buttons.
+Besides the message text it runs over every other free text the message stores: a poll's caption, question and options, an app launch's caption, embed titles, descriptions, author names, footers and field names and values, a webhook's `username` label, and button and select labels and placeholders.
+Each of those is its own run with that text as `content`, through the reject and rewrite phases only, inside the same per-message cap; a rewrite of one must be non-empty and fit that field's own limit, or it counts as a failed run.
+`pre_edit` is given the edited message's `reply_to_id`, and an edit of a call record, poll or app launch is refused, since its text is not what it is.
+The gate test now looks for `guard_write` and also counts those writes.
 
 ### What a module declares
 

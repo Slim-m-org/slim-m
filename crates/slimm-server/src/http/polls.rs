@@ -28,6 +28,7 @@ use super::error::ApiError;
 use super::extract::{Authed, Json, enforce};
 use super::message_validation::validate_content;
 use super::messages::{MessageDto, parse_uuid};
+use super::module_hooks::{Draft, Field, HookPoint, guard_write};
 use super::post_commit::{after_commit, run_to_completion};
 use super::viewable_message::viewable_message;
 use crate::hub::{Event, MessageEvent};
@@ -35,7 +36,8 @@ use crate::ids::{ChannelId, MessageId, UserId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 use crate::store::{
-    Ballot, CreatePollError, NewPoll, Poll as StorePoll, Runoff, Store, VoteError, now_ms,
+    Ballot, CreatePollError, MAX_OPTION_CHARS, MAX_QUESTION_CHARS, NewPoll, Poll as StorePoll,
+    Runoff, Store, VoteError, now_ms,
 };
 
 /// Poll bodies are small: a question, up to four short options, and an
@@ -200,6 +202,13 @@ fn refuse_hidden_poll_text(question: &str, options: &[String]) -> Result<(), Api
     Ok(())
 }
 
+/// A poll's question and options, for the interceptor chain to read and rewrite.
+fn poll_fields<'f>(question: &'f mut String, options: &'f mut [String]) -> Vec<Field<'f>> {
+    let mut fields = vec![Field::new(question, MAX_QUESTION_CHARS)];
+    fields.extend(options.iter_mut().map(|o| Field::new(o, MAX_OPTION_CHARS)));
+    fields
+}
+
 #[derive(Deserialize)]
 struct CreatePollMessageRequest {
     /// Client-generated UUID (v7 preferred), exactly like an ordinary send;
@@ -265,6 +274,22 @@ async fn create(
         true => None,
         false => enforce_slow_mode(&state, channel_id, ctx.user_id).await?,
     };
+    let (mut question, mut options) = (req.question, req.options);
+    let draft = Draft {
+        point: HookPoint::PreSend,
+        channel_id,
+        actor: ctx.user_id,
+        reply_to: None,
+        content: (!stored_already).then_some(content),
+        carries_more: true,
+        own_module: None,
+    };
+    let mut fields = match stored_already {
+        true => Vec::new(),
+        false => poll_fields(&mut question, &mut options),
+    };
+    let intercepted = guard_write(&state, &draft, &mut fields).await?;
+    let content = intercepted.text(content);
     let sent = match state
         .store
         .send_poll_message(
@@ -273,8 +298,8 @@ async fn create(
             id,
             content,
             NewPoll {
-                question: &req.question,
-                options: &req.options,
+                question: &question,
+                options: &options,
                 close_at: req.close_at,
                 ranked: req.ranked,
             },
@@ -321,6 +346,7 @@ async fn create(
     }
 
     if sent.fresh {
+        intercepted.save_annotations(&state, id).await;
         // A poll's caption can carry a mention exactly like an ordinary message's content.
         after_commit(
             "its mentions",

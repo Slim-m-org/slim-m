@@ -381,7 +381,7 @@ impl ChannelPoster {
                 channel_id,
                 actor: self.user_id,
                 reply_to: self.reply_to,
-                content,
+                content: Some(content),
                 carries_more: false,
                 own_module: Some(&self.module_id),
             },

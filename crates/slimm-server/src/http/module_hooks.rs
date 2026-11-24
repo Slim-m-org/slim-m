@@ -4,17 +4,19 @@
 //! permission check. A module never grants anything here; it can only reject,
 //! annotate or rewrite a message, or turn an allowed action into a denied one.
 //!
-//! Every path that stores a member's text calls [`intercept`] first; the gate
+//! Every path that stores a member's text calls [`guard_write`] first; the gate
 //! test `module_hooks_paths` fails when a new one does not. With no hook
 //! installed the cost is one atomic load, see [`Registry`].
 
 mod chain;
+mod guard;
 mod module_hooks_admin;
 mod permission;
 mod registry;
 mod runner;
 
 pub(crate) use chain::{Draft, HookPoint, intercept};
+pub(crate) use guard::{Field, guard_write};
 pub(super) use module_hooks_admin::routes;
 pub(crate) use permission::{Action, check_permission};
 pub(crate) use registry::Registry;
