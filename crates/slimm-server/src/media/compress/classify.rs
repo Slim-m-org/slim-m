@@ -6,8 +6,10 @@ use image::DynamicImage;
 
 /// Share of pixels equal to their left neighbour above which a picture is a graphic.
 const GRAPHIC_FLAT_SHARE: f64 = 0.6;
-/// Distinct colours below which a picture is a graphic, whatever its layout.
+/// Distinct colours below which a picture is a graphic, when it is also somewhat flat.
 const GRAPHIC_COLORS: u32 = 2048;
+/// Flat share a low-colour picture needs to be a graphic; a grayscale photo has few colours but noise.
+const LOW_COLOR_FLAT_SHARE: f64 = 0.3;
 
 /// Whether the picture looks drawn (text, UI, flat fills) and so must stay
 /// lossless. A photograph has sensor noise or lens blur, so few neighbours match
@@ -44,5 +46,10 @@ pub fn is_graphic(image: &DynamicImage) -> bool {
             total += 1;
         }
     }
-    total > 0 && (flat as f64 / total as f64 > GRAPHIC_FLAT_SHARE || colors < GRAPHIC_COLORS)
+    if total == 0 {
+        return false;
+    }
+    let flat_share = flat as f64 / total as f64;
+    flat_share > GRAPHIC_FLAT_SHARE
+        || (colors < GRAPHIC_COLORS && flat_share > LOW_COLOR_FLAT_SHARE)
 }

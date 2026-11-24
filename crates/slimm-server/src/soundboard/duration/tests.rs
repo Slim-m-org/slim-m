@@ -104,8 +104,12 @@ fn fmt_body(format: u16, channels: u16, rate: u32, bits: u16) -> Vec<u8> {
     let mut out = format.to_le_bytes().to_vec();
     out.extend_from_slice(&channels.to_le_bytes());
     out.extend_from_slice(&rate.to_le_bytes());
-    out.extend_from_slice(&(rate * u32::from(channels) * u32::from(bits) / 8).to_le_bytes());
-    out.extend_from_slice(&(channels * bits / 8).to_le_bytes());
+    let byte_rate = rate
+        .wrapping_mul(u32::from(channels))
+        .wrapping_mul(u32::from(bits))
+        / 8;
+    out.extend_from_slice(&byte_rate.to_le_bytes());
+    out.extend_from_slice(&(channels.wrapping_mul(bits) / 8).to_le_bytes());
     out.extend_from_slice(&bits.to_le_bytes());
     out
 }
@@ -283,4 +287,13 @@ fn frames_inside_a_trailing_tag_still_count() {
     bytes.extend(ape_tag(&mp3_bytes(300)));
     let ms = of(&bytes, "audio/mpeg").unwrap();
     assert!((8095..=8100).contains(&ms), "{ms}");
+}
+
+#[test]
+fn a_wav_with_overflowing_format_fields_is_refused_without_panic() {
+    let bytes = riff(&[
+        (b"fmt ", fmt_body(1, u16::MAX, u32::MAX, u16::MAX)),
+        (b"data", vec![0; 16_000]),
+    ]);
+    assert_eq!(of(&bytes, "audio/wav"), None);
 }
