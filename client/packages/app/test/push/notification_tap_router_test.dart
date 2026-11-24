@@ -19,6 +19,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:slimm_app/src/features/accounts/providers/account_slot.dart';
 import 'package:slimm_app/src/push/providers/notification_tap_router.dart';
 import 'package:slimm_app/src/routing/router.dart';
 import 'package:slimm_app/src/routing/routes.dart';
@@ -167,5 +168,48 @@ void main() {
     await tester.pump();
 
     expect(_where(router), '/');
+  });
+
+  testWidgets('a container that is not on screen ignores a shared tap', (
+    tester,
+  ) async {
+    final router = _router();
+    final background = _router();
+    final taps = _FakeTaps();
+    final container = _container(router, taps);
+    final other = ProviderContainer(
+      overrides: [
+        routerProvider.overrideWithValue(background),
+        notificationTapChannelProvider.overrideWithValue(taps),
+        accountActiveProvider.overrideWith((ref) => false),
+      ],
+    );
+    addTearDown(other.dispose);
+    container.read(notificationTapRouterProvider);
+    other.read(notificationTapRouterProvider);
+    await tester.pumpWidget(
+      Column(
+        children: [
+          for (final (c, r) in [(container, router), (other, background)])
+            Expanded(
+              child: UncontrolledProviderScope(
+                container: c,
+                child: MaterialApp.router(routerConfig: r),
+              ),
+            ),
+        ],
+      ),
+    );
+    await tester.pump();
+
+    taps.emit('channel-4');
+    await tester.pump();
+
+    expect(_where(router), Routes.channel('channel-4', openChat: true));
+    expect(
+      _where(background),
+      isNot(Routes.channel('channel-4', openChat: true)),
+      reason: 'one tap must not be handled once per account container',
+    );
   });
 }
