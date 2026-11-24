@@ -128,6 +128,7 @@ async fn set_visibility(
         "visibility must be online, away, dnd, or hidden",
     ))?;
 
+    let _serial = state.hub.presence().lock_visibility_writes().await;
     if !state
         .store
         .set_presence_visibility(ctx.user_id, visibility)
@@ -172,7 +173,8 @@ async fn clear_activity(
 /// Fans out through [`Event::PresenceChanged`], so each viewer's frame is
 /// resolved by the same rule as their status and a hidden user stays silent.
 fn announce_if_changed(state: &AppState, user_id: UserId, activity: Option<Activity>) {
-    if state.hub.presence().set_client_activity(user_id, activity) {
+    let changed = state.hub.presence().set_client_activity(user_id, activity);
+    if changed && !state.hub.presence().is_hidden(user_id) {
         state.hub.publish(Event::presence_changed(user_id));
     }
 }
