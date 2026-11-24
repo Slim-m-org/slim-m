@@ -186,8 +186,11 @@ AppMenuItem _openCanvasItem(
   onTap: () {
     final container = ProviderScope.containerOf(context, listen: false);
     close();
-    // Routed as looking, so closing the canvas lands on the idle call page rather than auto-joining.
-    context.go(Routes.channel(channel.id, openDetails: true));
+    final inCall = container
+        .read(voiceFlagsProvider)
+        .inCallStageFor(channel.id);
+    // Looking keeps closing the canvas from auto-joining; in this call it would pop the details open instead.
+    context.go(Routes.channel(channel.id, openDetails: !inCall));
     container.read(canvasOpenProvider.notifier).state = channel.id;
   },
 );

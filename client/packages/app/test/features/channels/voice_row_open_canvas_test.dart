@@ -9,7 +9,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/canvas/providers/canvas_open.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
+import 'package:slimm_app/src/features/voice/screens/voice_text_pane.dart'
+    show callDetailsOpenProvider;
+import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_data/data.dart' show SlimmDatabase;
 import 'package:slimm_design_system/design_system.dart';
@@ -17,14 +21,30 @@ import 'package:slimm_design_system/design_system.dart';
 import '../settings/home_shell_harness.dart';
 import '../../support/async_wait.dart';
 import '../../support/menu_gestures.dart';
+import '../voice/voice_controller_harness.dart' show FixedVoiceController;
 
 const _voiceId = 'c-voice';
 const _lobbyId = 'c-lobby';
 const _textId = 'c-text';
 
 Future<({ProviderContainer container, SlimmDatabase db, GoRouter router})>
-_pump(WidgetTester tester, double width) async {
-  final fixture = setup(signedIn: true, httpClient: quietClient());
+_pump(WidgetTester tester, double width, {bool inCall = false}) async {
+  final fixture = setup(
+    signedIn: true,
+    httpClient: quietClient(),
+    extraOverrides: [
+      if (inCall)
+        voiceControllerProvider.overrideWith(
+          (ref) => FixedVoiceController(
+            ref,
+            const VoiceState(
+              state: VoiceSessionState.connected,
+              channelId: _voiceId,
+            ),
+          ),
+        ),
+    ],
+  );
   final store = await fixture.container.read(storeProvider.future);
   await tester.runAsync(
     () => store.upsertChannels([
@@ -71,8 +91,8 @@ _pump(WidgetTester tester, double width) async {
 
 Future<void> _openMenu(WidgetTester tester, double width, String row) =>
     width < 600
-    ? longPressMenu(tester, find.text(row))
-    : rightClickMenu(tester, find.text(row));
+    ? longPressMenu(tester, find.text(row).first)
+    : rightClickMenu(tester, find.text(row).first);
 
 void main() {
   for (final width in [390.0, 1280.0]) {
@@ -112,6 +132,25 @@ void main() {
       );
 
       semantics.dispose();
+      await teardown(tester, s.container, s.db);
+    });
+  }
+
+  for (final width in [390.0, 1280.0]) {
+    testWidgets('closing the canvas from inside its call leaves details '
+        'closed at $width', (tester) async {
+      final s = await _pump(tester, width, inCall: true);
+
+      await _openMenu(tester, width, 'movie-room');
+      await tester.tap(find.text('Open canvas'));
+      await pumpFrames(tester, frames: 20);
+      expect(s.container.read(canvasOpenProvider), _voiceId);
+
+      s.container.read(canvasOpenProvider.notifier).state = null;
+      await pumpFrames(tester, frames: 20);
+      expect(s.container.read(callDetailsOpenProvider), isFalse);
+      expect(find.text('Call details'), findsNothing);
+
       await teardown(tester, s.container, s.db);
     });
   }
