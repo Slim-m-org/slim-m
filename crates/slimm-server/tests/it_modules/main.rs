@@ -70,6 +70,7 @@ mod module_hooks_failures;
 mod module_hooks_latency;
 mod module_hooks_paths;
 mod module_hooks_write_paths;
+mod module_host_bounds;
 mod module_install_atomic;
 mod module_invoker_rights;
 mod module_log_read;
