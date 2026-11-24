@@ -103,14 +103,17 @@ List<PaletteResultItem> capWithShowAll(
   if (items.length <= paletteResultLimit) return items;
   return [
     ...items.take(paletteResultLimit),
-    PaletteResultItem(
-      label: 'Show all ${items.length} $noun',
-      leading: AppIcons.chevronDown,
-      showsAllOf: items.length,
-      onSelect: (_, _) async => showAll(),
-    ),
+    _showAllRow(items.length, noun, showAll),
   ];
 }
+
+PaletteResultItem _showAllRow(int total, String noun, VoidCallback showAll) =>
+    PaletteResultItem(
+      label: 'Show all $total $noun',
+      leading: AppIcons.chevronDown,
+      showsAllOf: total,
+      onSelect: (_, _) async => showAll(),
+    );
 
 /// Whether [channel] is worth showing for [query]. An empty query matches
 /// everything, so a blank field browses the whole list rather than showing
@@ -138,9 +141,12 @@ bool channelMatchesQuery(
 /// username and their role names, since each is something someone might type
 /// to find them.
 bool memberMatchesQuery(api.UserProfile member, String query) =>
-    query.isEmpty ||
-    api.foldMarks(member.displayName).contains(api.foldMarks(query)) ||
+    _memberNameMatches(member, query) ||
     memberMatchReason(member, query) != null;
+
+bool _memberNameMatches(api.UserProfile member, String query) =>
+    query.isEmpty ||
+    api.foldMarks(member.displayName).contains(api.foldMarks(query));
 
 /// The reason a member matched [query] off their display name, or null when
 /// the name itself matched (or the query is empty): the row then says why a
@@ -264,35 +270,54 @@ List<api.UserProfile> onlineFirst(
   ...members.where((m) => !around.contains(m.id)),
 ];
 
-/// Members matching [query], excluding [selfId], with no cap: the list
-/// scrolls, and a person past the eighth was otherwise unreachable by
-/// browsing. [around] puts the people who are around first. A DM with
-/// yourself is a personal space now and opens fine, but it is Notes, listed
-/// under Channels and reached from the rail's Notes button - finding it under
-/// People by your own name would be the opposite of obvious.
+/// The most people the `@` scope lists at once; typing narrows past it.
+const int palettePeopleScopeLimit = 100;
+
+/// Members matching [query], excluding [selfId]. [around] puts the people who
+/// are around first. A DM with yourself is a personal space now and opens
+/// fine, but it is Notes, listed under Channels and reached from the rail's
+/// Notes button - finding it under People by your own name would be the
+/// opposite of obvious.
+///
+/// Only the first [limit] get a row, ending in one that calls [showAll] when
+/// there are more and it is given; no [limit] lists every match.
 List<PaletteResultItem> buildMemberItems(
   List<api.UserProfile> members,
   String query,
   String? selfId, {
   Set<String> around = const {},
-}) => [
-  for (final member in onlineFirst(
-    members,
-    around,
-  ).where((m) => m.id != selfId).where((m) => memberMatchesQuery(m, query)))
+  int? limit,
+  VoidCallback? showAll,
+}) {
+  final matches = <(api.UserProfile, PaletteReason?)>[];
+  for (final member in onlineFirst(members, around)) {
+    if (member.id == selfId) continue;
+    final reason = memberMatchReason(member, query);
+    if (reason != null || _memberNameMatches(member, query)) {
+      matches.add((member, reason));
+    }
+  }
+  final shown = limit == null ? matches : matches.take(limit);
+  return [
+    for (final (member, reason) in shown) _personItem(member, reason),
+    if (limit != null && showAll != null && matches.length > limit)
+      _showAllRow(matches.length, 'people', showAll),
+  ];
+}
+
+PaletteResultItem _personItem(api.UserProfile member, PaletteReason? reason) =>
     PaletteResultItem(
       label: member.displayName,
       kind: PaletteKind.person,
       member: member,
-      reason: memberMatchReason(member, query),
+      reason: reason,
       semanticLabel: 'Message ${member.displayName}',
       onSelect: (context, ref) async {
         final container = ProviderScope.containerOf(context, listen: false);
         final channelId = await openDirectMessage(container, member.id);
         if (context.mounted) context.go(Routes.channel(channelId));
       },
-    ),
-];
+    );
 
 /// Messages already matched server-side by full-text search across every
 /// channel the caller can view (`GET /search/messages`), not only whichever
