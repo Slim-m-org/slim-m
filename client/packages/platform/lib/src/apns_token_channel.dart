@@ -80,7 +80,7 @@ class ApnsTokenChannel {
   ApnsTokenChannel({MethodChannel? channel, bool? isIOS})
       : _channel = channel ?? const MethodChannel(_channelName),
         _isIOS = isIOS ?? isIOSHost {
-    _channel.setMethodCallHandler(_onCall);
+    if (_isIOS) _channel.setMethodCallHandler(_onCall);
   }
 
   final MethodChannel _channel;
