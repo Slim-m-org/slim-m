@@ -14,6 +14,7 @@ use super::AppState;
 use super::error::ApiError;
 use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, WRITE, enforce};
 use super::messages::parse_uuid;
+use crate::hub::{AccountNotificationScope, Event};
 use crate::ids::{ChannelId, UserId};
 use crate::notification_schedule::{DayWindow, OffHoursMode, WEEKDAYS};
 use crate::permissions::Permissions;
@@ -67,6 +68,8 @@ struct NotificationScheduleDto {
     snooze_until: Option<i64>,
     allowed_user_ids: Vec<String>,
     allowed_channel_ids: Vec<String>,
+    /// The server clock when this was read, so a device with a wrong clock can judge `snooze_until`.
+    server_now: i64,
 }
 
 #[derive(Serialize)]
@@ -97,6 +100,7 @@ impl From<NotificationScheduleDetail> for NotificationScheduleDto {
             days,
             off_hours_mode: detail.schedule.off_hours_mode.as_str().to_owned(),
             snooze_until: detail.schedule.snooze_until,
+            server_now: crate::store::now_ms(),
             allowed_user_ids: detail
                 .allowed_user_ids
                 .iter()
@@ -120,7 +124,10 @@ struct SetScheduleRequest {
 
 #[derive(Deserialize)]
 struct SnoozeRequest {
-    until_ms: i64,
+    /// An absolute deadline; kept for older clients, which trust their own clock.
+    until_ms: Option<i64>,
+    /// How long from now, resolved against the server clock.
+    duration_seconds: Option<i64>,
 }
 
 #[derive(Serialize)]
@@ -129,6 +136,13 @@ struct SnoozeResponse {
 }
 
 // --- Handlers ---
+
+fn announce(state: &AppState, user_id: UserId) {
+    state.hub.publish(Event::AccountNotificationsChanged {
+        user_id,
+        scope: AccountNotificationScope::Schedule,
+    });
+}
 
 async fn get_schedule(
     AuthedLimited(ctx): AuthedLimited<AUTHED_READ>,
@@ -187,6 +201,7 @@ async fn set_schedule(
         .notification_schedule(ctx.user_id)
         .await?
         .ok_or(ApiError::Internal)?;
+    announce(&state, ctx.user_id);
     Ok(Json(NotificationScheduleResponse {
         schedule: Some(detail.into()),
     }))
@@ -199,6 +214,7 @@ async fn clear_schedule(
 ) -> Result<StatusCode, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     state.store.clear_notification_schedule(ctx.user_id).await?;
+    announce(&state, ctx.user_id);
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -218,6 +234,7 @@ async fn add_allowed_user(
         .store
         .add_notification_schedule_allowed_user(ctx.user_id, allowed_user_id)
         .await?;
+    announce(&state, ctx.user_id);
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -233,6 +250,7 @@ async fn remove_allowed_user(
         .store
         .remove_notification_schedule_allowed_user(ctx.user_id, allowed_user_id)
         .await?;
+    announce(&state, ctx.user_id);
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -258,6 +276,7 @@ async fn add_allowed_channel(
         .store
         .add_notification_schedule_allowed_channel(ctx.user_id, channel_id)
         .await?;
+    announce(&state, ctx.user_id);
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -273,30 +292,38 @@ async fn remove_allowed_channel(
         .store
         .remove_notification_schedule_allowed_channel(ctx.user_id, channel_id)
         .await?;
+    announce(&state, ctx.user_id);
     Ok(StatusCode::NO_CONTENT)
 }
 
-/// Pauses notifications until `until_ms`, Slack's "30m / 1h / until
-/// tomorrow" - the client computes the concrete deadline for each of those
-/// (only it knows the account's own local midnight), and this only bounds
-/// how far out that deadline may be.
+/// Pauses notifications for `duration_seconds` from the server's now, or until
+/// the older absolute `until_ms` (ignored when a duration is sent too); either may be at most a week out. The client
+/// sends a duration because a device clock can be minutes or hours wrong.
 async fn set_snooze(
     AuthedLimited(ctx): AuthedLimited<WRITE>,
     State(state): State<AppState>,
     Json(req): Json<SnoozeRequest>,
 ) -> Result<Json<SnoozeResponse>, ApiError> {
     let now = crate::store::now_ms();
-    if req.until_ms <= now || req.until_ms - now > MAX_SNOOZE_MS {
+    let until_ms = match (req.duration_seconds, req.until_ms) {
+        (Some(seconds), _) => seconds.saturating_mul(1000).saturating_add(now),
+        (None, Some(until_ms)) => until_ms,
+        (None, None) => {
+            return Err(ApiError::BadRequest("send duration_seconds or until_ms"));
+        }
+    };
+    if until_ms <= now || until_ms - now > MAX_SNOOZE_MS {
         return Err(ApiError::BadRequest(
-            "until_ms must be in the future and no more than a week out",
+            "the snooze must end in the future and no more than a week out",
         ));
     }
     state
         .store
-        .set_notification_snooze(ctx.user_id, Some(req.until_ms))
+        .set_notification_snooze(ctx.user_id, Some(until_ms))
         .await?;
+    announce(&state, ctx.user_id);
     Ok(Json(SnoozeResponse {
-        snooze_until: Some(req.until_ms),
+        snooze_until: Some(until_ms),
     }))
 }
 
@@ -310,5 +337,6 @@ async fn clear_snooze(
         .store
         .set_notification_snooze(ctx.user_id, None)
         .await?;
+    announce(&state, ctx.user_id);
     Ok(StatusCode::NO_CONTENT)
 }

@@ -430,6 +430,7 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
     if (!mounted) return;
     setState(() => _busy = false);
     if (ok) {
+      _tokenSlot.state = null;
       ref.invalidate(dockCatalogProvider);
       ref.invalidate(modulePermissionsProvider);
       ref.invalidate(codeBlockRunnerProvider);

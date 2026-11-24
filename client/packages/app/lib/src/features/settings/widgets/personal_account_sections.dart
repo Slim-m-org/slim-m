@@ -256,7 +256,7 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
     // Otherwise a live call keeps heartbeating a session about to be deleted.
     await voice.leave();
     await sync.stop();
-    await push.unregister();
+    await unregisterPushVia(ref.read);
     try {
       await ref
           .read(settingsActionsProvider)

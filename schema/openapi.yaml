@@ -7761,10 +7761,12 @@ paths:
       tags: [push]
       summary: Pause notifications until a deadline (Slack's 30m / 1h / until tomorrow).
       description: >
-        `until_ms` is an absolute epoch-millisecond deadline the client
-        computes for whichever option was chosen - only the client knows the
-        account's own local midnight for "until tomorrow". Must be in the
-        future and no more than a week out. While active, the schedule reads
+        Send `duration_seconds`: the server counts it from its own clock, so a
+        device with a wrong clock still gets the span it chose (the client works
+        out the seconds to its own local midnight for "until tomorrow"). The older
+        absolute `until_ms` is still accepted, and is ignored when both are sent so
+        a client can serve older servers too. Either must end
+        in the future and no more than a week out. While active, the schedule reads
         as off hours in `nothing` mode regardless of the configured window
         or mode, still subject to both allow-lists.
       requestBody:
@@ -22311,6 +22313,10 @@ components:
               format: int64
             - type: "null"
           description: Epoch-millisecond deadline; while in the future the schedule reads as off hours in `nothing` mode regardless of the window or mode.
+        server_now:
+          type: integer
+          format: int64
+          description: The server's clock in epoch milliseconds when this was read; compare `snooze_until` with it, not with the device clock.
         allowed_user_ids:
           type: array
           items:
@@ -22350,12 +22356,15 @@ components:
 
     SetSnoozeRequest:
       type: object
-      required: [until_ms]
       properties:
         until_ms:
           type: integer
           format: int64
-          description: Epoch-millisecond deadline, in the future and no more than a week out.
+          description: Epoch-millisecond deadline, in the future and no more than a week out. Prefer `duration_seconds`.
+        duration_seconds:
+          type: integer
+          format: int64
+          description: Seconds from the server's now, at most a week.
 
     SnoozeResponse:
       type: object
@@ -23242,6 +23251,7 @@ components:
         - $ref: "#/components/schemas/NotificationOverrideChanged"
         - $ref: "#/components/schemas/CategoryMuteChanged"
         - $ref: "#/components/schemas/BlocksChanged"
+        - $ref: "#/components/schemas/AccountNotificationsChanged"
         - $ref: "#/components/schemas/MessageEphemeral"
         - $ref: "#/components/schemas/MessageComponents"
         - $ref: "#/components/schemas/MessageEmbeds"
@@ -24335,6 +24345,10 @@ components:
         status:
           type: string
           enum: [online, away, dnd, offline]
+        visibility:
+          type: string
+          enum: [online, away, dnd, hidden]
+          description: The account's own chosen visibility. Present only on a frame about the receiving account itself, so its other devices need not refetch `/me`.
         activity:
           $ref: "#/components/schemas/PresenceActivity"
         devices:
@@ -24816,6 +24830,21 @@ components:
           description: >
             `everything`, `mentions` or `nothing`; null once the channel follows the account
             default.
+
+    AccountNotificationsChanged:
+      type: object
+      required: [type, scope]
+      description: >
+        This account's notification schedule, snooze, allow-lists or account
+        default changed on one of its devices. Delivered only to the account's
+        own connections; refetch the named state.
+      properties:
+        type:
+          type: string
+          enum: [account_notifications.changed]
+        scope:
+          type: string
+          description: "`schedule` or `preference`; ignore any other value."
 
     CategoryMuteChanged:
       type: object

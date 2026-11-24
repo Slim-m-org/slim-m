@@ -123,14 +123,15 @@ Future<Uint8List> clipboardImageAsPng(Uint8List bytes) async {
       ).every((i) => bytes[i] == _pngSignature[i])) {
     return bytes;
   }
+  ui.ImmutableBuffer? buffer;
+  ui.ImageDescriptor? descriptor;
   ui.Codec? codec;
   ui.Image? image;
   try {
-    final buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
-    final descriptor = await ui.ImageDescriptor.encoded(buffer);
+    buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
+    descriptor = await ui.ImageDescriptor.encoded(buffer);
     if (descriptor.width > maxClipboardImageSide ||
         descriptor.height > maxClipboardImageSide) {
-      descriptor.dispose();
       throw const ClipboardImageReadException(
         'That image is too large to paste.',
       );
@@ -149,5 +150,7 @@ Future<Uint8List> clipboardImageAsPng(Uint8List bytes) async {
   } finally {
     image?.dispose();
     codec?.dispose();
+    descriptor?.dispose();
+    buffer?.dispose();
   }
 }

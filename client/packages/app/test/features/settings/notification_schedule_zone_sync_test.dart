@@ -13,6 +13,7 @@ import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/desktop/desktop_window_port.dart';
 import 'package:slimm_app/src/features/settings/providers/device_timezone.dart';
+import 'package:slimm_app/src/features/settings/providers/notification_schedule_controller.dart';
 import 'package:slimm_app/src/features/settings/providers/notification_schedule_zone_sync.dart';
 import 'package:slimm_app/src/providers/app_lifecycle.dart';
 import 'package:slimm_app/src/providers/providers.dart';
@@ -92,4 +93,38 @@ void main() {
       expect(puts.single['off_hours_mode'], 'mentions');
     },
   );
+
+  testWidgets('a zone another device saved is not fought over', (tester) async {
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    var storedZone = 'America/Chicago';
+    var puts = 0;
+    final container = ProviderContainer(
+      overrides: [
+        keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+        sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
+        deviceTimezoneProvider.overrideWith((ref) async => 'America/Chicago'),
+        mockApiOverride((request) async {
+          if (request.method == 'PUT') {
+            puts++;
+            storedZone =
+                (jsonDecode(request.body) as Map)['timezone'] as String;
+          }
+          return _json({'schedule': _schedule(storedZone)});
+        }),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    container.listen(notificationScheduleZoneSyncProvider, (_, _) {});
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(puts, 0);
+
+    storedZone = 'Europe/London';
+    container.invalidate(notificationScheduleProvider);
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(puts, 0, reason: 'a remote change must not trigger a write');
+  });
 }

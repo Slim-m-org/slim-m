@@ -136,6 +136,7 @@ export 'src/events.dart'
         CallRingEnded,
         CategoryChanged,
         BlocksChanged,
+        AccountNotificationsChanged,
         CategoryMuteChanged,
         SpaceSettingsChanged,
         SpaceThemesChanged,

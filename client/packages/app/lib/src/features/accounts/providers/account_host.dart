@@ -107,6 +107,10 @@ class AccountHost extends ChangeNotifier {
     return null;
   }
 
+  /// Whether a runtime other than [slot]'s is still signed in.
+  bool otherAccountSignedIn(AccountSlot? slot) =>
+      _runtimes.any((r) => r.slot != slot && r.signedIn);
+
   AccountRuntime? runtimeFor(String origin) {
     for (final r in _runtimes) {
       if (r.account?.origin == origin) return r;

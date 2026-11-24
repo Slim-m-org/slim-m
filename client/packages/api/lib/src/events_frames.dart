@@ -159,10 +159,15 @@ class PresenceChanged extends ServerEvent {
     required this.status,
     this.activity,
     this.devices = const {},
+    this.visibility,
   });
 
   final String userId;
   final PresenceState status;
+
+  /// The visibility the account chose, on a frame about the receiving account
+  /// itself from a server that says so; null everywhere else.
+  final String? visibility;
 
   /// What they are listening to or playing, when they share it and this
   /// viewer may see their presence.
@@ -511,6 +516,14 @@ class NotificationOverrideChanged extends ServerEvent {
 /// This account's block list changed on some device; the list is read back from the server.
 class BlocksChanged extends ServerEvent {
   const BlocksChanged();
+}
+
+/// This account's notification schedule, snooze, allow-lists or account default changed on some device.
+/// Delivered only to the account's own sockets; [scope] is `schedule` or `preference`.
+class AccountNotificationsChanged extends ServerEvent {
+  const AccountNotificationsChanged({required this.scope});
+
+  final String scope;
 }
 
 /// This account muted or unmuted a category on some device. Delivered only to the account's own sockets.

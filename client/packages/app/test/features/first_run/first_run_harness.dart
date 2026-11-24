@@ -130,6 +130,7 @@ Future<FirstRunRig> pumpFirstRun(
         (pattern, {required accountId, required base}) async => png,
       ),
       fakeMicPreview(FakeMicSource()),
+      ...overrides,
       sessionProvider.overrideWithValue(
         api.SessionStore(
           tokens: const api.TokenPair(

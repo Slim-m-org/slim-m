@@ -50,7 +50,8 @@ OffHoursState evaluateNotificationSchedule(
   if (schedule == null) return OffHoursState.onHours;
   final clock = now ?? DateTime.now();
   final snoozeUntil = schedule.snoozeUntil;
-  if (snoozeUntil != null && clock.millisecondsSinceEpoch < snoozeUntil) {
+  final serverNow = clock.millisecondsSinceEpoch + schedule.clockOffsetMs;
+  if (snoozeUntil != null && serverNow < snoozeUntil) {
     return OffHoursState.offNothing;
   }
 

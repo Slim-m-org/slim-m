@@ -224,6 +224,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.widgetWithText(AppButton, 'alerts'), findsOneWidget);
     await tester.enterText(find.byType(TextField).first, 'sonarr');
+    await tester.pump();
     await tester.tap(find.widgetWithText(AppButton, 'Create webhook'));
     await tester.pumpAndSettle();
 
@@ -330,4 +331,28 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.bySemanticsLabel('Rotate sonarr'), findsOneWidget);
   });
+
+  testWidgets(
+    'Create webhook stays disabled until a channel and label are set',
+    (tester) async {
+      await _pump(tester, (request) {
+        if (request.method == 'GET' && request.url.path == '/webhooks') {
+          return http.Response('[]', 200, headers: _json);
+        }
+        return http.Response('{}', 200, headers: _json);
+      });
+      bool disabled() =>
+          tester
+              .widget<AppButton>(
+                find.widgetWithText(AppButton, 'Create webhook'),
+              )
+              .onPressed ==
+          null;
+
+      expect(disabled(), isTrue);
+      await tester.enterText(find.bySemanticsLabel('Webhook label'), 'sonarr');
+      await tester.pump();
+      expect(disabled(), isTrue, reason: 'a label alone is not enough');
+    },
+  );
 }

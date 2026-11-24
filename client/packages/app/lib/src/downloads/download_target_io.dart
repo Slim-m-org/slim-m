@@ -54,8 +54,9 @@ Future<File> freeDownloadFile(Directory directory, String filename) async {
       '${directory.path}${Platform.pathSeparator}'
       '${n == 1 ? name : '$stem ($n)$extension'}',
     );
-    if (_reserved.contains(candidate.path) || await candidate.exists())
+    if (_reserved.contains(candidate.path) || await candidate.exists()) {
       continue;
+    }
     // Added after the await, so two saves racing for one name cannot both win it.
     if (_reserved.add(candidate.path)) return candidate;
   }

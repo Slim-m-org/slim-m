@@ -318,3 +318,60 @@ async fn a_block_reaches_the_other_device_and_nobody_else() {
         );
     }
 }
+
+#[tokio::test]
+async fn schedule_and_preference_writes_reach_the_other_device_and_nobody_else() {
+    let (store, _guard) = support::new_store("slimm-account-sync-notifications").await;
+    seed_everyone(&store).await;
+    let state = support::app::state(store.clone());
+    let (alice, phone_token, _ticket) = account(&store, "alice").await;
+    let (_desktop_token, desktop_ticket) = device(&store, alice).await;
+    let (_bob, _bob_token, bob_ticket) = account(&store, "bob").await;
+    let addr = serve(state.clone()).await;
+    let mut desktop = connect(addr, &desktop_ticket).await;
+    let mut bob_ws = connect(addr, &bob_ticket).await;
+    let schedule = json!({ "timezone": "UTC", "days": [], "off_hours_mode": "nothing" });
+
+    let writes = [
+        ("PUT", "/notifications/schedule", schedule, "schedule"),
+        (
+            "PUT",
+            "/notifications/schedule/snooze",
+            json!({ "duration_seconds": 1800 }),
+            "schedule",
+        ),
+        (
+            "DELETE",
+            "/notifications/schedule/snooze",
+            json!({}),
+            "schedule",
+        ),
+        (
+            "PUT",
+            "/push/preference",
+            json!({ "preference": "mentions" }),
+            "preference",
+        ),
+        ("DELETE", "/notifications/schedule", json!({}), "schedule"),
+    ];
+    for (method, uri, body, scope) in writes {
+        let answer = http::router(state.clone())
+            .oneshot(request(method, uri, &phone_token, body))
+            .await
+            .unwrap();
+        assert!(
+            answer.status().is_success(),
+            "{method} {uri}: {}",
+            answer.status()
+        );
+        let frame = frame_of_kind(&mut desktop, "account_notifications.changed")
+            .await
+            .unwrap_or_else(|| panic!("{method} {uri} must reach the other device"));
+        assert_eq!(frame["scope"], scope, "{method} {uri}");
+    }
+    assert!(
+        frame_within(&mut bob_ws, Duration::from_millis(300))
+            .await
+            .is_none()
+    );
+}

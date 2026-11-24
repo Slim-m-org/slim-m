@@ -395,6 +395,14 @@ pub enum Event {
     /// Private to `user_id`, delivered like [`Event::CategoryMuteChanged`]. It names no
     /// target: the other devices read the list back.
     BlocksChanged { user_id: UserId },
+    /// One account's notification schedule, snooze, allow-lists or account default changed.
+    ///
+    /// Private to `user_id`, delivered like [`Event::NotificationOverrideChanged`]. Says only
+    /// which state moved, so the account's other devices refetch it.
+    AccountNotificationsChanged {
+        user_id: UserId,
+        scope: AccountNotificationScope,
+    },
     /// A bot answered a member privately.
     ///
     /// Private to `recipient_id`: `http::ws::authorization` delivers it only to
@@ -500,6 +508,24 @@ impl VoiceRemovalReason {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::OtherDevice => "other_device",
+        }
+    }
+}
+
+/// Which of an account's notification state [`Event::AccountNotificationsChanged`] says moved.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AccountNotificationScope {
+    /// The weekly windows, off-hours mode, snooze or either allow-list.
+    Schedule,
+    /// The account-wide `everything` / `mentions` / `nothing` default.
+    Preference,
+}
+
+impl AccountNotificationScope {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Schedule => "schedule",
+            Self::Preference => "preference",
         }
     }
 }

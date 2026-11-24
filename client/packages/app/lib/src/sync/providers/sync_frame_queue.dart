@@ -50,6 +50,7 @@ bool isAppliedToStore(api.ServerEvent event) => switch (event) {
   api.NotificationOverrideChanged() ||
   api.CategoryMuteChanged() ||
   api.BlocksChanged() ||
+  api.AccountNotificationsChanged() ||
   api.ChannelCreated() ||
   api.ChannelUpdated() ||
   api.ChannelDeleted() ||

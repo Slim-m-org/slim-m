@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/features/settings/providers/dock_connector_token.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/routing/routes.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/dock_module_screen.dart';
@@ -109,7 +110,7 @@ class _Harness {
   ];
 }
 
-Future<void> _open(WidgetTester tester, _Harness harness) async {
+Future<ProviderContainer> _open(WidgetTester tester, _Harness harness) async {
   await tester.binding.setSurfaceSize(const Size(800, 1600));
   addTearDown(() => tester.binding.setSurfaceSize(null));
   final container = ProviderContainer(
@@ -145,6 +146,7 @@ Future<void> _open(WidgetTester tester, _Harness harness) async {
   await tester.pumpAndSettle();
   await tester.tap(find.text('Dice'));
   await tester.pumpAndSettle();
+  return container;
 }
 
 AppToggle _enabledToggle(WidgetTester tester) => tester
@@ -189,7 +191,8 @@ void main() {
     'uninstalling asks first and deletes the install once confirmed',
     (tester) async {
       final harness = _Harness(enabled: true);
-      await _open(tester, harness);
+      final container = await _open(tester, harness);
+      container.read(dockConnectorTokenProvider('dice').notifier).state = 'tok';
 
       await tester.tap(find.widgetWithText(AppButton, 'Uninstall'));
       await tester.pumpAndSettle();
@@ -205,6 +208,7 @@ void main() {
       expect(harness.posted('DELETE'), ['/space/dock/modules/dice/install']);
       expect(find.text('Modules'), findsWidgets);
       expect(find.text('Uninstall'), findsNothing);
+      expect(container.read(dockConnectorTokenProvider('dice')), isNull);
     },
   );
 

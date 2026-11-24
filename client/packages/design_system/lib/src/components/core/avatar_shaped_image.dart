@@ -194,7 +194,17 @@ class _AppShapedImageState extends State<AppShapedImage> {
     );
     if (stream.key == _stream?.key) return;
     _stream?.removeListener(_listener);
+    _dropPrevious();
     _stream = stream..addListener(_listener);
+  }
+
+  /// A new provider must not paint the last one's picture while it loads.
+  void _dropPrevious() {
+    _info?.dispose();
+    _info = null;
+    _baked?.dispose();
+    _baked = null;
+    _failed = false;
   }
 
   void _rebake() {

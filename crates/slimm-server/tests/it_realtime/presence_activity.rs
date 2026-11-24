@@ -357,3 +357,35 @@ async fn racing_visibility_toggles_leave_the_cache_equal_to_the_store() {
         assert_eq!(stored, state.hub.presence().visibility(id));
     }
 }
+#[tokio::test]
+async fn only_the_account_itself_is_told_its_visibility() {
+    let (store, _guard) = support::new_store("slimm-presence-test").await;
+    let state = support::app::builder(store.clone()).hub(Hub::new()).build();
+    let (alice_access, alice_ticket, alice_id) = user_ticket(&store, "alice").await;
+    let (_bob_access, bob_ticket, _bob_id) = user_ticket(&store, "bob").await;
+    let alice = alice_id.to_string();
+    let addr = serve(state.clone()).await;
+    let mut bob_ws = connect(addr, &bob_ticket).await;
+    let mut alice_ws = connect(addr, &alice_ticket).await;
+    presence_where(&mut bob_ws, &alice, |f| f["status"] == "online").await;
+
+    let hidden = send(
+        &state,
+        request(
+            "PATCH",
+            "/presence",
+            &alice_access,
+            Some(json!({ "visibility": "hidden" })),
+        ),
+    )
+    .await;
+    assert_eq!(hidden, StatusCode::OK);
+
+    let own = presence_where(&mut alice_ws, &alice, |f| f["visibility"] == "hidden").await;
+    assert_eq!(own["status"], "online");
+    let seen = presence_where(&mut bob_ws, &alice, |f| f["status"] == "offline").await;
+    assert!(
+        seen.get("visibility").is_none(),
+        "visibility leaked: {seen}"
+    );
+}

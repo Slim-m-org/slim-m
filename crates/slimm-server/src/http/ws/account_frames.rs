@@ -49,6 +49,12 @@ pub(super) fn authorize(ctx: &SessionContext, event: &Event) -> Option<Authoriza
             },
         ),
         Event::BlocksChanged { user_id } => (*user_id, ServerFrame::BlocksChanged {}),
+        Event::AccountNotificationsChanged { user_id, scope } => (
+            *user_id,
+            ServerFrame::AccountNotificationsChanged {
+                scope: scope.as_str(),
+            },
+        ),
         Event::VoiceMoved {
             user_id,
             from_channel_id,

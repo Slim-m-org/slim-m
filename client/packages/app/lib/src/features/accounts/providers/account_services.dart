@@ -16,6 +16,8 @@ import '../../../providers/direct_route_controller.dart';
 import '../../../providers/providers.dart';
 import '../../../push/providers/push_controller.dart';
 import '../../messages/providers/retention_sweep.dart';
+import 'account_providers.dart';
+import 'account_slot.dart';
 import '../../../providers/sync_controller.dart';
 import '../../../providers/viewing_reporter.dart';
 import '../../channels/providers/channel_notification_overrides_controller.dart';
@@ -74,6 +76,16 @@ void startAccountServices(ProviderContainer container) {
 /// Reads a provider; both a [WidgetRef] and a [ProviderContainer] offer it.
 typedef ProviderReader = T Function<T>(ProviderListenable<T> provider);
 
+/// Unregisters this account's push, keeping the device-wide key while another account still uses it.
+Future<void> unregisterPushVia(ProviderReader read) {
+  final host = read(accountHostProvider);
+  final keepKey =
+      host?.otherAccountSignedIn(read(accountSlotProvider)) ?? false;
+  return read(
+    pushControllerProvider.notifier,
+  ).unregister(keepDeviceKey: keepKey);
+}
+
 /// Push is unregistered before the session goes, or this device keeps waking
 /// for an account that is no longer signed in on it.
 ///
@@ -84,7 +96,7 @@ Future<void> signOutVia(ProviderReader read) async {
   await read(voiceControllerProvider.notifier).leave();
   await JellyfinCredentialStore(read(keyStoreProvider)).forgetAll(userId);
   await read(syncControllerProvider.notifier).stop();
-  await read(pushControllerProvider.notifier).unregister();
+  await unregisterPushVia(read);
   try {
     await read(apiProvider).logout();
   } on api.ApiException catch (error, stack) {

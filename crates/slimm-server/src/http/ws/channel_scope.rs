@@ -86,6 +86,7 @@ pub(super) fn channel_of(event: &Event) -> Option<ChannelId> {
         | Event::NotificationOverrideChanged { .. }
         | Event::CategoryMuteChanged { .. }
         | Event::BlocksChanged { .. }
+        | Event::AccountNotificationsChanged { .. }
         | Event::EphemeralMessage { .. }
         | Event::InteractionCreated { .. }
         | Event::InteractionAnswered { .. }

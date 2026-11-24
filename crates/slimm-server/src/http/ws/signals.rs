@@ -230,10 +230,16 @@ pub(super) async fn may_hear_typing_stop(
 }
 
 /// The frame telling a viewer `target`'s resolved status, and the activity
-/// that status permits them to see.
-pub(super) fn presence_frame(hub: &Hub, target: UserId, status: Status) -> ServerFrame {
+/// that status permits them to see. `visibility` is told only to the account it belongs to.
+pub(super) fn presence_frame(
+    hub: &Hub,
+    viewer: UserId,
+    target: UserId,
+    (status, visibility): (Status, Visibility),
+) -> ServerFrame {
     ServerFrame::PresenceChanged {
         user_id: target.to_string(),
+        visibility: (viewer == target).then(|| visibility.as_str()),
         status: status.as_str().to_owned(),
         activity: hub.presence().activity_visible_at(target, status),
         devices: hub.presence().device_names_visible_at(target, status),

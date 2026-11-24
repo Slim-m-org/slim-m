@@ -175,6 +175,9 @@ pub(super) enum ServerFrame {
     PresenceChanged {
         user_id: String,
         status: String,
+        /// The account's own chosen visibility, sent only to its own sockets.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        visibility: Option<&'static str>,
         #[serde(skip_serializing_if = "Option::is_none")]
         activity: Option<crate::presence_activity::Activity>,
         #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -431,6 +434,10 @@ pub(super) enum ServerFrame {
     /// [`crate::hub::Event::BlocksChanged`]. Names nobody: read `/blocks` back.
     #[serde(rename = "blocks.changed")]
     BlocksChanged {},
+    /// The account's notification schedule or default changed on some device; see
+    /// [`crate::hub::Event::AccountNotificationsChanged`].
+    #[serde(rename = "account_notifications.changed")]
+    AccountNotificationsChanged { scope: &'static str },
     /// A bot's private answer to this account; see
     /// [`crate::hub::Event::EphemeralMessage`]. Carries no `seq`.
     #[serde(rename = "message.ephemeral")]

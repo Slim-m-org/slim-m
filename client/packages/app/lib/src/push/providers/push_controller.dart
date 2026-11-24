@@ -353,9 +353,10 @@ class PushController extends StateNotifier<PushStatus>
   ///
   /// Neither step may throw, or an unreachable server would strand sign-out
   /// midway; the server clears the registration on session revocation anyway.
-  /// Both key stores are cleared, since an iOS device that has not registered
+  /// The key is device-wide, so [keepDeviceKey] leaves it for the accounts
+  /// still signed in. Both key stores are cleared otherwise, since an iOS device that has not registered
   /// since upgrading still holds the old copy (see [legacyPushKeyStoreProvider]).
-  Future<void> unregister() async {
+  Future<void> unregister({bool keepDeviceKey = false}) async {
     try {
       await _ref.read(apiProvider).unregisterPush();
     } catch (error, stack) {
@@ -367,7 +368,7 @@ class PushController extends StateNotifier<PushStatus>
       );
       // Must not strand the user mid-sign-out; see the doc above.
     }
-    await deleteDevicePushKeys(_ref);
+    if (!keepDeviceKey) await deleteDevicePushKeys(_ref);
     _stopForegroundHeartbeat();
     state = PushStatus.notSignedIn;
   }

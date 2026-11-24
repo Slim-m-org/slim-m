@@ -443,8 +443,8 @@ final pushKeyStoreProvider = Provider<KeyStore>(
 /// Where a push key an earlier build wrote is still sitting, so the first read
 /// after an upgrade moves it rather than orphaning every envelope already
 /// sealed to it. Null wherever the key never moved, which is everywhere but
-/// iOS; where it did move, the place it moved *from* is exactly the ordinary
-/// store.
+/// iOS; where it did move, the place it moved *from* is the ordinary store's
+/// group, named explicitly so a delete there cannot reach the push group.
 final legacyPushKeyStoreProvider = Provider<KeyStore?>(
-  (ref) => pushKeyHasItsOwnStore ? ref.watch(keyStoreProvider) : null,
+  (ref) => pushKeyHasItsOwnStore ? createLegacyPushKeyStore() : null,
 );

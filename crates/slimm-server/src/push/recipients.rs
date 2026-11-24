@@ -12,7 +12,7 @@ use crate::ids::{ChannelId, UserId};
 use crate::notification_schedule::degrade_for_off_hours;
 use crate::notifications::NotificationPreference;
 use crate::permissions::Permissions;
-use crate::presence::PresenceTracker;
+use crate::presence::{PresenceTracker, Visibility};
 use crate::store::{NotificationChoice, Store, ThreadParent};
 
 use super::mention_grammar::{mentioned_role_names, mentioned_usernames};
@@ -370,6 +370,10 @@ async fn narrow_for_thread(
 /// see `store/notification_schedule.rs`'s own doc comment for why that is a
 /// distinct state from a schedule with every day empty.
 ///
+/// A recipient on Do not disturb is dropped first, for every message, mention
+/// and `@everyone` alike (decision 0135); only rings and security alerts, which
+/// never come through here, still reach them.
+///
 /// A channel the recipient can read but not post in (a feed, an announcement
 /// channel) wakes them only for mentions unless they chose otherwise for that
 /// channel: [`read_only_default`] has the rule.
@@ -407,10 +411,14 @@ async fn narrow_for_notification_preference(
     let author_allowed = store
         .viewers_allowing_author_off_hours(&viewers, author_id)
         .await?;
+    let visibility = store.presence_visibility_many(&viewers).await?;
     let now_ms = crate::store::now_ms();
     Ok(viewers
         .into_iter()
         .filter(|user_id| {
+            if visibility.get(user_id) == Some(&Visibility::Dnd) {
+                return false;
+            }
             let choice = choices.get(user_id).copied().unwrap_or(NotificationChoice {
                 preference: NotificationPreference::default(),
                 overridden: false,
