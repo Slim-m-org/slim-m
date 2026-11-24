@@ -111,6 +111,14 @@ pub async fn run(c: &mut Contract) {
         .await;
     c.call("getVersion", "GET", "/version", None, Payload::None)
         .await;
+    c.call(
+        "proveIdentity",
+        "POST",
+        "/identity/proof",
+        None,
+        Payload::Json(json!({ "challenge": "AAECAwQFBgcICQoLDA0ODw==" })),
+    )
+    .await;
 
     // The first account through registration claims the deployment and is its
     // administrator, so everything below that needs a privilege has one.

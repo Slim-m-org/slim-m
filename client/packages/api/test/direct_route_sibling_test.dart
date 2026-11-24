@@ -19,7 +19,7 @@ const _host = 'slimm.test';
 const _sibling = 'livekit.slimm.test';
 const _port = 8443;
 const _base = 'https://$_host:$_port';
-const _lan = '127.0.0.1:$_port';
+const _lan = '10.0.0.1:$_port';
 const _signal = 'wss://$_sibling:$_port/rtc';
 
 /// Where the generated proxy certificate lives; see [_generateProxyCert].
@@ -180,7 +180,7 @@ void main() {
     final (onDefault, _) = await onLan(
       'proxy',
       base: 'https://$_host',
-      lan: '127.0.0.1:443',
+      lan: '10.0.0.1:443',
     );
     expect(await open(onDefault, 'wss://$_sibling/rtc'), startsWith('direct'));
   });

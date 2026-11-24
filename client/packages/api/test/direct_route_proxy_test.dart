@@ -135,7 +135,7 @@ void main() {
       connectDirect: (host, port) =>
           Socket.connect(InternetAddress.loopbackIPv4, origin.port),
       findProxy: (_) => proxy.setting,
-    )..advertise(['127.0.0.1:$_port']);
+    )..advertise(['10.0.0.1:$_port']);
     addTearDown(route.httpClient.close);
     final lan = route.pinnedClient(direct: true)!;
     addTearDown(lan.close);

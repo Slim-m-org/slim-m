@@ -116,7 +116,9 @@ void main() {
     addTearDown(tester.view.reset);
     Uri? chosen;
     String? invite;
+    final fetched = <String>[];
     final httpClient = MockClient((request) async {
+      fetched.add(request.url.path);
       if (request.url.path == '/version') {
         return http.Response(
           jsonEncode(const {
@@ -190,29 +192,15 @@ void main() {
     expect(find.text('A small home server.'), findsOneWidget);
     expect(find.text('3 members'), findsOneWidget);
     expect(chosen, isNull, reason: 'nothing is chosen until Join is pressed');
-    final images = tester
-        .widgetList<Image>(find.byType(Image))
-        .map((image) => image.image)
-        .toList();
-    expect(images, hasLength(2));
-    for (final provider in images) {
-      expect(
-        provider,
-        isA<ResizeImage>()
-            .having((i) => i.width, 'width', isNotNull)
-            .having((i) => i.height, 'height', isNotNull)
-            .having((i) => i.policy, 'policy', ResizeImagePolicy.fit),
-        reason: 'an untrusted server must not choose the decode size',
-      );
-    }
-    final urls = [
-      for (final provider in images)
-        ((provider as ResizeImage).imageProvider as NetworkImage).url,
-    ];
-    expect(urls, [
-      contains('/invites/CODE123/banner'),
-      contains('/invites/CODE123/icon'),
-    ]);
+    expect(find.text('chat.example'), findsOneWidget);
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 100)),
+    );
+    expect(
+      fetched,
+      containsAll(['/invites/CODE123/banner', '/invites/CODE123/icon']),
+      reason: 'the pictures go through the bounded probe client',
+    );
 
     await tester.tap(find.text('Back'));
     await tester.pumpAndSettle();

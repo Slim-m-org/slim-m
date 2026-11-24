@@ -68,23 +68,57 @@ abstract interface class DirectRoute {
   http.Client? pinnedClient({required bool direct});
 }
 
+/// The ports a direct route may use: the public route has to be one of them
+/// too, so a server on a service port cannot aim this device at that service.
+const directRoutePorts = {443, 8443};
+
 /// The `host:port` entries a client may dial: an IP literal in a private or
-/// loopback range, on [publicPort], the server's own port. A server is
-/// untrusted input here (the app can hold several), so anything else, a
-/// public address, a hostname or another port, would let it aim this device's
-/// connections at services it never meant to reach.
+/// loopback range, on [publicPort], the server's own port, which must be one
+/// of [directRoutePorts]. A server is untrusted input here (the app can hold
+/// several), so anything else, a public address, a hostname or another port,
+/// would let it aim this device's connections at services it never meant to
+/// reach. Loopback is this device itself, so it is only taken when
+/// [publicHost] is loopback too.
 List<({String host, int port})> parseDirectAddresses(
   List<String> raw, {
   required int publicPort,
-}) =>
-    [
-      for (final entry in raw)
-        if (entry.lastIndexOf(':') case final colon when colon > 0)
-          if (int.tryParse(entry.substring(colon + 1)) case final port?
-              when port == publicPort)
-            if (_lanHost(entry.substring(0, colon)) case final host?)
-              (host: host, port: port),
-    ];
+  required String publicHost,
+}) {
+  if (!directRoutePorts.contains(publicPort)) return const [];
+  final loopbackAllowed = _isLoopback(publicHost);
+  return [
+    for (final entry in raw)
+      if (entry.lastIndexOf(':') case final colon when colon > 0)
+        if (int.tryParse(entry.substring(colon + 1)) case final port?
+            when port == publicPort)
+          if (_lanHost(entry.substring(0, colon)) case final host?
+              when loopbackAllowed || !_isLoopback(host))
+            (host: host, port: port),
+  ];
+}
+
+bool _isLoopback(String host) {
+  final bare = host.startsWith('[') && host.endsWith(']')
+      ? host.substring(1, host.length - 1)
+      : host;
+  if (bare == 'localhost') return true;
+  final v4 = _quietBytes(Uri.parseIPv4Address, bare);
+  if (v4 != null) return v4[0] == 127;
+  final v6 = _quietBytes(Uri.parseIPv6Address, bare);
+  if (v6 == null) return false;
+  final mapped =
+      v6.take(10).every((b) => b == 0) && v6[10] == 0xff && v6[11] == 0xff;
+  if (mapped) return v6[12] == 127;
+  return v6.take(15).every((b) => b == 0) && v6[15] == 1;
+}
+
+List<int>? _quietBytes(List<int> Function(String) parse, String host) {
+  try {
+    return parse(host);
+  } on FormatException {
+    return null;
+  }
+}
 
 /// Whether [host] is one the proxy at an advertised address may also serve:
 /// [server] itself, a subdomain of it, or a sibling under its parent domain,

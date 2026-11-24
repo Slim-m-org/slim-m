@@ -22,9 +22,11 @@
 //! without the fingerprint visibly changing. That is a real property against
 //! a network that turns hostile later, a DNS or routing change that lands on
 //! the wrong host, or a typo'd address that happens to reach someone else's
-//! server. It does not stop a relay that forwards `/version` to the real
-//! server: that response is public and nothing here signs anything, so the
-//! real key reaches the client unchanged. It is not a substitute for checking the fingerprint out of band
+//! server. A host that copies the real key into its own `/version` cannot
+//! sign a client's fresh challenge with it ([`sign_proof`]), so a client that
+//! asks for that proof tells the two apart. It does not stop a relay that
+//! forwards every request to the real server, which answers the challenge
+//! itself. It is not a substitute for checking the fingerprint out of band
 //! (the admin reading it aloud) on that first connection, which is why the
 //! onboarding design surfaces it as something to compare rather than
 //! something to trust silently.
@@ -66,8 +68,8 @@ const COLOR_STRIP_LEN: usize = 4;
 /// The server's identity: the public half of the keypair, and everything
 /// derived from it that a client displays or pins.
 ///
-/// Deliberately does not carry the secret key: nothing here signs anything
-/// yet, so there is nothing in memory for a signing operation to use. The
+/// Deliberately does not carry the secret key: [`sign_proof`] reads it back
+/// for the one signature it makes, so it is never held in memory. The
 /// persisted seed is read back to re-derive this public key and, through
 /// [`derived_key`], to root the module caller-id and link-preview token keys.
 /// It is stored raw, outside the [`DataKey`](crate::data_key::DataKey) seal,
@@ -201,6 +203,30 @@ pub async fn derived_key(pool: &SqlitePool, purpose: &[u8]) -> anyhow::Result<[u
     let mut mac = <Hmac<Sha256>>::new_from_slice(&seed).context("keying the derivation")?;
     mac.update(purpose);
     Ok(mac.finalize().into_bytes().into())
+}
+
+/// The prefix every identity proof signs ahead of the client's challenge, so
+/// this key never signs a message a caller chose outright.
+pub const PROOF_CONTEXT: &[u8] = b"slim-m identity proof v1\n";
+
+/// Signs [`PROOF_CONTEXT`] followed by `challenge` with the identity key,
+/// returning the identity it proves and the 64-byte Ed25519 signature.
+pub async fn sign_proof(
+    pool: &SqlitePool,
+    challenge: &[u8],
+) -> anyhow::Result<(ServerIdentity, [u8; 64])> {
+    use ed25519_dalek::Signer as _;
+
+    let identity = load_or_create(pool).await?;
+    let seed: Vec<u8> = sqlx::query_scalar("SELECT secret_key FROM server_identity WHERE id = 1")
+        .fetch_one(pool)
+        .await?;
+    let seed: [u8; 32] = seed
+        .try_into()
+        .map_err(|_| anyhow::anyhow!("stored server identity secret is not 32 bytes"))?;
+    let key = SigningKey::from_bytes(&seed);
+    let message = [PROOF_CONTEXT, challenge].concat();
+    Ok((identity, key.sign(&message).to_bytes()))
 }
 
 async fn read(pool: &SqlitePool) -> anyhow::Result<Option<ServerIdentity>> {

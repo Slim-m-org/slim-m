@@ -74,6 +74,7 @@ mod screen_stamps;
 mod soundboard;
 pub(crate) use crate::hidden_chars;
 pub use version::capability_names;
+mod identity_proof;
 mod interaction_forms;
 mod interactions;
 mod invite_page;
@@ -317,6 +318,7 @@ pub fn router(state: AppState) -> Router {
         .layer(RequestBodyTimeoutLayer::new(BODY_READ_TIMEOUT));
     let app = Router::new()
         .route("/version", get(version::version))
+        .merge(identity_proof::routes())
         .merge(admin_audit::routes())
         .merge(debug_logs::routes())
         .merge(analytics::routes())

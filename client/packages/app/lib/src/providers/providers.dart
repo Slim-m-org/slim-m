@@ -287,11 +287,12 @@ final apiProvider = Provider<SlimmApi>((ref) {
 
 /// Builds a throwaway unauthenticated client for a server that is not (yet)
 /// the current one: probing a candidate address during onboarding or
-/// sign-in. A provider rather than a bare constructor call so tests can
+/// sign-in. Unvouched, so it follows no redirect and reads no reply past a
+/// small cap. A provider rather than a bare constructor call so tests can
 /// substitute a fake transport; the caller owns close().
 final probeApiProvider = Provider<SlimmApi Function(Uri)>(
   (ref) =>
-      (baseUrl) => SlimmApi(baseUrl: baseUrl),
+      (baseUrl) => SlimmApi(baseUrl: baseUrl, unvouched: true),
 );
 
 /// The local database. Opened once and closed with the container.

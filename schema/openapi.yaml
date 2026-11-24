@@ -176,6 +176,36 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /identity/proof:
+    post:
+      operationId: proveIdentity
+      tags: [system]
+      summary: Sign a client's challenge with the server's identity key.
+      description: >
+        The server signs the bytes `slim-m identity proof v1\n` followed by
+        the decoded challenge with the Ed25519 key whose public half `/version`
+        reports, so a client can check the signature against the key it pinned.
+        A host that copied the public key cannot produce it. A server older
+        than this route answers 404, and a client then compares the key alone.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IdentityProofRequest"
+      responses:
+        "200":
+          description: The signature over the proof context and the challenge.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IdentityProof"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
   /metrics:
     get:
       operationId: getMetrics
@@ -14819,6 +14849,28 @@ components:
             same id replaces that install's session (the old refresh token is
             revoked) instead of adding a device. Optional; a client that sends
             none gets a new device per sign-in, and a malformed one is a 400.
+
+    IdentityProofRequest:
+      type: object
+      required: [challenge]
+      properties:
+        challenge:
+          type: string
+          format: byte
+          description: Standard base64 of 16 to 64 random bytes the client chose.
+
+    IdentityProof:
+      type: object
+      required: [public_key, signature]
+      properties:
+        public_key:
+          type: string
+          format: byte
+          description: Standard base64 of the 32-byte Ed25519 public key, as on `/version`.
+        signature:
+          type: string
+          format: byte
+          description: Standard base64 of the 64-byte Ed25519 signature.
 
     UsernameCheckRequest:
       type: object
