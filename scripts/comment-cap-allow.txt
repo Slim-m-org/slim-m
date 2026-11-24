@@ -221,7 +221,7 @@ crates/slimm-server/tests/it_infra/safety.rs 3
 crates/slimm-server/tests/it_infra/token_sweep.rs 1
 crates/slimm-server/tests/it_realtime/typing.rs 6
 docker-compose.voice.yml 8
-docker-compose.yml 13
+docker-compose.yml 12
 scripts/check-dart-licenses.py 1
 scripts/check-ios-nse-wired.sh 7
 scripts/lib/e2e_api.py 1

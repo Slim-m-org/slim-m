@@ -33,7 +33,7 @@ To set one of those you need a compose override file that adds it to the `server
 | `SLIMM_LOG_DIR` | a `logs` directory beside the database | Where the rotating log files go. | no, the image keeps them in `/data/logs` |
 | `SLIMM_LOG_KEEP_DAYS` | `14` | A log file this many days old is deleted. | yes |
 | `SLIMM_LOG_MAX_BYTES` | `268435456` (256 MiB) | Most bytes all log files hold together; the oldest goes first. `0` writes no files, stdout only. | yes |
-| `SLIMM_TRUST_PROXY_HOPS` | `0` | How many reverse proxies in front of the server may be believed about a caller's address, for rate limiting. | yes, defaults to 1 for Caddy |
+| `SLIMM_TRUST_PROXY_HOPS` | `0` | How many reverse proxies in front of the server may be believed about a caller's address, for rate limiting. | yes, defaults to 1 for Caddy; 2 behind a CDN or tunnel that Caddy is told to trust, [deploy/README.md](../deploy/README.md#behind-a-cdn-or-a-tunnel) |
 | `SLIMM_TRUSTED_PROXIES` | loopback and the private ranges | Comma-separated IPs or CIDRs of the peers whose `X-Forwarded-For` is believed at all; a `!` entry excludes a range, for example `!10.213.254.0/24`. A forwarded header from any other peer is ignored and the caller is keyed by its own address. A malformed entry stops startup. The connectors overlay excludes the connector egress network. | yes |
 | `SLIMM_CORS_ALLOWED_ORIGINS` | unset, no CORS | Comma-separated browser origins allowed cross-origin. `*` and malformed entries stop startup. | yes |
 | `SLIMM_MIN_CLIENT_VERSION` | unset, no floor | Oldest client version still served, as `X.Y.Z`. Older clients are stopped and offered an update. Empty is read as unset. | yes |

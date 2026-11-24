@@ -95,6 +95,7 @@ jobs:
           # Refusing to start without credentials is a security property, not a
           # convenience, so it gets a test of its own; see docs/ci.md.
           cp deploy/.env.example .env
+          echo "SLIMM_VERSION=smoke" >> .env
           echo "COMPOSE_FILE=docker-compose.yml:docker-compose.voice.yml" >> .env
           if docker compose config >/dev/null 2>err.txt; then
             echo "::error::the voice overlay started with no LiveKit credentials set"
