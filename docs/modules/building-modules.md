@@ -668,9 +668,14 @@ A key-value store private to the module, durable across runs.
 ```json
 { "capability": "kv.store", "op": "set", "key": "streak", "value": "7" }
 { "capability": "kv.store", "op": "get", "key": "streak" }
+{ "capability": "kv.store", "op": "cas", "key": "streak", "expect": "7", "value": "8" }
 { "capability": "kv.store", "op": "delete", "key": "streak" }
 { "capability": "kv.store", "op": "list" }
 ```
+
+- `cas` stores `value` only if the key holds `expect` right now, and answers `{ "ok": true, "swapped": true|false }`.
+  Leave `expect` out to write only when the key is absent.
+  Two runs that race on a counter or an index use it so exactly one of them wins; the loser reads again and retries.
 
 - Keys are at most 256 bytes and values 4 KiB.
 - A module holds at most 256 entries and 64 KiB (keys plus values), shared by everyone who uses it.
@@ -716,7 +721,7 @@ The manifest names where it may go:
 ```
 
 - `hosts` entries are lowercase `name` or `name:port`.
-  A bare name admits only the scheme's default port (443 for https, 80 for http), and `name:port` admits exactly that port, so `api.example.com:443` also admits https on the default port.
+  A bare name admits only https on port 443, `name:port` admits exactly that port, and plain http needs the port spelled, as `name:80`, so a secret header never leaves unencrypted by accident.
   At most 16 entries.
 - `net.fetch` and a non-empty `hosts` come together; one without the other is refused when the manifest is read.
 - `"local": true` asks for the second, separate approval described below.

@@ -2,7 +2,7 @@
 //! `kv.store`: the first reference capability (decision 0023), the safest one -
 //! a key-value store private to a single module, touching nothing else.
 //!
-//! The capability's reviewable substance lives here: the four operations, the
+//! The capability's reviewable substance lives here: the five operations, the
 //! per-request and per-store bounds, and the isolation between modules. Where
 //! the bytes live is a [`KvBackend`]: [`InMemoryKv`] is the reference used by
 //! tests, and `http::module_host::SqliteKv` is the durable one every live run
@@ -39,6 +39,15 @@ pub trait KvBackend: Send + Sync {
     /// Stores `value` at `key`, or [`KvError::Full`] if it would take the
     /// module past [`MAX_ENTRIES`] or [`MAX_TOTAL_BYTES`].
     fn set(&self, module_id: &str, key: &str, value: &str) -> Result<(), KvError>;
+    /// Stores `value` at `key` only if it now holds `expect` (absent when `None`), atomically,
+    /// and says whether it did. A swap that would pass a cap is [`KvError::Full`].
+    fn cas(
+        &self,
+        module_id: &str,
+        key: &str,
+        expect: Option<&str>,
+        value: &str,
+    ) -> Result<bool, KvError>;
     fn delete(&self, module_id: &str, key: &str) -> Result<(), KvError>;
     fn list(&self, module_id: &str) -> Result<Vec<String>, KvError>;
 }
@@ -95,6 +104,22 @@ pub fn handle(
                 Err(KvError::Unavailable) => refusal("kv.store is unavailable"),
             }
         }
+        "cas" => {
+            let (Some(key), Some(value)) = (req.key, req.value) else {
+                return refusal("kv.store cas needs a key and a value");
+            };
+            if key.len() > MAX_KEY_BYTES {
+                return refusal("kv.store key is too long");
+            }
+            if value.len() > MAX_VALUE_BYTES {
+                return refusal("kv.store value is too large");
+            }
+            match backend.cas(module_id, &key, req.expect.as_deref(), &value) {
+                Ok(swapped) => ok(json!({ "swapped": swapped })),
+                Err(KvError::Full) => refusal("kv.store is full for this module"),
+                Err(KvError::Unavailable) => refusal("kv.store is unavailable"),
+            }
+        }
         "delete" => match req.key {
             Some(key) => match backend.delete(module_id, &key) {
                 Ok(()) => ok(json!({})),
@@ -117,6 +142,8 @@ struct KvRequest {
     key: Option<String>,
     #[serde(default)]
     value: Option<String>,
+    #[serde(default)]
+    expect: Option<String>,
 }
 
 fn ok(mut body: serde_json::Value) -> Vec<u8> {
@@ -158,6 +185,28 @@ impl KvBackend for InMemoryKv {
         }
         store.insert(key.to_owned(), value.to_owned());
         Ok(())
+    }
+
+    fn cas(
+        &self,
+        module_id: &str,
+        key: &str,
+        expect: Option<&str>,
+        value: &str,
+    ) -> Result<bool, KvError> {
+        let mut modules = self.modules.lock().unwrap();
+        let store = modules.entry(module_id.to_owned()).or_default();
+        if store.get(key).map(String::as_str) != expect {
+            return Ok(false);
+        }
+        let old_bytes = store.get(key).map_or(0, |v| key.len() + v.len());
+        let new_entries = store.len() + usize::from(expect.is_none());
+        let total_bytes = current_bytes(store) - old_bytes + key.len() + value.len();
+        if new_entries > MAX_ENTRIES || total_bytes > MAX_TOTAL_BYTES {
+            return Err(KvError::Full);
+        }
+        store.insert(key.to_owned(), value.to_owned());
+        Ok(true)
     }
 
     fn delete(&self, module_id: &str, key: &str) -> Result<(), KvError> {
@@ -374,5 +423,49 @@ mod tests {
             text(handle(&kv, "m", &mut calls, br#"{"op":"drop"}"#)).contains("unknown kv.store op")
         );
         assert!(text(handle(&kv, "m", &mut calls, b"not json")).contains("malformed"));
+    }
+
+    #[test]
+    fn cas_swaps_only_when_the_expectation_holds() {
+        let kv = InMemoryKv::default();
+        let mut calls = budget();
+        let mut run = |req: &str| text(handle(&kv, "m", &mut calls, req.as_bytes()));
+        let first = run(r#"{"op":"cas","key":"n","value":"1"}"#);
+        assert!(first.contains(r#""swapped":true"#), "{first}");
+        let again = run(r#"{"op":"cas","key":"n","value":"2"}"#);
+        assert!(again.contains(r#""swapped":false"#), "{again}");
+        let stale = run(r#"{"op":"cas","key":"n","expect":"0","value":"2"}"#);
+        assert!(stale.contains(r#""swapped":false"#), "{stale}");
+        let fresh = run(r#"{"op":"cas","key":"n","expect":"1","value":"2"}"#);
+        assert!(fresh.contains(r#""swapped":true"#), "{fresh}");
+        assert!(run(r#"{"op":"get","key":"n"}"#).contains(r#""value":"2""#));
+    }
+
+    #[test]
+    fn two_concurrent_cas_writers_swap_exactly_once() {
+        let kv = std::sync::Arc::new(InMemoryKv::default());
+        kv.set("m", "n", "0").unwrap();
+        let wins: usize = (0..8)
+            .map(|i| {
+                let kv = std::sync::Arc::clone(&kv);
+                std::thread::spawn(move || kv.cas("m", "n", Some("0"), &format!("w{i}")).unwrap())
+            })
+            .collect::<Vec<_>>()
+            .into_iter()
+            .map(|t| usize::from(t.join().unwrap()))
+            .sum();
+        assert_eq!(wins, 1);
+    }
+
+    #[test]
+    fn cas_respects_the_caps() {
+        let kv = InMemoryKv::default();
+        for i in 0..MAX_ENTRIES {
+            kv.set("m", &format!("k{i}"), "v").unwrap();
+        }
+        assert!(matches!(
+            kv.cas("m", "one-more", None, "v"),
+            Err(KvError::Full)
+        ));
     }
 }

@@ -257,3 +257,16 @@ Settles the open `message.post` attribution question and the owner's 2026-10-14 
   That is the cost of the owner's choice; the marker is what lets a moderator see the text was the module's.
 - Rows from before migration 0145 have no stored name, so they read as `via_module: null` and keep the footer embed they were stored with.
 
+
+## Addendum: bounds and a conditional write (audit fix 7)
+
+- `kv.store` gains `cas`: `{key, expect, value}` stores only when the key holds `expect` (absent when `expect` is left out) and answers `{swapped}`.
+  It runs as one read and write inside the store's write transaction, so of two racing callers exactly one swaps.
+  It is the primitive a counter or an index needs; `data.store` already had its own.
+- A `data.store` reply is capped at the run output limit (1 MiB).
+  The host counts the bytes while it reads rows and refuses with `data.store result is too large` before it builds the rest.
+- A statement waits for the module file's turn no longer than its own budget and then answers `data call took too long`.
+  An account purge deletes in chunks of 500 rows, so module calls get the file between them.
+- A failed read of the stored data schema is an error, never "no schema yet"; only a missing table or row means the module has not been migrated.
+- A bare `net.fetch` host entry admits only https on 443.
+  Plain http needs the port spelled, as `host:80`, so a stored secret header is never sent unencrypted by accident.
