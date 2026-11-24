@@ -35,8 +35,10 @@ import '../../../routing/router.dart';
 import '../../../routing/routes.dart';
 import 'dm_call.dart';
 import '../../channels/providers/ensure_dm_channel.dart';
+import '../../members/providers/blocks_controller.dart';
 import '../../../providers/live_events.dart';
 import '../../../providers/providers.dart';
+import 'dm_call_ring_reconnect.dart';
 import 'dm_call_ring_state.dart';
 import 'voice_controller.dart';
 
@@ -68,6 +70,9 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
         if (next != null) _joinedCall(next);
       },
     );
+    _ref.listen<VoiceState>(voiceControllerProvider, (_, _) {
+      _reconnect.settleOutgoing(stillCalling: _stillCalling);
+    });
   }
 
   final Ref _ref;
@@ -77,6 +82,19 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
   String? _callKitCallId;
   String? _answeredRingId;
   String? _answeredChannelId;
+
+  late final _reconnect = DmCallRingReconnect(
+    DmCallRingReconnectHost(
+      read: () => state,
+      write: (next) => state = next,
+      isMounted: () => mounted,
+      listIncoming: () => _ref.read(apiProvider).listIncomingDmCallRings(),
+      restorable: _restorable,
+      dropIncoming: _dropIncoming,
+      loadChannel: (channelId) => unawaited(ensureChannelLoaded(channelId)),
+    ),
+    ringTimeout: _answerWindow,
+  );
 
   /// Rings that ended recently, so one that ends before its own start
   /// response lands is not mistaken for still ringing.
@@ -197,14 +215,7 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
   /// This device is in [channelId]'s call now: a ring for it is answered here,
   /// on the system call screen too, and an earlier unanswered ring is old news.
   void _joinedCall(String channelId) {
-    if (state.incoming?.channelId == channelId) {
-      final callKitRinging = state.callKit == CallKitPhase.ringing;
-      state = state.copyWith(
-        clearIncoming: true,
-        callKit: callKitRinging ? CallKitPhase.none : null,
-      );
-      if (callKitRinging) _endCallKit();
-    }
+    if (state.incoming?.channelId == channelId) _dropIncoming();
   }
 
   void _forgetLastOutgoingEnd(String channelId) {
@@ -220,6 +231,7 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
       case api.CallRinging(:final channelId, :final ringId, :final callerId):
         final selfId = _ref.read(apiProvider).session.tokens?.userId;
         if (callerId == selfId || ringId == _answeredRingId) return;
+        if (_isBlocked(callerId)) return;
         final inThatCall =
             _ref.read(voiceControllerProvider).channelId == channelId;
         if (inThatCall && !_answerIsFresh) return;
@@ -401,20 +413,71 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
     }
   }
 
-  /// Forgets any ring state a dropped connection could otherwise leave stuck
-  /// forever (an incoming banner nobody can answer, or a caller waiting on a
-  /// `call.ring_ended` that will never arrive). [SyncController.start] calls
-  /// this on every (re)connect, `DmCallActivityController.clear`'s own shape.
+  /// Forgets every ring, for a session that ended.
   void clear() {
     if (!mounted) return;
+    _reconnect.forget();
     state = DmCallRingState(
       callKit: state.callKit,
       lastOutgoingEnd: state.lastOutgoingEnd,
     );
   }
 
+  /// Keeps both rings across a reconnect; see [DmCallRingReconnect].
+  /// [SyncController.start] calls this on every (re)connect.
+  void holdForReconnect() {
+    if (mounted) _reconnect.hold();
+  }
+
+  /// Reads back the rings still waiting on this account once the socket is
+  /// live: a `call.ringing` frame sent while it was down is never replayed.
+  Future<void> restoreAfterLive() => _reconnect.settleIncoming();
+
+  bool _restorable(api.OutstandingDmCallRing ring) {
+    final selfId = _ref.read(apiProvider).session.tokens?.userId;
+    final inThatCall =
+        _ref.read(voiceControllerProvider).channelId == ring.channelId;
+    return ring.callerId != selfId &&
+        ring.ringId != _answeredRingId &&
+        !_endedRings.containsKey(ring.ringId) &&
+        !_isBlocked(ring.callerId) &&
+        !inThatCall &&
+        !_answerIsFresh;
+  }
+
+  bool _watchingBlocks = false;
+
+  /// Read once the signed-in shell has loaded the list; a block drops the ring at once.
+  bool _isBlocked(String userId) {
+    if (!_ref.exists(blocksProvider)) return false;
+    if (!_watchingBlocks) {
+      _watchingBlocks = true;
+      _ref.listen<BlocksState>(blocksProvider, (_, next) {
+        if (next.contains(state.incoming?.callerId)) _dropIncoming();
+      });
+    }
+    return _ref.read(blocksProvider).contains(userId);
+  }
+
+  bool _stillCalling(String channelId) {
+    final voice = _ref.read(voiceControllerProvider);
+    return voice.channelId == channelId &&
+        voice.state != VoiceSessionState.failed &&
+        !_someoneElseIsIn(channelId);
+  }
+
+  void _dropIncoming() {
+    final callKitRinging = state.callKit == CallKitPhase.ringing;
+    state = state.copyWith(
+      clearIncoming: true,
+      callKit: callKitRinging ? CallKitPhase.none : null,
+    );
+    if (callKitRinging) _endCallKit();
+  }
+
   @override
   void dispose() {
+    _reconnect.forget();
     unawaited(_sub.cancel());
     unawaited(_callKitSub.cancel());
     super.dispose();
