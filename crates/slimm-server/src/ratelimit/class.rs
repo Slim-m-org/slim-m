@@ -200,6 +200,9 @@ classes! {
     /// search; see `http::gifs` for the debounce that keeps it that shape in
     /// practice.
     Gif,
+    /// Picking a GIF: the server downloads and stores it, so it is dearer than a
+    /// search but still a chat gesture, kept apart from file uploads.
+    GifSelect,
     /// Ringing someone on a DM call.
     ///
     /// Tighter than [`Class::Write`] for the same reason [`Class::Upload`]
@@ -417,6 +420,7 @@ impl Class {
             // A full member page plus a transcript's own avatars, at once.
             Class::Asset => (150.0, 25.0),
             Class::Gif => (10.0, 1.0),
+            Class::GifSelect => (20.0, 1.0 / 6.0),
             Class::LinkPreview => (10.0, 1.0),
             Class::Soundboard => (1.0, 1.0 / 3.0),
             Class::ScreenStamp => (3.0, 0.5),

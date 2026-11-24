@@ -55,7 +55,7 @@ pub(super) async fn select(
 pub(crate) fn charge_select(state: &AppState, user_id: crate::ids::UserId) -> Result<(), ApiError> {
     state
         .limiter
-        .admit(Class::Upload, &user_limit_key(user_id))
+        .admit(Class::GifSelect, &user_limit_key(user_id))
         .map_err(ApiError::from)
 }
 

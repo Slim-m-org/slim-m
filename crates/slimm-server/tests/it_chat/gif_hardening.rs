@@ -229,7 +229,7 @@ async fn a_redirect_off_the_provider_host_is_not_followed() {
 }
 
 #[tokio::test]
-async fn a_select_spends_the_upload_budget() {
+async fn a_select_spends_its_own_budget_not_the_upload_one() {
     let base = spawn(|_| bytes_of(gif(10, 3))).await;
     let limiter = RateLimiter::new();
     let h = harness(
@@ -243,5 +243,7 @@ async fn a_select_spends_the_upload_budget() {
     let id = h.search_token().await;
     let key = format!("u:{}", h.user);
     assert!(limiter.admit_weighted(Class::Upload, &key, 10.0).is_ok());
+    assert_ne!(h.select(&id).await, StatusCode::TOO_MANY_REQUESTS);
+    assert!(limiter.admit_weighted(Class::GifSelect, &key, 19.0).is_ok());
     assert_eq!(h.select(&id).await, StatusCode::TOO_MANY_REQUESTS);
 }
