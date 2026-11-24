@@ -181,10 +181,10 @@ def run(args):
 
         results.append(seed_settle.run(contexts, state, random.Random(f"{base_seed}-settle")))
 
-    _report(base_url, channel, channel_name, usernames, password, state, results,
-            corpus=corpus, conversations=conversations, reused_count=reused_count,
-            persona_count=len(accounts))
-    return 0
+    failures = _report(base_url, channel, channel_name, usernames, password, state, results,
+                       corpus=corpus, conversations=conversations, reused_count=reused_count,
+                       persona_count=len(accounts))
+    return 1 if failures else 0
 
 
 def _describe_corpus(corpus):
@@ -254,3 +254,4 @@ def _report(base_url, channel, channel_name, usernames, password, state, results
             print(f"  {username} / {action}: {reason}")
         if len(failures) > 20:
             print(f"  ... and {len(failures) - 20} more")
+    return failures

@@ -18,7 +18,11 @@ function trimTrailingSlashes(url) {
 // Second line of defence: scripts/load-run.sh already refuses via scripts/lib/load_target.py.
 export function baseUrl() {
   const raw = trimTrailingSlashes(__ENV.BASE_URL || 'http://127.0.0.1:8195');
-  const host = (raw.match(/^https?:\/\/([^/:[]+|\[[^\]]+\])/) || [])[1] || '';
+  const authority = (raw.match(/^https?:\/\/([^/?#]*)/) || [])[1] || '';
+  if (authority.includes('@')) {
+    throw new Error(`refusing load target ${raw}: credentials in the URL can hide the real host`);
+  }
+  const host = (authority.match(/^([^:[]+|\[[^\]]+\])/) || [])[1] || '';
   if (PRODUCTION.test(host) || !LOOPBACK.test(host)) {
     throw new Error(`refusing load target ${raw}: only a local disposable server is allowed`);
   }

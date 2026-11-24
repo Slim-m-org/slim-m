@@ -44,7 +44,7 @@ def check_confirmed(confirmed, base_url):
 
 def is_known_production(base_url):
     """Whether the URL's host is the live deployment's domain, under it, or its LAN address."""
-    hostname = urllib.parse.urlparse(base_url).hostname or ""
+    hostname = (urllib.parse.urlparse(base_url).hostname or "").rstrip(".")
     return (
         hostname in PRODUCTION_HOSTS
         or hostname == PRODUCTION_DOMAIN

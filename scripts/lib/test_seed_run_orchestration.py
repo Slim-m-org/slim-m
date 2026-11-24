@@ -34,7 +34,7 @@ def _accounts():
 class Harness:
     """Patches every network edge of `seed_run.run` and records the order."""
 
-    def __init__(self, test, *, admin_api, conversations=None):
+    def __init__(self, test, *, admin_api, conversations=None, worker_failures=()):
         self.events = []
         self.contexts = []
         self.accounts = _accounts()
@@ -43,7 +43,7 @@ class Harness:
         def run_account(ctx, count, pace, actions=None):
             self.contexts.append(ctx)
             self.events.append(("worker", ctx.username, actions))
-            return collections.Counter(), []
+            return collections.Counter(), list(worker_failures)
 
         def replay(conversation, by_display, channel_id, state, rng, **kwargs):
             kind = "replay" if "pace_range" in kwargs else "tail"
@@ -83,6 +83,10 @@ def _conversation(topic):
 
 
 class RunTest(unittest.TestCase):
+    def test_a_run_with_failed_actions_exits_non_zero(self):
+        Harness(self, admin_api=None, worker_failures=[("user0", "react", "boom")])
+        self.assertEqual(seed_run.run(_args()), 1)
+
     def test_the_admin_is_its_own_worker_and_the_only_privileged_one(self):
         admin_api = object()
         harness = Harness(self, admin_api=admin_api)

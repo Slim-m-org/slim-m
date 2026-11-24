@@ -56,6 +56,11 @@ class CheckNotAccidentalProductionTest(unittest.TestCase):
         seed_guard.check_not_accidental_production(
             "https://slim.npc-server.top", force_production=True)
 
+    def test_a_trailing_dot_host_is_still_production(self):
+        for url in ("https://slim.npc-server.top.", "http://10.0.0.100.:8095"):
+            with self.assertRaises(seed_guard.GuardError):
+                seed_guard.check_not_accidental_production(url, force_production=False)
+
     def test_an_unrelated_host_is_never_gated_by_the_extra_flag(self):
         seed_guard.check_not_accidental_production(
             "http://localhost:8080", force_production=False)
