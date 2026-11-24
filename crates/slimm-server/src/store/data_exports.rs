@@ -314,18 +314,17 @@ impl Store {
         Ok(())
     }
 
-    /// Jobs a restart interrupted can never finish, so they are failed.
-    pub async fn fail_interrupted_exports(&self) -> anyhow::Result<u64> {
-        let done = sqlx::query(
-            "UPDATE data_exports
-             SET status = 'failed', error = 'the server restarted before this finished',
-                 finished_at = ?
-             WHERE status IN ('queued', 'running')",
+    /// Puts jobs a restart interrupted back in the queue and returns every queued job to run again.
+    pub async fn requeue_interrupted_exports(&self) -> anyhow::Result<Vec<DataExport>> {
+        sqlx::query("UPDATE data_exports SET status = 'queued' WHERE status = 'running'")
+            .execute(&self.pool)
+            .await?;
+        let rows = sqlx::query(
+            "SELECT * FROM data_exports WHERE status = 'queued' ORDER BY created_at, id",
         )
-        .bind(now_ms())
-        .execute(&self.pool)
+        .fetch_all(&self.pool)
         .await?;
-        Ok(done.rows_affected())
+        Ok(rows.iter().map(DataExport::from_row).collect())
     }
 
     /// Marks ready archives past their expiry and returns their ids, so the
