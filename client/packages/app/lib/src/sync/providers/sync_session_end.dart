@@ -89,5 +89,14 @@ Future<void> clearSessionState(Ref ref) async {
       stack,
     );
   }
-  await clearSessionMediaCaches(ref.read);
+  try {
+    await clearSessionMediaCaches(ref.read);
+  } catch (error, stack) {
+    AppLog.swallowed(
+      LogTag.sync,
+      'Could not clear cached media after signing out',
+      error,
+      stack,
+    );
+  }
 }
