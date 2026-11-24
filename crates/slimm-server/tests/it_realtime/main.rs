@@ -45,6 +45,7 @@ mod ws_call_frame_lookups;
 mod ws_code_run_delivery;
 mod ws_created_lookups;
 mod ws_event_frame_pin;
+mod ws_event_frame_samples;
 mod ws_frame_contract;
 mod ws_handshake;
 mod ws_liveness;
