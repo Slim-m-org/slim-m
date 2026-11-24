@@ -175,7 +175,7 @@ void main() {
     await tester.tap(find.bySemanticsLabel('Download server logs'));
     await _frames(tester);
 
-    expect(find.text('Could not save the server logs.'), findsOneWidget);
+    expect(find.text('Could not download the server logs.'), findsOneWidget);
     expect(
       find.byWidgetPredicate((w) => w is AppButton && w.busy),
       findsNothing,

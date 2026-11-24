@@ -8,9 +8,12 @@ import 'dart:typed_data';
 import 'dart:ui' show Size;
 
 import 'package:flutter/painting.dart' show Color;
+import 'package:flutter_riverpod/flutter_riverpod.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_app/src/features/first_run/widgets/avatar_patterns.dart';
+import 'package:slimm_app/src/features/first_run/widgets/first_run_avatar_patterns.dart'
+    show avatarPatternRendererProvider;
 
 import '../../support/async_wait.dart';
 import 'first_run_harness.dart';
@@ -36,9 +39,11 @@ http.Response? _accept(http.Request r) {
 Future<FirstRunRig> _toProfile(
   WidgetTester tester, {
   http.Response? Function(http.Request)? respond,
+  List<Override> overrides = const [],
 }) async {
   final rig = await pumpFirstRun(
     tester,
+    overrides: overrides,
     size: const Size(390, 900),
     respond: respond ?? _accept,
   );
@@ -121,5 +126,31 @@ void main() {
     await tester.tap(find.text('Retry'));
     await waitUntil(tester, () => rig.sent('POST', '/me/avatar').length == 2);
     expect(find.text('Retry'), findsNothing);
+  });
+
+  testWidgets('a render failure frees the picker and says so', (tester) async {
+    var renders = 0;
+    final rig = await _toProfile(
+      tester,
+      overrides: [
+        avatarPatternRendererProvider.overrideWithValue((
+          pattern, {
+          required accountId,
+          required base,
+        }) async {
+          renders++;
+          throw StateError('no image');
+        }),
+      ],
+    );
+    await tester.tap(find.bySemanticsLabel('Use the beams pattern'));
+    await settle(tester);
+
+    expect(tester.takeException(), isNull);
+    expect(find.textContaining('Could not set your picture'), findsOneWidget);
+    expect(rig.sent('POST', '/me/avatar'), isEmpty);
+    await tester.tap(find.bySemanticsLabel('Use the rings pattern'));
+    await settle(tester);
+    expect(renders, 2, reason: 'a stuck busy flag would ignore the second tap');
   });
 }

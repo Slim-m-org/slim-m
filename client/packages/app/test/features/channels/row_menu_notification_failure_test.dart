@@ -124,7 +124,7 @@ Future<void> _failEntry(
     kind: PointerDeviceKind.mouse,
   );
   await tester.pumpAndSettle();
-  if (label != 'Mark as unread') {
+  if (label != 'Mark as unread' && label != 'Close DM') {
     await tester.tap(find.text('Notifications'));
     await tester.pumpAndSettle();
   }
@@ -158,4 +158,15 @@ void main() {
       });
     }
   }
+
+  testWidgets('a failed Close DM is said and throws nothing', (tester) async {
+    await _failEntry(tester, _dmRow(), find.text('Priya'), 'Close DM');
+
+    final thrown = tester.takeException();
+    expect(thrown, isNull, reason: 'uncaught async error: $thrown');
+    expect(toastMessages(tester), [
+      contains('Could not close the conversation'),
+    ]);
+    await expireToasts(tester);
+  });
 }

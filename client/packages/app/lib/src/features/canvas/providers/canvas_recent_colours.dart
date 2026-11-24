@@ -42,8 +42,17 @@ class CanvasRecentColours extends Notifier<List<String>>
       hex,
       ...state.where((h) => h != hex),
     ].take(canvasRecentColoursMax).toList();
-    final prefs = await ref.read(preferencesProvider.future);
-    await prefs.setStringList(canvasRecentColoursKey, state);
+    try {
+      final prefs = await ref.read(preferencesProvider.future);
+      await prefs.setStringList(canvasRecentColoursKey, state);
+    } catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.data,
+        'Could not save the recent canvas colours',
+        error,
+        stack,
+      );
+    }
   }
 }
 

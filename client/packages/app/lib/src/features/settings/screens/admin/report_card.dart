@@ -163,9 +163,11 @@ class _ReportCardState extends ConsumerState<ReportCard>
   ) async {
     if (_busy) return;
     setState(() => _busy = true);
-    await action(guard);
-    if (!mounted) return;
-    setState(() => _busy = false);
+    try {
+      await action(guard);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   @override
