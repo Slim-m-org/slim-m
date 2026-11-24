@@ -62,9 +62,10 @@ class _GroupDmMembersSheetState extends ConsumerState<_GroupDmMembersSheet> {
       _busy = true;
       _error = null;
     });
+    final container = _container;
     try {
       await action();
-      ref.invalidate(groupDmProvider(widget.channelId));
+      container.invalidate(groupDmProvider(widget.channelId));
     } on api.ApiException catch (e, stack) {
       api.reportFailure(api.LogTag.ui, whatFailed, e, stack);
       if (mounted) {
@@ -102,7 +103,7 @@ class _GroupDmMembersSheetState extends ConsumerState<_GroupDmMembersSheet> {
       done = true;
     });
     if (!done) return;
-    navigator.pop();
+    if (mounted) navigator.pop();
     final viewing = channelIdInPath(
       router.routerDelegate.currentConfiguration.uri.path,
     );

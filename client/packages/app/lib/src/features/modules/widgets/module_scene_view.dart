@@ -174,7 +174,7 @@ class _ModuleSceneViewState extends State<ModuleSceneView> {
   /// caller a refusal paces rather than reports: a control press is one
   /// deliberate act and has to say straight away that it did nothing.
   Future<void> _send(String action, {bool queued = false}) async {
-    if (_busy) return;
+    if (!mounted || _busy) return;
     setState(() {
       _busy = true;
       _error = null;

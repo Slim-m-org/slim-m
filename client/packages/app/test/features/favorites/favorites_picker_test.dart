@@ -4,6 +4,7 @@
 /// window and through the long-press menu on a narrow one.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -17,6 +18,7 @@ import 'package:slimm_app/src/features/composer/widgets/gif_picker.dart';
 import 'package:slimm_app/src/features/favorites/providers/favorites_controller.dart';
 import 'package:slimm_app/src/features/messages/providers/attachment_preview_bytes.dart';
 import 'package:slimm_app/src/providers/providers.dart';
+import 'package:slimm_app/src/providers/toasts.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 
@@ -68,6 +70,9 @@ class _Server {
   int selectStatus = 201;
   bool failOrder = false;
 
+  /// While set, a select or an add is received but not answered.
+  Completer<void>? hold;
+
   Future<http.Response> handle(http.Request request) async {
     final call = '${request.method} ${request.url.path}';
     calls.add(call);
@@ -77,6 +82,7 @@ class _Server {
       headers: {'content-type': 'application/json'},
     );
     if (request.body.isNotEmpty) lastBody = jsonDecode(request.body);
+    if (request.method == 'POST') await hold?.future;
     return switch (call) {
       'GET /favorites' => json(favorites),
       'GET /gifs/trending' => json({
@@ -109,6 +115,7 @@ Future<ProviderContainer> _pump(
   _Server server, {
   required void Function(api.Attachment) onPicked,
   Size size = const Size(800, 900),
+  ValueNotifier<bool>? shown,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -127,7 +134,13 @@ Future<ProviderContainer> _pump(
       container: container,
       child: MaterialApp(
         theme: buildTheme(Brightness.light, AppTokens.light),
-        home: Scaffold(body: GifPickerBody(onPicked: onPicked)),
+        home: Scaffold(
+          body: ValueListenableBuilder<bool>(
+            valueListenable: shown ?? ValueNotifier(true),
+            builder: (context, on, _) =>
+                on ? GifPickerBody(onPicked: onPicked) : const SizedBox(),
+          ),
+        ),
       ),
     ),
   );
@@ -305,5 +318,76 @@ void main() {
     final ids = container.read(favoritesProvider).requireValue.map((f) => f.id);
     expect(ids, ['a', 'b']);
     expect(find.textContaining('reorder your favorites'), findsOneWidget);
+  });
+
+  testWidgets('a favorite that went away after the picker closed still '
+      'reloads the list', (tester) async {
+    final server = _Server([_kept('k', available: true)])..selectStatus = 409;
+    final shown = ValueNotifier(true);
+    addTearDown(shown.dispose);
+    final hold = server.hold = Completer<void>();
+    final container = await _pump(
+      tester,
+      server,
+      onPicked: (_) {},
+      shown: shown,
+    );
+    final keepAlive = container.listen(favoritesProvider, (_, _) {});
+    addTearDown(keepAlive.close);
+
+    await tester.tap(_tile('k'));
+    await tester.runAsync(() async {
+      while (!server.calls.any((c) => c.endsWith('/select'))) {
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+      }
+    });
+    shown.value = false;
+    await tester.pump();
+    hold.complete();
+    await _until(
+      tester,
+      () => server.calls.where((c) => c == 'GET /favorites').length == 2,
+    );
+
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('adding a favorite still says so after the picker closed', (
+    tester,
+  ) async {
+    final server = _Server([]);
+    final shown = ValueNotifier(true);
+    addTearDown(shown.dispose);
+    final hold = server.hold = Completer<void>();
+    final container = await _pump(
+      tester,
+      server,
+      onPicked: (_) {},
+      shown: shown,
+    );
+    await _until(tester, () => server.calls.contains('GET /gifs/trending'));
+    await tester.tap(
+      find.bySemanticsLabel('Pick: a cat'),
+      buttons: kSecondaryButton,
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('Add to favorites'));
+    await tester.runAsync(() async {
+      while (!server.calls.contains('POST /favorites')) {
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+      }
+    });
+    shown.value = false;
+    await tester.pump();
+    hold.complete();
+    await _until(
+      tester,
+      () => container
+          .read(toastsProvider)
+          .any((t) => t.message == 'Added to favorites.'),
+    );
+
+    expect(tester.takeException(), isNull);
+    await tester.pump(ToastsController.defaultDuration);
   });
 }

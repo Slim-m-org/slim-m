@@ -62,10 +62,11 @@ class _WhoCanSeeState extends ConsumerState<WhoCanSee>
   }) async {
     setState(() => _busy = true);
     final target = widget.target;
+    final container = ProviderScope.containerOf(context, listen: false);
     await guard(
       whatFailed: allowed ? 'add ${column.label}' : 'remove ${column.label}',
       action: () async {
-        await ref.read(viewAccessWriterProvider).write(target, [
+        await container.read(viewAccessWriterProvider).write(target, [
           viewGrantEdit(
             existing,
             kind: column.kind,
@@ -73,7 +74,7 @@ class _WhoCanSeeState extends ConsumerState<WhoCanSee>
             allowed: allowed,
           ),
         ]);
-        target.affected.forEach(ref.invalidate);
+        target.affected.forEach(container.invalidate);
       },
     );
     if (mounted) setState(() => _busy = false);

@@ -103,6 +103,7 @@ Future<FirstRunRig> pumpFirstRun(
   bool description = true,
   bool icon = false,
   Uint8List? banner,
+  List<Override> overrides = const [],
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1.0;
@@ -175,6 +176,7 @@ Future<FirstRunRig> pumpFirstRun(
       ),
       if (inviter != null)
         firstRunInviterProvider.overrideWith((ref) => inviter),
+      ...overrides,
     ],
   );
   addTearDown(container.dispose);

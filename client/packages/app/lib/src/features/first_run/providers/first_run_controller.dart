@@ -81,8 +81,17 @@ class FirstRunController extends StateNotifier<FirstRunState> {
     final space = _space;
     final account = _account;
     if (space == null || account == null) return;
-    final prefs = await _ref.read(preferencesProvider.future);
-    await prefs.setBool(firstRunDoneKey(space, account), true);
+    try {
+      final prefs = await _ref.read(preferencesProvider.future);
+      await prefs.setBool(firstRunDoneKey(space, account), true);
+    } catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.ui,
+        'Could not remember that setup is done; it may show again',
+        error,
+        stack,
+      );
+    }
   }
 
   /// The channels, read at the moment a landing is chosen.

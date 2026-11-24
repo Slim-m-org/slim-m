@@ -35,22 +35,22 @@ Future<void> showRenameMemberSheet(
     initial: profile.nickname ?? '',
     maxChars: api.InputLimits.name,
     whatFailed: 'rename ${profile.displayName}',
-    onSave: (ref, name) async {
-      await ref
+    onSave: (container, name) async {
+      await container
           .read(memberActionsProvider)
           .setMemberNickname(userId: profile.id, nickname: name);
-      ref.invalidate(membersProvider);
+      container.invalidate(membersProvider);
     },
     secondary: profile.nickname == null
         ? null
         : NameSheetAction(
             label: 'Remove nickname',
             whatFailed: 'remove the nickname',
-            run: (ref) async {
-              await ref
+            run: (container) async {
+              await container
                   .read(memberActionsProvider)
                   .clearMemberNickname(profile.id);
-              ref.invalidate(membersProvider);
+              container.invalidate(membersProvider);
             },
           ),
   );

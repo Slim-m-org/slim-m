@@ -78,14 +78,19 @@ class _CategoryPrivateSectionState extends ConsumerState<CategoryPrivateSection>
       _optimistic = private;
     });
     final target = _target;
+    final container = ProviderScope.containerOf(context, listen: false);
     final ok = await guard(
       whatFailed: private ? 'make the category private' : 'make it public',
       action: () async {
-        final existing = await ref.read(target.overwrites.future);
-        final roles = await ref.read(rolesProvider.future);
+        final existing = await container.read(target.overwrites.future);
+        final roles = await container.read(rolesProvider.future);
         final everyone = roles.firstWhere((r) => r.isEveryone);
-        final selfId = await _selfRowId(existing, everyoneRoleId: everyone.id);
-        await ref
+        final selfId = await _selfRowId(
+          container,
+          existing,
+          everyoneRoleId: everyone.id,
+        );
+        await container
             .read(viewAccessWriterProvider)
             .write(
               target,
@@ -101,7 +106,7 @@ class _CategoryPrivateSectionState extends ConsumerState<CategoryPrivateSection>
                       selfId: selfId,
                     ),
             );
-        target.affected.forEach(ref.invalidate);
+        target.affected.forEach(container.invalidate);
       },
     );
     if (!mounted) return;
@@ -116,14 +121,17 @@ class _CategoryPrivateSectionState extends ConsumerState<CategoryPrivateSection>
   /// Who the switch gives an Allow View row, or null when Administrator or
   /// one of their roles keeps them in.
   Future<String?> _selfRowId(
+    ProviderContainer container,
     List<api.ChannelOverwrite> existing, {
     required String everyoneRoleId,
   }) async {
-    if (ref.read(myPermissionsProvider).hasPermission(Perm.administrator)) {
+    if (container
+        .read(myPermissionsProvider)
+        .hasPermission(Perm.administrator)) {
       return null;
     }
-    final selfId = ref.read(sessionProvider).tokens?.userId;
-    final members = await ref.read(membersProvider.future);
+    final selfId = container.read(sessionProvider).tokens?.userId;
+    final members = await container.read(membersProvider.future);
     final self = members.where((m) => m.id == selfId).firstOrNull;
     final throughRole = viewAllowedToARole(
       existing,

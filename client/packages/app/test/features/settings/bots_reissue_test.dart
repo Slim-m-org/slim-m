@@ -3,6 +3,7 @@
 /// with the same copy actions a new bot gets.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -17,6 +18,9 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 
+import 'package:slimm_app/src/providers/admin_providers.dart' show botsProvider;
+
+import '../../support/async_wait.dart';
 import '../../support/bot_menu.dart';
 import '../../support/fake_api.dart';
 
@@ -46,6 +50,8 @@ Future<List<String>> _pump(
   int reissueStatus = 200,
   int botCount = 1,
   Size size = const Size(800, 2400),
+  Future<void>? hold,
+  ValueNotifier<bool>? botsGone,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1.0;
@@ -71,6 +77,7 @@ Future<List<String>> _pump(
               request.url.path.startsWith('/bots/bot-helper') &&
               request.url.path.endsWith('/token')) {
             posted.add(request.url.path);
+            await hold;
             return reissueStatus == 200
                 ? _json({'bot': _bot(), 'token': _newToken})
                 : _json({'error': 'no such bot'}, reissueStatus);
@@ -79,6 +86,7 @@ Future<List<String>> _pump(
             return _json({'bot': _bot(suffix: '2'), 'token': _newToken}, 201);
           }
           if (request.method == 'GET' && request.url.path == '/bots') {
+            if (botsGone?.value ?? false) return _json(<Object>[]);
             return _json([
               for (var i = 0; i < botCount; i++)
                 _bot(tokenName: tokenName, suffix: i == 0 ? '' : '$i'),
@@ -156,6 +164,38 @@ void main() {
     await tester.tap(find.widgetWithText(AppButton, 'Done'));
     await tester.pumpAndSettle();
     expect(find.textContaining(_newToken), findsNothing);
+  });
+
+  testWidgets('a token issued after its row left the list is still shown', (
+    tester,
+  ) async {
+    final hold = Completer<void>();
+    final botsGone = ValueNotifier(false);
+    addTearDown(botsGone.dispose);
+    final posted = await _pump(tester, hold: hold.future, botsGone: botsGone);
+    await openBotMenu(tester);
+    await tester.tap(botMenuItem('Re-issue token'));
+    await pumpFrames(tester);
+    await tester.tap(find.widgetWithText(AppButton, 'Re-issue').last);
+    await pumpFrames(tester);
+    expect(posted, ['/bots/bot-helper/token']);
+
+    botsGone.value = true;
+    ProviderScope.containerOf(
+      tester.element(find.byWidgetPredicate((w) => w is BotsPane)),
+      listen: false,
+    ).invalidate(botsProvider);
+    await pumpFrames(tester);
+    expect(
+      find.byIcon(AppIcons.moreVertical),
+      findsNothing,
+      reason: 'row gone',
+    );
+    hold.complete();
+    await pumpFrames(tester, frames: 30);
+
+    expect(tester.takeException(), isNull);
+    expect(find.textContaining(_newToken), findsOneWidget);
   });
 
   testWidgets('a revoked bot can be re-issued a token', (tester) async {

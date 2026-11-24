@@ -19,6 +19,7 @@ import 'package:slimm_app/src/providers/toasts.dart';
 import 'package:slimm_app/src/features/channels/widgets/manage_category_sheet.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
+import '../../support/async_wait.dart';
 import '../../support/fake_api.dart';
 import '../../support/toast_host.dart';
 
@@ -29,6 +30,7 @@ Future<({ProviderContainer container, MessageStore store})> _pump(
   WidgetTester tester, {
   required Widget Function(BuildContext, WidgetRef) button,
   Future<void>? answerAfter,
+  List<String>? requests,
 }) async {
   final db = SlimmDatabase(NativeDatabase.memory());
   addTearDown(db.close);
@@ -57,6 +59,7 @@ Future<({ProviderContainer container, MessageStore store})> _pump(
       ),
       storeProvider.overrideWith((ref) async => store),
       mockApiOverride((request) async {
+        requests?.add('${request.method} ${request.url.path}');
         await answerAfter;
         return http.Response('{"error":"nope"}', 500);
       }),
@@ -100,6 +103,40 @@ void main() {
       contains('Could not delete the category'),
     ]);
     expect(await r.store.allCategories(), hasLength(2));
+    await tester.pump(ToastsController.defaultDuration);
+  });
+
+  testWidgets('a delete confirmed after its menu is gone still reaches the '
+      'server', (tester) async {
+    final menuShown = ValueNotifier(true);
+    addTearDown(menuShown.dispose);
+    final requests = <String>[];
+    await _pump(
+      tester,
+      requests: requests,
+      button: (context, _) => ValueListenableBuilder<bool>(
+        valueListenable: menuShown,
+        builder: (context, shown, _) => shown
+            ? Consumer(
+                builder: (context, ref, _) => ElevatedButton(
+                  onPressed: () =>
+                      confirmAndDeleteCategory(context, ref, _general),
+                  child: const Text('delete'),
+                ),
+              )
+            : const SizedBox.shrink(),
+      ),
+    );
+
+    await tester.tap(find.text('delete'));
+    await pumpFrames(tester);
+    menuShown.value = false;
+    await pumpFrames(tester);
+    await tester.tap(find.text('Delete'));
+    await pumpFrames(tester);
+
+    expect(tester.takeException(), isNull);
+    expect(requests, contains('DELETE /categories/cat-a'));
     await tester.pump(ToastsController.defaultDuration);
   });
 

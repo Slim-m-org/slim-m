@@ -4,6 +4,7 @@
 /// expired, and the proof sheet that says exactly what an archive holds.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -23,6 +24,8 @@ import 'package:slimm_app/src/providers/admin_providers.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
+
+import '../../support/async_wait.dart';
 
 const _tokens = api.TokenPair(
   userId: 'u1',
@@ -76,8 +79,12 @@ class _Server {
   bool refusePassword = false;
   bool cooldown = false;
 
+  /// Holds back the answer to a start.
+  Future<void>? hold;
+
   Future<http.Response> handle(http.Request request) async {
     calls.add('${request.method} ${request.url.path}');
+    if (request.method == 'POST') await hold;
     final json = {'content-type': 'application/json'};
     final path = request.url.path;
     if (request.method == 'POST' && cooldown) {
@@ -288,6 +295,58 @@ void main() {
 
     expect(find.text('The last export expired'), findsOneWidget);
     expect(_button(tester, 'Prepare download...').onPressed, isNotNull);
+  });
+
+  testWidgets('an export started after the card left still refreshes the '
+      'list', (tester) async {
+    final hold = Completer<void>();
+    final server = _Server()..hold = hold.future;
+    final shown = ValueNotifier(true);
+    addTearDown(shown.dispose);
+    final container = await _pump(
+      tester,
+      server,
+      child: ValueListenableBuilder<bool>(
+        valueListenable: shown,
+        builder: (context, on, _) => on
+            ? const DataExportCard(copy: DataExportCopy.member)
+            : const SizedBox(),
+      ),
+    );
+    final keepAlive = container.listen(dataExportsProvider, (_, _) {});
+    addTearDown(keepAlive.close);
+    final listed = server.calls.where((c) => c.startsWith('GET')).length;
+
+    await tester.tap(find.text('Prepare download...'));
+    await pumpFrames(tester);
+    await tester.enterText(
+      find.byWidgetPredicate((w) => w is TextField),
+      'hunter2hunter2',
+    );
+    await tester.pump();
+    await tester.tap(find.widgetWithText(AppButton, 'Prepare download'));
+    await tester.runAsync(() async {
+      while (!server.calls.contains('POST /exports/member')) {
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+      }
+    });
+    shown.value = false;
+    await pumpFrames(tester);
+    hold.complete();
+    for (var i = 0; i < 200; i++) {
+      if (server.calls.where((c) => c.startsWith('GET')).length > listed) break;
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 5)),
+      );
+      await tester.pump();
+    }
+
+    expect(tester.takeException(), isNull);
+    expect(
+      server.calls.where((c) => c.startsWith('GET')).length,
+      greaterThan(listed),
+    );
+    await _stop(tester, container);
   });
 
   testWidgets('a refused password keeps the sheet open on the reason', (

@@ -3,6 +3,7 @@
 /// the refusal it can hit, and the geometry of the columns.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -15,11 +16,14 @@ import 'package:slimm_app/src/providers/admin_providers.dart';
 import 'package:slimm_app/src/features/channels/providers/channel_permissions.dart';
 import 'package:slimm_app/src/features/members/providers/member_presence.dart';
 import 'package:slimm_app/src/providers/providers.dart';
+import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/features/settings/widgets/admin/channel_permissions_grid.dart';
 import 'package:slimm_app/src/features/settings/widgets/admin/channel_permissions_grid_rows.dart';
 import 'package:slimm_data/data.dart' show Channel;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
+import '../../support/async_wait.dart';
+import '../../support/fake_sync.dart';
 import '../../support/fake_api.dart';
 import '../../support/toast_host.dart';
 
@@ -70,9 +74,13 @@ class _Backend {
   int puts = 0;
   int deletes = 0;
 
+  /// While set, every removal is received but not answered.
+  Completer<void>? holdDeletes;
+
   Future<http.Response> handle(http.Request request) async {
     if (request.method == 'DELETE') {
       deletes++;
+      await holdDeletes?.future;
       stored.remove(request.url.pathSegments.skip(3).take(2).join(':'));
       return http.Response('', 204);
     }
@@ -112,7 +120,11 @@ class _Backend {
   }
 }
 
-Widget _wrap(_Backend backend, {required int myPermissions}) {
+Widget _wrap(
+  _Backend backend, {
+  required int myPermissions,
+  ValueNotifier<bool>? shown,
+}) {
   final container = ProviderContainer(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
@@ -131,6 +143,7 @@ Widget _wrap(_Backend backend, {required int myPermissions}) {
       myChannelPermissionsProvider(
         _channel.id,
       ).overrideWith((ref) => myPermissions),
+      syncControllerProvider.overrideWith((ref) => NoopSyncController(ref)),
       mockApiOverride(backend.handle),
     ],
   );
@@ -138,7 +151,14 @@ Widget _wrap(_Backend backend, {required int myPermissions}) {
     container: container,
     child: MaterialApp(
       theme: buildTheme(Brightness.light, AppTokens.light),
-      home: const Scaffold(body: ChannelPermissionsGrid(channel: _channel)),
+      home: Scaffold(
+        body: ValueListenableBuilder<bool>(
+          valueListenable: shown ?? ValueNotifier(true),
+          builder: (context, on, _) => on
+              ? const ChannelPermissionsGrid(channel: _channel)
+              : const SizedBox(),
+        ),
+      ),
     ),
   );
 }
@@ -324,5 +344,44 @@ void main() {
     await tester.pumpAndSettle();
     expect(backend.deletes, 1);
     expect(backend.puts, 2);
+  });
+
+  testWidgets('closing the grid mid-save still sends every write', (
+    tester,
+  ) async {
+    _phone(tester);
+    final shown = ValueNotifier(true);
+    addTearDown(shown.dispose);
+    final backend = _Backend({
+      'member:m-nadia': (0, 0),
+      'member:m-omar': (0, 0),
+    });
+    await tester.pumpWidget(
+      _wrap(backend, myPermissions: Perm.sendMessages, shown: shown),
+    );
+    await pumpFrames(tester);
+    await tester.tap(find.bySemanticsLabel('Remove Nadia from this grid'));
+    await tester.tap(find.bySemanticsLabel('Remove Omar from this grid'));
+    await _tapCell(tester, _cell('role:role-everyone', Perm.sendMessages));
+    final hold = backend.holdDeletes = Completer<void>();
+    await tester.tap(find.text('Save changes'));
+    await tester.runAsync(() async {
+      while (backend.deletes == 0) {
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+      }
+    });
+
+    shown.value = false;
+    await pumpFrames(tester);
+    hold.complete();
+    await tester.runAsync(() async {
+      for (var i = 0; i < 400 && backend.puts == 0; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+      }
+    });
+
+    expect(tester.takeException(), isNull);
+    expect(backend.deletes, 2);
+    expect(backend.puts, 1);
   });
 }

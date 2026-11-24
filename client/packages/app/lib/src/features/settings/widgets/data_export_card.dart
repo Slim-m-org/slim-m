@@ -61,6 +61,7 @@ class DataExportCard extends ConsumerWidget {
   }
 
   Future<void> _start(BuildContext context, WidgetRef ref) async {
+    final container = ProviderScope.containerOf(context, listen: false);
     await showReauthSheet(
       context,
       title: copy.rowTitle,
@@ -68,11 +69,11 @@ class DataExportCard extends ConsumerWidget {
       submitLabel: copy.startLabel.replaceAll('...', ''),
       onSubmit: (password, _) async {
         try {
-          final client = ref.read(settingsActionsProvider);
+          final client = container.read(settingsActionsProvider);
           copy.kind == api.ExportKind.space
               ? await client.startSpaceExport(password: password)
               : await client.startMemberExport(password: password);
-          ref.invalidate(dataExportsProvider);
+          container.invalidate(dataExportsProvider);
           return null;
         } on api.ApiException catch (e, stack) {
           api.reportFailure(api.LogTag.ui, copy.failureWhat, e, stack);

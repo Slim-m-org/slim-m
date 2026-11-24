@@ -145,16 +145,20 @@ class _FirstRunFlowState extends ConsumerState<FirstRunFlow> {
     final me = ref.read(meProvider).valueOrNull;
     final text = _pronouns.text.trim();
     if (text == (me?.pronouns ?? '')) return;
-    await ref.read(memberActionsProvider).updateMe(pronouns: text);
-    ref.invalidate(meProvider);
+    final container = ProviderScope.containerOf(context, listen: false);
+    await container.read(memberActionsProvider).updateMe(pronouns: text);
+    container.invalidate(meProvider);
   }
 
   Future<void> _saveNotifyChoice() async {
     final choice = _notify;
     if (choice == null) return;
     if (choice == ref.read(notificationPreferenceProvider).valueOrNull) return;
+    final container = ProviderScope.containerOf(context, listen: false);
     try {
-      await ref.read(settingsActionsProvider).setNotificationPreference(choice);
+      await container
+          .read(settingsActionsProvider)
+          .setNotificationPreference(choice);
     } on api.NotFoundException catch (error, stack) {
       api.AppLog.swallowed(
         api.LogTag.ui,
@@ -165,16 +169,17 @@ class _FirstRunFlowState extends ConsumerState<FirstRunFlow> {
       // A server too old for the route has nothing to save; the step still counts.
       return;
     }
-    ref.invalidate(notificationPreferenceProvider);
+    container.invalidate(notificationPreferenceProvider);
   }
 
   Future<void> _finish() async {
     final controller = ref.read(firstRunControllerProvider.notifier);
     final replay = ref.read(firstRunControllerProvider).replay;
     final channels = replay ? <Channel>[] : await controller.channels();
+    if (!mounted) return;
     final landing = pickLandingChannel(channels);
+    if (landing != null) context.go(Routes.channel(landing.id));
     await controller.complete();
-    if (landing != null && mounted) context.go(Routes.channel(landing.id));
   }
 
   Future<void> _skip() =>

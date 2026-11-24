@@ -62,7 +62,7 @@ class _ProfileColourFieldState extends ConsumerState<ProfileColourField> {
           profileColourOf(index: me.profileColor, rgb: me.profileColorRgb) ??
           AppCanvasColors.cursors.first,
     );
-    if (colour != null) await _setCustom(colour);
+    if (colour != null && mounted) await _setCustom(colour);
   }
 
   Future<void> _save(_Save save, {int? shown}) async {

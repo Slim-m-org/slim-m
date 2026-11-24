@@ -187,19 +187,17 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
 
   /// Clears removals one at a time and forgets each once done, so a later
   /// refusal of the batch cannot make a retry delete the same column twice.
-  Future<void> _applyRemovals() async {
+  Future<void> _applyRemovals(SettingsActions actions) async {
     // A category's batch removes a target given an all-zero pair, so removals ride along in _save.
     if (_categoryId != null) return;
     for (final key in _removed.toList()) {
       final (kind, id) = parseOverwriteKey(key);
       try {
-        await ref
-            .read(settingsActionsProvider)
-            .deleteChannelOverwrite(
-              channelId: widget.channel!.id,
-              kind: kind,
-              id: id,
-            );
+        await actions.deleteChannelOverwrite(
+          channelId: widget.channel!.id,
+          kind: kind,
+          id: id,
+        );
       } on api.NotFoundException catch (error, stack) {
         api.AppLog.swallowed(
           api.LogTag.ui,
@@ -244,10 +242,13 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
       return;
     }
     setState(() => _saving = true);
+    // Taken before the first await: the sheet can close mid-save and the writes must still all land.
+    final container = ProviderScope.containerOf(context, listen: false);
+    final actions = container.read(settingsActionsProvider);
     final ok = await guard(
       whatFailed: 'save the permissions grid',
       action: () async {
-        await _applyRemovals();
+        await _applyRemovals(actions);
         final edits = <api.ChannelOverwriteEdit>[
           for (final entry in _pending.entries)
             if (_original[entry.key] != entry.value)
@@ -260,30 +261,26 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
         ];
         final categoryId = _categoryId;
         if (categoryId != null) {
-          await ref
-              .read(settingsActionsProvider)
-              .batchSetCategoryOverwrites(
-                categoryId: categoryId,
-                overwrites: [
-                  ...edits,
-                  for (final key in _removed)
-                    api.ChannelOverwriteEdit(
-                      kind: parseOverwriteKey(key).$1,
-                      id: parseOverwriteKey(key).$2,
-                    ),
-                ],
-              );
+          await actions.batchSetCategoryOverwrites(
+            categoryId: categoryId,
+            overwrites: [
+              ...edits,
+              for (final key in _removed)
+                api.ChannelOverwriteEdit(
+                  kind: parseOverwriteKey(key).$1,
+                  id: parseOverwriteKey(key).$2,
+                ),
+            ],
+          );
           // A sub-category's own save stops it following its parent.
-          if (ref.exists(categoryOverwritesSyncedProvider(categoryId))) {
-            ref.invalidate(categoryOverwritesSyncedProvider(categoryId));
+          if (container.exists(categoryOverwritesSyncedProvider(categoryId))) {
+            container.invalidate(categoryOverwritesSyncedProvider(categoryId));
           }
         } else if (edits.isNotEmpty) {
-          await ref
-              .read(settingsActionsProvider)
-              .batchSetChannelOverwrites(
-                channelId: widget.channel!.id,
-                overwrites: edits,
-              );
+          await actions.batchSetChannelOverwrites(
+            channelId: widget.channel!.id,
+            overwrites: edits,
+          );
         }
       },
     );

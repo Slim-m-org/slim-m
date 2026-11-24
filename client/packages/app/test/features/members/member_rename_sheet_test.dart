@@ -4,6 +4,7 @@
 /// the sheet as a persistent error rather than a SnackBar.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -39,6 +40,8 @@ Future<List<String>> _open(
   WidgetTester tester, {
   required api.UserProfile profile,
   int status = 204,
+  Future<void>? hold,
+  List<int>? memberReads,
 }) async {
   tester.view.physicalSize = const Size(900, 900);
   tester.view.devicePixelRatio = 1;
@@ -49,9 +52,13 @@ Future<List<String>> _open(
       overrides: [
         keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
         sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
-        membersProvider.overrideWith((ref) async => [profile]),
+        membersProvider.overrideWith((ref) async {
+          memberReads?.add(memberReads.length);
+          return [profile];
+        }),
         mockApiOverride((request) async {
           seen.add('${request.method} ${request.url.path} ${request.body}');
+          await hold;
           return http.Response(
             status == 204 ? '' : jsonEncode({'error': 'no'}),
             status,
@@ -62,11 +69,23 @@ Future<List<String>> _open(
       child: MaterialApp(
         theme: buildTheme(Brightness.light, AppTokens.light),
         home: Scaffold(
-          body: Builder(
-            builder: (context) => AppButton(
-              label: 'Open',
-              onPressed: () => showRenameMemberSheet(context, profile: profile),
-            ),
+          body: Column(
+            children: [
+              Builder(
+                builder: (context) => AppButton(
+                  label: 'Open',
+                  onPressed: () =>
+                      showRenameMemberSheet(context, profile: profile),
+                ),
+              ),
+              // A reader that outlives the sheet, so an invalidate refetches.
+              Consumer(
+                builder: (context, ref, _) {
+                  ref.watch(membersProvider);
+                  return const SizedBox.shrink();
+                },
+              ),
+            ],
           ),
         ),
       ),
@@ -92,6 +111,46 @@ void main() {
       'PUT /members/user-maya/nickname ${jsonEncode({'nickname': 'House DJ'})}',
     ]);
     expect(find.text('Rename Maya'), findsNothing);
+  });
+
+  testWidgets('a save answered after the sheet closed still refreshes the '
+      'members', (tester) async {
+    final hold = Completer<void>();
+    final reads = <int>[];
+    final seen = await _open(
+      tester,
+      profile: _profile(),
+      hold: hold.future,
+      memberReads: reads,
+    );
+    await tester.enterText(
+      find.byWidgetPredicate((w) => w is EditableText),
+      'House DJ',
+    );
+    await tester.pump();
+    await tester.tap(find.text('Save name'));
+    await tester.runAsync(() async {
+      while (seen.isEmpty) {
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+      }
+    });
+    final before = reads.length;
+
+    await tester.tap(find.byTooltip('Close'));
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.text('Rename Maya'), findsNothing);
+    hold.complete();
+    for (var i = 0; i < 200 && reads.length == before; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 5)),
+      );
+      await tester.pump();
+    }
+
+    expect(tester.takeException(), isNull);
+    expect(reads.length, greaterThan(before));
   });
 
   testWidgets('says that their own name is untouched', (tester) async {

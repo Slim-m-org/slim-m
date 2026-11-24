@@ -3,6 +3,7 @@
 /// how long ago each webhook last delivered.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:drift/native.dart';
@@ -11,11 +12,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart';
+import 'package:slimm_app/src/providers/admin_providers.dart'
+    show webhooksProvider;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/webhooks_screen.dart';
 import 'package:slimm_data/data.dart' show MessageStore, SlimmDatabase;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
+import '../../support/async_wait.dart';
 import '../../support/fake_api.dart';
 import '../../support/toast_host.dart';
 
@@ -40,6 +44,7 @@ Future<void> _pump(
   http.Response Function(http.Request) handler, {
   MessageStore? store,
   double width = 800,
+  Future<void>? holdPosts,
 }) async {
   tester.view.physicalSize = Size(width, 2400);
   tester.view.devicePixelRatio = 1.0;
@@ -50,7 +55,10 @@ Future<void> _pump(
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       if (store != null) storeProvider.overrideWith((ref) async => store),
       sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
-      mockApiOverride((request) async => handler(request)),
+      mockApiOverride((request) async {
+        if (request.method == 'POST') await holdPosts;
+        return handler(request);
+      }),
     ],
   );
   addTearDown(container.dispose);
@@ -121,6 +129,56 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(posted, ['/webhooks/wh-1/rotate']);
+    expect(
+      find.text('http://localhost:8080/webhooks/wh-1/fresh-token'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('a rotated URL is still shown after its row left the list', (
+    tester,
+  ) async {
+    final hold = Completer<void>();
+    var listed = true;
+    var posted = false;
+    await _pump(tester, holdPosts: hold.future, (request) {
+      if (request.method == 'GET' && request.url.path == '/webhooks') {
+        return http.Response(
+          listed ? '[${_webhookJson()}]' : '[]',
+          200,
+          headers: _json,
+        );
+      }
+      if (request.method == 'POST') {
+        posted = true;
+        return http.Response(
+          jsonEncode({
+            'webhook': jsonDecode(_webhookJson()),
+            'delivery_path': '/webhooks/wh-1/fresh-token',
+          }),
+          200,
+          headers: _json,
+        );
+      }
+      return http.Response('{}', 200);
+    });
+
+    await tester.tap(find.bySemanticsLabel('Rotate sonarr'));
+    await pumpFrames(tester);
+    await tester.tap(find.widgetWithText(AppButton, 'Rotate').last);
+    await pumpFrames(tester);
+    listed = false;
+    ProviderScope.containerOf(
+      tester.element(find.byWidgetPredicate((w) => w is WebhooksPane)),
+      listen: false,
+    ).invalidate(webhooksProvider);
+    await pumpFrames(tester);
+    expect(find.bySemanticsLabel('Rotate sonarr'), findsNothing);
+    hold.complete();
+    await pumpFrames(tester, frames: 30);
+
+    expect(tester.takeException(), isNull);
+    expect(posted, isTrue);
     expect(
       find.text('http://localhost:8080/webhooks/wh-1/fresh-token'),
       findsOneWidget,

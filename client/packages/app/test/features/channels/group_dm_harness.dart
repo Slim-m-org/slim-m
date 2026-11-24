@@ -3,6 +3,7 @@
 /// routes, a container over it, and openers for the two sheets.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:drift/native.dart';
@@ -73,11 +74,15 @@ class GroupDmServer {
   /// The next write is handled but its reply never arrives.
   bool dropNext = false;
 
+  /// While set, every write waits here before it is answered.
+  Completer<void>? holdWrites;
+
   int get writes => requests.where((r) => !r.startsWith('GET')).length;
 
   Future<http.Response> handle(http.Request request) async {
     final line = '${request.method} ${request.url.path}';
     requests.add(request.body.isEmpty ? line : '$line ${request.body}');
+    if (request.method != 'GET') await holdWrites?.future;
     if (dropNext && request.method != 'GET') {
       dropNext = false;
       throw http.ClientException('connection closed');

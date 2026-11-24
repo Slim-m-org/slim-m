@@ -17,6 +17,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/widgets/color_swatch_row.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
+import '../../support/async_wait.dart';
 import '../../support/fake_api.dart';
 import '../../support/toast_host.dart';
 
@@ -33,7 +34,11 @@ class _Harness {
   bool refuse = false;
 }
 
-Future<_Harness> _pump(WidgetTester tester, {int? customRgb}) async {
+Future<_Harness> _pump(
+  WidgetTester tester, {
+  int? customRgb,
+  ValueNotifier<bool>? shown,
+}) async {
   tester.view.physicalSize = const Size(900, 2000);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
@@ -77,8 +82,13 @@ Future<_Harness> _pump(WidgetTester tester, {int? customRgb}) async {
       container: container,
       child: MaterialApp(
         theme: buildTheme(Brightness.light, AppTokens.light),
-        home: const Scaffold(
-          body: SingleChildScrollView(child: ProfileColourField()),
+        home: Scaffold(
+          body: ValueListenableBuilder<bool>(
+            valueListenable: shown ?? ValueNotifier(true),
+            builder: (context, on, _) => on
+                ? const SingleChildScrollView(child: ProfileColourField())
+                : const SizedBox(),
+          ),
         ),
       ),
     ),
@@ -98,6 +108,26 @@ Future<void> _saveHex(WidgetTester tester, String hex) async {
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
+
+  testWidgets('a colour picked after the field left the screen does nothing', (
+    tester,
+  ) async {
+    final shown = ValueNotifier(true);
+    addTearDown(shown.dispose);
+    final h = await _pump(tester, shown: shown);
+    await tester.tap(find.bySemanticsLabel('Profile colour: Custom'));
+    await pumpFrames(tester, frames: 20);
+
+    shown.value = false;
+    await tester.pump();
+    await tester.enterText(find.bySemanticsLabel('Hex colour'), '#3366CC');
+    await tester.pump();
+    await tester.tap(find.text('Save'));
+    await pumpFrames(tester, frames: 20);
+
+    expect(tester.takeException(), isNull);
+    expect(h.patches, isEmpty);
+  });
 
   testWidgets('a custom colour sends the rgb and the nearest preset', (
     tester,

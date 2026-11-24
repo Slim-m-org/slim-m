@@ -47,19 +47,24 @@ class ComposerAttachmentActions {
     final hadKeyboard = focus.hasFocus;
     // Else the closing sheet hands focus back to the field, which undoes Photo library swapping the keyboard for the strip.
     focus.unfocus();
-    VoidCallback keepKeyboard(VoidCallback action) => () {
-      if (hadKeyboard && isMounted()) focus.requestFocus();
-      action();
+    VoidCallback whenMounted(VoidCallback action) => () {
+      if (isMounted()) action();
     };
+    VoidCallback keepKeyboard(VoidCallback action) => whenMounted(() {
+      if (hadKeyboard) focus.requestFocus();
+      action();
+    });
     unawaited(
       showComposerActionsSheet(
         context,
-        onPhotoLibrary: () => openPhotoStripOr(
-          context,
-          ref,
-          channelId,
-          fallback: keepKeyboard(
-            () => unawaited(pickAttachment(AttachmentSource.photoLibrary)),
+        onPhotoLibrary: whenMounted(
+          () => openPhotoStripOr(
+            context,
+            ref,
+            channelId,
+            fallback: keepKeyboard(
+              () => unawaited(pickAttachment(AttachmentSource.photoLibrary)),
+            ),
           ),
         ),
         onBrowseFiles: keepKeyboard(
@@ -83,9 +88,12 @@ class ComposerAttachmentActions {
     );
   }
 
-  void launchApps(String channelId, void Function(String) onError) => unawaited(
-    showAppLauncherSheet(context(), ref, channelId, onError: onError),
-  );
+  void launchApps(String channelId, void Function(String) onError) {
+    if (!isMounted()) return;
+    unawaited(
+      showAppLauncherSheet(context(), ref, channelId, onError: onError),
+    );
+  }
 
   /// Focus comes back to the field, so Enter sends the GIF without the mouse.
   Future<void> stageGif(Attachment attachment) async {

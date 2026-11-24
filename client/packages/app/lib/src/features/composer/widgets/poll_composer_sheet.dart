@@ -127,8 +127,9 @@ class _PollComposerSheetState extends ConsumerState<_PollComposerSheet> {
     });
     final question = _question.text.trim();
     final options = _filledOptions;
+    final container = ProviderScope.containerOf(context, listen: false);
     try {
-      final sent = await ref
+      final sent = await container
           .read(composerActionsProvider)
           .sendPollMessage(
             channelId: widget.channelId,
@@ -143,9 +144,9 @@ class _PollComposerSheetState extends ConsumerState<_PollComposerSheet> {
             closeAt: _length.closeAt(clock.now()),
             ranked: _ranked,
           );
-      final store = await ref.read(storeProvider.future);
+      final store = await container.read(storeProvider.future);
       await store.applyMessage(sent);
-      ref.read(messageExtrasProvider.notifier).applyMessage(sent);
+      container.read(messageExtrasProvider.notifier).applyMessage(sent);
       if (mounted) Navigator.of(context).pop();
     } on api.ApiException catch (e, stack) {
       api.reportFailure(api.LogTag.ui, 'create the poll', e, stack);
