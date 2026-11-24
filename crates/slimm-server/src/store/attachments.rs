@@ -166,6 +166,48 @@ impl Store {
         }))
     }
 
+    /// The name `user_id` may see on these bytes: their own upload's, else a live message's
+    /// in a channel they can view. Never the row's first-uploader name, which is another
+    /// person's choice and may come from a channel the caller cannot see.
+    pub async fn attachment_display_filename(
+        &self,
+        user_id: UserId,
+        sha256: &[u8],
+    ) -> anyhow::Result<Option<String>> {
+        let own = sqlx::query_scalar!(
+            r#"SELECT filename FROM attachment_uploaders
+               WHERE sha256 = ? AND uploaded_by = ? AND filename IS NOT NULL"#,
+            sha256,
+            user_id
+        )
+        .fetch_optional(&self.pool)
+        .await?
+        .flatten();
+        if own.is_some() {
+            return Ok(own);
+        }
+        let linked = sqlx::query!(
+            r#"SELECT m.channel_id AS "channel_id!: ChannelId", ma.filename AS "filename!"
+               FROM message_attachments ma
+               JOIN messages m ON m.id = ma.message_id
+               WHERE ma.sha256 = ? AND m.deleted_at IS NULL AND ma.filename IS NOT NULL
+               ORDER BY m.id"#,
+            sha256
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        let channels: Vec<ChannelId> = linked.iter().map(|r| r.channel_id).collect();
+        let perms = self.permissions_in_channels(user_id, &channels).await?;
+        Ok(linked
+            .into_iter()
+            .find(|r| {
+                perms
+                    .get(&r.channel_id)
+                    .is_some_and(|p| p.contains(Permissions::VIEW_CHANNEL))
+            })
+            .map(|r| r.filename))
+    }
+
     /// Every channel with a live message, or a canvas object, referencing
     /// this attachment. Used only to decide the fetch permission: a caller
     /// may read the bytes if they hold VIEW_CHANNEL in *any* channel that has

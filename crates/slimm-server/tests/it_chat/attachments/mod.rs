@@ -27,6 +27,7 @@ mod overwrite_allow;
 mod pdf_worker;
 mod previews;
 mod ranges;
+mod served_names;
 mod serving;
 mod shared_staging;
 mod slow_upload;

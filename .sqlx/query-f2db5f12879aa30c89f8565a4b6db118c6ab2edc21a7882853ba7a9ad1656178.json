@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT m.channel_id AS \"channel_id!: ChannelId\", ma.filename AS \"filename!\"\n               FROM message_attachments ma\n               JOIN messages m ON m.id = ma.message_id\n               WHERE ma.sha256 = ? AND m.deleted_at IS NULL AND ma.filename IS NOT NULL\n               ORDER BY m.id",
+  "describe": {
+    "columns": [
+      {
+        "name": "channel_id!: ChannelId",
+        "ordinal": 0,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "messages",
+            "name": "channel_id"
+          }
+        }
+      },
+      {
+        "name": "filename!",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "message_attachments",
+            "name": "filename"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "f2db5f12879aa30c89f8565a4b6db118c6ab2edc21a7882853ba7a9ad1656178"
+}
