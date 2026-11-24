@@ -10,7 +10,9 @@ use axum::routing::{get, post};
 
 use super::AppState;
 use super::error::ApiError;
-use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce, require_manage_roles};
+use super::extract::{
+    AUTHED_READ, Authed, AuthedLimited, Json, WRITE, enforce, require_manage_roles,
+};
 use super::messages::parse_uuid;
 use super::overwrite_changes::{publish_changed, target_of, visible_before};
 use super::overwrites::{
@@ -89,13 +91,11 @@ async fn list(
 /// Applies the entries and copies the result into everything synced beneath. Every entry is
 /// checked first; a synced sub-category held the parent's old rows, so the copy adds only what passed.
 async fn batch_set(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path(category_id): Path<String>,
     State(state): State<AppState>,
     Json(req): Json<BatchSetRequest>,
 ) -> Result<Json<OverwritesDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_roles(&state, ctx.user_id).await?;
     let id = live_category(&state, &category_id).await?.id;
     let caller = manager_in(&state, ctx.user_id, id).await?;

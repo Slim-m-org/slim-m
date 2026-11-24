@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use super::AppState;
 use super::error::ApiError;
 use super::extract::require_manage_server;
-use super::extract::{Authed, Json, enforce};
+use super::extract::{Authed, AuthedLimited, Json, WRITE, enforce};
 use super::hidden_chars::{draws_nothing, is_hidden_char};
 use super::messages::parse_uuid;
 use crate::hub::Event;
@@ -343,11 +343,9 @@ pub(crate) const POLICY_NEEDS_OWN_FACTOR: &str =
 /// silently leave a Space on whichever branch the parser defaults to.
 async fn update(
     State(state): State<AppState>,
-    parts: Parts,
-    Authed(ctx): Authed,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Json(body): Json<UpdateSpaceSettingsDto>,
 ) -> Result<Json<SpaceSettingsDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_server(&state, ctx.user_id).await?;
 
     if body.name.is_none()

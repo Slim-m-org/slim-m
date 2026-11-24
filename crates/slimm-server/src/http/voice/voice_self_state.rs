@@ -6,17 +6,15 @@ use std::time::Duration;
 
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
-use axum::http::request::Parts;
 use serde::Deserialize;
 
 use super::super::AppState;
 use super::super::error::ApiError;
-use super::super::extract::{Authed, Json, enforce};
+use super::super::extract::{AuthedLimited, Json, WRITE};
 use super::super::messages::parse_uuid;
 use crate::hub::Event;
 use crate::ids::{ChannelId, UserId};
 use crate::permissions::Permissions;
-use crate::ratelimit::Class;
 use crate::store::SessionContext;
 use crate::voice::VoiceError;
 
@@ -40,13 +38,11 @@ pub(super) struct MutedRequest {
 /// a no-op when the caller is not in the room, since the SFU is the authority
 /// on who is connected.
 pub(super) async fn set_deafened(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path(channel_id): Path<String>,
     State(state): State<AppState>,
     Json(body): Json<DeafenedRequest>,
 ) -> Result<StatusCode, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
     may_report(&state, &ctx, channel_id).await?;
 
@@ -71,13 +67,11 @@ pub(super) async fn set_deafened(
 /// the mute on the caller's own track, which the roster reads; this only says to read it again,
 /// once the SFU shows it.
 pub(super) async fn set_muted(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path(channel_id): Path<String>,
     State(state): State<AppState>,
     Json(body): Json<MutedRequest>,
 ) -> Result<StatusCode, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
     if !state.voice.is_enabled() {
         return Err(ApiError::NotConfigured(NO_VOICE));

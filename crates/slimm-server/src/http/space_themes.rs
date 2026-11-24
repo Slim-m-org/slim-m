@@ -19,7 +19,7 @@ use super::AppState;
 use super::attachments::serve;
 use super::error::ApiError;
 use super::extract::{
-    ASSET, AUTHED_READ, Authed, AuthedLimited, Json, enforce, require_manage_server,
+    ASSET, AUTHED_READ, Authed, AuthedLimited, Json, WRITE, enforce, require_manage_server,
 };
 use crate::hub::Event;
 use crate::ids::{ThemeId, UserId};
@@ -94,12 +94,10 @@ async fn list(
 }
 
 async fn publish(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     State(state): State<AppState>,
     Json(body): Json<Value>,
 ) -> Result<(StatusCode, Json<SpaceThemeDto>), ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let valid = space_theme::validate(&body)
         .map_err(|problems| ApiError::BadRequestDetail(problems.join("; ")))?;
     let author_name = state
@@ -166,12 +164,10 @@ async fn picture(
 }
 
 async fn set_default(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     State(state): State<AppState>,
     Json(body): Json<SetDefaultRequest>,
 ) -> Result<StatusCode, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_server(&state, ctx.user_id).await?;
     let id = body.theme_id.as_deref().map(parse_id).transpose()?;
     if let Some(id) = id

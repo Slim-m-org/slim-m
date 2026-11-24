@@ -36,7 +36,7 @@ use serde::{Deserialize, Serialize};
 
 use super::AppState;
 use super::error::ApiError;
-use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce};
+use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, WRITE, enforce};
 use super::messages::parse_uuid;
 use super::overwrite_changes::{publish_changed, visible_before};
 use super::role_ladder::{LADDER_CODE, Ladder};
@@ -267,13 +267,11 @@ pub(super) fn check_bits(allow: Permissions, deny: Permissions) -> Result<(), Ap
 /// MANAGE_SERVER strip an existing deny and give themselves the very bit they
 /// could not have granted directly.
 async fn set(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path((channel_id, kind, id)): Path<(String, String, String)>,
     State(state): State<AppState>,
     Json(req): Json<SetOverwriteRequest>,
 ) -> Result<StatusCode, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
     let caller_permissions = require_writable_here(&state, ctx.user_id, channel_id).await?;
     let target = parse_target(&kind, &id)?;
@@ -349,13 +347,11 @@ pub(super) const MAX_BATCH_ENTRIES: usize = 64;
 /// existence, and the same escalation math [`set`] applies - before any of
 /// them writes, so a batch either lands in full or is refused in full.
 async fn batch_set(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path(channel_id): Path<String>,
     State(state): State<AppState>,
     Json(req): Json<BatchSetRequest>,
 ) -> Result<Json<OverwritesDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
     let caller_permissions = require_writable_here(&state, ctx.user_id, channel_id).await?;
 

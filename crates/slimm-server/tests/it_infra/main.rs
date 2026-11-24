@@ -12,6 +12,7 @@ mod audit_hidden_text;
 mod audit_regressions;
 mod audit_retry_after;
 mod audit_status_codes;
+mod authed_body_charge;
 mod background_tasks_wired;
 mod blob_release;
 mod call_stats_index_plan;

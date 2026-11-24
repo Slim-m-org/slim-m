@@ -45,7 +45,7 @@ use self::dock_sources::{add_source, list_sources, remove_source};
 use super::AppState;
 use super::error::ApiError;
 use super::extract::require_manage_server;
-use super::extract::{Authed, Json, Query, enforce};
+use super::extract::{Authed, AuthedLimited, Json, Query, WRITE, enforce};
 use crate::config::Config;
 use crate::ratelimit::Class;
 
@@ -418,13 +418,11 @@ async fn get_module(
 
 async fn install(
     State(state): State<AppState>,
-    parts: Parts,
-    Authed(ctx): Authed,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path(id): Path<String>,
     Query(query): Query<SourceQuery>,
     Json(req): Json<InstallRequest>,
 ) -> Result<Json<InstalledModuleDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_server(&state, ctx.user_id).await?;
     validate_module_id(&id)?;
     if query.source.as_deref() == Some(sources::FILE_ID) {

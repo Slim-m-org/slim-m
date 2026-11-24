@@ -19,8 +19,10 @@ use serde::{Deserialize, Serialize};
 use super::AppState;
 use super::attachments::serve;
 use super::error::ApiError;
-use super::extract::{ASSET, AUTHED_READ, Authed, AuthedLimited, Bytes, Json, Query};
-use super::extract::{enforce, require_manage_server};
+use super::extract::{
+    ASSET, AUTHED_READ, Authed, AuthedLimited, Bytes, Json, Query, UPLOAD, WRITE, enforce,
+    require_manage_server,
+};
 use super::reaction_emoji::{self, ReactionEmoji};
 use crate::hub::Event;
 use crate::ids::{ChannelId, EmojiId, SoundClipId};
@@ -93,13 +95,11 @@ async fn list(
 }
 
 async fn upload(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<UPLOAD>,
     Query(params): Query<UploadParams>,
     State(state): State<AppState>,
     Bytes(body): Bytes,
 ) -> Result<(StatusCode, Json<SoundClipDto>), ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Upload)?;
     require_manage_server(&state, ctx.user_id).await?;
     let emoji = params.emoji.as_deref().map(clip_emoji).transpose()?;
     super::storage_room::room_for(&state, body.len() as i64).await?;
@@ -118,13 +118,11 @@ async fn upload(
 
 /// Renames a clip, sets or clears its emoji, or both.
 async fn rename(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path(clip_id): Path<String>,
     State(state): State<AppState>,
     Json(req): Json<UpdateRequest>,
 ) -> Result<Json<SoundClipDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_server(&state, ctx.user_id).await?;
     let id = parse_id(&clip_id)?;
     let name = req

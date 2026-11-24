@@ -29,20 +29,18 @@
 use axum::Router;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
-use axum::http::request::Parts;
 use axum::middleware::from_fn;
 use axum::routing::post;
 use serde::Deserialize;
 
 use super::super::AppState;
 use super::super::error::ApiError;
-use super::super::extract::{Authed, Json, enforce};
+use super::super::extract::{AuthedLimited, Json, WRITE};
 use super::super::post_commit::run_to_completion;
 use super::parse_uuid;
 use crate::hub::{Event, MessageEvent};
 use crate::ids::{ChannelId, MessageId, UserId};
 use crate::permissions::Permissions;
-use crate::ratelimit::Class;
 use crate::store::BulkDeleteError;
 
 /// Most ids one bulk delete may name.
@@ -73,13 +71,11 @@ pub fn router() -> Router<AppState> {
 }
 
 async fn bulk_delete(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path(channel_id): Path<String>,
     State(state): State<AppState>,
     Json(req): Json<BulkDeleteRequest>,
 ) -> Result<StatusCode, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
 
     if req.message_ids.is_empty() {

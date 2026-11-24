@@ -39,20 +39,18 @@
 use axum::Router;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
-use axum::http::request::Parts;
 use axum::middleware::from_fn;
 use axum::routing::post;
 use serde::Deserialize;
 
 use super::super::AppState;
 use super::super::error::ApiError;
-use super::super::extract::{Authed, Json, enforce};
+use super::super::extract::{AuthedLimited, Json, WRITE};
 use super::super::post_commit::run_to_completion;
 use super::messages_bulk::{MAX_BULK_DELETE_IDS, delete_and_publish};
 use super::parse_uuid;
 use crate::ids::{ChannelId, UserId};
 use crate::permissions::Permissions;
-use crate::ratelimit::Class;
 use crate::store::now_ms;
 
 /// Most minutes back a window may reach.
@@ -79,13 +77,11 @@ pub fn router() -> Router<AppState> {
 }
 
 async fn bulk_delete_by_author(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path(channel_id): Path<String>,
     State(state): State<AppState>,
     Json(req): Json<BulkDeleteWindowRequest>,
 ) -> Result<StatusCode, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
     let author_id = UserId(parse_uuid(&req.author_id)?);
 

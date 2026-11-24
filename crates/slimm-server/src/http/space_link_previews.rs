@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use super::AppState;
 use super::error::ApiError;
-use super::extract::{Authed, Json, enforce, require_manage_server};
+use super::extract::{Authed, AuthedLimited, Json, WRITE, enforce, require_manage_server};
 use crate::ratelimit::Class;
 
 pub fn routes() -> Router<AppState> {
@@ -36,11 +36,9 @@ async fn read(
 
 async fn update(
     State(state): State<AppState>,
-    parts: Parts,
-    Authed(ctx): Authed,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Json(body): Json<LinkPreviewsDto>,
 ) -> Result<Json<LinkPreviewsDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_server(&state, ctx.user_id).await?;
     state.store.set_link_previews_override(body.enabled).await?;
     state.link_previews.set_override(Some(body.enabled));

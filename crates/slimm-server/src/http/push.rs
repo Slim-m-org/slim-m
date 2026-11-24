@@ -23,7 +23,7 @@ use serde::{Deserialize, Serialize};
 
 use super::AppState;
 use super::error::ApiError;
-use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce};
+use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, WRITE, enforce};
 use crate::notifications::NotificationPreference;
 use crate::ratelimit::Class;
 use crate::store::PushRegistration;
@@ -91,13 +91,10 @@ struct NotificationPreferenceDto {
 // --- Handlers ---
 
 async fn register(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     State(state): State<AppState>,
     Json(req): Json<RegisterRequest>,
 ) -> Result<StatusCode, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
-
     if !matches!(req.platform.as_str(), "ios" | "android") {
         return Err(ApiError::BadRequest("platform must be ios or android"));
     }
@@ -147,12 +144,10 @@ async fn deregister(
 }
 
 async fn report_lifecycle(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     State(state): State<AppState>,
     Json(req): Json<LifecycleRequest>,
 ) -> Result<StatusCode, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let state_value = req.state.trim();
     if state_value.is_empty() || state_value.chars().count() > MAX_LIFECYCLE_STATE_CHARS {
         return Err(ApiError::BadRequest("state must be 1 to 32 characters"));
@@ -196,12 +191,10 @@ async fn get_preference(
 /// device is ever woken - never a filter a client applies to a push that has
 /// already landed.
 async fn set_preference(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     State(state): State<AppState>,
     Json(req): Json<NotificationPreferenceDto>,
 ) -> Result<Json<NotificationPreferenceDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let preference = NotificationPreference::parse(&req.preference).ok_or(ApiError::BadRequest(
         "preference must be everything, mentions, or nothing",
     ))?;
@@ -231,12 +224,10 @@ async fn get_preview(
 }
 
 async fn set_preview(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     State(state): State<AppState>,
     Json(req): Json<PushPreviewDto>,
 ) -> Result<Json<PushPreviewDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     if !state
         .store
         .set_push_preview(ctx.user_id, req.include_content)

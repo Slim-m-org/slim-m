@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use super::super::AppState;
 use super::super::error::ApiError;
-use super::super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce};
+use super::super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, WRITE, enforce};
 use super::super::messages::parse_uuid;
 use super::voice_transcripts::readable;
 use crate::call_audio::marks;
@@ -135,12 +135,10 @@ async fn in_call(state: &AppState, transcript: &CallTranscript) -> Vec<UserId> {
 
 async fn add(
     State(state): State<AppState>,
-    parts: Parts,
-    Authed(ctx): Authed,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path((id, raw_mark)): Path<(String, String)>,
     Json(body): Json<PutMarkDto>,
 ) -> Result<(StatusCode, Json<MarkDto>), ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let (kind, text) = parse_body(&body)?;
     let mark = mark_id(&raw_mark)?;
     let transcript = readable(&state, ctx.user_id, &id, reading()).await?;

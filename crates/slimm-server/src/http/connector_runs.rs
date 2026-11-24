@@ -15,7 +15,6 @@ use axum::Router;
 use axum::body::Bytes;
 use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::StatusCode;
-use axum::http::request::Parts;
 use axum::routing::post;
 use serde::Deserialize;
 use serde_json::value::RawValue;
@@ -23,15 +22,15 @@ use tokio::sync::oneshot;
 use uuid::Uuid;
 
 use super::AppState;
+use super::connector_limited::ConnectorLimited;
 use super::error::ApiError;
-use super::extract::{Authed, enforce};
+use super::extract::MODULE;
 use super::module_commands::CommandOutcome;
 use super::module_run::{RunContext, RunKind, RunRequest};
 use crate::hub::{ConnectorRunRequest, Event, RoomJson};
 use crate::ids::{ChannelId, UserId};
 use crate::module_runtime::{MAX_RESPONSE_BYTES, NET_FETCH_WALL_FLOOR_MS};
 use crate::permissions::Permissions;
-use crate::ratelimit::Class;
 use crate::store::InstalledModule;
 
 /// How long a member waits for a connector: a WASM module that can fetch gets the same.
@@ -283,12 +282,10 @@ fn well_formed(body: &[u8]) -> bool {
 /// A connector answers one run it was sent. A malformed answer still reaches the member, as a failed run.
 async fn answer_run(
     State(state): State<AppState>,
-    parts: Parts,
-    Authed(ctx): Authed,
+    ConnectorLimited(ctx): ConnectorLimited<MODULE>,
     Path(run_id): Path<String>,
     body: Bytes,
 ) -> Result<StatusCode, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Module)?;
     let module = state
         .store
         .connector_of(ctx.user_id)

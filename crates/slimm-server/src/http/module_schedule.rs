@@ -10,7 +10,6 @@
 
 use axum::Router;
 use axum::extract::{Path, State};
-use axum::http::request::Parts;
 use axum::routing::put;
 use serde::Deserialize;
 use uuid::Uuid;
@@ -18,12 +17,11 @@ use uuid::Uuid;
 use super::AppState;
 use super::dock::wire::InstalledModuleDto;
 use super::error::ApiError;
-use super::extract::{Authed, Json, enforce, require_manage_server};
+use super::extract::{AuthedLimited, Json, WRITE, require_manage_server};
 use super::module_host::{schedule_approved, scheduled_surface};
 use super::module_run::{RunContext, RunKind, RunRequest, run_installed};
 use crate::ids::{ChannelId, UserId};
 use crate::permissions::Permissions;
-use crate::ratelimit::Class;
 use crate::store::{InstalledModule, ModuleSchedule};
 
 pub fn routes() -> Router<AppState> {
@@ -42,12 +40,10 @@ struct ScheduleChannelRequest {
 /// let before; `null` stops scheduled runs.
 async fn set_schedule_channel(
     State(state): State<AppState>,
-    parts: Parts,
-    Authed(ctx): Authed,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path(id): Path<String>,
     Json(req): Json<ScheduleChannelRequest>,
 ) -> Result<Json<InstalledModuleDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_server(&state, ctx.user_id).await?;
     let module = state
         .store

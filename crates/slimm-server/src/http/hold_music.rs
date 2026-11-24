@@ -3,14 +3,12 @@
 
 use axum::Router;
 use axum::extract::{DefaultBodyLimit, State};
-use axum::http::request::Parts;
 use axum::routing::get;
 use serde::{Deserialize, Serialize};
 
 use super::AppState;
 use super::error::ApiError;
-use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce};
-use crate::ratelimit::Class;
+use super::extract::{AUTHED_READ, AuthedLimited, Json, WRITE};
 
 const BODY_LIMIT: usize = 1024;
 
@@ -45,12 +43,10 @@ async fn get_choice(
 }
 
 async fn set_choice(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     State(state): State<AppState>,
     Json(req): Json<SetHoldMusicRequest>,
 ) -> Result<Json<HoldMusicDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     if !state.store.set_hold_music(ctx.user_id, req.enabled).await? {
         return Err(ApiError::Unauthorized);
     }

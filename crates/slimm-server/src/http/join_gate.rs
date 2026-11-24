@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 
 use super::AppState;
 use super::error::ApiError;
-use super::extract::{Authed, Json, enforce, require_manage_server};
+use super::extract::{Authed, AuthedLimited, Json, WRITE, enforce, require_manage_server};
 use super::message_validation::parse_uuid;
 use crate::hidden_chars::is_hidden_char;
 use crate::hub::Event;
@@ -114,11 +114,9 @@ async fn read_gate(
 /// changes nothing.
 async fn write_gate(
     State(state): State<AppState>,
-    parts: Parts,
-    Authed(ctx): Authed,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Json(body): Json<JoinGateDto>,
 ) -> Result<Json<JoinGateDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_server(&state, ctx.user_id).await?;
     let rules = validate_rules(&body.rules)?;
     if body.enabled && rules.is_empty() {

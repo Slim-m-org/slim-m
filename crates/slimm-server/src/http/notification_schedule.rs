@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use super::AppState;
 use super::error::ApiError;
-use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce};
+use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, WRITE, enforce};
 use super::messages::parse_uuid;
 use crate::ids::{ChannelId, UserId};
 use crate::notification_schedule::{DayWindow, OffHoursMode, WEEKDAYS};
@@ -144,13 +144,10 @@ async fn get_schedule(
 /// `timezone` must be a resolvable IANA name; a per-day window follows
 /// [`DayWindow::parse`]'s own bounds, and a weekday may appear at most once.
 async fn set_schedule(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     State(state): State<AppState>,
     Json(req): Json<SetScheduleRequest>,
 ) -> Result<Json<NotificationScheduleResponse>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
-
     if jiff::tz::TimeZone::get(&req.timezone).is_err() {
         return Err(ApiError::BadRequest(
             "timezone must be a resolvable IANA time zone name",
@@ -284,12 +281,10 @@ async fn remove_allowed_channel(
 /// (only it knows the account's own local midnight), and this only bounds
 /// how far out that deadline may be.
 async fn set_snooze(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     State(state): State<AppState>,
     Json(req): Json<SnoozeRequest>,
 ) -> Result<Json<SnoozeResponse>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let now = crate::store::now_ms();
     if req.until_ms <= now || req.until_ms - now > MAX_SNOOZE_MS {
         return Err(ApiError::BadRequest(

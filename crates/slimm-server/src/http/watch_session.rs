@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 
 use super::AppState;
 use super::error::ApiError;
-use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce};
+use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, WATCH_TICK, enforce};
 use super::hidden_chars::is_hidden_char;
 use super::messages::parse_uuid;
 use crate::hub::Event;
@@ -334,13 +334,11 @@ fn publish_tick(state: &AppState, channel_id: ChannelId, sample: WatchSample, en
 /// A bot states the session: a new title, a play or pause, or a seek. Also
 /// fans out as a tick so viewers hear about it now rather than at the next one.
 async fn set_session(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WATCH_TICK>,
     State(state): State<AppState>,
     Path(channel_id): Path<String>,
     Json(req): Json<SetSessionRequest>,
 ) -> Result<StatusCode, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::WatchTick)?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
     require_bot_in_call(&state, ctx.user_id, channel_id).await?;
     let controller =
@@ -372,13 +370,11 @@ struct TickRequest {
 /// A bot re-samples its session's position. The heartbeat: a session that
 /// goes 30 seconds without one reads as ended, paused or not.
 async fn tick(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WATCH_TICK>,
     State(state): State<AppState>,
     Path(channel_id): Path<String>,
     Json(req): Json<TickRequest>,
 ) -> Result<StatusCode, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::WatchTick)?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
     if !state.store.is_bot(ctx.user_id).await? {
         return Err(ApiError::Forbidden);
@@ -444,13 +440,11 @@ struct ViewingRequest {
 /// so the bot knows when nobody needs its shared stream. Restated every few
 /// seconds; a report that stops arriving reads as the shared track.
 async fn report_viewing(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WATCH_TICK>,
     State(state): State<AppState>,
     Path(channel_id): Path<String>,
     Json(req): Json<ViewingRequest>,
 ) -> Result<StatusCode, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::WatchTick)?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
     let caller = state
         .store

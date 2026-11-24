@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use super::AppState;
 use super::error::ApiError;
-use super::extract::{Authed, Json, enforce, require_manage_server};
+use super::extract::{Authed, AuthedLimited, Json, WRITE, enforce, require_manage_server};
 use super::messages::parse_uuid;
 use super::module_host::call_audio_approved;
 use crate::call_audio::runtime;
@@ -85,12 +85,10 @@ async fn split_by_sight(
 
 async fn replace(
     State(state): State<AppState>,
-    parts: Parts,
-    Authed(ctx): Authed,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path(id): Path<String>,
     Json(req): Json<ChannelList>,
 ) -> Result<Json<ChannelList>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_server(&state, ctx.user_id).await?;
     let module = state
         .store

@@ -5,7 +5,6 @@
 
 use axum::Router;
 use axum::extract::{DefaultBodyLimit, Path, State};
-use axum::http::request::Parts;
 use axum::routing::post;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -15,14 +14,13 @@ use super::attachment_ids::parse_attachment_ids;
 use super::embeds::{EmbedDto, RawEmbed, build_embeds, resolve_tokens};
 use super::ephemeral_anchor::{Target, resolve};
 use super::error::ApiError;
-use super::extract::{Authed, Json, enforce};
+use super::extract::{AuthedLimited, Json, WRITE};
 use super::message_dto::AttachmentDto;
 use super::messages::{parse_uuid, validate_content};
 use crate::ephemeral::EphemeralMessage;
 use crate::hub::Event;
 use crate::ids::{ChannelId, InteractionId, MessageId, UserId};
 use crate::permissions::Permissions;
-use crate::ratelimit::Class;
 use crate::store::{AttachmentSummary, Embed};
 use std::sync::Arc;
 
@@ -92,13 +90,11 @@ impl From<&EphemeralMessage> for EphemeralMessageDto {
 /// `ephemeral_anchor`), at most [`crate::ephemeral::MAX_PER_ANCHOR`] times per message. Every
 /// refusal that would reveal another account's state is the same 403 or 404.
 async fn send_ephemeral(
-    Authed(ctx): Authed,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path(channel_id): Path<String>,
-    parts: Parts,
     State(state): State<AppState>,
     Json(req): Json<SendEphemeralRequest>,
 ) -> Result<Json<EphemeralMessageDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
     let target = match (&req.in_reply_to_id, &req.interaction_id) {
         (Some(id), None) => Target::Message(MessageId(parse_uuid(id)?)),

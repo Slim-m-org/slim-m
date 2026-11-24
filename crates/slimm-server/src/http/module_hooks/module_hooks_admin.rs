@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use crate::http::AppState;
 use crate::http::dock::PHASES;
 use crate::http::error::ApiError;
-use crate::http::extract::{Authed, Json, enforce, require_manage_server};
+use crate::http::extract::{Authed, AuthedLimited, Json, WRITE, enforce, require_manage_server};
 use crate::ratelimit::Class;
 use crate::store::{HookChange, HookKind};
 
@@ -112,12 +112,10 @@ const MAX_PRIORITY: i64 = 1_000_000;
 
 async fn update(
     State(state): State<AppState>,
-    parts: Parts,
-    Authed(ctx): Authed,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path(id): Path<String>,
     Json(req): Json<UpdateRequest>,
 ) -> Result<StatusCode, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_server(&state, ctx.user_id).await?;
     let kind = match req.kind.as_str() {
         "interceptor" => HookKind::Interceptor,

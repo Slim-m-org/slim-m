@@ -15,7 +15,7 @@ use super::AppState;
 use super::attachments::serve;
 use super::error::ApiError;
 use super::extract::{
-    ASSET, Authed, AuthedLimited, Bytes, INVITE_CHECK, Json, RateLimited, enforce,
+    ASSET, Authed, AuthedLimited, Bytes, INVITE_CHECK, Json, RateLimited, UPLOAD, enforce,
     require_manage_server,
 };
 use crate::hub::Event;
@@ -42,12 +42,10 @@ struct IconDto {
 }
 
 async fn upload_icon(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<UPLOAD>,
     State(state): State<AppState>,
     Bytes(body): Bytes,
 ) -> Result<Json<IconDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Upload)?;
     require_manage_server(&state, ctx.user_id).await?;
     if body.is_empty() {
         return Err(ApiError::BadRequest("icon is empty"));

@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 
 use super::AppState;
 use super::error::ApiError;
-use super::extract::{ASSET, AUTHED_READ, Authed, AuthedLimited, GIF, Json, enforce};
+use super::extract::{ASSET, AUTHED_READ, Authed, AuthedLimited, GIF, Json, WRITE, enforce};
 use super::gifs::{charge_select, download_cap, store_gif};
 use super::messages::{AttachmentDto, parse_uuid};
 use super::screen_stamps::STAMP_ANIMATED_BYTES;
@@ -139,12 +139,10 @@ struct AddRequest {
 
 /// Adds a favorite at the front of the list, idempotently.
 async fn add(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     State(state): State<AppState>,
     Json(req): Json<AddRequest>,
 ) -> Result<(StatusCode, Json<FavoriteDto>), ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let id = FavoriteId(parse_uuid(&req.id)?);
     let new = match req.kind.as_str() {
         "gif" => new_gif(&state, &req)?,
@@ -232,12 +230,10 @@ struct OrderRequest {
 
 /// Puts the named entries first, in order; unnamed entries keep their place after them.
 async fn reorder(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     State(state): State<AppState>,
     Json(req): Json<OrderRequest>,
 ) -> Result<StatusCode, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     if req.ids.len() as i64 > MAX_FAVORITES {
         return Err(ApiError::BadRequest("too many ids"));
     }

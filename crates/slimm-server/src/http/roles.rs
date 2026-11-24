@@ -40,7 +40,7 @@ use super::AppState;
 use super::error::ApiError;
 use super::escalation::escalation_guard;
 use super::extract::require_manage_roles;
-use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce};
+use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, WRITE, enforce};
 use super::messages::parse_uuid;
 use super::space::present;
 use crate::hub::{Event, RoleChange};
@@ -175,12 +175,10 @@ async fn list(
 /// asks for `true` on a genuinely fresh create, this makes a second write to
 /// set it, so a retry of an already-succeeded create never reapplies it.
 async fn create(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     State(state): State<AppState>,
     Json(req): Json<CreateRoleRequest>,
 ) -> Result<Json<RoleDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let caller_permissions = require_manage_roles(&state, ctx.user_id).await?;
     // A new role starts at the bottom; a caller must be able to manage it once it exists.
     Ladder::of(&state, ctx.user_id).await?.reach_role(0)?;
@@ -232,13 +230,11 @@ async fn create(
 }
 
 async fn update(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path(role_id): Path<String>,
     State(state): State<AppState>,
     Json(req): Json<UpdateRoleRequest>,
 ) -> Result<Json<RoleDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let caller_permissions = require_manage_roles(&state, ctx.user_id).await?;
     let role_id = RoleId(parse_uuid(&role_id)?);
 

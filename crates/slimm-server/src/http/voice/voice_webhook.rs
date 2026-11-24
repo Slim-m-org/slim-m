@@ -9,7 +9,7 @@
 
 use axum::Router;
 use axum::body::Bytes;
-use axum::extract::State;
+use axum::extract::{DefaultBodyLimit, State};
 use axum::http::{HeaderMap, StatusCode, header};
 use axum::routing::post;
 
@@ -22,8 +22,13 @@ use crate::voice::{self, RoomLiveState, WebhookError, WebhookEvent};
 use crate::voice_notify::Activity;
 use crate::voice_session_sweeps::publish_closed;
 
+/// A real delivery is a few KB; anything bigger is refused before the signature check.
+const MAX_WEBHOOK_BODY_BYTES: usize = 64 * 1024;
+
 pub fn routes() -> Router<AppState> {
-    Router::new().route("/voice/webhook", post(receive))
+    Router::new()
+        .route("/voice/webhook", post(receive))
+        .layer(DefaultBodyLimit::max(MAX_WEBHOOK_BODY_BYTES))
 }
 
 /// Verifies and applies one LiveKit webhook delivery.

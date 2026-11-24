@@ -6,7 +6,7 @@
 //! own signature already says whether it charges.
 //!
 //! A handler charges iff its signature takes a `RateLimited<C>`,
-//! `AuthedLimited<C>`, `ManagerLimited<C>` or `Participant<C>` extractor, or its body calls
+//! `AuthedLimited<C>`, `ManagerLimited<C>`, `ConnectorLimited<C>` or `Participant<C>` extractor, or its body calls
 //! `enforce(` or answers `TOO_MANY_REQUESTS` itself (`/ws` reads a bucket
 //! with `exhausted` before the upgrade, where no extractor can run). That is exactly the convention `http/extract.rs`'s own doc
 //! comments describe, and the same rule `tests/it_infra/rate_limit_coverage.rs` already enforces for a
@@ -193,12 +193,13 @@ pub(crate) fn resolve_handler(
 }
 
 /// The exact charge rule this gate enforces: a `RateLimited<C>`, `AuthedLimited<C>`,
-/// `ManagerLimited<C>` or `Participant<C>` extractor in the signature, or an
+/// `ManagerLimited<C>`, `ConnectorLimited<C>` or `Participant<C>` extractor in the signature, or an
 /// `enforce(` call or a `TOO_MANY_REQUESTS` answer in the body.
 fn charges(handler: &HandlerFn) -> bool {
     handler.signature.contains("RateLimited<")
         || handler.signature.contains("AuthedLimited<")
         || handler.signature.contains("ManagerLimited<")
+        || handler.signature.contains("ConnectorLimited<")
         || handler.signature.contains("Participant<")
         || handler.body.contains("enforce(")
         || handler.body.contains("TOO_MANY_REQUESTS")
@@ -340,7 +341,7 @@ fn charging_routes_document_429() {
     assert!(
         reverse_findings.is_empty(),
         "\nthese operations document \"429\" but their handler does not charge by this gate's \
-         rule (RateLimited<C>/AuthedLimited<C>/ManagerLimited<C>/Participant<C> in the signature, or an \
+         rule (RateLimited<C>/AuthedLimited<C>/ManagerLimited<C>/ConnectorLimited<C>/Participant<C> in the signature, or an \
          enforce( call or a TOO_MANY_REQUESTS answer in the body):\n\n{}\n",
         reverse_findings.join("\n")
     );

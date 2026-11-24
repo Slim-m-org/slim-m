@@ -257,15 +257,13 @@ async fn unblock(
 /// Files a report for a human to review. Nothing here inspects content
 /// automatically; the whole point is that a person decides.
 async fn file_report(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     State(state): State<AppState>,
     Json(req): Json<ReportRequest>,
 ) -> Result<Json<ReportFiled>, ApiError> {
     // Charged like any other write: intake was unthrottled while triage was
     // rate-limited, so one account could fill the queue with a fresh random
     // subject id per request faster than a moderator was allowed to clear it.
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
 
     let reason = validate_reason(Some(&req.reason), true)?
         .expect("a required reason is Some or the call above returned");

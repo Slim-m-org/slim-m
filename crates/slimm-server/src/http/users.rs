@@ -12,14 +12,13 @@ use std::collections::HashMap;
 
 use axum::Router;
 use axum::extract::{DefaultBodyLimit, Path, State};
-use axum::http::request::Parts;
 use axum::routing::{get, post};
 use serde::{Deserialize, Serialize};
 
 use super::AppState;
 use super::auth::validate_label;
 use super::error::ApiError;
-use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, Query, enforce};
+use super::extract::{AUTHED_READ, AuthedLimited, Json, Query, WRITE};
 use super::messages::parse_uuid;
 use super::participant::require_not_timed_out;
 use super::user_avatars::{delete_avatar, get_avatar, upload_avatar};
@@ -30,7 +29,6 @@ use super::user_status::{
 };
 use crate::hub::Event;
 use crate::ids::UserId;
-use crate::ratelimit::Class;
 use crate::store::{Store, User};
 
 const BODY_LIMIT: usize = 4 * 1024;
@@ -375,12 +373,10 @@ async fn get_me(
 }
 
 async fn update_me(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     State(state): State<AppState>,
     Json(req): Json<UpdateMeRequest>,
 ) -> Result<Json<UserDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     // Not the join gate too: the welcome steps fill in a profile before the rules are read.
     require_not_timed_out(&state, ctx.user_id).await?;
 

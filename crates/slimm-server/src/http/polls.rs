@@ -17,7 +17,6 @@ use std::sync::Arc;
 use axum::Router;
 use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::StatusCode;
-use axum::http::request::Parts;
 use axum::middleware::from_fn;
 use axum::routing::{post, put};
 use serde::{Deserialize, Serialize};
@@ -25,7 +24,7 @@ use serde::{Deserialize, Serialize};
 use super::AppState;
 use super::channel_slow_mode::enforce_slow_mode;
 use super::error::ApiError;
-use super::extract::{Authed, Json, enforce};
+use super::extract::{AuthedLimited, Json, WRITE};
 use super::message_validation::validate_content;
 use super::messages::{MessageDto, parse_uuid};
 use super::module_hooks::{Draft, Field, HookPoint, guard_write};
@@ -34,7 +33,6 @@ use super::viewable_message::viewable_message;
 use crate::hub::{CastBallot, Event, MessageEvent};
 use crate::ids::{ChannelId, MessageId, UserId};
 use crate::permissions::Permissions;
-use crate::ratelimit::Class;
 use crate::store::{
     Ballot, CreatePollError, MAX_OPTION_CHARS, MAX_QUESTION_CHARS, NewPoll, Poll as StorePoll,
     Runoff, Store, VoteError, now_ms,
@@ -250,13 +248,11 @@ impl VoteRequest {
 // --- Handlers ---
 
 async fn create(
-    Authed(ctx): Authed,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path(channel_id): Path<String>,
-    parts: Parts,
     State(state): State<AppState>,
     Json(req): Json<CreatePollMessageRequest>,
 ) -> Result<Json<MessageDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
 
     // Creating a poll is creating a message, so it is gated exactly like an
@@ -421,13 +417,11 @@ async fn authorize(
 }
 
 async fn vote(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path(message_id): Path<String>,
     State(state): State<AppState>,
     Json(req): Json<VoteRequest>,
 ) -> Result<StatusCode, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let message_id = MessageId(parse_uuid(&message_id)?);
     let channel_id = authorize(&state, ctx.user_id, message_id).await?;
 

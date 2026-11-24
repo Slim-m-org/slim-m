@@ -20,7 +20,6 @@
 use axum::Router;
 use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::StatusCode;
-use axum::http::request::Parts;
 use axum::routing::{get, patch};
 use serde::{Deserialize, Serialize};
 
@@ -31,12 +30,11 @@ use self::reports_mine::my_report_status;
 use self::reports_pictures::Viewer;
 use super::AppState;
 use super::error::ApiError;
-use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, Query, enforce};
+use super::extract::{AUTHED_READ, AuthedLimited, Json, Query, WRITE};
 use super::messages::parse_uuid;
 use crate::hub::Event;
 use crate::ids::{ChannelId, UserId};
 use crate::permissions::Permissions;
-use crate::ratelimit::Class;
 use crate::store::{ModerationHistoryItem, Report};
 
 pub(super) mod reports_cursor;
@@ -424,13 +422,11 @@ async fn hidden_channels(
 /// deliberately excluded from. A report they may not act on is reported as
 /// missing rather than forbidden, so the endpoint does not confirm one exists.
 async fn resolve(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path(report_id): Path<String>,
     State(state): State<AppState>,
     Json(req): Json<ResolveReportRequest>,
 ) -> Result<StatusCode, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_messages(&state, ctx.user_id).await?;
     let report_id = parse_uuid(&report_id)?;
 

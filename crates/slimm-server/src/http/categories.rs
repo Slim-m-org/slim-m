@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use super::AppState;
 use super::category_sight::CategorySight;
 use super::error::ApiError;
-use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce};
+use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, WRITE, enforce};
 use super::hidden_chars::{draws_nothing, is_hidden_char};
 use super::messages::parse_uuid;
 use crate::hub::Event;
@@ -147,12 +147,10 @@ fn unless_unfileable(
 }
 
 async fn create(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     State(state): State<AppState>,
     Json(req): Json<CreateCategoryRequest>,
 ) -> Result<Json<CategoryDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_channels(&state, ctx.user_id).await?;
 
     let name = validate_category_name(&req.name)?;
@@ -177,13 +175,11 @@ async fn create(
 }
 
 async fn update(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path(category_id): Path<String>,
     State(state): State<AppState>,
     Json(req): Json<UpdateCategoryRequest>,
 ) -> Result<Json<CategoryDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_channels(&state, ctx.user_id).await?;
     let category_id = ChannelCategoryId(parse_uuid(&category_id)?);
 

@@ -14,7 +14,7 @@ use super::AppState;
 use super::channels::channel_validation::validate_channel_name;
 use super::dms::{DmConversationDto, with_nicknames};
 use super::error::ApiError;
-use super::extract::{Authed, Json, enforce};
+use super::extract::{Authed, AuthedLimited, Json, WRITE, enforce};
 use super::messages::parse_uuid;
 use crate::hub::Event;
 use crate::ids::{ChannelId, UserId};
@@ -107,12 +107,10 @@ async fn conversation(
 
 /// Starts a group DM with 2 to 9 other people.
 async fn create(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     State(state): State<AppState>,
     Json(req): Json<CreateRequest>,
 ) -> Result<(StatusCode, Json<DmConversationDto>), ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_member(&state, ctx.user_id).await?;
     let name = optional_name(req.name.as_deref())?;
     let id = req
@@ -149,13 +147,11 @@ async fn create(
 
 /// Adds one person to a group the caller is in.
 async fn add_member(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path(channel_id): Path<String>,
     State(state): State<AppState>,
     Json(req): Json<AddRequest>,
 ) -> Result<Json<DmConversationDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_member(&state, ctx.user_id).await?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
     let new_member = UserId(parse_uuid(&req.user_id)?);
@@ -169,13 +165,11 @@ async fn add_member(
 
 /// Sets or clears the group's custom name; any participant may.
 async fn rename(
-    Authed(ctx): Authed,
-    parts: Parts,
+    AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path(channel_id): Path<String>,
     State(state): State<AppState>,
     Json(req): Json<RenameRequest>,
 ) -> Result<Json<DmConversationDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
     let name = optional_name(req.name.as_deref())?;
     state

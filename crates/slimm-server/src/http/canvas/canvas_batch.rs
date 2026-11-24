@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 
 use super::super::AppState;
 use super::super::error::ApiError;
-use super::super::extract::{Authed, Json, enforce, enforce_weighted};
+use super::super::extract::{AuthedLimited, CANVAS_BATCH, Json, enforce_weighted};
 use super::super::messages::parse_uuid;
 use super::CanvasObjectDto;
 use super::canvas_write::{PlaceParams, ensure_may_draw, place_error_api, validate_place};
@@ -44,7 +44,7 @@ pub(in crate::http) struct BatchDto {
 /// Charged [`Class::CanvasBatch`] by object count. Idempotent per object id: a retried
 /// batch answers with the stored rows and publishes nothing for them.
 pub(in crate::http) async fn place_batch(
-    Authed(ctx): Authed,
+    AuthedLimited(ctx): AuthedLimited<CANVAS_BATCH>,
     parts: Parts,
     Path(channel_id): Path<String>,
     State(state): State<AppState>,
@@ -55,8 +55,7 @@ pub(in crate::http) async fn place_batch(
     if count == 0 || count > MAX_BATCH_OBJECTS {
         return Err(ApiError::BadRequest("a batch holds 1 to 200 objects"));
     }
-    // The request pays for its first object, and the rest of the count follows.
-    enforce(&state, &parts, Some(&ctx), Class::CanvasBatch)?;
+    // The extractor charged the first object before the body; the rest of the count follows.
     if count > 1 {
         enforce_weighted(&state, &parts, &ctx, Class::CanvasBatch, (count - 1) as f64)?;
     }
