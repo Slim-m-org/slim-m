@@ -70,7 +70,7 @@ use debounce::Debounce;
 
 pub use admin_alert::AdminAlertPush;
 pub use attention::{SkipReason, narrow_for_attention, skip_reasons};
-pub use recipients::message_recipients;
+pub use recipients::{message_recipients, message_recipients_limited_to};
 pub use security::NewDeviceSignIn;
 pub use voice_notice::VoiceNotice;
 

@@ -86,6 +86,29 @@ pub async fn message_recipients(
     Ok(recipients)
 }
 
+/// [`message_recipients`] for a message whose mentions are limited to `only`, as a webhook's `allowed_mentions` does.
+pub async fn message_recipients_limited_to(
+    store: &Store,
+    channel_id: ChannelId,
+    author_id: UserId,
+    content: &str,
+    only: Vec<UserId>,
+) -> anyhow::Result<Vec<UserId>> {
+    let (recipients, _mentioned) = message_audience(
+        store,
+        channel_id,
+        author_id,
+        content,
+        &PresenceTracker::new(),
+        MentionReach {
+            only: Some(only),
+            ..MentionReach::default()
+        },
+    )
+    .await?;
+    Ok(recipients)
+}
+
 /// How far a message's mentions reach beyond the names written in it.
 #[derive(Default)]
 pub(crate) struct MentionReach {

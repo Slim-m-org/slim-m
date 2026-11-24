@@ -11100,10 +11100,10 @@ paths:
         mentions.
 
 
-        The body is required and must be JSON. A missing body or any other
+        The body must be JSON. A missing body or any other
         content type answers 400 with the usual error shape.
       requestBody:
-        required: true
+        required: false
         content:
           application/json:
             schema:

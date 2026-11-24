@@ -171,7 +171,7 @@ async fn a_body_less_or_non_json_delivery_answers_the_documented_error() {
 }
 
 #[test]
-fn the_schema_marks_the_delivery_body_required() {
+fn the_schema_describes_the_body_less_delivery_answer() {
     let schema = std::fs::read_to_string(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../../schema/openapi.yaml"
@@ -179,11 +179,8 @@ fn the_schema_marks_the_delivery_body_required() {
     .unwrap();
     let operation = schema.split("operationId: deliverWebhook").nth(1).unwrap();
     let body = operation.split("requestBody:").nth(1).unwrap();
-    let required = body
-        .lines()
-        .find(|line| line.contains("required:"))
-        .unwrap();
-    assert!(required.contains("true"), "{required}");
+    assert!(body.trim_start().starts_with("required: false"));
+    assert!(operation.contains("A missing body or any other"));
 }
 
 /// A first attempt that committed the message row and died before its embeds and label.
