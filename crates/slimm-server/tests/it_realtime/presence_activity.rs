@@ -174,6 +174,39 @@ async fn hidden_user_activity_is_invisible_to_others_but_not_to_self() {
 }
 
 #[tokio::test]
+async fn a_hidden_members_activity_reaches_their_other_device_and_no_one_else() {
+    let (store, _guard) = support::new_store("slimm-presence-hidden-own-device").await;
+    let state = support::app::builder(store.clone()).hub(Hub::new()).build();
+    let (alice_access, alice_ticket, alice_id) = user_ticket(&store, "alice").await;
+    let (_bob_access, bob_ticket, _bob_id) = user_ticket(&store, "bob").await;
+    let alice = alice_id.to_string();
+    let addr = serve(state.clone()).await;
+    let mut bob_ws = connect(addr, &bob_ticket).await;
+    let _alice_phone = connect(addr, &alice_ticket).await;
+    let ctx = store.authenticate(&alice_access).await.unwrap().unwrap();
+    let (laptop_ticket, _) = store.mint_ws_ticket(&ctx).await.unwrap();
+    let mut alice_laptop = connect(addr, &laptop_ticket).await;
+    let hidden = send(
+        &state,
+        request(
+            "PATCH",
+            "/presence",
+            &alice_access,
+            Some(json!({ "visibility": "hidden" })),
+        ),
+    )
+    .await;
+    assert_eq!(hidden, StatusCode::OK);
+    presence_where(&mut bob_ws, &alice, |f| f["status"] == "offline").await;
+
+    put_activity(&state, &alice_access, track("Secret")).await;
+
+    let own = presence_where(&mut alice_laptop, &alice, |f| f.get("activity").is_some()).await;
+    assert_eq!(own["activity"]["title"], "Secret");
+    assert!(no_presence_for(&mut bob_ws, &alice).await);
+}
+
+#[tokio::test]
 async fn malformed_and_over_long_activity_is_refused() {
     let (store, _guard) = support::new_store("slimm-presence-test").await;
     let state = support::app::builder(store.clone()).hub(Hub::new()).build();

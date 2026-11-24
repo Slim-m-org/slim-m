@@ -171,10 +171,10 @@ async fn clear_activity(
 }
 
 /// Fans out through [`Event::PresenceChanged`], so each viewer's frame is
-/// resolved by the same rule as their status; a hidden user's changes are withheld from everyone else.
+/// resolved by the same rule as their status; a hidden user's changes reach only their own sockets.
 fn announce_if_changed(state: &AppState, user_id: UserId, activity: Option<Activity>) {
     let changed = state.hub.presence().set_client_activity(user_id, activity);
-    if changed && !state.hub.presence().is_hidden(user_id) {
+    if changed {
         state.hub.publish(Event::presence_changed(user_id));
     }
 }

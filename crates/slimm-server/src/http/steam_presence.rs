@@ -53,7 +53,6 @@ pub fn clear_steam_activity(state: &AppState, user_id: UserId) {
     let tracker = state.hub.presence();
     if tracker.activity(user_id).is_some_and(|a| a.is_steam())
         && tracker.set_activity(user_id, None)
-        && !tracker.is_hidden(user_id)
     {
         state.hub.publish(Event::presence_changed(user_id));
     }
@@ -182,7 +181,7 @@ impl Poller {
             return;
         }
         let changed = state.hub.presence().set_activity(user_id, Some(activity));
-        if changed && !state.hub.presence().is_hidden(user_id) {
+        if changed {
             state.hub.publish(Event::presence_changed(user_id));
         }
     }
