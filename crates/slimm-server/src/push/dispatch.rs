@@ -186,6 +186,10 @@ async fn send_once<'a>(
     let mut refused = Vec::new();
     let mut reached = false;
     for attempt in 0..=MAX_RESENDS {
+        pending.retain(|m| m.ring_id.is_none_or(|ring| !enabled.ring_ended(ring)));
+        if pending.is_empty() {
+            break;
+        }
         let round = send_round(enabled, store, &pending, what).await;
         reached |= round.reached;
         delivered.extend(round.delivered);
@@ -318,6 +322,7 @@ mod tests {
             slot: TokenSlot::Push,
             kind: "message",
             payload: String::new(),
+            ring_id: None,
         }
     }
 

@@ -10,7 +10,7 @@ use crate::store::Store;
 
 /// What clearing an account changed that other people's open views still show.
 #[derive(Debug, Default)]
-pub(super) struct Cleared {
+pub struct Cleared {
     pub reactions_changed: Vec<(ChannelId, MessageId)>,
     pub polls_changed: Vec<(ChannelId, MessageId)>,
     pub rooms_renamed: Vec<ChannelId>,

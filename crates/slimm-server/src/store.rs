@@ -145,7 +145,7 @@ mod watch_sessions;
 mod webhooks;
 mod write_refusal;
 
-pub use account_deletion::{DeleteAccountError, DeletedAccount};
+pub use account_deletion::{Cleared, ClosedAccount, DeleteAccountError, DeletedAccount};
 pub use admin_alerts::{AdminAlert, Raised, ResolvedAlert};
 pub use admin_audit::AdminAuditEntry;
 pub use analytics::{

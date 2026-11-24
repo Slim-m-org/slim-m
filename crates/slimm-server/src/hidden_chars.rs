@@ -86,17 +86,17 @@ pub(crate) fn strip_reading_rewrites(text: &str) -> Cow<'_, str> {
     Cow::Owned(lines.chars().filter(|c| !rewrites_reading(*c)).collect())
 }
 
-const ZWJ: char = '\u{200D}';
+pub(crate) const ZWJ: char = '\u{200D}';
 /// The combining grapheme joiner: draws nothing, but stacked diacritics carry it between marks.
 const CGJ: char = '\u{034F}';
-const TAG_FLAG_BASE: char = '\u{1F3F4}';
-const TAG_END: char = '\u{E007F}';
+pub(crate) const TAG_FLAG_BASE: char = '\u{1F3F4}';
+pub(crate) const TAG_END: char = '\u{E007F}';
 
-fn is_tag_letter(c: char) -> bool {
+pub(crate) fn is_tag_letter(c: char) -> bool {
     matches!(c, '\u{E0020}'..='\u{E007E}')
 }
 
-fn is_pictographic(c: char) -> bool {
+pub(crate) fn is_pictographic(c: char) -> bool {
     matches!(c,
         '\u{00A9}' | '\u{00AE}' | '\u{203C}' | '\u{2049}' | '\u{2122}' | '\u{2139}'
         | '\u{2190}'..='\u{21FF}'

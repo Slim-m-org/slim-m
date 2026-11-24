@@ -18,6 +18,7 @@ mod bounded;
 mod personal;
 
 pub(super) use blocked_authorship::forget_unblocked_author;
+pub use bounded::Cleared;
 
 use crate::ids::{ChannelId, MessageId, SessionId, UserId};
 
@@ -38,6 +39,15 @@ pub struct DeletedAccount {
     pub polls_changed: Vec<(ChannelId, MessageId)>,
     /// Temporary rooms this account owned, now ownerless and renamed.
     pub rooms_renamed: Vec<ChannelId>,
+}
+
+/// What closing an account leaves the caller to act on at once.
+#[derive(Debug)]
+pub struct ClosedAccount {
+    /// Every session the account had, so their sockets close.
+    pub revoked: Vec<SessionId>,
+    /// Set when the account owned the Space and ownership passed on.
+    pub handoff: Option<Handoff>,
 }
 
 /// Why deleting an account was refused.
@@ -124,22 +134,37 @@ impl Store {
         user_id: UserId,
         audited_by: Option<UserId>,
     ) -> Result<DeletedAccount, DeleteAccountError> {
-        let (revoked, handoff) = self.close_account(user_id, audited_by).await?;
-        // The account is already closed, so a failed clean-up is left to the sweep rather than reported as a failed delete.
-        let cleared = match self.clear_closed_account(user_id).await {
-            Ok(cleared) => cleared,
-            Err(err) => {
-                tracing::warn!(error = %err, "account clean-up stopped part way; the sweep will finish it");
-                bounded::Cleared::default()
-            }
-        };
+        let closed = self.close_account(user_id, audited_by).await?;
+        let cleared = self.clear_account(user_id).await;
         Ok(DeletedAccount {
-            revoked,
-            handoff,
+            revoked: closed.revoked,
+            handoff: closed.handoff,
             reactions_changed: cleared.reactions_changed,
             polls_changed: cleared.polls_changed,
             rooms_renamed: cleared.rooms_renamed,
         })
+    }
+
+    /// The first half of a deletion: the account is closed and its sessions revoked, and the
+    /// bounded clean-up is left for [`Store::clear_account`], which a caller can run apart.
+    pub async fn close_account_for_deletion(
+        &self,
+        user_id: UserId,
+        audited_by: Option<UserId>,
+    ) -> Result<ClosedAccount, DeleteAccountError> {
+        self.close_account(user_id, audited_by).await
+    }
+
+    /// The second half of a deletion. The account is already closed, so a failed clean-up is
+    /// left to the sweep rather than reported as a failed delete.
+    pub async fn clear_account(&self, user_id: UserId) -> Cleared {
+        match self.clear_closed_account(user_id).await {
+            Ok(cleared) => cleared,
+            Err(err) => {
+                tracing::warn!(error = %err, "account clean-up stopped part way; the sweep will finish it");
+                Cleared::default()
+            }
+        }
     }
 
     /// Finishes every purge a stopped server left part way, once it has sat for `stale_ms`.
@@ -177,7 +202,7 @@ impl Store {
         &self,
         user_id: UserId,
         audited_by: Option<UserId>,
-    ) -> Result<(Vec<SessionId>, Option<Handoff>), DeleteAccountError> {
+    ) -> Result<ClosedAccount, DeleteAccountError> {
         let now = now_ms();
         let mut tx = self.begin_write().await?;
 
@@ -263,6 +288,6 @@ impl Store {
         .execute(&mut *tx)
         .await?;
         tx.commit().await?;
-        Ok((revoked, handoff))
+        Ok(ClosedAccount { revoked, handoff })
     }
 }

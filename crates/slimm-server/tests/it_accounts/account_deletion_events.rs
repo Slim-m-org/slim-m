@@ -2,6 +2,8 @@
 //! What everyone else is told when an account is deleted: the reaction and
 //! poll counts it changed, its profile, and the rooms that carried its name.
 
+use std::time::Duration;
+
 use axum::http::StatusCode;
 use slimm_server::hub::{Event, Hub, MessageEvent};
 use slimm_server::ids::{ChannelId, MessageId, UserId};
@@ -167,4 +169,71 @@ async fn deleting_an_account_renames_and_releases_its_temporary_room() {
             if channel.id == room.id && channel.name == "Voice room")
     });
     assert!(announced, "no ChannelUpdated for the room: {events:?}");
+}
+
+/// A trigger on the last statement of the clean-up, so the clean-up outlasts the request timeout.
+const SLOW_CLEAN_UP: &str = "CREATE TRIGGER slow_clean_up BEFORE DELETE ON account_purges BEGIN \
+    SELECT count(*) FROM (WITH RECURSIVE c(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM c WHERE x < 12000000) SELECT x FROM c); END";
+
+#[tokio::test]
+async fn a_slow_clean_up_does_not_cost_the_deletion_its_follow_up() {
+    let (store, pool, _guard) = support::new_store_with_pool("slimm-deletion-slow-clear").await;
+    let w = world(store).await;
+    let message = MessageId::generate();
+    w.store
+        .send_message(NewMessage::plain(w.channel, w.leaver, message, "hi"))
+        .await
+        .unwrap();
+    w.store
+        .add_reaction(message, w.leaver, "\u{1F44D}")
+        .await
+        .unwrap();
+    sqlx::query(SLOW_CLEAN_UP).execute(&pool).await.unwrap();
+    let hub = Hub::new();
+    let app = support::app::builder(w.store.clone())
+        .hub(hub.clone())
+        .router();
+    let mut rx = hub.subscribe();
+
+    let request = request_authed(
+        "DELETE",
+        &format!("/members/{}/account", w.leaver),
+        &w.admin_token,
+        None,
+    );
+    let answered = tokio::time::timeout(Duration::from_millis(2_000), app.oneshot(request)).await;
+
+    assert_eq!(
+        answered
+            .expect("the request outlived its timeout")
+            .unwrap()
+            .status(),
+        StatusCode::NO_CONTENT
+    );
+    let mut seen = Vec::new();
+    let reactions_announced = support::wait::poll(Duration::from_secs(15), || {
+        while let Ok(event) = rx.try_recv() {
+            seen.push(match event {
+                Event::Stamped { event, .. } => *event,
+                other => other,
+            });
+        }
+        let announced = seen.iter().any(|e| {
+            matches!(e, Event::Message(MessageEvent::ReactionsChanged { message_id, .. }) if *message_id == message)
+        });
+        std::future::ready(announced.then_some(()))
+    })
+    .await;
+    assert!(
+        seen.iter()
+            .any(|e| matches!(e, Event::MemberRemoved(id) if *id == w.leaver))
+    );
+    assert!(
+        seen.iter()
+            .any(|e| matches!(e, Event::ProfileChanged(id) if *id == w.leaver))
+    );
+    assert!(
+        reactions_announced.is_some(),
+        "the clean-up never announced: {seen:?}"
+    );
 }

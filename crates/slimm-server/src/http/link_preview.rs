@@ -305,15 +305,18 @@ async fn image(
     Path(token): Path<String>,
 ) -> Result<Response, ApiError> {
     let service = state.link_previews.enabled()?;
-    if service.cache.image_bytes(&token).is_none() {
-        enforce(&state, &parts, Some(&ctx), Class::LinkPreview)?;
-    }
-    serve_image(load_image(service, &token).await?)
+    let charge = || enforce(&state, &parts, Some(&ctx), Class::LinkPreview);
+    serve_image(load_image(service, &token, charge).await?)
 }
 
 /// The image behind [token], fetched once however many readers ask at the same time, and a
 /// failure remembered briefly so a dead image costs one outbound fetch, not one per reader.
-async fn load_image(service: &Enabled, token: &str) -> Result<Bytes, ApiError> {
+/// `charge` runs only for the request that starts the fetch, never for one that joins it.
+async fn load_image(
+    service: &Enabled,
+    token: &str,
+    charge: impl FnOnce() -> Result<(), ApiError>,
+) -> Result<Bytes, ApiError> {
     if let Some(bytes) = service.cache.image_bytes(token) {
         return Ok(bytes);
     }
@@ -326,22 +329,25 @@ async fn load_image(service: &Enabled, token: &str) -> Result<Bytes, ApiError> {
     let flight = service.cache.image_in_flight(token);
     let outcome = flight
         .cell()
-        .get_or_init(|| async {
-            match fetch_image(&service.client, &url, service.allow_private).await {
-                Ok(bytes) => {
-                    let bytes = Bytes::from(bytes);
-                    service.cache.store_image_bytes(token, bytes.clone());
-                    Ok(bytes)
-                }
-                Err(err) => {
-                    if err == FetchError::Unavailable {
-                        service.cache.record_miss(token);
+        .get_or_try_init(|| async {
+            charge()?;
+            Ok::<_, ApiError>(
+                match fetch_image(&service.client, &url, service.allow_private).await {
+                    Ok(bytes) => {
+                        let bytes = Bytes::from(bytes);
+                        service.cache.store_image_bytes(token, bytes.clone());
+                        Ok(bytes)
                     }
-                    Err(err)
-                }
-            }
+                    Err(err) => {
+                        if err == FetchError::Unavailable {
+                            service.cache.record_miss(token);
+                        }
+                        Err(err)
+                    }
+                },
+            )
         })
-        .await
+        .await?
         .clone();
     drop(flight);
     Ok(outcome?)
@@ -353,7 +359,7 @@ fn warm_image(previews: &LinkPreviews, token: Option<String>) {
         return;
     };
     tokio::spawn(async move {
-        let _ = load_image(&service, &token).await;
+        let _ = load_image(&service, &token, || Ok(())).await;
     });
 }
 

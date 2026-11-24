@@ -56,9 +56,10 @@ mod security;
 mod spoiler_mask;
 mod voice_notice;
 
-use std::collections::HashSet;
-use std::sync::Arc;
+use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicI64, AtomicU32, AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 use crate::config::Config;
 use crate::ids::{CallRingId, ChannelId, MessageId, Seq, UserId};
@@ -98,7 +99,32 @@ struct Enabled {
     relay_failures: AtomicU32,
     /// Until when (epoch ms) to send the kinds an older relay knows, after one refused the new ones.
     legacy_kinds_until: AtomicI64,
+    /// Rings that ended recently, so a ring resend still waiting does not go out after its call.
+    ended_rings: Mutex<HashMap<CallRingId, Instant>>,
 }
+
+impl Enabled {
+    fn mark_ring_ended(&self, ring_id: CallRingId) {
+        let mut ended = self
+            .ended_rings
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let now = Instant::now();
+        ended.retain(|_, at| now.duration_since(*at) < ENDED_RING_MEMORY);
+        ended.insert(ring_id, now);
+    }
+
+    fn ring_ended(&self, ring_id: CallRingId) -> bool {
+        let ended = self
+            .ended_rings
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        ended.contains_key(&ring_id)
+    }
+}
+
+/// Longer than any ring resend can wait, so a mark outlives every send it must stop.
+const ENDED_RING_MEMORY: Duration = Duration::from_secs(60);
 
 impl PushSender {
     /// Builds a sender from the process config. Disabled, quietly and
@@ -138,6 +164,7 @@ impl PushSender {
                     forbidden: AtomicU64::new(0),
                     relay_failures: AtomicU32::new(0),
                     legacy_kinds_until: AtomicI64::new(0),
+                    ended_rings: Mutex::new(HashMap::new()),
                 }))
             }
             _ => {
@@ -239,6 +266,7 @@ impl PushSender {
         let Some(enabled) = self.inner.clone() else {
             return;
         };
+        enabled.mark_ring_ended(ring_id);
         tokio::spawn(call_end::deliver(
             enabled, store, channel_id, ring_id, caller_id,
         ));

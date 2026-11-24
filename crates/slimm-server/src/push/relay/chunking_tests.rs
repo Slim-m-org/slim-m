@@ -63,6 +63,7 @@ fn sealed(count: usize) -> Vec<SealedMessage> {
             slot: TokenSlot::Push,
             kind: "message",
             payload: "sealed".to_owned(),
+            ring_id: None,
         })
         .collect()
 }

@@ -46,7 +46,7 @@ use std::collections::HashSet;
 use serde::Serialize;
 use unicode_segmentation::UnicodeSegmentation;
 
-use crate::ids::{ChannelId, DeviceId, MessageId, Seq, UserId};
+use crate::ids::{CallRingId, ChannelId, DeviceId, MessageId, Seq, UserId};
 use crate::store::PushTarget;
 
 use super::sealing::{TokenSlot, seal_to};
@@ -244,6 +244,8 @@ pub(super) struct SealedMessage {
     pub(super) slot: TokenSlot,
     pub(super) kind: &'static str,
     pub(super) payload: String,
+    /// The ring a `call` push announces, so a resend can tell it ended.
+    pub(super) ring_id: Option<CallRingId>,
 }
 
 /// Seals a new-message notification to every target's public key.

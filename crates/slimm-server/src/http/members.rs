@@ -303,12 +303,12 @@ async fn delete_member_account(
         .reach_member(&state, target)
         .await?;
 
-    let deleted = match state
+    let closed = match state
         .store
-        .delete_account_by_admin(target, ctx.user_id)
+        .close_account_for_deletion(target, Some(ctx.user_id))
         .await
     {
-        Ok(deleted) => deleted,
+        Ok(closed) => closed,
         Err(DeleteAccountError::WouldStrandDeployment) => {
             return Err(ApiError::Conflict(
                 "that is the only administrator; appoint another before deleting it",
@@ -317,16 +317,7 @@ async fn delete_member_account(
         Err(DeleteAccountError::UserNotFound) => return Err(ApiError::NotFound("no such member")),
         Err(DeleteAccountError::Internal(e)) => return Err(e.into()),
     };
-    super::session_revocation::account_sessions_revoked(&state, target, None);
-    if let Err(err) = state.media.delete_avatar(&target.to_string()).await {
-        tracing::warn!(error = %err, "failed to delete an account's avatar file");
-    }
-    if let Err(err) = state.media.delete_user_banner(&target.to_string()).await {
-        tracing::warn!(error = %err, "failed to delete an account's banner file");
-    }
-    super::linked_accounts::purge_avatar_files(&state, target).await;
-    super::dock::purge_module_member_data(&state, target).await;
-    deleted_account::announce_deleted_account(&state, target, deleted).await;
+    deleted_account::finish_closed_account(&state, target, closed).await;
     Ok(StatusCode::NO_CONTENT)
 }
 

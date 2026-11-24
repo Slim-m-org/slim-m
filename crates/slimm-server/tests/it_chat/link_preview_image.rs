@@ -73,6 +73,18 @@ async fn upstream() -> Upstream {
             ),
         )
         .route(
+            "/s/{n}",
+            get(
+                |axum::extract::Path(n): axum::extract::Path<u32>| async move {
+                    axum::response::Html(format!(
+                        "<meta property=\"og:title\" content=\"Hello\">\
+                     <meta property=\"og:image\" content=\"/slow.png?n={n}\">"
+                    ))
+                },
+            ),
+        )
+        .route("/slow.png", get(slow_png))
+        .route(
             "/card.png",
             get(move || {
                 image_count.fetch_add(1, Ordering::SeqCst);
@@ -100,6 +112,11 @@ async fn upstream() -> Upstream {
         image_served,
         dead_hits,
     }
+}
+
+async fn slow_png() -> impl axum::response::IntoResponse {
+    tokio::time::sleep(IMAGE_DELAY).await;
+    ([(header::CONTENT_TYPE, "image/png")], png())
 }
 
 async fn world(name: &str) -> (Router, String, support::TestDbGuard) {
@@ -200,8 +217,8 @@ async fn a_dead_image_is_fetched_once_for_many_readers() {
 }
 
 #[tokio::test]
-async fn images_that_are_not_cached_are_fetched_at_the_preview_rate() {
-    let (app, token, _guard) = world("slimm-image-throttled").await;
+async fn a_dead_image_asked_for_again_costs_no_preview_budget() {
+    let (app, token, _guard) = world("slimm-image-dead-free").await;
     let up = upstream().await;
     let mut tokens = Vec::new();
     for n in 0..8 {
@@ -210,12 +227,30 @@ async fn images_that_are_not_cached_are_fetched_at_the_preview_rate() {
     wait_for(&up.dead_hits, 8).await;
     // Lets the failed fetches be recorded; nothing observable marks them.
     tokio::time::sleep(Duration::from_millis(100)).await;
-    let mut refused = 0;
-    for _ in 0..3 {
-        for image in &tokens {
-            let (status, _) = get_path(&app, &token, format!("/link-preview/image/{image}")).await;
-            refused += usize::from(status == StatusCode::TOO_MANY_REQUESTS);
-        }
+    for image in tokens.iter().cycle().take(24) {
+        let (status, _) = get_path(&app, &token, format!("/link-preview/image/{image}")).await;
+        assert_eq!(status, StatusCode::NOT_FOUND);
     }
-    assert!(refused > 0, "uncached image asks drain the preview bucket");
+}
+
+#[tokio::test]
+async fn joining_a_fetch_a_preview_started_is_not_charged_again() {
+    let (app, token, _guard) = world("slimm-image-cold-join").await;
+    let up = upstream().await;
+    let mut tokens = Vec::new();
+    for n in 0..6 {
+        tokens.push(image_token(&app, &token, format!("http://{}/s/{n}", up.host)).await);
+    }
+    let asks: Vec<_> = tokens
+        .into_iter()
+        .map(|image| {
+            let (app, token) = (app.clone(), token.clone());
+            tokio::spawn(async move {
+                get_path(&app, &token, format!("/link-preview/image/{image}")).await
+            })
+        })
+        .collect();
+    for ask in asks {
+        assert_eq!(ask.await.unwrap().0, StatusCode::OK);
+    }
 }

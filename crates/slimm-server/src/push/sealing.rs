@@ -53,5 +53,6 @@ pub(super) fn seal_to(
         slot,
         kind: kind.wire_str(),
         payload: BASE64.encode(ciphertext),
+        ring_id: None,
     })
 }
