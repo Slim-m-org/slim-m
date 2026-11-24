@@ -114,8 +114,8 @@ class ReleaseChecksumsListWhatIsAttachedTest(unittest.TestCase):
             "slim-m-client-1-linux-amd64.tar.gz",
             "slim-m-client-1-windows-x64.zip",
             "slim-m-setup-1.exe",
-            "slim-m-client-1-macos.zip",
         ]
+        macos = "slim-m-client-1-macos.zip"
 
         def listed(files: list[str]) -> list[str] | None:
             with tempfile.TemporaryDirectory() as tmp:
@@ -126,8 +126,10 @@ class ReleaseChecksumsListWhatIsAttachedTest(unittest.TestCase):
                 sums = Path(tmp) / "SHA256SUMS"
                 return [line.split()[1] for line in sums.read_text().splitlines()] if sums.exists() else None
 
-        self.assertIsNone(listed(required[:3]))
-        self.assertEqual(sorted(listed(required + ["slim-m-client-1.flatpak"])), sorted(required + ["slim-m-client-1.flatpak"]))
+        self.assertIsNone(listed(required[:2]))
+        self.assertEqual(sorted(listed(required)), sorted(required))
+        everything = required + [macos, "slim-m-client-1.flatpak"]
+        self.assertEqual(sorted(listed(everything)), sorted(everything))
 
 
 if __name__ == "__main__":

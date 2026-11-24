@@ -1,0 +1,42 @@
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+#
+# Records the sha256 and size of what a trusted build job produced, before it is attached to the release, so update-manifest can refuse a release asset that was swapped afterwards.
+name: record asset digests
+description: Upload the digests of the built client downloads as a workflow artifact the manifest signer reads.
+
+inputs:
+  tag:
+    description: client release tag
+    required: true
+  label:
+    description: producer name (linux, android, windows or macos), part of the artifact name
+    required: true
+  files:
+    description: newline-separated paths or globs of the built files, as they are about to be attached
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: record digests
+      shell: bash
+      env:
+        FILES: ${{ inputs.files }}
+        OUT: ${{ runner.temp }}/digests-${{ inputs.label }}
+      run: |
+        py="$(command -v python3 || command -v python)"
+        mkdir -p "$OUT"
+        files=()
+        while IFS= read -r pattern; do
+          # Unquoted on purpose: the pattern is a glob.
+          for f in $pattern; do [ -e "$f" ] && files+=("$f"); done
+        done <<< "$FILES"
+        [ ${#files[@]} -gt 0 ] || { echo "::error::no built file matches $FILES"; exit 1; }
+        "$py" scripts/update-manifest.py digest --out "$OUT" "${files[@]}"
+    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      with:
+        name: digests-${{ inputs.tag }}-${{ inputs.label }}
+        path: ${{ runner.temp }}/digests-${{ inputs.label }}
+        retention-days: 90
+        overwrite: true
+        if-no-files-found: error

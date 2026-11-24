@@ -11,14 +11,11 @@ on:
       require:
         type: string
         required: false
-        default: "windows-x64,macos,linux-x64"
+        default: "windows-x64,linux-x64"
       defer:
         type: boolean
         required: false
         default: false
-    secrets:
-      UPDATE_SIGNING_KEY:
-        required: false
   workflow_dispatch:
     inputs:
       tag:
@@ -29,9 +26,14 @@ on:
         description: "Comma-separated platforms that must be attached"
         required: false
         type: string
-        default: "windows-x64,macos,linux-x64"
+        default: "windows-x64,linux-x64"
       defer:
         description: "Skip quietly when a required platform is not attached yet, because its producer signs last"
+        required: false
+        type: boolean
+        default: false
+      trust_release_assets:
+        description: "Sign what is attached without the producers' digests, for a release cut before they were recorded"
         required: false
         type: boolean
         default: false
@@ -48,14 +50,18 @@ jobs:
     name: sign update manifest
     runs-on: ubuntu-24.04
     timeout-minutes: 10
-    # write, not read: the last step attaches the manifest and signature to the github release.
+    # The signing key lives in this environment only, with deployment rules for main and client-v* tags, so a workflow on any other ref cannot read it.
+    environment: release
+    # write, not read: the last step attaches the manifest and signature to the github release. actions: read fetches the producers' digests.
     permissions:
+      actions: read
       contents: write
     env:
       UPDATE_SIGNING_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}
       TAG: ${{ inputs.tag }}
       REQUIRE: ${{ inputs.require }}
       DEFER: ${{ inputs.defer }}
+      TRUST_RELEASE_ASSETS: ${{ inputs.trust_release_assets }}
       GH_TOKEN: ${{ github.token }}
     steps:
       - name: check secret
@@ -70,6 +76,8 @@ jobs:
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         if: steps.gate.outputs.ready == 'true'
+        with:
+          persist-credentials: false
 
       - name: download the desktop artifacts
         if: steps.gate.outputs.ready == 'true'
@@ -81,13 +89,27 @@ jobs:
             --pattern 'slim-m-client-*-macos.zip' \
             --pattern 'slim-m-client-android*.apk'
 
+      # What each trusted producer built, from its own workflow run on main or this tag; an asset attached by anything else has no digest and is refused.
+      - name: fetch the producers' digests
+        if: steps.gate.outputs.ready == 'true' && env.TRUST_RELEASE_ASSETS != 'true'
+        run: |
+          mkdir -p expected
+          for label in linux android windows macos; do
+            id="$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=digests-$TAG-$label&per_page=30" \
+              | jq -r --arg tag "$TAG" '[.artifacts[] | select(.expired == false and (.workflow_run.head_branch == "main" or .workflow_run.head_branch == $tag))][0].id // empty')"
+            [ -n "$id" ] || { echo "::notice::no digests recorded for $label"; continue; }
+            gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$id/zip" > "$RUNNER_TEMP/$label.zip"
+            unzip -q -o "$RUNNER_TEMP/$label.zip" -d expected
+          done
+
       # The Linux tarball (release) and the Windows and macOS archives (desktop-clients) land in either order, so each producer calls this with defer and the last one to attach signs.
       - name: build the manifest
         id: build
         if: steps.gate.outputs.ready == 'true'
         run: |
-          extra=()
-          [ "$DEFER" = "true" ] && extra=(--defer-if-missing)
+          extra=(--expected expected)
+          [ "$TRUST_RELEASE_ASSETS" = "true" ] && extra=(--trust-release-assets)
+          [ "$DEFER" = "true" ] && extra+=(--defer-if-missing)
           python3 scripts/update-manifest.py build --tag "$TAG" --dir dist \
             --repo "$GITHUB_REPOSITORY" --require "$REQUIRE" --out manifest.json "${extra[@]}"
           if [ -f manifest.json ]; then
@@ -100,13 +122,12 @@ jobs:
         if: steps.build.outputs.built == 'true'
         run: python3 scripts/update-manifest.py sign --manifest manifest.json --sig manifest.json.sig
 
-      # Round trip against the key's own public half, so a bad secret fails here and not on a user's machine.
+      # Against the keys compiled into the client, so a secret that no installed app trusts fails here and not on a user's machine.
       - name: verify what was just signed
         if: steps.build.outputs.built == 'true'
         run: |
-          pubkey="$(python3 scripts/update-manifest.py pubkey)"
-          python3 scripts/update-manifest.py verify --manifest manifest.json \
-            --sig manifest.json.sig --pubkey "$pubkey" --dir dist
+          python3 scripts/update-manifest.py verify --manifest manifest.json --sig manifest.json.sig \
+            --keys-dart client/packages/app/lib/src/desktop/self_update/update_keys.dart --dir dist
 
       - name: attach to the github release
         if: steps.build.outputs.built == 'true'

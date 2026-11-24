@@ -1097,6 +1097,7 @@ And nothing compared a published release against the assets it should have, so t
 `scripts/lib/test_windows_builds_do_not_run_under_bash.py` refuses `flutter build` under `shell: bash` in any Windows job.
 That closes this exact door and no other.
 Before merging a change to this file, dispatch it from the branch against the newest existing tag (`gh workflow run desktop-clients.yml --ref <branch> -f tag=client-vX.Y.Z`): it rebuilds and re-attaches the same assets with `--clobber`, which is harmless, and it is the only way the change runs before a release depends on it.
+Both desktop jobs and the signing jobs name the `release` environment, whose deployment rules allow `main` and `client-v*` tags, so a branch dispatch builds and attaches nothing until the owner allows that branch for the run; the manifest is not signed from a branch.
 
 ## main-builds
 
