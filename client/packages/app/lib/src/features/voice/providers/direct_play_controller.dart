@@ -17,101 +17,23 @@ import 'package:slimm_api/api.dart' as api;
 import '../../../format.dart' show formatPlaybackTime;
 import 'direct_play_corrector.dart';
 import 'direct_play_eligibility.dart';
+import 'direct_play_environment.dart';
+import 'direct_play_state.dart';
 import 'direct_player.dart';
 import 'jellyfin_direct_client.dart';
 import 'watch_room.dart';
 
-enum DirectPlayPhase { off, signIn, connecting, playing }
-
-class DirectPlayState {
-  const DirectPlayState({
-    this.phase = DirectPlayPhase.off,
-    this.enabled = false,
-    this.block,
-    this.notice,
-    this.signInError,
-    this.localPause,
-    this.checking = false,
-  });
-
-  final DirectPlayPhase phase;
-
-  /// The viewer's saved choice; it stays on across a fall back so the next party tries again.
-  final bool enabled;
-  final DirectPlayBlock? block;
-
-  /// Why the viewer is back on the shared stream after trying, until they act.
-  final String? notice;
-  final String? signInError;
-
-  /// Where the room is while this viewer is paused on their own.
-  final Duration? localPause;
-  final bool checking;
-
-  bool get active =>
-      phase == DirectPlayPhase.connecting || phase == DirectPlayPhase.playing;
-
-  DirectPlayState copyWith({
-    DirectPlayPhase? phase,
-    bool? enabled,
-    Object? block = _keep,
-    Object? notice = _keep,
-    Object? signInError = _keep,
-    Object? localPause = _keep,
-    bool? checking,
-  }) => DirectPlayState(
-    phase: phase ?? this.phase,
-    enabled: enabled ?? this.enabled,
-    block: identical(block, _keep) ? this.block : block as DirectPlayBlock?,
-    notice: identical(notice, _keep) ? this.notice : notice as String?,
-    signInError: identical(signInError, _keep)
-        ? this.signInError
-        : signInError as String?,
-    localPause: identical(localPause, _keep)
-        ? this.localPause
-        : localPause as Duration?,
-    checking: checking ?? this.checking,
-  );
-}
-
-const Object _keep = Object();
+export 'direct_play_environment.dart';
+export 'direct_play_state.dart';
 
 /// How often the player is compared with the room.
 const Duration kDirectPlayPoll = Duration(seconds: 1);
 
+/// How many polls in a row may fail before the viewer is put back on the shared stream.
+const int kDirectPlayStepFailures = 3;
+
 /// How often a viewer says they are playing directly; the server forgets after 20 seconds.
 const Duration kDirectPlayReport = Duration(seconds: 10);
-
-class DirectPlayEnvironment {
-  const DirectPlayEnvironment({
-    required this.slimm,
-    required this.selfId,
-    required this.clock,
-    required this.client,
-    required this.makePlayer,
-    required this.loadCredential,
-    required this.saveCredential,
-    required this.saveEnabled,
-    required this.holdShare,
-    required this.releaseShare,
-    required this.directPlaySupported,
-  });
-
-  final api.SlimmApi slimm;
-  final String selfId;
-  final DateTime Function() clock;
-  final JellyfinDirectClient client;
-  final DirectPlayer Function() makePlayer;
-  final Future<JellyfinSession?> Function(String baseUrl) loadCredential;
-  final Future<void> Function(String baseUrl, JellyfinSession session)
-  saveCredential;
-  final Future<void> Function(bool enabled) saveEnabled;
-  final void Function(String identity) holdShare;
-  final void Function(String identity) releaseShare;
-
-  /// False where the original file cannot be played untranscoded, such as a browser.
-  final bool directPlaySupported;
-}
 
 /// The direct-play state machine for one channel; [DirectPlay] mirrors its state into riverpod.
 class DirectPlayController {
@@ -148,7 +70,15 @@ class DirectPlayController {
   String? _heldBot;
   Duration? _lastPosition;
   DateTime? _lastMovedAt;
+  String? _credentialUrl;
+  bool _stepping = false;
+  int _stepFailures = 0;
   bool _disposed = false;
+
+  // Bumped whenever what a pending connect was started for is gone; each await in _begin re-checks it.
+  int _generation = 0;
+  int? _beginningGeneration;
+  int _signInGeneration = 0;
 
   // After a fall back the viewer decides when to try again, or every tick would restart the player.
   bool _cooledOff = false;
@@ -172,6 +102,7 @@ class DirectPlayController {
   Future<void> onRoom(WatchRoom? room) async {
     final previous = _room;
     _room = room;
+    if (room == null || previous?.itemId != room.itemId) _generation++;
     if (room == null) {
       await _stopPlaying(retract: true);
       state = state.copyWith(
@@ -185,10 +116,14 @@ class DirectPlayController {
     }
     if (previous != null && previous.itemId != room.itemId) {
       _cooledOff = false;
-      if (state.active) await _stopPlaying(retract: true);
+      if (state.active) {
+        await _stopPlaying(retract: true);
+        state = state.copyWith(phase: DirectPlayPhase.off, localPause: null);
+      }
     }
     final offer = room.directPlay;
     if (offer == null) {
+      _generation++;
       if (state.active) {
         await _fallBack(
           'The party stopped offering source quality. Back on the shared stream.',
@@ -198,7 +133,12 @@ class DirectPlayController {
       return;
     }
     await _evaluate(offer);
-    if (state.enabled && state.block == null && !state.active && !_cooledOff) {
+    final waiting = state.phase == DirectPlayPhase.signIn;
+    if (state.enabled &&
+        state.block == null &&
+        !state.active &&
+        !waiting &&
+        !_cooledOff) {
       await _begin(offer);
     }
   }
@@ -266,6 +206,7 @@ class DirectPlayController {
   Future<void> signIn(String username, String password) async {
     final offer = _room?.directPlay;
     if (offer == null) return;
+    final asked = _signInGeneration;
     state = state.copyWith(signInError: null);
     try {
       final session = await _env.client.signIn(
@@ -273,7 +214,9 @@ class DirectPlayController {
         username: username,
         password: password,
       );
+      if (asked != _signInGeneration || _disposed) return;
       _credential = session;
+      _credentialUrl = offer.baseUrl;
       await _env.saveCredential(offer.baseUrl, session);
     } on JellyfinSignInRefused {
       state = state.copyWith(
@@ -287,11 +230,13 @@ class DirectPlayController {
       );
       return;
     }
+    if (asked != _signInGeneration || _disposed) return;
     state = state.copyWith(phase: DirectPlayPhase.off);
     unawaited(_begin(offer));
   }
 
   void cancelSignIn() {
+    _signInGeneration++;
     unawaited(_env.saveEnabled(false));
     state = state.copyWith(
       enabled: false,
@@ -303,20 +248,26 @@ class DirectPlayController {
   Future<void> _begin(api.WatchDirectPlay offer) async {
     final room = _room;
     if (room == null || state.active) return;
-    _credential ??= await _env.loadCredential(offer.baseUrl);
-    final credential = _credential;
-    if (credential == null) {
-      state = state.copyWith(phase: DirectPlayPhase.signIn);
-      return;
-    }
-    state = state.copyWith(phase: DirectPlayPhase.connecting, notice: null);
+    final generation = _generation;
+    if (_beginningGeneration == generation) return;
+    _beginningGeneration = generation;
+    bool stale() => _disposed || generation != _generation;
     try {
+      final credential = await _credentialFor(offer.baseUrl);
+      if (stale()) return;
+      if (credential == null) {
+        state = state.copyWith(phase: DirectPlayPhase.signIn);
+        return;
+      }
+      state = state.copyWith(phase: DirectPlayPhase.connecting, notice: null);
       if (_canSeeItem != room.itemId) {
-        _canSee = await _env.client.canSee(
+        final canSee = await _env.client.canSee(
           offer.baseUrl,
           credential,
           room.itemId,
         );
+        if (stale()) return;
+        _canSee = canSee;
         _canSeeItem = room.itemId;
       }
       if (_canSee == false) {
@@ -326,31 +277,64 @@ class DirectPlayController {
         );
         return;
       }
-      _heldBot = room.botUserId;
-      _env.holdShare(room.botUserId);
-      final source = _env.client.original(
-        offer.baseUrl,
-        credential,
-        room.itemId,
-      );
-      final player = _env.makePlayer();
-      _player = player;
-      _corrector = DirectPlayCorrector();
-      await player.open(source.url, source.headers, _target(room));
-      if (player.isPlaying == false && room.playing) await player.play();
-      if (_disposed || _player != player) return;
-      _lastPosition = null;
-      _lastMovedAt = null;
-      _poll = Timer.periodic(kDirectPlayPoll, (_) => unawaited(_step()));
-      _report = Timer.periodic(kDirectPlayReport, (_) => _reportViewing(true));
-      state = state.copyWith(phase: DirectPlayPhase.playing);
-      _reportViewing(true);
+      await _play(offer, room, credential, stale);
+    } on JellyfinUnauthorized {
+      if (!stale()) await _expire(offer.baseUrl);
     } on Object catch (error, stack) {
+      if (stale()) return;
       _swallowed('Direct play could not start', error, stack);
       await _fallBack(
         'Could not play from Jellyfin. Back on the shared stream.',
       );
+    } finally {
+      if (_beginningGeneration == generation) _beginningGeneration = null;
     }
+  }
+
+  Future<void> _play(
+    api.WatchDirectPlay offer,
+    WatchRoom room,
+    JellyfinSession credential,
+    bool Function() stale,
+  ) async {
+    _heldBot = room.botUserId;
+    _env.holdShare(room.botUserId);
+    final source = _env.client.original(offer.baseUrl, credential, room.itemId);
+    final player = _env.makePlayer();
+    _player = player;
+    _corrector = DirectPlayCorrector();
+    await player.open(source.url, source.headers, _target(room));
+    if (player.isPlaying == false && room.playing) await player.play();
+    if (stale() || _player != player) return;
+    _lastPosition = null;
+    _lastMovedAt = null;
+    _stepFailures = 0;
+    _poll = Timer.periodic(kDirectPlayPoll, (_) => unawaited(_step()));
+    _report = Timer.periodic(kDirectPlayReport, (_) => _reportViewing(true));
+    state = state.copyWith(phase: DirectPlayPhase.playing);
+    _reportViewing(true);
+  }
+
+  Future<JellyfinSession?> _credentialFor(String baseUrl) async {
+    if (_credentialUrl != baseUrl) {
+      _credential = await _env.loadCredential(baseUrl);
+      _credentialUrl = baseUrl;
+    }
+    return _credential;
+  }
+
+  Future<void> _expire(String baseUrl) async {
+    _credential = null;
+    _canSeeItem = null;
+    try {
+      await _env.forgetCredential(baseUrl);
+    } on Object catch (error, stack) {
+      _swallowed('Could not delete an expired Jellyfin login', error, stack);
+    }
+    state = state.copyWith(
+      phase: DirectPlayPhase.signIn,
+      notice: 'Your Jellyfin sign-in expired. Sign in again.',
+    );
   }
 
   Duration _target(WatchRoom room) => room.positionAt(_env.clock());
@@ -359,6 +343,24 @@ class DirectPlayController {
   Future<void> debugStep() => _step();
 
   Future<void> _step() async {
+    if (_stepping) return;
+    _stepping = true;
+    try {
+      await _tick();
+      _stepFailures = 0;
+    } on Object catch (error, stack) {
+      _swallowed('Direct play could not follow the room', error, stack);
+      if (++_stepFailures >= kDirectPlayStepFailures && !_disposed) {
+        await _fallBack(
+          'Your player stopped responding. Back on the shared stream.',
+        );
+      }
+    } finally {
+      _stepping = false;
+    }
+  }
+
+  Future<void> _tick() async {
     final room = _room;
     final player = _player;
     if (room == null ||
@@ -446,6 +448,17 @@ class DirectPlayController {
     if (room.playing) await player.play();
   }
 
+  /// The call ended: stop playing but keep the viewer's saved choice for the next party.
+  Future<void> stopForCallEnd() async {
+    _generation++;
+    await _stopPlaying(retract: true);
+    state = state.copyWith(
+      phase: DirectPlayPhase.off,
+      localPause: null,
+      notice: null,
+    );
+  }
+
   Future<void> _fallBack(String notice) async {
     _cooledOff = true;
     await _stopPlaying(retract: true);
@@ -457,6 +470,7 @@ class DirectPlayController {
   }
 
   Future<void> _stopPlaying({required bool retract}) async {
+    _generation++;
     _poll?.cancel();
     _report?.cancel();
     _poll = _report = null;
@@ -482,6 +496,7 @@ class DirectPlayController {
 
   void dispose() {
     _disposed = true;
+    _generation++;
     _onChange = null;
     unawaited(_stopPlaying(retract: true));
   }

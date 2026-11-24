@@ -9,14 +9,15 @@ import 'dart:math';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
-import 'package:slimm_platform/platform.dart' show KeyStore;
 
 import '../../../providers/providers.dart';
 import 'direct_play_controller.dart';
 import 'direct_player.dart';
+import 'jellyfin_credential_store.dart';
 import 'jellyfin_direct_client.dart';
 import 'media_kit_direct_player.dart';
 import 'share_watch.dart';
+import 'voice_flags.dart';
 import 'watch_room.dart';
 
 const String _enabledKey = 'watch.direct_play.enabled';
@@ -34,40 +35,28 @@ final directPlayHttpProvider = Provider<http.Client>((ref) {
 /// Whether this device can play the original file untranscoded; a browser usually cannot.
 final directPlaySupportedProvider = Provider<bool>((ref) => !kIsWeb);
 
-String _credentialHandle(String baseUrl) =>
-    'jellyfin_direct:${Uri.encodeComponent(baseUrl)}';
-
-Future<JellyfinSession?> _loadCredential(KeyStore keys, String baseUrl) async {
-  final stored = await keys.read(_credentialHandle(baseUrl));
-  final at = stored?.indexOf('|') ?? -1;
-  if (stored == null || at < 1) return null;
-  return JellyfinSession(
-    token: stored.substring(0, at),
-    userId: stored.substring(at + 1),
-  );
-}
-
 /// Builds the channel's controller and feeds it the room and the call's shares.
 final directPlayControllerProvider = Provider.autoDispose
     .family<DirectPlayController, String>((ref, channelId) {
       final prefs = ref.read(preferencesProvider).valueOrNull;
-      final keys = ref.read(keyStoreProvider);
+      final credentials = JellyfinCredentialStore(ref.read(keyStoreProvider));
+      final selfId = ref.read(sessionProvider).tokens?.userId ?? '';
       final shares = ref.read(shareWatchProvider.notifier);
       final deviceId = 'slim-m-${Random.secure().nextInt(1 << 31)}';
       final controller = DirectPlayController(
         DirectPlayEnvironment(
           slimm: ref.watch(apiProvider),
-          selfId: ref.read(sessionProvider).tokens?.userId ?? '',
+          selfId: selfId,
           clock: ref.watch(watchClockProvider),
           client: JellyfinDirectClient(
             ref.watch(directPlayHttpProvider),
             deviceId: deviceId,
           ),
           makePlayer: ref.watch(directPlayerFactoryProvider),
-          loadCredential: (url) => _loadCredential(keys, url),
-          saveCredential: (url, session) => keys
-              .put(_credentialHandle(url), '${session.token}|${session.userId}')
-              .then((_) {}),
+          loadCredential: (url) => credentials.load(selfId, url),
+          saveCredential: (url, session) =>
+              credentials.save(selfId, url, session),
+          forgetCredential: (url) => credentials.forget(selfId, url),
           saveEnabled: (enabled) async {
             final store = await ref.read(preferencesProvider.future);
             await store.setBool(_enabledKey, enabled);
@@ -89,9 +78,11 @@ final directPlayControllerProvider = Provider.autoDispose
         held,
       ) {
         final bot = controller.heldBot;
-        if (bot != null && !held.contains(bot)) {
-          unawaited(controller.disable());
-        }
+        if (bot == null || held.contains(bot)) return;
+        final callEnded = ref.read(voiceChannelAtOnce) != channelId;
+        unawaited(
+          callEnded ? controller.stopForCallEnd() : controller.disable(),
+        );
       });
       ref.onDispose(controller.dispose);
       return controller;

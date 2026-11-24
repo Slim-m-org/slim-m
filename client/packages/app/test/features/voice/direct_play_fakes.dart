@@ -4,6 +4,7 @@
 /// docs/decisions/0050-watch-party-sync-authority-and-direct-play.md.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -32,6 +33,8 @@ class FakePlayer implements DirectPlayer {
   final List<Duration> seeks = [];
   bool disposed = false;
   Object? openError;
+  bool throwOnSeek = false;
+  Completer<void>? seekGate;
 
   @override
   Future<void> open(
@@ -55,6 +58,8 @@ class FakePlayer implements DirectPlayer {
   @override
   Future<void> seek(Duration to) async {
     seeks.add(to);
+    await seekGate?.future;
+    if (throwOnSeek) throw StateError('player gone');
     position = to;
   }
 
@@ -81,9 +86,12 @@ class Rig {
         return http.Response(reachable ? '{}' : 'no', reachable ? 200 : 503);
       }
       if (request.url.path.startsWith('/Users/u-jelly/Items/')) {
+        await canSeeGate?.future;
+        if (unauthorized) return http.Response('', 401);
         return http.Response('{}', canSee ? 200 : 404);
       }
       if (request.url.path == '/Users/AuthenticateByName') {
+        await signInGate?.future;
         final body = jsonDecode(request.body) as Map<String, dynamic>;
         return body['Pw'] == 'right'
             ? http.Response(
@@ -117,6 +125,13 @@ class Rig {
   final List<String> events = [];
   JellyfinSession? saved;
   bool enabledSaved = false;
+  bool forgotten = false;
+  bool unauthorized = false;
+  Completer<void>? canSeeGate;
+  Completer<void>? signInGate;
+  int credentialLoads = 0;
+  Object? loadError;
+  bool credentialGone = false;
   Object? openError;
 
   FakePlayer get player => players.last;
@@ -132,10 +147,19 @@ class Rig {
       players.add(p);
       return p;
     },
-    loadCredential: (_) async => credential
-        ? (saved ?? const JellyfinSession(token: 'tok', userId: 'u-jelly'))
-        : saved,
+    loadCredential: (_) async {
+      credentialLoads++;
+      if (loadError != null) throw loadError!;
+      return credential && !credentialGone
+          ? (saved ?? const JellyfinSession(token: 'tok', userId: 'u-jelly'))
+          : saved;
+    },
     saveCredential: (_, session) async => saved = session,
+    forgetCredential: (_) async {
+      forgotten = true;
+      saved = null;
+      credentialGone = true;
+    },
     saveEnabled: (on) async => enabledSaved = on,
     holdShare: (id) => events.add('hold:$id'),
     releaseShare: (id) => events.add('release:$id'),

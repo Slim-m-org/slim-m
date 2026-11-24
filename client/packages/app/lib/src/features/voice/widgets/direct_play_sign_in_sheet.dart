@@ -98,54 +98,57 @@ class _SignInState extends State<_SignIn> {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.s16,
-        0,
-        AppSpacing.s16,
-        AppSpacing.s16,
-      ),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          spacing: AppSpacing.s12,
-          children: [
-            Text(
-              'Sign in to Jellyfin',
-              style: AppText.body.copyWith(
-                color: tokens.textPrimary,
-                fontWeight: AppWeights.semi,
+    return PopScope(
+      canPop: !_busy,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.s16,
+          0,
+          AppSpacing.s16,
+          AppSpacing.s16,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            spacing: AppSpacing.s12,
+            children: [
+              Text(
+                'Sign in to Jellyfin',
+                style: AppText.body.copyWith(
+                  color: tokens.textPrimary,
+                  fontWeight: AppWeights.semi,
+                ),
               ),
-            ),
-            Text(
-              'Use your own Jellyfin account. The password is not kept.',
-              style: AppText.caption.copyWith(color: tokens.textSecondary),
-            ),
-            if (_baseUrl case final baseUrl?) ..._server(tokens, baseUrl),
-            AppInput(
-              controller: _name,
-              placeholder: 'Jellyfin name',
-              autofocus: true,
-              autocorrect: false,
-              autofillHints: const [AutofillHints.username],
-              textInputAction: TextInputAction.next,
-            ),
-            AppInput(
-              controller: _password,
-              placeholder: 'Password',
-              obscureText: true,
-              autofillHints: const [AutofillHints.password],
-              errorText: _error,
-              onSubmitted: (_) => unawaited(_submit()),
-            ),
-            AppButton(
-              label: 'Sign in',
-              full: true,
-              busy: _busy,
-              onPressed: () => unawaited(_submit()),
-            ),
-          ],
+              Text(
+                'Use your own Jellyfin account. The password is not kept.',
+                style: AppText.caption.copyWith(color: tokens.textSecondary),
+              ),
+              if (_baseUrl case final baseUrl?) ..._server(tokens, baseUrl),
+              AppInput(
+                controller: _name,
+                placeholder: 'Jellyfin name',
+                autofocus: true,
+                autocorrect: false,
+                autofillHints: const [AutofillHints.username],
+                textInputAction: TextInputAction.next,
+              ),
+              AppInput(
+                controller: _password,
+                placeholder: 'Password',
+                obscureText: true,
+                autofillHints: const [AutofillHints.password],
+                errorText: _error,
+                onSubmitted: (_) => unawaited(_submit()),
+              ),
+              AppButton(
+                label: 'Sign in',
+                full: true,
+                busy: _busy,
+                onPressed: () => unawaited(_submit()),
+              ),
+            ],
+          ),
         ),
       ),
     );
