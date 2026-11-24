@@ -209,4 +209,17 @@ void main() {
 
     expect(session.askedForCameraOnJoin, isTrue);
   });
+
+  test(
+    'a hang-up that arrives after the account was disposed is a no-op',
+    () async {
+      final session = FakeSession();
+      final controller = harness.controllerWith(session, voiceApi());
+
+      harness.container.dispose();
+
+      await controller.leave();
+      expect(session.leaveCalls, 0);
+    },
+  );
 }

@@ -12,6 +12,9 @@ class NoopSyncController extends SyncController {
   @override
   Future<void> start() async {}
 
+  @override
+  void callStarted() {}
+
   void report(SyncStatus status) => state = status;
 }
 

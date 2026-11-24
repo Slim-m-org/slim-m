@@ -320,6 +320,7 @@ class VoiceController extends StateNotifier<VoiceState> {
   /// Supersedes any in-flight [join], and is superseded the same way: a leave
   /// overtaken by a newer call writes nothing (see docs/internals.md, voice call generations).
   Future<void> leave() {
+    if (!mounted) return Future.value();
     final pending = _leaving;
     // A second hang-up while nothing joined since is the same leave, so its recap and rejoin guard stay.
     if (pending != null && state.channelId == null) return pending;
@@ -367,7 +368,7 @@ class VoiceController extends StateNotifier<VoiceState> {
     _rosterHeld = true;
     state = left;
     await _session.leave();
-    if (generation != _callGeneration) return;
+    if (generation != _callGeneration || !mounted) return;
     // Best-effort and fire-and-forget: this client already disconnected.
     if (!theirs) unawaited(_heartbeat.forgetLeft(channelId));
     // Only what the teardown itself could have moved, so a choice made on the left screen meanwhile stays.
