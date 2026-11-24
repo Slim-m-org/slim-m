@@ -23,6 +23,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/services.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -36,6 +37,7 @@ import 'module_scene_view.dart';
 Future<void> showModuleSceneFullscreen(
   BuildContext context, {
   required ModuleScene initial,
+  ValueListenable<ModuleScene>? updates,
   required ModuleSceneRunner runCommand,
   void Function(List<SceneNote> notes)? onNotes,
   String? title,
@@ -45,6 +47,7 @@ Future<void> showModuleSceneFullscreen(
       fullscreenDialog: true,
       builder: (context) => ModuleSceneFullscreen(
         initial: initial,
+        updates: updates,
         runCommand: runCommand,
         onNotes: onNotes,
         title: title,
@@ -57,12 +60,16 @@ class ModuleSceneFullscreen extends StatelessWidget {
   const ModuleSceneFullscreen({
     super.key,
     required this.initial,
+    this.updates,
     required this.runCommand,
     this.onNotes,
     this.title,
   });
 
   final ModuleScene initial;
+
+  /// Newer frames of the same scene, such as another player's move.
+  final ValueListenable<ModuleScene>? updates;
   final ModuleSceneRunner runCommand;
   final void Function(List<SceneNote> notes)? onNotes;
   final String? title;
@@ -115,17 +122,25 @@ class ModuleSceneFullscreen extends StatelessWidget {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.s16),
-          child: Center(
-            child: ModuleSceneView(
-              initial: initial,
-              runCommand: runCommand,
-              onNotes: onNotes,
-              // The whole point: no cell cap, no share, no expand control.
-              fillAvailable: true,
-            ),
-          ),
+          child: Center(child: _board()),
         ),
       ),
+    );
+  }
+
+  Widget _board() {
+    final updates = this.updates;
+    Widget view(ModuleScene scene) => ModuleSceneView(
+      initial: scene,
+      runCommand: runCommand,
+      onNotes: onNotes,
+      // The whole point: no cell cap, no share, no expand control.
+      fillAvailable: true,
+    );
+    if (updates == null) return view(initial);
+    return ValueListenableBuilder<ModuleScene>(
+      valueListenable: updates,
+      builder: (context, scene, _) => view(scene),
     );
   }
 }
