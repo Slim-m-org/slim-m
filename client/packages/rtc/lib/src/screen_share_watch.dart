@@ -2,6 +2,7 @@
 /// Which running share [ShareRecovery] watches, and how it repeats that share.
 library;
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:livekit_client/livekit_client.dart' as lk;
 
 import 'screen_share.dart';
@@ -25,7 +26,7 @@ class ScreenShareWatch {
     _recovery = ShareRecovery(
       read: () => readLocalShare(participant()),
       pause: (paused) => pauseLocalShare(participant(), paused),
-      restart: _restart,
+      restart: restart,
     );
   }
 
@@ -34,6 +35,7 @@ class ScreenShareWatch {
   late final ShareRecovery _recovery;
   final _windowSourceIds = <String>{};
   ShareRequest? _request;
+  int _generation = 0;
 
   void noteSources(List<ScreenShareSource> sources) => _windowSourceIds
     ..clear()
@@ -42,17 +44,29 @@ class ScreenShareWatch {
   /// Only Windows window capture is known to go silent without an error.
   void watch(ShareRequest request, ScreenShareOutcome outcome) {
     if (outcome != ScreenShareOutcome.started || !_isWindows()) return;
+    _generation++;
     _request = request;
     _recovery.start(windowShare: _windowSourceIds.contains(request.sourceId));
   }
 
-  void stop() => _recovery.stop();
+  void stop() {
+    _generation++;
+    _recovery.stop();
+  }
 
-  Future<void> _restart() async {
+  /// Stops and starts the capture again; abandons itself once [stop] or [watch] ran.
+  @visibleForTesting
+  Future<void> restart() async {
     final request = _request;
     if (request == null) return;
+    final generation = _generation;
     await _apply(false, request);
+    if (generation != _generation) return;
     final outcome = await _apply(true, request);
+    if (generation != _generation) {
+      await _apply(false, request);
+      return;
+    }
     if (outcome != ScreenShareOutcome.started) {
       throw StateError('the share did not restart: $outcome');
     }

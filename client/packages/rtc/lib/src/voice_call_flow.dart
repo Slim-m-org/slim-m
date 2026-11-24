@@ -397,6 +397,15 @@ class VoiceCallFlow {
     // Ends any open blip through the health summary, with the state already failed.
     _setState(VoiceSessionState.failed);
     await _core.share.control.dispose();
+    _core.camera.cancelJoin();
+    _core.share.watch.stop();
+    await _releaseCapture(_core.videoOrphans.takeAll());
+  }
+
+  /// Stops capture the room's own disconnect leaves running: the microphone and any video a failed republish orphaned.
+  Future<void> _releaseCapture(List<lk.LocalTrack> videos) async {
+    await _step(_core.mic.stopUnpublished);
+    await _step(() => stopCapturing(videos));
   }
 
   /// Drops this session's room, and everything holding it open, in the order
@@ -444,8 +453,7 @@ class VoiceCallFlow {
       await _step(leaving.dispose);
     }
     // The disconnect stops only published tracks.
-    await _step(_core.mic.stopUnpublished);
-    await _step(() => stopCapturing(videos));
+    await _releaseCapture(videos);
   }
 
   void _setState(VoiceSessionState next) {
