@@ -50,8 +50,8 @@ String localStoreErrorMessage(Object error) => switch (error) {
     'Another copy of slim-m is using the saved copy of your messages. Quit '
         'it, including from the system tray, then try again.',
   DatabaseUnopenable() =>
-    'The saved copy of your messages could not be opened or replaced. Try '
-        'again, and if it keeps failing, restart your computer.',
+    'The saved copy of your messages could not be opened. Try again, and if '
+        'it keeps failing, it is cleared and downloaded again.',
   _ => 'Could not load this screen.',
 };
 

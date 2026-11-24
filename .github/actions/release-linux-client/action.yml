@@ -28,6 +28,15 @@ runs:
       with:
         version: ${{ inputs.version }}
         spotify_client_id: ${{ inputs.spotify_client_id }}
+        cache: 'false'
+
+    # The exact tarball the rpm and the release are built from, handed to the copr job so it never downloads it again.
+    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      with:
+        name: slim-m-client-tarball
+        path: dist/slim-m-client-*-linux-amd64.tar.gz
+        if-no-files-found: error
+        retention-days: 1
 
     # One gate per format, so a working rpm is not held back by the absence of a flatpak manifest. The tarball above ships either way.
     - name: check packaging inputs
@@ -53,6 +62,7 @@ runs:
       continue-on-error: true
       uses: ./.github/actions/apt-install
       with:
+        cache: 'false'
         packages: flatpak flatpak-builder elfutils librsvg2-common
 
     - name: build flatpak
@@ -92,7 +102,7 @@ runs:
       env:
         VER: ${{ inputs.version }}
       run: |
-        docker run --rm -v "${PWD}:/w" -w /w -e VER fedora:44 bash -eo pipefail -c '
+        docker run --rm -v "${PWD}:/w" -w /w -e VER fedora:44@sha256:15da97ed9aa94dd3d92c3925eb89520f6c80e07ea7ee24cba848d1f8b6912b3e bash -eo pipefail -c '
           dnf -y install rpm-build patchelf desktop-file-utils tar gzip >/dev/null
           mkdir -p rpmbuild/SOURCES
           cp dist/slim-m-client-*-linux-amd64.tar.gz \

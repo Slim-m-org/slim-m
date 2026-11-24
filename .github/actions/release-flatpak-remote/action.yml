@@ -14,6 +14,7 @@ runs:
 
     - uses: ./.github/actions/apt-install
       with:
+        cache: 'false'
         packages: flatpak ostree
 
     # Fails while Pages is off, which is the owner's other half of turning this on.

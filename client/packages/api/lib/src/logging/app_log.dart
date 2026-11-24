@@ -5,6 +5,8 @@
 /// package already depends on; the app installs the sink that keeps records.
 library;
 
+import 'dart:async' show Zone;
+
 import 'log_redaction.dart';
 
 enum LogLevel { debug, info, warning, error }
@@ -32,6 +34,7 @@ final class LogRecord {
     this.error,
     this.stack,
     this.context = const {},
+    this.origin,
   });
 
   final DateTime at;
@@ -41,6 +44,9 @@ final class LogRecord {
   final String? error;
   final String? stack;
   final Map<String, String> context;
+
+  /// The account origin whose code logged this, or null when none is known.
+  final String? origin;
 }
 
 /// Where records go; the app installs one at startup.
@@ -53,6 +59,19 @@ abstract final class AppLog {
   static const _pendingCapacity = 100;
   static LogSink? _sink;
   static final List<LogRecord> _pending = [];
+
+  static const _originKey = #slimmLogOrigin;
+
+  /// Runs [body] so every record logged from it, or from anything it starts,
+  /// carries the origin [origin] answers with.
+  static T scoped<T>(String? Function() origin, T Function() body) =>
+      Zone.current.fork(zoneValues: {_originKey: origin}).run(body);
+
+  static String? _currentOrigin() {
+    final read = Zone.current[_originKey];
+    if (read is! String? Function()) return null;
+    return read();
+  }
 
   /// Installs [sink] and hands it whatever was logged before it existed.
   static void install(LogSink? sink) {
@@ -105,6 +124,7 @@ abstract final class AppLog {
       error: error == null ? null : redactText('$error'),
       stack: stack == null ? null : redactText('$stack'),
       context: context == null ? const {} : redactContext(context),
+      origin: _currentOrigin(),
     );
     final sink = _sink;
     if (sink != null) {

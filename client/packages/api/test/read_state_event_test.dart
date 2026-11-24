@@ -73,6 +73,13 @@ void main() {
     expect((cleared as NotificationOverrideChanged).preference, isNull);
   });
 
+  test('parses blocks.changed', () {
+    expect(
+      ServerEvent.parse(jsonEncode({'type': 'blocks.changed'})),
+      isA<BlocksChanged>(),
+    );
+  });
+
   test('parses category_mute.changed', () {
     final event = ServerEvent.parse(
       jsonEncode({

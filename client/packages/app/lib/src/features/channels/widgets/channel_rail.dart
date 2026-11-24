@@ -292,7 +292,7 @@ class _ChannelRailState extends ConsumerState<ChannelRail> {
       loading: () => const Center(child: AppSpinner(size: AppSpinnerSize.lg)),
       error: (e, _) => RailFailureNotice(
         failure: localStoreRailFailure(e),
-        onRetry: () => ref.invalidate(storeProvider),
+        onRetry: () => ref.invalidate(databaseProvider),
         onSignInAgain: () => unawaited(_signInAgain()),
       ),
       data: (store) => StreamBuilder<List<Channel>>(

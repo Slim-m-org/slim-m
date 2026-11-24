@@ -44,6 +44,8 @@ runs:
         flutter-version: 3.47.0
 
     - uses: ./.github/actions/native-hooks-cache
+      with:
+        cache: 'false'
     - name: build android release
       shell: "bash -e {0}"
       env:

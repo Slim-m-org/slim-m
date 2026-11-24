@@ -13,7 +13,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../../accounts/providers/account_providers.dart';
 import 'call_mini_player.dart';
+import 'call_owner.dart';
 import 'video_interest_relay.dart';
 import 'voice_flags.dart';
 
@@ -55,16 +57,36 @@ final pictureInPictureFeedProvider = Provider<MiniPlayerFeed?>((ref) {
 /// Mounted by watching it from the app chrome: tells the platform when
 /// floating is allowed, mirrors the window's state, and narrows video interest
 /// to the feed for as long as the window shows it.
+///
+/// The platform window is one per process, so only the container that owns
+/// the call (else the one on screen) speaks for it, and it says so again
+/// whenever ownership returns to it.
 final pictureInPictureHostProvider = Provider<void>((ref) {
   final channel = ref.watch(pictureInPictureChannelProvider);
+  final host = ref.read(accountHostProvider);
+  bool? sent;
 
-  ref.listen<bool>(pictureInPictureEligibleProvider, (_, eligible) {
+  void tell() {
+    if (!ownsCallEvents(ref)) {
+      sent = null;
+      return;
+    }
+    final eligible = ref.read(pictureInPictureEligibleProvider);
+    if (sent == eligible) return;
+    sent = eligible;
     unawaited(channel.setEligible(eligible));
-  }, fireImmediately: true);
+  }
 
-  final modes = channel.modeChanges.listen(
-    (inPip) => ref.read(inPictureInPictureProvider.notifier).state = inPip,
-  );
+  ref.listen<bool>(pictureInPictureEligibleProvider, (_, _) => tell());
+  host?.addListener(tell);
+  ref.onDispose(() => host?.removeListener(tell));
+  tell();
+
+  final modes = channel.modeChanges.listen((inPip) {
+    if (ownsCallEvents(ref)) {
+      ref.read(inPictureInPictureProvider.notifier).state = inPip;
+    }
+  });
   ref.onDispose(modes.cancel);
 
   ref.listen<MiniPlayerFeed?>(pictureInPictureFeedProvider, (_, feed) {

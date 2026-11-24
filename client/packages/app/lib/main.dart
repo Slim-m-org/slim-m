@@ -184,7 +184,10 @@ Future<void> _bootstrapApp(
   await runStartupStep(container, 'startup', () async {
     floor = await _resolveSplashFloor(container);
     await awaitBootstrapWithSplashFloor(
-      () => _runBootstrapSequence(container, shell),
+      () => scopedToAccount(
+        container,
+        () => _runBootstrapSequence(container, shell),
+      ),
       floor: floor,
     );
     // After the session restore: having an account decides whether the splash asks about updates at all.

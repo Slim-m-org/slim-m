@@ -3,6 +3,7 @@
 library;
 
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/desktop/tray/desktop_tray_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
@@ -86,5 +87,37 @@ void main() {
     await pumpEventQueueTimes();
 
     expect(lastLabels(), isNot(contains('Leave call')));
+  });
+
+  test('Quit still works after the launch-time account is gone', () async {
+    h = AccountHarness();
+    await h.seed(_a, user: 'ann', active: true);
+    await h.boot();
+    final launchTime = ProviderContainer();
+    final port = FakeDesktopWindowPort();
+    final tray = DesktopTrayController(
+      port: port,
+      container: launchTime,
+      host: h.host,
+    );
+    await tray.start();
+    addTearDown(tray.dispose);
+    launchTime.dispose();
+
+    final menu =
+        (calls.lastWhere((c) => c.method == 'setContextMenu').arguments
+                as Map)['menu']
+            as Map;
+    final quit = (menu['items'] as List).firstWhere(
+      (i) => i['label'] == 'Quit slim-m',
+    );
+    final click = const StandardMethodCodec().encodeMethodCall(
+      MethodCall('onTrayMenuItemClick', {'id': quit['id']}),
+    );
+    await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .handlePlatformMessage(_channel.name, click, (_) {});
+    await pumpEventQueueTimes();
+
+    expect(port.destroyCalls, 1);
   });
 }

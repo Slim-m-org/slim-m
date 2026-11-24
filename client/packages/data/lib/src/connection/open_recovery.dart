@@ -3,9 +3,10 @@
 /// is given it, because a failure inside that isolate reaches the UI only as a
 /// `DriftRemoteException` that names nothing.
 ///
-/// The file is a cache that re-syncs from the server, so one that cannot be
-/// opened is set aside and replaced. The one exception is a file another live
-/// process holds: replacing that would pull the file out from under it.
+/// The file is a cache that re-syncs from the server, so one that is damaged
+/// is set aside and replaced. A file that merely will not open right now (held
+/// by another process, or a storage fault that may pass) is kept in place, as
+/// it still holds unsent drafts and queued sends no server has.
 library;
 
 import 'dart:io';
@@ -24,6 +25,11 @@ const _sqliteCantOpen = 14;
 
 /// Windows reports a file another process has open without sharing as these.
 const _windowsSharingViolations = {32, 33};
+
+/// Failed opens in a row after which a file that is kept is set aside anyway.
+const _failedOpensBeforeReset = 3;
+
+final _failedOpens = <String, int>{};
 
 const _defaultBackoff = [
   Duration(milliseconds: 200),
@@ -93,20 +99,40 @@ OpenFailure? probeOpen(File file, String key) {
 }
 
 /// Moves an unopenable file, and what SQLite keeps beside it, out of the way.
+///
+/// A file still in plaintext is deleted instead, so no readable copy outlives
+/// the encrypted cache that replaces it.
 void setDatabaseAside(File file) {
   final aside = File('${file.path}.unopenable');
   if (aside.existsSync()) aside.deleteSync();
-  file.renameSync(aside.path);
+  if (_isPlaintext(file)) {
+    file.deleteSync();
+  } else {
+    file.renameSync(aside.path);
+  }
   for (final suffix in const ['-wal', '-shm', '-journal']) {
     final sidecar = File('${file.path}$suffix');
     if (sidecar.existsSync()) sidecar.deleteSync();
   }
 }
 
+bool _isPlaintext(File file) {
+  final raf = file.openSync();
+  try {
+    return String.fromCharCodes(raf.readSync(plaintextDatabaseHeader.length)) ==
+        plaintextDatabaseHeader;
+  } finally {
+    raf.closeSync();
+  }
+}
+
 /// Like [prepareEncryptedDatabase], but the file it returns has been opened.
 ///
-/// Throws [DatabaseInUseElsewhere] when a live process holds it and
-/// [DatabaseUnopenable] when a fresh file cannot be had either.
+/// Throws [DatabaseInUseElsewhere] when a live process holds it,
+/// [DatabaseUnopenable] when a storage fault persists past the retries (the
+/// file is kept, so a retry can still open it, until a few retries in a row
+/// have failed and it is set aside like a damaged one) or a fresh file cannot
+/// be had.
 Future<PreparedDatabase> prepareOpenableDatabase({
   required File file,
   required DatabaseKeyStore keys,
@@ -117,8 +143,19 @@ Future<PreparedDatabase> prepareOpenableDatabase({
     prepared = await host.prepare(file: file, keys: keys);
     return host.probe(file, prepared.key);
   });
-  if (failure == null) return prepared;
+  if (failure == null) {
+    _failedOpens.remove(file.path);
+    return prepared;
+  }
   if (failure.heldByLock) throw DatabaseInUseElsewhere(failure.toString());
+  if (failure.transient) {
+    final failed =
+        _failedOpens.update(file.path, (n) => n + 1, ifAbsent: () => 1);
+    if (failed < _failedOpensBeforeReset) {
+      throw DatabaseUnopenable(failure.toString());
+    }
+  }
+  _failedOpens.remove(file.path);
   _setAside(file, failure, host);
   final fresh = await host.prepare(file: file, keys: keys);
   final again = host.probe(file, fresh.key);
@@ -149,13 +186,13 @@ Future<OpenFailure?> _retrying(
 }
 
 /// A file Windows will not share fails before SQLite is ever asked; that is
-/// the same condition as SQLite's own refusal to open.
+/// another process holding it, the same as SQLite's own busy refusal.
 Future<OpenFailure?> _guarded(Future<OpenFailure?> Function() attempt) async {
   try {
     return await attempt();
   } on FileSystemException catch (error) {
     if (!_windowsSharingViolations.contains(error.osError?.errorCode)) rethrow;
-    return OpenFailure(_sqliteCantOpen, error.message);
+    return OpenFailure(_sqliteBusy, error.message);
   }
 }
 

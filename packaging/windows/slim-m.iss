@@ -151,20 +151,24 @@ begin
   end;
 end;
 
-// The app's data (sign-in, local databases, settings, caches) lives under %APPDATA%; only an interactive uninstall that says yes removes it.
+// Sign-in, databases and settings live under %APPDATA% and the image caches under %LOCALAPPDATA%; only an interactive uninstall that says yes removes both.
 procedure OfferToRemoveData;
 var
   Data: String;
+  Cache: String;
 begin
   Data := ExpandConstant('{userappdata}\top.npcserver\slim-m');
-  if UninstallSilent or not DirExists(Data) then
+  Cache := ExpandConstant('{localappdata}\top.npcserver\slim-m');
+  if UninstallSilent or not (DirExists(Data) or DirExists(Cache)) then
     exit;
   if SuppressibleMsgBox('Also remove your slim-m data on this PC?' + #13#10#13#10 +
-      'This signs you out here and deletes cached messages and settings. Your account and messages on the server are not affected.',
+      'This signs you out here and deletes cached messages, images and settings. Your account and messages on the server are not affected.',
       mbConfirmation, MB_YESNO or MB_DEFBUTTON2, IDNO) = IDYES then
   begin
     DelTree(Data, True, True, True);
     RemoveDir(ExpandConstant('{userappdata}\top.npcserver'));
+    DelTree(Cache, True, True, True);
+    RemoveDir(ExpandConstant('{localappdata}\top.npcserver'));
   end;
 end;
 

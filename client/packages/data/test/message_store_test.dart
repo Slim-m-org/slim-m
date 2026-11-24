@@ -447,4 +447,67 @@ void main() {
     expect(await store.messageAtSeq('chan-1', 5), isNull);
     expect(await store.messageAtSeq('chan-2', 4), isNull);
   });
+
+  test('replaceChannels drops a thread whose parent sits in a pruned channel',
+      () async {
+    await store.upsertChannels([
+      const api.Channel(
+          id: 'chan-1', name: 'general', kind: 'text', createdAt: 1),
+      const api.Channel(
+          id: 'chan-2', name: 'staff', kind: 'text', createdAt: 1),
+      const api.Channel(
+        id: 'thread-staff',
+        name: 'Thread',
+        kind: 'text',
+        createdAt: 2,
+        parentMessageId: 'm-staff',
+      ),
+      const api.Channel(
+        id: 'thread-general',
+        name: 'Thread',
+        kind: 'text',
+        createdAt: 2,
+        parentMessageId: 'm-general',
+      ),
+    ]);
+    await store.applyMessages([
+      _message(id: 'm-staff', channelId: 'chan-2'),
+      _message(id: 'm-general', channelId: 'chan-1'),
+      _message(id: 'tm-staff', channelId: 'thread-staff', seq: 1),
+      _message(id: 'tm-general', channelId: 'thread-general', seq: 1),
+    ]);
+
+    await store.replaceChannels([
+      const api.Channel(
+          id: 'chan-1', name: 'general', kind: 'text', createdAt: 1),
+    ]);
+
+    expect(await store.watchChannelRow('thread-staff').first, isNull);
+    expect(await store.watchChannel('thread-staff').first, isEmpty);
+    expect(await store.watchChannelRow('thread-general').first, isNotNull);
+    expect(await store.watchChannel('thread-general').first, isNotEmpty);
+  });
+
+  test('removeChannel takes the channel\'s threads with it', () async {
+    await store.upsertChannels([
+      const api.Channel(
+          id: 'chan-1', name: 'general', kind: 'text', createdAt: 1),
+      const api.Channel(
+        id: 'thread-1',
+        name: 'Thread',
+        kind: 'text',
+        createdAt: 2,
+        parentMessageId: 'm1',
+      ),
+    ]);
+    await store.applyMessages([
+      _message(id: 'm1', channelId: 'chan-1'),
+      _message(id: 'tm1', channelId: 'thread-1', seq: 1),
+    ]);
+
+    await store.removeChannel('chan-1');
+
+    expect(await store.watchChannelRow('thread-1').first, isNull);
+    expect(await store.watchChannel('thread-1').first, isEmpty);
+  });
 }

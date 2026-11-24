@@ -4,6 +4,7 @@ library;
 
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_api/api.dart' show AppLog;
 import 'package:slimm_platform/platform.dart';
 
 import '../../../audio/call_start_yields.dart';
@@ -11,6 +12,7 @@ import '../../../default_server.dart';
 import '../../../desktop/desktop_window_shell.dart';
 import '../../../diagnostics/debug_log.dart';
 import '../../../diagnostics/debug_log_persistence.dart';
+import '../../../diagnostics/debug_log_router.dart';
 import '../../../providers/media_disk_caches.dart';
 import '../../../providers/providers.dart';
 import '../../../providers/startup_restores.dart';
@@ -25,6 +27,13 @@ import 'account_services.dart';
 import 'account_slot.dart';
 import 'account_store.dart';
 
+/// Runs [body] so every record it logs belongs to the account [container] serves.
+T scopedToAccount<T>(ProviderContainer container, T Function() body) =>
+    AppLog.scoped(
+      () => container.read(accountSlotProvider)?.account?.origin,
+      body,
+    );
+
 /// One shared key store and emoji cache, then a container per account built on them.
 ///
 /// See emojiImageCacheProvider's own doc for why the cache is opted into here rather than left as its default.
@@ -35,10 +44,10 @@ AccountHost createAccountHost(DesktopWindowShell shell, Uri official) {
   final avatarCache = createAvatarCache();
   final originalCache = createAttachmentOriginalCache();
   final accounts = AccountStore(keyStore);
-  // One log for every account, since the error hooks are global.
-  final debugLog = DebugLog(
-    persistence: const PrefsDebugLogPersistence(),
-    echo: kDebugMode,
+  late final AccountHost host;
+  // The error hooks are global, so one router hands each record to its own account's log.
+  final debugLogs = DebugLogRouter(
+    onScreenOrigin: () => host.active?.account?.origin,
   );
   // One for every account, so a call joined in any of them makes the others' sounds give way.
   final callStartYields = CallStartYields();
@@ -46,12 +55,23 @@ AccountHost createAccountHost(DesktopWindowShell shell, Uri official) {
   final callKeybinds = CallKeybindsStore(optIn: isDesktopHost);
   // One per tab: each claims the tab's id, and a second claim in one tab reads as a duplicated tab.
   final crossTab = CrossTab();
-  late final AccountHost host;
   host = AccountHost(
     store: accounts,
     createContainer: (slot) => ProviderContainer(
       overrides: [
-        debugLogProvider.overrideWith((ref) => debugLog),
+        debugLogSinkProvider.overrideWithValue(debugLogs),
+        debugLogProvider.overrideWith((ref) {
+          final log = DebugLog(
+            persistence: PrefsDebugLogPersistence(
+              origin: () => slot.account?.origin,
+            ),
+            origin: () => slot.account?.origin,
+            echo: kDebugMode && debugLogs.isEmpty,
+          );
+          debugLogs.add(log);
+          ref.onDispose(() => debugLogs.remove(log));
+          return log;
+        }),
         emojiImageCacheProvider.overrideWithValue(emojiCache),
         attachmentPreviewCacheProvider.overrideWithValue(previewCache),
         avatarCacheProvider.overrideWithValue(avatarCache),
@@ -66,16 +86,19 @@ AccountHost createAccountHost(DesktopWindowShell shell, Uri official) {
         desktopWindowShellProvider.overrideWithValue(shell),
       ],
     ),
-    startServices: (r) async {
+    startServices: (r) => AppLog.scoped(() => r.account?.origin, () async {
       await restoreStartupPreferences(r.container);
       startAccountServices(r.container);
-    },
+    }),
     onActivate: (r) async {
       await resyncSharedPreferences(r.container);
       await resyncVoiceDevicePreferences(r.container);
     },
     readSession: (r) => restoreAccountSession(accounts, r),
-    signOutRuntime: (r) => signOutVia(r.container.read),
+    signOutRuntime: (r) => AppLog.scoped(
+      () => r.account?.origin,
+      () => signOutVia(r.container.read),
+    ),
   );
   return host;
 }

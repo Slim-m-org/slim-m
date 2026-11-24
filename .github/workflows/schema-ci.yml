@@ -88,27 +88,29 @@ jobs:
   # parent, which - this repo's convention is squash-merge-only
   # (CLAUDE.md's contribution conventions) - is exactly the one commit a
   # merged PR added, the same comparison the PR-time gate above already
-  # made once. A direct multi-commit push to main would only diff its last
-  # commit; not a concern under a squash-merge-only workflow.
+  # made once. A server release commit is diffed against the newest schema-v*
+  # tag instead, so it covers every commit since the last release.
   breaking-change-gate-main:
     name: breaking-change gate (additive-only, push to main)
     if: github.event_name == 'push'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      # Two commits, not one: HEAD~1 needs its parent present locally, and a
-      # push event's own checkout otherwise fetches only the pushed commit.
-      - name: checkout with parent history
+      # Full history with tags: a server release is diffed against the last schema-v* tag, which is further back than the parent.
+      - name: checkout with history and tags
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
-      # Trivially passes when schema/openapi.yaml did not change in this
-      # commit at all, which is true of most pushes to main.
+      - name: pick the base revision
+        id: base
+        run: echo "rev=$(bash scripts/schema-gate-base.sh)" >> "$GITHUB_OUTPUT"
+
+      # Trivially passes when schema/openapi.yaml did not change since the base at all, which is true of most pushes to main.
       - name: oasdiff breaking-change check
         uses: oasdiff/oasdiff-action/breaking@45c956ed8138f7f18f0425d34e3d66730b805cb2 # v0
         with:
-          base: "HEAD~1:schema/openapi.yaml"
+          base: "${{ steps.base.outputs.rev }}:schema/openapi.yaml"
           revision: "HEAD:schema/openapi.yaml"
           fail-on: ERR
           err-ignore: schema/oasdiff-err-ignore.txt

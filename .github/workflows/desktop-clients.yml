@@ -75,9 +75,11 @@ jobs:
         with:
           channel: stable
           flutter-version: 3.47.0
-          cache: true
+          cache: false
 
       - uses: ./.github/actions/native-hooks-cache
+        with:
+          cache: 'false'
 
       - name: resolve workspace dependencies
         working-directory: client
@@ -174,9 +176,11 @@ jobs:
         with:
           channel: stable
           flutter-version: 3.47.0
-          cache: true
+          cache: false
 
       - uses: ./.github/actions/native-hooks-cache
+        with:
+          cache: 'false'
 
       - name: resolve workspace dependencies
         working-directory: client

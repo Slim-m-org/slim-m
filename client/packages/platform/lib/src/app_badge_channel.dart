@@ -56,4 +56,25 @@ class AppBadgeChannel {
           LogTag.push, 'Could not set the app badge', error, stack);
     }
   }
+
+  /// Removes delivered notifications of [channelIds], or every one when [all],
+  /// once the account that received them is gone from this device.
+  Future<void> clearDelivered({
+    required Iterable<String> channelIds,
+    bool all = false,
+  }) async {
+    if (!_isIOS) return;
+    try {
+      await _channel.invokeMethod<void>('clearDelivered', {
+        'channelIds': channelIds.toList(growable: false),
+        'all': all,
+      });
+    } on PlatformException catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.push, 'Could not clear delivered notifications', error, stack);
+    } on MissingPluginException catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.push, 'Could not clear delivered notifications', error, stack);
+    }
+  }
 }
