@@ -46,9 +46,15 @@ void main() {
       );
     });
 
-    test('accepts plain http on a local address', () {
-      expect(requireSecureScheme(Uri.parse('http://10.0.0.100:8095')), isNull);
-      expect(requireSecureScheme(Uri.parse('http://localhost:8080')), isNull);
+    test('accepts plain http on a local address in the native apps', () {
+      expect(
+        requireSecureScheme(Uri.parse('http://10.0.0.100:8095'), onWeb: false),
+        isNull,
+      );
+      expect(
+        requireSecureScheme(Uri.parse('http://localhost:8080'), onWeb: false),
+        isNull,
+      );
     });
 
     test('refuses plain http on a public address', () {
