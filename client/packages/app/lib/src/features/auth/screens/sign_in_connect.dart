@@ -93,6 +93,7 @@ Future<ConnectResult> connectAndSignIn(
   final identity = await signInIdentity(
     keyStore: ref.read(keyStoreProvider),
     appInfo: ref.read(appInfoProvider.future),
+    server: reduced,
   );
   if (creatingAccount) {
     final inviter = ref.read(firstRunInviterProvider.notifier);
