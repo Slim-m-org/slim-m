@@ -7,9 +7,15 @@ use wasmi::{CompilationMode, Config, Engine, Linker, Module, Store};
 
 use super::sliced::{FuelBudget, call_sliced};
 use super::tests_fixtures::{GENEROUS, sha256_hex, wat};
-use super::{ModuleHost, RunError};
+use super::{ModuleHost, RunError, RunLimits};
 
 const SWEEP: std::ops::Range<u32> = 60_000..400_000;
+
+/// Fuel decides these runs; a wall limit a loaded CI runner can trip would only test the runner.
+const FUEL_BOUND: RunLimits = RunLimits {
+    wall: Duration::from_secs(60),
+    ..GENEROUS
+};
 
 /// A callee big enough that translating it costs a large part of a fuel slice.
 fn indirect_call_after_loop(iterations: u32) -> Vec<u8> {
@@ -34,7 +40,7 @@ fn indirect_call_after_loop(iterations: u32) -> Vec<u8> {
 async fn run_through_the_host(iterations: u32) -> Result<Vec<u8>, RunError> {
     let wasm = indirect_call_after_loop(iterations);
     let sha256 = sha256_hex(&wasm);
-    ModuleHost::run(wasm, sha256, GENEROUS, b"hi".to_vec()).await
+    ModuleHost::run(wasm, sha256, FUEL_BOUND, b"hi".to_vec()).await
 }
 
 fn run_on_a_lazy_engine(iterations: u32) -> Result<i64, RunError> {
