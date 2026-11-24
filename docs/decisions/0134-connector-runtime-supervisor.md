@@ -221,6 +221,7 @@ The server builds no supervisor client, the Dock offers no host-run install, and
   A labelled container the server has no record of is removed; its volume is kept and named in the server log.
 - **A crashing connector.** The server sees `exited`, starts it again after 1 s, doubling to 5 minutes, and disables it after 5 crashes within 10 minutes, with the same admin alert and audit row the module breaker sends (0091).
 - **A policy refusal.** A `policy` or `limit` answer is not retried; the admin sees the reason on the connector.
+- **Version skew.** The supervisor refuses fields it does not know, so upgrade the supervisor before the server; a `hello` whose `protocol` is not the one the server speaks shows as the host's health reason.
 - **Supervisor upgrade.** Connectors keep running; gateways are recreated from the new image on the next start of each connector.
 
 ## Logging and audit

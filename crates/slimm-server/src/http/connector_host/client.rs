@@ -105,6 +105,20 @@ impl std::fmt::Debug for SupervisorClient {
     }
 }
 
+/// The protocol this server speaks; the supervisor refuses unknown fields, so it upgrades first.
+pub const PROTOCOL: &str = "supervisor/1";
+
+/// Turns a supervisor on another protocol into a message the admin sees in the host's health.
+fn check_protocol(hello: &Value) -> Result<(), SupervisorError> {
+    match hello.get("protocol").and_then(Value::as_str) {
+        Some(PROTOCOL) => Ok(()),
+        other => Err(SupervisorError::Unavailable(format!(
+            "the connector supervisor speaks {}, this server needs {PROTOCOL}; upgrade the supervisor before the server",
+            other.unwrap_or("no protocol")
+        ))),
+    }
+}
+
 impl SupervisorClient {
     pub fn new(socket: impl Into<PathBuf>, secret: String) -> Self {
         Self {
@@ -120,7 +134,9 @@ impl SupervisorClient {
     }
 
     pub async fn hello(&self) -> Result<Value, SupervisorError> {
-        self.call("GET", "/v1/hello", None).await
+        let hello = self.call("GET", "/v1/hello", None).await?;
+        check_protocol(&hello)?;
+        Ok(hello)
     }
 
     pub async fn list(&self) -> Result<Vec<Listed>, SupervisorError> {
@@ -268,6 +284,22 @@ mod tests {
             )))
             .unwrap()
         };
+    }
+
+    #[test]
+    fn a_supervisor_on_another_protocol_is_reported_not_trusted() {
+        assert!(check_protocol(&fixture!("hello.response.json")).is_ok());
+        for hello in [
+            serde_json::json!({"protocol": "supervisor/2"}),
+            serde_json::json!({}),
+        ] {
+            let err = check_protocol(&hello).unwrap_err();
+            assert!(
+                err.detail().contains("upgrade the supervisor"),
+                "{}",
+                err.detail()
+            );
+        }
     }
 
     #[test]
