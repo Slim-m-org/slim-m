@@ -93,6 +93,12 @@ Block Markdown and `- [ ]` show as typed.
 Its text edit keeps the style because the server merges.
 No migration, no new route, no new op kind.
 
+## Old servers
+
+A server older than this change replaces a note's props wholesale on an edit, so a text edit would clear the style and a style-only edit would clear the text.
+`/version` carries `canvas_note_style`; without it a new client hides the style bar and the Note tool's style options, and places notes with the default style.
+Against a server that has it, a restyle sends only the style keys that changed and a text edit sends only `text` and `font_size`, so two people editing different parts of one note lose nothing.
+
 ## Rules cited
 
 - [desktop-vs-mobile](../design/desktop-vs-mobile.md) translation table row "inline edit-in-place -> the same, composer expanded to fit; never a separate edit screen".

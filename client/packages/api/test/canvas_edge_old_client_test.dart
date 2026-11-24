@@ -85,5 +85,7 @@ void main() {
         });
     expect(parse({'canvas_edges': true}).canvasEdges, isTrue);
     expect(parse({}).canvasEdges, isFalse);
+    expect(parse({'canvas_note_style': true}).canvasNoteStyle, isTrue);
+    expect(parse({}).canvasNoteStyle, isFalse);
   });
 }

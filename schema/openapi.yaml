@@ -14978,6 +14978,13 @@ components:
             Whether the canvas accepts `edge` objects, the connections
             between objects. A client hides the Connect tool when it is false
             or absent, as it is on servers older than this field.
+        canvas_note_style:
+          type: boolean
+          description: >
+            Whether an `edit` of a note merges its props, so a restyle sends
+            only the style keys that changed. A client hides the note style
+            bar when it is false or absent, as it is on servers older than
+            this field.
         canvas_scoped_clear:
           type: boolean
           description: >

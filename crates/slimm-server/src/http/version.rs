@@ -89,6 +89,9 @@ pub(super) struct Version {
     /// Whether the canvas accepts `edge` objects, the connections between objects. A client hides
     /// the Connect tool when it is absent or false.
     canvas_edges: bool,
+    /// Whether an edit of a note merges its props, so a restyle sends only what changed. A client
+    /// hides the note style bar when it is absent or false.
+    canvas_note_style: bool,
     /// The largest single attachment upload the server accepts, in bytes, so a
     /// client can refuse an oversize pick before sending any of it.
     max_attachment_bytes: u64,
@@ -207,6 +210,7 @@ pub(super) async fn version(
         debug_logging: state.store.log_mode().await?.as_str(),
         canvas_scoped_clear: true,
         canvas_edges: true,
+        canvas_note_style: true,
         max_attachment_bytes: super::attachments::effective_attachment_max(&state).await?,
         min_client_version: min_client_version(),
         capabilities: capabilities(state).await,

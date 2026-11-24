@@ -92,6 +92,7 @@ class CanvasToolButtons extends ConsumerWidget {
     }
     if (forTool == CanvasTool.connect) return _edgeOptions(context, ref);
     if (forTool == CanvasTool.note) {
+      if (!ref.watch(canvasNoteStyleSupportedProvider)) return const [];
       return canvasNoteStyleOptions(
         context: context,
         ref: ref,

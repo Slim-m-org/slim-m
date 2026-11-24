@@ -40,6 +40,11 @@ final canvasActiveEdgeStyleProvider = StateProvider<CanvasEdgeStyle>(
   (ref) => const CanvasEdgeStyle(),
 );
 
+/// Whether the server merges a note edit's props; an older one replaces them, so the note style bar stays hidden.
+final canvasNoteStyleSupportedProvider = Provider<bool>(
+  (ref) => ref.watch(serverInfoProvider).valueOrNull?.canvasNoteStyle ?? false,
+);
+
 /// Whether the server accepts `edge` objects; an older one hides the Connect tool, the side dots and "Connect to...".
 final canvasEdgesSupportedProvider = Provider<bool>(
   (ref) => ref.watch(serverInfoProvider).valueOrNull?.canvasEdges ?? false,

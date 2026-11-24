@@ -29,7 +29,8 @@ class CanvasNoteEditSession {
     required this.startBounds,
     this.draft,
   }) : controller = TextEditingController(text: initialText),
-       focusNode = FocusNode() {
+       focusNode = FocusNode(),
+       baseHeight = startBounds.h {
     controller.selection = TextSelection.collapsed(offset: initialText.length);
   }
 
@@ -44,6 +45,12 @@ class CanvasNoteEditSession {
 
   final TextEditingController controller;
   final FocusNode focusNode;
+
+  /// The height the note had before typing grew it, which a commit or cancel gives back.
+  double baseHeight;
+
+  /// The height this editor last grew the note to; a different height since then came from someone else.
+  double? grownHeight;
 
   void dispose() {
     controller.dispose();
@@ -136,6 +143,7 @@ class _CanvasNoteEditorState extends State<CanvasNoteEditor>
       fontSize: noteTextSizeOf(noteFontSizeForWidth(bounds.w), style),
     );
     if (box.height <= bounds.h) return;
+    if (bounds.h != _session.grownHeight) _session.baseHeight = bounds.h;
     final to = widget.document.boxOnBoard(
       _session.objectId,
       bounds.x,
@@ -143,6 +151,7 @@ class _CanvasNoteEditorState extends State<CanvasNoteEditor>
       bounds.w,
       box.height,
     );
+    _session.grownHeight = to.h;
     widget.document
       ..moveObject(_session.objectId, to.x, to.y, to.w, to.h)
       ..refresh();

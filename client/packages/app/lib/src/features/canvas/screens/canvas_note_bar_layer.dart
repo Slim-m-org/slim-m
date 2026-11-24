@@ -13,12 +13,13 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 import '../../../providers/dock_reservation.dart';
 import '../../../widgets/text_insert.dart';
 import '../../emoji/widgets/emoji_field_picker.dart';
+import '../providers/canvas_edge_style.dart';
 import '../widgets/canvas_note_editor.dart';
 import '../widgets/canvas_note_style_options.dart';
 import '../widgets/canvas_selection_bar.dart';
 import '../widgets/canvas_text_style_options.dart';
 
-class CanvasNoteBarLayer extends StatelessWidget {
+class CanvasNoteBarLayer extends ConsumerWidget {
   const CanvasNoteBarLayer({
     super.key,
     required this.document,
@@ -51,7 +52,8 @@ class CanvasNoteBarLayer extends StatelessWidget {
   final FocusNode? focus;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final styled = ref.watch(canvasNoteStyleSupportedProvider);
     return AnimatedBuilder(
       animation: Listenable.merge([
         document,
@@ -68,6 +70,7 @@ class CanvasNoteBarLayer extends StatelessWidget {
         if (id == null ||
             bounds == null ||
             (style == null && box == null) ||
+            (box == null && !styled && session == null) ||
             (box != null && textEditing) ||
             dragging ||
             !armed ||
@@ -118,6 +121,8 @@ class CanvasNoteBarLayer extends StatelessWidget {
                             onSize: (size) => onTextStyle(id, size: size),
                             onColour: (key) => onTextStyle(id, colorKey: key),
                           )
+                        : !styled
+                        ? const []
                         : canvasNoteStyleOptions(
                             context: context,
                             ref: ref,

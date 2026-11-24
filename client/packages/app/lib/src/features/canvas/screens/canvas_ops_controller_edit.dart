@@ -116,7 +116,8 @@ extension CanvasOpsControllerEdit on CanvasOpsController {
     document
       ..setNoteStyle(objectId, style)
       ..refresh();
-    final props = _noteProps(objectId, style: true);
+    final props = _styleDiff(before, style);
+    if (props.isEmpty) return before;
     try {
       await _sendObjectOp(
         objectId,
@@ -142,12 +143,20 @@ extension CanvasOpsControllerEdit on CanvasOpsController {
     return before;
   }
 
-  /// What an edit of a note says: its text and size, and for a restyle the whole style, null where it was reset, which the server merge deletes.
-  Map<String, Object?> _noteProps(String objectId, {bool style = false}) => {
+  /// What a text edit of a note says: its text and size, so a concurrent restyle is left alone.
+  Map<String, Object?> _noteProps(String objectId) => {
     'text': document.noteTextOf(objectId),
     'font_size': ?document.noteFontSizeOf(objectId),
-    if (style) ...?document.noteStyleOf(objectId)?.toWire(),
   };
+
+  /// Only the style keys that changed, null where one went back to default, which the server merge deletes.
+  Map<String, Object?> _styleDiff(CanvasNoteStyle from, CanvasNoteStyle to) {
+    final was = from.toWire();
+    return {
+      for (final entry in to.toWire().entries)
+        if (was[entry.key] != entry.value) entry.key: entry.value,
+    };
+  }
 
   Future<_RedoEntry?> _undoEdit(String objectId, String text) async {
     final before = await _editTo(objectId, text, 'That could not be undone.');

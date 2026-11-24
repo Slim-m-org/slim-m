@@ -44,6 +44,7 @@ class Version {
     this.debugLogging = ServerLogMode.off,
     this.canvasScopedClear,
     this.canvasEdges = false,
+    this.canvasNoteStyle = false,
     this.maxAttachmentBytes,
     this.capabilities,
     this.identity,
@@ -140,6 +141,9 @@ class Version {
   /// Whether the canvas accepts `edge` objects; false on a server older than this field, so the Connect tool stays hidden.
   final bool canvasEdges;
 
+  /// Whether a note edit merges its props, so the note style bar can send one key; false on an older server, which replaces them.
+  final bool canvasNoteStyle;
+
   /// The largest single attachment the server accepts, in bytes. Null on a
   /// server older than this field, which a client treats as no known limit
   /// and lets the server refuse.
@@ -232,6 +236,7 @@ class Version {
         debugLogging: ServerLogMode.parse(json['debug_logging'] as String?),
         canvasScopedClear: json['canvas_scoped_clear'] as bool?,
         canvasEdges: json['canvas_edges'] as bool? ?? false,
+        canvasNoteStyle: json['canvas_note_style'] as bool? ?? false,
         // A non-list here is a foreign or broken server, which is unknown
         // rather than a reason to crash sign-in.
         maxAttachmentBytes: json['max_attachment_bytes'] as int?,

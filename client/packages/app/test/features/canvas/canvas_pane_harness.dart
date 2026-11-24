@@ -270,6 +270,7 @@ class CanvasPaneFixture {
             'push_enabled': false,
             'invite_required': false,
             'claimed': true,
+            'canvas_note_style': true,
           });
         }
         if (request.method == 'DELETE' &&

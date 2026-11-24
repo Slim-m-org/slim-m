@@ -12,6 +12,7 @@ import 'package:slimm_design_system/design_system.dart' show AppTokens;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../../ids.dart';
+import '../providers/canvas_edge_style.dart';
 import '../providers/canvas_note_style.dart';
 import '../widgets/canvas_note_editor.dart';
 import 'canvas_note_bar_layer.dart';
@@ -99,7 +100,9 @@ class CanvasNoteEditing {
           colorKey: 'note',
           kind: CanvasObjectKind.note,
           text: text,
-          noteStyle: ref.read(canvasLastNoteStyleProvider),
+          noteStyle: ref.read(canvasNoteStyleSupportedProvider)
+              ? ref.read(canvasLastNoteStyleProvider)
+              : const CanvasNoteStyle(),
         ),
       )
       ..selectedObjectId.value = id
@@ -125,11 +128,12 @@ class CanvasNoteEditing {
     WidgetsBinding.instance.addPostFrameCallback((_) => closing.dispose());
   }
 
-  /// Puts the note back to the box it had before typing grew it.
+  /// Gives back only the height typing added, so a move or resize by someone else stays.
   void _restoreBounds(CanvasNoteEditSession s) {
-    final b = s.startBounds;
+    final now = _document.objectBounds(s.objectId);
+    if (now == null || now.h != s.grownHeight) return;
     _document
-      ..moveObject(s.objectId, b.x, b.y, b.w, b.h)
+      ..moveObject(s.objectId, now.x, now.y, now.w, s.baseHeight)
       ..refresh();
   }
 
@@ -165,13 +169,11 @@ class CanvasNoteEditing {
     if (done) {
       _close();
     } else {
-      _document.moveObject(
-        s.objectId,
-        s.startBounds.x,
-        s.startBounds.y,
-        s.startBounds.w,
-        s.startBounds.h,
-      );
+      final now = _document.objectBounds(s.objectId);
+      final grown = s.grownHeight;
+      if (now != null && grown != null && now.h == s.baseHeight) {
+        _document.moveObject(s.objectId, now.x, now.y, now.w, grown);
+      }
       changed();
     }
   }

@@ -38,6 +38,7 @@ Future<CanvasPaneFixture> _pane(
   int placeStatus = 201,
   int opsStatus = 201,
   String? tool,
+  bool noteStyle = true,
 }) async {
   tester.view.physicalSize = const Size(1280, 800);
   tester.view.devicePixelRatio = 1;
@@ -46,6 +47,18 @@ Future<CanvasPaneFixture> _pane(
     placeStatus: placeStatus,
     opsPostStatus: opsStatus,
   )..objects = [?note];
+  if (!noteStyle) {
+    fixture.routes = (request) async => request.url.path == '/version'
+        ? jsonResponse({
+            'name': 'slim-m',
+            'version': '0.118.0',
+            'protocol': 1,
+            'push_enabled': false,
+            'invite_required': false,
+            'claimed': true,
+          })
+        : null;
+  }
   final container = fixture.container();
   addTearDown(container.dispose);
   addTearDown(fixture.events.close);
@@ -277,8 +290,19 @@ void main() {
 
       final edits = fixture.postedOps.where((op) => op['kind'] == 'edit');
       expect(edits, hasLength(1));
-      expect((edits.single['props'] as Map)['fill_opacity'], 1);
+      expect(edits.single['props'], {'fill_opacity': 1});
       expect(surfaceDocument(tester).noteStyleOf('note')!.fillOpacity, 1);
+    });
+
+    testWidgets('a server that replaces edit props gets no style bar', (
+      tester,
+    ) async {
+      await _pane(tester, note: _note(), noteStyle: false);
+      await _click(tester, _onNote);
+      expect(
+        find.byWidgetPredicate((w) => w is CanvasSelectionBar),
+        findsNothing,
+      );
     });
 
     testWidgets('undo puts the old style back with one more edit', (

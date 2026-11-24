@@ -20,3 +20,11 @@ async fn version_advertises_canvas_edges() {
     let (_, version) = call(&router, "GET", "/version", None, None).await;
     assert_eq!(version["canvas_edges"], true);
 }
+
+#[tokio::test]
+async fn version_advertises_canvas_note_style() {
+    let (store, _guard) = support::new_store("slimm-version-canvas-note-style").await;
+    let router = support::app::router(store);
+    let (_, version) = call(&router, "GET", "/version", None, None).await;
+    assert_eq!(version["canvas_note_style"], true);
+}
