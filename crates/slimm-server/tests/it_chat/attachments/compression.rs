@@ -16,12 +16,12 @@ use tower::ServiceExt;
 
 use crate::attachments::fixtures::*;
 
-const GPS_RATIONALS: [u8; 24] = [
+pub(super) const GPS_RATIONALS: [u8; 24] = [
     52, 0, 0, 0, 1, 0, 0, 0, 31, 0, 0, 0, 1, 0, 0, 0, 12, 0, 0, 0, 1, 0, 0, 0,
 ];
 
 /// An orientation and a GPS position in a little-endian TIFF block.
-fn exif_with_position(orientation: u8) -> Vec<u8> {
+pub(super) fn exif_with_position(orientation: u8) -> Vec<u8> {
     let mut out = b"II*\0\x08\0\0\0".to_vec();
     out.extend_from_slice(&2u16.to_le_bytes());
     for (tag, kind, count, field) in [
@@ -58,7 +58,7 @@ fn noisy_photo(width: u32, height: u32) -> RgbImage {
 }
 
 /// A q98 JPEG of a noisy gradient carrying a position and an orientation.
-fn phone_photo() -> Vec<u8> {
+pub(super) fn phone_photo() -> Vec<u8> {
     let img = noisy_photo(640, 480);
     let mut jpeg = Vec::new();
     JpegEncoder::new_with_quality(&mut jpeg, 98)
@@ -75,7 +75,7 @@ fn phone_photo() -> Vec<u8> {
     out
 }
 
-fn screenshot() -> RgbImage {
+pub(super) fn screenshot() -> RgbImage {
     RgbImage::from_fn(400, 300, |x, y| {
         if (x / 8 + y / 8) % 7 == 0 {
             image::Rgb([20, 20, 24])
@@ -85,7 +85,7 @@ fn screenshot() -> RgbImage {
     })
 }
 
-fn png_of(img: &RgbImage) -> Vec<u8> {
+pub(super) fn png_of(img: &RgbImage) -> Vec<u8> {
     let mut out = Vec::new();
     image::codecs::png::PngEncoder::new_with_quality(
         &mut out,
@@ -102,27 +102,27 @@ fn png_of(img: &RgbImage) -> Vec<u8> {
     out
 }
 
-fn contains(haystack: &[u8], needle: &[u8]) -> bool {
+pub(super) fn contains(haystack: &[u8], needle: &[u8]) -> bool {
     haystack.windows(needle.len()).any(|w| w == needle)
 }
 
-fn sha_hex(bytes: &[u8]) -> String {
+pub(super) fn sha_hex(bytes: &[u8]) -> String {
     slimm_server::media::to_hex(&Sha256::digest(bytes))
 }
 
-struct Space {
-    app: Router,
-    store: Store,
+pub(super) struct Space {
+    pub(super) app: Router,
+    pub(super) store: Store,
     admin: String,
     member: String,
     _guard: crate::support::TestDbGuard,
 }
 
-async fn space() -> Space {
+pub(super) async fn space() -> Space {
     space_with(Media::for_tests()).await
 }
 
-async fn space_with(media: Media) -> Space {
+pub(super) async fn space_with(media: Media) -> Space {
     let (store, guard) = new_store().await;
     let (admin, _) = register(&store, "root").await;
     let account = store
@@ -156,7 +156,7 @@ async fn send(app: &Router, request: axum::http::Request<axum::body::Body>) -> (
     )
 }
 
-async fn configure(space: &Space, patch: Value) -> (StatusCode, Value) {
+pub(super) async fn configure(space: &Space, patch: Value) -> (StatusCode, Value) {
     send(
         &space.app,
         request_json("PATCH", "/space/media-compression", &space.admin, patch),
@@ -164,11 +164,15 @@ async fn configure(space: &Space, patch: Value) -> (StatusCode, Value) {
     .await
 }
 
-async fn upload_as(space: &Space, filename: &str, bytes: Vec<u8>) -> Value {
+pub(super) async fn upload_as(space: &Space, filename: &str, bytes: Vec<u8>) -> Value {
     upload(&space.app, &space.member, filename, bytes).await
 }
 
-async fn fetch(space: &Space, id: &str, query: &str) -> (StatusCode, header::HeaderMap, Vec<u8>) {
+pub(super) async fn fetch(
+    space: &Space,
+    id: &str,
+    query: &str,
+) -> (StatusCode, header::HeaderMap, Vec<u8>) {
     let response = space
         .app
         .clone()
@@ -259,8 +263,9 @@ async fn bad_values_are_refused_and_an_empty_list_restores_the_defaults() {
 }
 
 #[tokio::test]
-async fn with_compression_off_an_upload_is_stored_byte_for_byte() {
+async fn with_compression_off_and_metadata_kept_an_upload_is_stored_byte_for_byte() {
     let space = space().await;
+    configure(&space, json!({"metadata": "keep"})).await;
     let photo = phone_photo();
     let stored = upload_as(&space, "IMG_0001.jpg", photo.clone()).await;
     assert_eq!(stored["id"], json!(sha_hex(&photo)));
@@ -337,7 +342,10 @@ async fn only_the_listed_types_are_compressed() {
     configure(&space, json!({"enabled": true, "extensions": ["png"]})).await;
     let photo = phone_photo();
     let stored = upload_as(&space, "IMG_0001.jpg", photo.clone()).await;
-    assert_eq!(stored["id"], json!(sha_hex(&photo)));
+    let (_, _, body) = fetch(&space, stored["id"].as_str().unwrap(), "").await;
+    let decoded = image::load_from_memory(&body).unwrap();
+    assert_eq!((decoded.width(), decoded.height()), (640, 480));
+    assert!(body.len() * 10 > photo.len() * 9, "not re-encoded");
 }
 
 #[tokio::test]
@@ -353,7 +361,11 @@ async fn a_heic_is_converted_to_a_jpeg_every_client_draws() {
 #[tokio::test]
 async fn keeping_the_original_serves_the_copy_inline_and_the_original_as_a_download() {
     let space = space().await;
-    configure(&space, json!({"enabled": true, "keep_original": true})).await;
+    configure(
+        &space,
+        json!({"enabled": true, "keep_original": true, "metadata": "keep"}),
+    )
+    .await;
     let photo = phone_photo();
     let stored = upload_as(&space, "IMG_0001.jpg", photo.clone()).await;
     let id = stored["id"].as_str().unwrap();
@@ -394,7 +406,11 @@ async fn an_original_that_was_not_kept_is_not_found() {
 #[tokio::test]
 async fn a_resumable_upload_is_compressed_too() {
     let space = space().await;
-    configure(&space, json!({"enabled": true, "keep_original": true})).await;
+    configure(
+        &space,
+        json!({"enabled": true, "keep_original": true, "metadata": "keep"}),
+    )
+    .await;
     let photo = phone_photo();
     let (_, session) = send(
         &space.app,
@@ -440,13 +456,13 @@ async fn a_resumable_upload_is_compressed_too() {
     assert_eq!(original, photo);
 }
 
-const MIB: u64 = 1024 * 1024;
+pub(super) const MIB: u64 = 1024 * 1024;
 
 #[tokio::test]
 async fn a_photo_too_big_for_the_memory_budget_is_stored_as_sent() {
     let tiny = MemoryBudget::new(8 * MIB, Duration::from_millis(50));
     let space = space_with(Media::for_tests().with_memory_budget(tiny)).await;
-    configure(&space, json!({"enabled": true})).await;
+    configure(&space, json!({"enabled": true, "metadata": "keep"})).await;
     let photo = phone_photo();
     let stored = upload_as(&space, "IMG_0001.jpg", photo.clone()).await;
     assert_eq!(stored["id"], json!(sha_hex(&photo)));
@@ -473,6 +489,7 @@ async fn jobs_that_fit_one_at_a_time_queue_and_all_compress() {
 async fn a_preview_with_no_memory_to_decode_serves_the_original() {
     let tiny = MemoryBudget::new(8 * MIB, Duration::from_millis(50));
     let space = space_with(Media::for_tests().with_memory_budget(tiny)).await;
+    configure(&space, json!({"metadata": "keep"})).await;
     let photo = phone_photo();
     let stored = upload_as(&space, "IMG_0001.jpg", photo.clone()).await;
     let (status, _, body) = fetch(&space, stored["id"].as_str().unwrap(), "?w=320").await;

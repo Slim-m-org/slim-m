@@ -273,14 +273,15 @@ pub fn without_location(raw: &[u8], rewrite: Rewrite) -> Option<Vec<u8>> {
         .find(|e| e.tag == TAG_EXIF_IFD)
         .and_then(|e| tiff.entries(tiff.u32_of(&e.field) as usize))
         .unwrap_or_default();
-    let ifd0 = kept(&tiff, &ifd0_entries, DROP_IFD0, rewrite)?;
-    let exif = kept(&tiff, &exif_entries, DROP_EXIF, rewrite)?;
+    let ifd0 = kept(&tiff, &ifd0_entries, DROP_IFD0, rewrite);
+    let exif = kept(&tiff, &exif_entries, DROP_EXIF, rewrite);
     Some(layout(&tiff, ifd0, exif))
 }
 
 type Kept = Vec<(Entry, Option<Vec<u8>>)>;
 
-fn kept(tiff: &Tiff, entries: &[Entry], drop: &[u16], rewrite: Rewrite) -> Option<Kept> {
+/// The entries to carry over; one whose value cannot be read is left out rather than failing the rebuild.
+fn kept(tiff: &Tiff, entries: &[Entry], drop: &[u16], rewrite: Rewrite) -> Kept {
     let mut out = Vec::new();
     for e in entries.iter().filter(|e| !drop.contains(&e.tag)) {
         let mut entry = *e;
@@ -295,15 +296,20 @@ fn kept(tiff: &Tiff, entries: &[Entry], drop: &[u16], rewrite: Rewrite) -> Optio
             out.push((entry, None));
             continue;
         }
-        let len = Tiff::value_len(e)?;
+        let Some(len) = Tiff::value_len(e) else {
+            continue;
+        };
         let payload = if len > 4 {
-            Some(tiff.value_bytes(e)?)
+            match tiff.value_bytes(e) {
+                Some(bytes) => Some(bytes),
+                None => continue,
+            }
         } else {
             None
         };
         out.push((entry, payload));
     }
-    Some(out)
+    out
 }
 
 fn layout(tiff: &Tiff, mut ifd0: Kept, mut exif: Kept) -> Vec<u8> {
