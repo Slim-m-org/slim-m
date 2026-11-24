@@ -56,7 +56,7 @@ extension SlimmApiSoundboard on SlimmApi {
         final stored = await fetchSoundClipAudio(clip.id);
         if (listEquals(stored.bytes, bytes)) return clip;
       }
-    } on ApiException catch (error, stack) {
+    } on Object catch (error, stack) {
       AppLog.swallowed(
         LogTag.media,
         'Could not check whether the clip upload already landed',

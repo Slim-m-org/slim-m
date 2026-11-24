@@ -206,6 +206,32 @@ void main() {
       );
     });
 
+    test('a follow-up fetch that fails any other way keeps the conflict',
+        () async {
+      for (final (path, upload)
+          in <(String, Future<Object?> Function(SlimmApi))>[
+        ('/emoji', (api) => api.uploadCustomEmoji([1], name: 'cat')),
+        ('/soundboard', (api) => api.uploadSoundClip([1], name: 'cat')),
+      ]) {
+        final api = _api((request) {
+          if (request.method == 'POST') {
+            return http.Response(
+              jsonEncode({'error': 'that name already exists'}),
+              409,
+              headers: _json,
+            );
+          }
+          return http.Response(jsonEncode({'not': 'a list'}), 200,
+              headers: _json);
+        });
+        await expectLater(
+          upload(api),
+          throwsA(isA<ConflictException>()),
+          reason: path,
+        );
+      }
+    });
+
     test('a clip upload that already landed reads as success', () async {
       const bytes = [7, 7];
       final api = _api((request) {

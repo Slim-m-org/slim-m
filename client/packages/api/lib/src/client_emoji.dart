@@ -70,7 +70,7 @@ extension SlimmApiEmoji on SlimmApi {
         final stored = await fetchCustomEmojiImage(emoji.id);
         if (listEquals(stored.bytes, bytes)) return emoji;
       }
-    } on ApiException catch (error, stack) {
+    } on Object catch (error, stack) {
       AppLog.swallowed(
         LogTag.media,
         'Could not check whether the emoji upload already landed',
