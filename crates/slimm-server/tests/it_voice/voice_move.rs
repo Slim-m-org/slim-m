@@ -4,6 +4,7 @@
 //! that reaches only the moved account.
 
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -27,10 +28,12 @@ use crate::support;
 use support::app::{json_body, request_json};
 
 type Rooms = Arc<Mutex<HashMap<String, Vec<String>>>>;
+type Fake = (Rooms, Arc<AtomicBool>);
 
-/// A room service whose rooms are whatever `rooms` holds, and which removes who it is told to.
-async fn fake_livekit(rooms: Rooms) -> String {
-    async fn list(State(rooms): State<Rooms>, Json(body): Json<Value>) -> Json<Value> {
+/// A room service whose rooms are whatever `rooms` holds, and which removes who it is told to
+/// unless `failing` is set.
+async fn fake_livekit(rooms: Rooms, failing: Arc<AtomicBool>) -> String {
+    async fn list(State((rooms, _)): State<Fake>, Json(body): Json<Value>) -> Json<Value> {
         let room = body["room"].as_str().unwrap().to_owned();
         let ids = rooms
             .lock()
@@ -44,18 +47,24 @@ async fn fake_livekit(rooms: Rooms) -> String {
             .collect();
         Json(json!({ "participants": participants }))
     }
-    async fn remove(State(rooms): State<Rooms>, Json(body): Json<Value>) -> Json<Value> {
+    async fn remove(
+        State((rooms, failing)): State<Fake>,
+        Json(body): Json<Value>,
+    ) -> Result<Json<Value>, StatusCode> {
+        if failing.load(Ordering::SeqCst) {
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
         let room = body["room"].as_str().unwrap().to_owned();
         let identity = body["identity"].as_str().unwrap();
         if let Some(list) = rooms.lock().unwrap().get_mut(&room) {
             list.retain(|id| id != identity);
         }
-        Json(json!({}))
+        Ok(Json(json!({})))
     }
     let router = Router::new()
         .route("/twirp/livekit.RoomService/ListParticipants", post(list))
         .route("/twirp/livekit.RoomService/RemoveParticipant", post(remove))
-        .with_state(rooms);
+        .with_state((rooms, failing));
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     tokio::spawn(async move {
@@ -67,6 +76,7 @@ async fn fake_livekit(rooms: Rooms) -> String {
 struct World {
     state: AppState,
     rooms: Rooms,
+    sfu_failing: Arc<AtomicBool>,
     admin: String,
     mover: (UserId, String),
     bob: (UserId, String),
@@ -90,8 +100,9 @@ async fn world() -> World {
     let lobby = store.create_channel("lobby", "voice").await.unwrap().id;
     let games = store.create_channel("games", "voice").await.unwrap().id;
     let rooms: Rooms = Arc::default();
+    let sfu_failing = Arc::new(AtomicBool::new(false));
     let voice = VoiceService::for_test(
-        &fake_livekit(rooms.clone()).await,
+        &fake_livekit(rooms.clone(), sfu_failing.clone()).await,
         "APItestkey",
         "a-test-secret-of-at-least-32-characters",
     );
@@ -99,6 +110,7 @@ async fn world() -> World {
     let w = World {
         state,
         rooms,
+        sfu_failing,
         admin,
         mover,
         bob,
@@ -436,4 +448,68 @@ async fn a_moderator_who_cannot_see_a_call_reads_a_placeholder_instead_of_its_na
         .find(|e| e["action"] == "voice_move")
         .unwrap_or_else(|| panic!("no voice_move in {history}"));
     assert_eq!(entry["reason"], "lobby to a private channel");
+}
+
+#[tokio::test]
+async fn a_failed_sfu_removal_publishes_no_move_and_writes_no_audit_row() {
+    let w = world().await;
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let router = http::router(w.state.clone());
+    tokio::spawn(async move {
+        axum::serve(listener, router).await.unwrap();
+    });
+    let mut bob = connect(&w, addr, &w.bob.1).await;
+    w.sfu_failing.store(true, Ordering::SeqCst);
+
+    assert_eq!(
+        w.move_to(&w.mover.1, w.lobby, w.bob.0, w.games).await,
+        StatusCode::SERVICE_UNAVAILABLE
+    );
+
+    assert!(frames(&mut bob).await.is_empty(), "the move was announced");
+    let response = http::router(w.state.clone())
+        .oneshot(support::app::request(
+            "GET",
+            "/reports/history?limit=20",
+            Some(&w.admin),
+            None,
+        ))
+        .await
+        .unwrap();
+    let history = json_body(response).await;
+    assert!(
+        history
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|e| e["action"] != "voice_move"),
+        "the move was audited: {history}"
+    );
+}
+
+#[tokio::test]
+async fn a_bot_cannot_be_moved() {
+    let w = world().await;
+    let admin_id = w
+        .state
+        .store
+        .authenticate(&w.admin)
+        .await
+        .unwrap()
+        .unwrap()
+        .user_id;
+    let bot = w
+        .state
+        .store
+        .create_bot("music", "music", Permissions::NONE, admin_id)
+        .await
+        .unwrap();
+    w.put(w.lobby, &[w.bob.0, bot.bot.user_id]);
+    assert_eq!(
+        w.move_to(&w.mover.1, w.lobby, bot.bot.user_id, w.games)
+            .await,
+        StatusCode::CONFLICT
+    );
+    assert!(w.present(w.lobby).contains(&bot.bot.user_id.to_string()));
 }

@@ -467,3 +467,49 @@ fn a_join_token_never_shows_the_room_the_raw_device_id() {
     assert!(!shown.contains(&device.to_string()), "{shown}");
     assert!(!shown.contains(&device.0.simple().to_string()), "{shown}");
 }
+
+async fn service_answering(status: u16, body: &'static str) -> VoiceService {
+    let router = axum::Router::new()
+        .fallback(move || async move { (axum::http::StatusCode::from_u16(status).unwrap(), body) });
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move {
+        axum::serve(listener, router).await.unwrap();
+    });
+    VoiceService::for_test(
+        &format!("http://{addr}"),
+        "k",
+        "a-secret-at-least-32-chars-long!",
+    )
+}
+
+#[tokio::test]
+async fn a_plain_404_from_the_room_service_is_an_error_not_a_gone_participant() {
+    let service = service_answering(404, "").await;
+    let removed = service
+        .remove_participant(ChannelId::generate(), UserId::generate())
+        .await;
+    assert!(
+        matches!(removed, Err(VoiceError::Internal(_))),
+        "{removed:?}"
+    );
+    let listed = service.list_participants(ChannelId::generate()).await;
+    assert!(matches!(listed, Err(VoiceError::Internal(_))), "{listed:?}");
+}
+
+#[tokio::test]
+async fn a_twirp_not_found_from_the_room_service_reads_as_already_gone() {
+    let service =
+        service_answering(404, r#"{"code":"not_found","msg":"room does not exist"}"#).await;
+    service
+        .remove_participant(ChannelId::generate(), UserId::generate())
+        .await
+        .expect("a participant that is gone is removed");
+    assert!(
+        service
+            .list_participants(ChannelId::generate())
+            .await
+            .expect("an absent room has no one in it")
+            .is_empty()
+    );
+}

@@ -57,6 +57,8 @@ struct Inner {
     /// Channels whose members were read off the SFU since this process started,
     /// or whose room finished empty, so webhook state can be trusted for them.
     reconciled: HashSet<ChannelId>,
+    /// Channels whose voice sessions startup closed and could not reopen for want of an SFU answer.
+    session_reopen: HashSet<ChannelId>,
 }
 
 /// Tracks who a LiveKit webhook has told us is on a call, and whether they
@@ -75,12 +77,32 @@ impl RoomLiveState {
     /// duplicate `participant_joined` webhook for the same session must not
     /// republish, while a provisional entry or an earlier session's leftover
     /// must not swallow it either.
-    pub fn mark_joined(&self, channel_id: ChannelId, user_id: UserId, sid: &str) -> bool {
+    ///
+    /// A join of the session whose leave was already published, or stamped earlier than the
+    /// current entry's, is a delayed delivery and changes nothing.
+    pub fn mark_joined(
+        &self,
+        channel_id: ChannelId,
+        user_id: UserId,
+        sid: &str,
+        joined_at_ms: Option<i64>,
+    ) -> bool {
+        let key = (channel_id, user_id);
         let mut state = lock(&self.state);
-        state.ended.remove(&(channel_id, user_id));
+        if state.ended.get(&key).is_some_and(|ended| ended == sid) {
+            return false;
+        }
+        let older_than_current = state.participants.get(&key).is_some_and(|entry| {
+            entry.sid != sid
+                && matches!((entry.joined_at_ms, joined_at_ms), (Some(held), Some(ours)) if ours < held)
+        });
+        if older_than_current {
+            return false;
+        }
+        state.ended.remove(&key);
         let entry = state
             .participants
-            .entry((channel_id, user_id))
+            .entry(key)
             .or_insert_with(|| ParticipantState::new(sid, false));
         if entry.sid != sid {
             *entry = ParticipantState::new(sid, false);
@@ -88,6 +110,7 @@ impl RoomLiveState {
         let real = !entry.announced || entry.from_roster;
         entry.announced = true;
         entry.from_roster = false;
+        entry.joined_at_ms = joined_at_ms.or(entry.joined_at_ms);
         real
     }
 
@@ -166,10 +189,19 @@ impl RoomLiveState {
         (user_id, participant_sid): (UserId, &str),
         track_sid: &str,
     ) -> bool {
+        let key = (channel_id, user_id);
         let mut state = lock(&self.state);
+        if !state.participants.contains_key(&key)
+            && state
+                .ended
+                .get(&key)
+                .is_some_and(|ended| ended == participant_sid)
+        {
+            return false;
+        }
         let participant = state
             .participants
-            .entry((channel_id, user_id))
+            .entry(key)
             .or_insert_with(|| ParticipantState::new(participant_sid, false));
         if participant.sid != participant_sid {
             return false;
@@ -261,6 +293,16 @@ impl RoomLiveState {
         let state = lock(&self.state);
         let key = (channel_id, user_id);
         !state.participants.contains_key(&key) && state.ended.contains_key(&key)
+    }
+
+    /// Notes that `channel_id`'s sessions still need reopening off the SFU's roster.
+    pub fn defer_session_reopen(&self, channel_id: ChannelId) {
+        lock(&self.state).session_reopen.insert(channel_id);
+    }
+
+    /// Whether `channel_id`'s sessions were waiting to be reopened; asking clears the note.
+    pub fn take_session_reopen(&self, channel_id: ChannelId) -> bool {
+        lock(&self.state).session_reopen.remove(&channel_id)
     }
 
     /// Forgets everyone in a room LiveKit reports finished, so no entry

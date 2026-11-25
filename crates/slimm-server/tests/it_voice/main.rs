@@ -58,6 +58,7 @@ mod voice_rooms;
 mod voice_rooms_cleanup;
 mod voice_roster;
 mod voice_roster_tabs;
+mod voice_session_startup;
 mod voice_sessions;
 mod voice_sweep;
 mod voice_visibility_cache;

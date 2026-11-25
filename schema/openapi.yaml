@@ -9703,9 +9703,9 @@ paths:
         Requires MOVE_MEMBERS and VIEW_CHANNEL in both the source and the
         destination channel. The person must be on the source call and allowed
         to view and join the destination, which must be a voice channel that is
-        not full. Sends the moved account a `voice.moved` frame, takes them out
-        of the source room, and records a `voice_move` entry in the moderation
-        history.
+        not full, and cannot be a bot. Takes them out of the source room, and
+        only once that succeeds sends the moved account a `voice.moved` frame
+        and records a `voice_move` entry in the moderation history.
         Moving somebody else is gated like a voice kick: their permissions in the source call must be within the caller's there. Role ladder: the target's highest role must also sit strictly below the caller's own, and nobody but the Space owner acts on the owner; refused as a 403 with `code` `role_hierarchy`.
       requestBody:
         required: true
@@ -9729,8 +9729,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "409":
           description: >
-            The person is not on the source call, cannot join the destination,
-            or the destination is full.
+            The person is not on the source call, is a bot, cannot join the
+            destination, or the destination is full.
           content:
             application/json:
               schema:

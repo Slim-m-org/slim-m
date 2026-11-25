@@ -371,7 +371,7 @@ async fn an_ask_whose_listener_cannot_start_is_not_answered_with_a_session() {
     rig.state
         .voice
         .live_state()
-        .mark_joined(rig.channel, a.id, "sid-a");
+        .mark_joined(rig.channel, a.id, "sid-a", None);
 
     let (status, body) = rig.ask(a).await;
     assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE, "{body}");

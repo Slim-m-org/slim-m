@@ -72,6 +72,7 @@ pub(crate) async fn record_finished_call(
             },
         );
     }
+    let seq = sent.message.seq.0;
     hub.publish(Event::Message(MessageEvent::Created {
         message: Arc::new(sent.message),
         attachments: Arc::new(Vec::new()),
@@ -84,4 +85,9 @@ pub(crate) async fn record_finished_call(
         components: Arc::new(Vec::new()),
         lookups: Default::default(),
     }));
+    let marked =
+        crate::read_announce::advance_and_announce(store, hub, caller_id, channel_id, seq).await;
+    if let Err(err) = marked {
+        tracing::warn!(error = %err, %channel_id, "failed to advance the caller's read marker");
+    }
 }
