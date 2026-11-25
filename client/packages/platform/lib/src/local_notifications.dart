@@ -218,6 +218,7 @@ class LocalNotifications {
   final bool _isLinux;
   final bool _isWindows;
   BrowserAttention? _browser;
+  final _postedOnDesktop = <int>{};
 
   /// Called when the person clicks a notification, with the payload it was shown with.
   final Future<void> Function(String? payload)? _onActivated;
@@ -335,6 +336,9 @@ class LocalNotifications {
     }
     if (!_supported) return;
     await _ensureReady();
+    if (_isLinux || _isWindows) {
+      _postedOnDesktop.add(id ?? channel.notificationId);
+    }
     await _plugin.show(
       id ?? channel.notificationId,
       title ?? _appName,
@@ -418,9 +422,23 @@ class LocalNotifications {
     return details.notificationResponse?.payload;
   }
 
+  /// Desktop has no list of what is showing, so only ids this process posted are taken down.
+  Future<void> _cancelShownOnDesktop(Set<int> staleIds) async {
+    final stale = _postedOnDesktop.intersection(staleIds);
+    if (stale.isEmpty) return;
+    _postedOnDesktop.removeAll(stale);
+    await _ensureReady();
+    for (final id in stale) {
+      if (_isLinux) await _plugin.cancel(id);
+      if (_isWindows) await _removeWindowsToast(id);
+    }
+  }
+
   /// Takes down the notifications this app is showing whose id is in [staleIds], leaving every other one up.
   Future<void> cancelShown(Set<int> staleIds) async {
-    if (!_isAndroid || staleIds.isEmpty) return;
+    if (staleIds.isEmpty) return;
+    if (_isLinux || _isWindows) return _cancelShownOnDesktop(staleIds);
+    if (!_isAndroid) return;
     await _ensureReady();
     final shown = await _plugin.getActiveNotifications();
     for (final notification in shown) {

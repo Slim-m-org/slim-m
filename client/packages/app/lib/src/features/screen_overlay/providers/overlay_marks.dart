@@ -41,6 +41,7 @@ class OverlayMarks {
   final OverlayStampImages _images;
   final _board = ScreenAnnotationBoard();
   Timer? _frames;
+  var _disposed = false;
 
   /// Folds in a mark the sharer accepted, and starts the repaints that fade it.
   void add(api.CanvasScreenAnnotation frame) {
@@ -58,13 +59,15 @@ class OverlayMarks {
       _images.ensure(stamps.keyOf(content), () => stamps.png(content)).then((
         held,
       ) {
-        if (held && _board.markReady(id, _clock())) _run();
+        if (held && !_disposed && _board.markReady(id, _clock())) _run();
       }),
     );
   }
 
-  void _run() =>
-      _frames ??= Timer.periodic(overlayFrameInterval, (_) => _paint());
+  void _run() {
+    if (_disposed) return;
+    _frames ??= Timer.periodic(overlayFrameInterval, (_) => _paint());
+  }
 
   void _paint() {
     final now = _clock();
@@ -97,6 +100,7 @@ class OverlayMarks {
   }
 
   void dispose() {
+    _disposed = true;
     _frames?.cancel();
     _frames = null;
     _draws.reset();

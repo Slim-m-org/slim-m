@@ -168,6 +168,10 @@ class DesktopWindowShell {
   Future<void> requestClose() =>
       _controller?.requestClose() ?? Future<void>.value();
 
+  /// Sends a login launch to the tray or taskbar without ever quitting.
+  Future<void> hideForLogin() =>
+      _controller?.hideForLogin() ?? Future<void>.value();
+
   /// Puts the window into small splash mode before it is ever shown, so
   /// nothing visibly jumps; the saved geometry waits for [prepareHandoff].
   ///

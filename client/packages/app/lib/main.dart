@@ -206,7 +206,7 @@ Future<void> _bootstrapApp(
   container.read(appReadyProvider.notifier).state = true;
   forgetLaunchArguments();
   // A login launch goes where a close would, the tray or the taskbar, instead of covering what the user opened first.
-  if (launchedAtLogin) unawaited(shell.requestClose());
+  if (launchedAtLogin) unawaited(shell.hideForLogin());
   unawaited(container.read(selfUpdateProvider).confirmStart());
   unawaited(repairAutostart(container));
 }
