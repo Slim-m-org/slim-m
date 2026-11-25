@@ -220,11 +220,10 @@ void main() {
         viewedChannel: 'a',
         callChannel: 'b',
       );
-      final context = tester.element(find.byType(CanvasPeopleCluster));
-      unawaited(showCanvasPeopleSheet(context));
+      unawaited(showCanvasPeopleSheet(scopeContext!));
       await tester.pump(const Duration(milliseconds: 400));
 
-      expect(find.byType(CanvasPeopleSheet), findsOneWidget);
+      expect(find.text('People here'), findsWidgets);
       expect(find.text('BOB'), findsNothing);
     },
   );
