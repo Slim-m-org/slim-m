@@ -59,6 +59,38 @@ pub struct CanvasActivity {
     pub count: i64,
 }
 
+/// One canvas object placed by someone, as read for call history.
+#[derive(Debug, Clone)]
+pub struct CanvasPlacement {
+    pub user_id: UserId,
+    pub kind: String,
+    pub at: i64,
+}
+
+/// The placements inside `from..=to` grouped per author and kind, earliest group first.
+pub fn bucket_activity(placements: &[CanvasPlacement], from: i64, to: i64) -> Vec<CanvasActivity> {
+    let mut groups: Vec<CanvasActivity> = Vec::new();
+    for placement in placements.iter().filter(|p| p.at >= from && p.at <= to) {
+        match groups
+            .iter_mut()
+            .find(|g| g.user_id == placement.user_id && g.kind == placement.kind)
+        {
+            Some(group) => {
+                group.first_at = group.first_at.min(placement.at);
+                group.count += 1;
+            }
+            None => groups.push(CanvasActivity {
+                user_id: placement.user_id,
+                kind: placement.kind.clone(),
+                first_at: placement.at,
+                count: 1,
+            }),
+        }
+    }
+    groups.sort_by_key(|g| g.first_at);
+    groups
+}
+
 impl Store {
     pub async fn record_voice_event(
         &self,
@@ -107,22 +139,20 @@ impl Store {
             .collect())
     }
 
-    /// Canvas objects placed in `channel` between `from` and `to`, grouped
-    /// per author and kind; deleted ones count, since they were still placed.
-    pub async fn canvas_activity_between(
+    /// Every canvas object placed in `channel` between `from` and `to`, oldest first; deleted ones
+    /// count, since they were still placed. One read serves every call in the span.
+    pub async fn canvas_placements_between(
         &self,
         channel: ChannelId,
         from: i64,
         to: i64,
-    ) -> anyhow::Result<Vec<CanvasActivity>> {
+    ) -> anyhow::Result<Vec<CanvasPlacement>> {
         let rows = sqlx::query!(
-            r#"SELECT author_id AS "user_id!: UserId", kind AS "kind!",
-                      MIN(created_at) AS "first_at!: i64", COUNT(*) AS "count!: i64"
+            r#"SELECT author_id AS "user_id!: UserId", kind AS "kind!", created_at AS "at!: i64"
                FROM canvas_objects
                WHERE channel_id = ? AND created_at >= ? AND created_at <= ?
                  AND author_id IS NOT NULL
-               GROUP BY author_id, kind
-               ORDER BY MIN(created_at)"#,
+               ORDER BY created_at"#,
             channel,
             from,
             to
@@ -131,11 +161,10 @@ impl Store {
         .await?;
         Ok(rows
             .into_iter()
-            .map(|r| CanvasActivity {
+            .map(|r| CanvasPlacement {
                 user_id: r.user_id,
                 kind: r.kind,
-                first_at: r.first_at,
-                count: r.count,
+                at: r.at,
             })
             .collect())
     }
@@ -160,5 +189,43 @@ impl Store {
                 .await?
                 .rows_affected(),
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn placement(user: UserId, kind: &str, at: i64) -> CanvasPlacement {
+        CanvasPlacement {
+            user_id: user,
+            kind: kind.to_string(),
+            at,
+        }
+    }
+
+    #[test]
+    fn buckets_per_call_window_by_author_and_kind() {
+        let (a, b) = (UserId::generate(), UserId::generate());
+        let rows = [
+            placement(a, "note", 5),
+            placement(a, "note", 12),
+            placement(b, "stroke", 14),
+            placement(a, "note", 15),
+            placement(a, "note", 30),
+        ];
+        let first = bucket_activity(&rows, 0, 20);
+        assert_eq!(first.len(), 2);
+        assert_eq!(
+            (first[0].user_id, first[0].first_at, first[0].count),
+            (a, 5, 3)
+        );
+        assert_eq!(
+            (first[1].user_id, first[1].first_at, first[1].count),
+            (b, 14, 1)
+        );
+        let second = bucket_activity(&rows, 21, 40);
+        assert_eq!(second.len(), 1);
+        assert_eq!(second[0].count, 1);
     }
 }

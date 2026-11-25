@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT author_id AS \"user_id!: UserId\", kind AS \"kind!\",\n                      MIN(created_at) AS \"first_at!: i64\", COUNT(*) AS \"count!: i64\"\n               FROM canvas_objects\n               WHERE channel_id = ? AND created_at >= ? AND created_at <= ?\n                 AND author_id IS NOT NULL\n               GROUP BY author_id, kind\n               ORDER BY MIN(created_at)",
+  "query": "SELECT author_id AS \"user_id!: UserId\", kind AS \"kind!\", created_at AS \"at!: i64\"\n               FROM canvas_objects\n               WHERE channel_id = ? AND created_at >= ? AND created_at <= ?\n                 AND author_id IS NOT NULL\n               ORDER BY created_at",
   "describe": {
     "columns": [
       {
@@ -26,16 +26,15 @@
         }
       },
       {
-        "name": "first_at!: i64",
+        "name": "at!: i64",
         "ordinal": 2,
         "type_info": "Integer",
-        "origin": "Expression"
-      },
-      {
-        "name": "count!: i64",
-        "ordinal": 3,
-        "type_info": "Integer",
-        "origin": "Expression"
+        "origin": {
+          "Table": {
+            "table": "canvas_objects",
+            "name": "created_at"
+          }
+        }
       }
     ],
     "parameters": {
@@ -43,10 +42,9 @@
     },
     "nullable": [
       true,
-      true,
       false,
       false
     ]
   },
-  "hash": "4c609df092b00f14440106babb5fefbdc9a8d4381922a2f3647c6e1843d9d59a"
+  "hash": "9eba65da3b19a228b9334f8fae65243cecfff9c3aea4f24fa7164c391f50c524"
 }

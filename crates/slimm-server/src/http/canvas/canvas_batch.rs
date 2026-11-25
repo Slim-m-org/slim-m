@@ -21,7 +21,7 @@ use super::canvas_write::{PlaceParams, ensure_may_draw, place_error_api, validat
 use crate::hub::{CanvasEvent, Event};
 use crate::ids::{CanvasObjectId, ChannelId};
 use crate::ratelimit::Class;
-use crate::store::{BatchError, BatchItem};
+use crate::store::{BatchError, BatchItem, CanvasObject};
 
 /// Most objects one batch may carry.
 pub(in crate::http) const MAX_BATCH_OBJECTS: usize = 200;
@@ -102,13 +102,15 @@ pub(in crate::http) async fn place_batch(
         .await
         .map_err(|BatchError { index, error }| indexed(place_error_api(error), index))?;
 
-    // No await between the commit and these calls; see `ws::permission_cache`.
-    for placement in placed.iter().filter(|placement| placement.fresh) {
-        state.hub.publish(Event::Canvas(CanvasEvent::ObjectPlaced {
-            channel_id,
-            object: Arc::new(placement.object.clone()),
-        }));
-    }
+    publish_paced(
+        state.hub.clone(),
+        channel_id,
+        placed
+            .iter()
+            .filter(|placement| placement.fresh)
+            .map(|placement| Arc::new(placement.object.clone()))
+            .collect(),
+    );
     Ok((
         axum::http::StatusCode::CREATED,
         Json(BatchDto {
@@ -118,6 +120,32 @@ pub(in crate::http) async fn place_batch(
                 .collect(),
         }),
     ))
+}
+
+/// Fans the placed objects out at once while subscribers keep up, and hands the rest to a
+/// detached paced task once one falls behind, so a max-size batch cannot push it past the
+/// channel capacity and a dropped request cannot strand a commit.
+fn publish_paced(hub: crate::hub::Hub, channel_id: ChannelId, objects: Vec<Arc<CanvasObject>>) {
+    let mut objects = objects.into_iter();
+    while !hub.publish_backlogged() {
+        let Some(object) = objects.next() else {
+            return;
+        };
+        hub.publish(Event::Canvas(CanvasEvent::ObjectPlaced {
+            channel_id,
+            object,
+        }));
+    }
+    tokio::spawn(async move {
+        let mut paced = true;
+        for object in objects {
+            paced = paced && hub.wait_for_publish_headroom().await;
+            hub.publish(Event::Canvas(CanvasEvent::ObjectPlaced {
+                channel_id,
+                object,
+            }));
+        }
+    });
 }
 
 /// Names the object a refusal is about, keeping its status.
