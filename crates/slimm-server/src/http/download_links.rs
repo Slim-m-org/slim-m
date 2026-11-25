@@ -3,8 +3,8 @@
 //!
 //! A web client cannot stream a bearer-authenticated response to disk, and buffers the whole file
 //! in memory instead. A link names one attachment or export for one user and expires in a minute;
-//! redeeming it re-runs the same permission checks as the authenticated route, so a link never
-//! outlives a lost permission by more than its lifetime.
+//! redeeming it re-runs the same permission checks as the authenticated route and needs the minting
+//! session to be live, so a link never outlives a lost permission or a sign-out.
 
 use axum::Router;
 use axum::extract::{Path, State};
@@ -53,6 +53,9 @@ enum Target {
 #[derive(Serialize, Deserialize)]
 struct Claims {
     user: String,
+    /// The session that minted the link, so signing out ends it; absent only on a link from before this field.
+    #[serde(default)]
+    session: Option<String>,
     target: Target,
     expires_at: i64,
 }
@@ -102,6 +105,7 @@ async fn mint(
     let expires_at = now_ms() + LINK_TTL_MS;
     let claims = Claims {
         user: ctx.user_id.to_string(),
+        session: Some(ctx.session_id.to_string()),
         target,
         expires_at,
     };
@@ -125,6 +129,15 @@ async fn redeem(
     let user_id = UserId(
         Uuid::parse_str(&claims.user).map_err(|_| ApiError::NotFound("download link expired"))?,
     );
+    let session_is_live = state
+        .store
+        .live_session_ids(user_id)
+        .await?
+        .iter()
+        .any(|id| Some(id.to_string()) == claims.session);
+    if !session_is_live {
+        return Err(ApiError::NotFound("download link expired"));
+    }
     let mut response = match claims.target {
         Target::Attachment { id, original } => {
             let params = FetchParams::whole(original);
@@ -159,6 +172,7 @@ mod tests {
     fn claims(expires_at: i64) -> Claims {
         Claims {
             user: Uuid::nil().to_string(),
+            session: None,
             target: Target::Export { id: "e".into() },
             expires_at,
         }

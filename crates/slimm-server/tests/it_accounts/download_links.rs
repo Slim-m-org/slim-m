@@ -149,6 +149,22 @@ async fn an_altered_link_and_a_link_to_a_deleted_export_are_refused() {
     assert_eq!(status, StatusCode::UNAUTHORIZED);
 }
 
+#[tokio::test]
+async fn a_link_stops_working_once_its_session_is_revoked() {
+    let (store, _guard) = support::new_store("slimm-link-revoked").await;
+    let w = world(store.clone());
+    let (alice, _) = account(&store, "alice").await;
+    let job = w.export(&alice, "member").await;
+    let id = job["id"].as_str().unwrap();
+    let (_, path) = link(&w, &alice, json!({ "kind": "export", "id": id })).await;
+    assert_eq!(redeem(&w, &path, None).await.0, StatusCode::OK);
+
+    let ctx = store.authenticate(&alice).await.unwrap().unwrap();
+    store.revoke_session(ctx.session_id).await.unwrap();
+
+    assert_eq!(redeem(&w, &path, None).await.0, StatusCode::NOT_FOUND);
+}
+
 async fn password_hash() -> String {
     slimm_server::auth::Auth::new(2)
         .unwrap()
