@@ -67,7 +67,7 @@ class CanvasNoteBarLayer extends ConsumerWidget {
         if (id == null ||
             bounds == null ||
             (style == null && box == null) ||
-            (box == null && !styled && session == null) ||
+            (box == null && !styled) ||
             (box != null && textEditing) ||
             dragging ||
             !armed ||

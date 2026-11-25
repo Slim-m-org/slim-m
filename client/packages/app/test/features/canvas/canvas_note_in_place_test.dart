@@ -319,6 +319,18 @@ void main() {
       );
     });
 
+    testWidgets('a server that replaces edit props gets no bar while editing', (
+      tester,
+    ) async {
+      await _pane(tester, note: _note(), noteStyle: false);
+      await _openEditor(tester);
+
+      expect(
+        find.byWidgetPredicate((w) => w is CanvasSelectionBar),
+        findsNothing,
+      );
+    });
+
     testWidgets('undo puts the old style back with one more edit', (
       tester,
     ) async {
