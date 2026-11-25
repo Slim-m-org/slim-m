@@ -117,13 +117,14 @@ class ChannelScreenOverlay implements ScreenOverlay {
   }
 
   @override
-  Future<void> panel(OverlayPanel? panel) async {
+  Future<bool> panel(OverlayPanel? panel) async {
     try {
       await _channel.invokeMethod<void>('panel', panel?.toJson());
+      return true;
     } on PlatformException {
-      return;
+      return false;
     } on MissingPluginException {
-      return;
+      return false;
     }
   }
 

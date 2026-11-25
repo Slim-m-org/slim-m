@@ -161,15 +161,12 @@ void main() {
     );
 
     test(
-      'a glyph still baking when the glyphs are dropped is not kept',
+      'a glyph still baking when the glyphs are dropped is baked again, not reported loaded without a picture',
       () async {
         const glyph = EmojiStamp('\u{1F600}');
         final stale = cache.load(glyph);
         cache.dropGlyphs();
-        final fresh = cache.load(glyph);
         await stale;
-        expect(cache.holds(glyph), isFalse, reason: 'baked before the drop');
-        await fresh;
         expect(cache.holds(glyph), isTrue);
       },
     );

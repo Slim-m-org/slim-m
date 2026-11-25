@@ -437,8 +437,8 @@ abstract class ScreenOverlay {
 
   Future<void> hide();
 
-  /// Paints [panel] in its corner of the window, or clears it when null.
-  Future<void> panel(OverlayPanel? panel);
+  /// Paints [panel] in its corner of the window, or clears it when null; false when the runner did not take it.
+  Future<bool> panel(OverlayPanel? panel);
 
   /// The monitor the app's own window is on, or null when the runner cannot tell.
   Future<int?> appMonitor();

@@ -242,9 +242,19 @@ class DesktopWindowController {
     );
   }
 
+  /// Hides the window like a close would but never quits, for a login launch.
+  Future<void> hideForLogin() async {
+    await _writeNow();
+    await _hideWindow();
+  }
+
   Future<void> _routeClose() async {
     final quit = this.quit;
     if (quit != null && !keepInTray()) return quit();
+    await _hideWindow();
+  }
+
+  Future<void> _hideWindow() async {
     final action = resolveCloseAction(
       platform: platform,
       trayAvailable: await trayAvailable(),

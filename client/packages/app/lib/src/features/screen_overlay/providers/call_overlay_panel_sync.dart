@@ -33,6 +33,7 @@ class CallOverlayPanelSync {
   final bool Function() _mounted;
   final OverlaySupport Function() _support;
   bool _up = false;
+  int _generation = 0;
   int _monitor = 0;
   OverlayPanel? _last;
   final _avatarWatches =
@@ -50,7 +51,10 @@ class CallOverlayPanelSync {
       chosen: _ref.read(voiceSettingsControllerProvider).callOverlayScreen,
     );
     if (!_windows() && !await _window.show([monitor])) return;
-    if (!_mounted()) return;
+    if (!_mounted()) {
+      if (!_windows()) unawaited(_window.hide());
+      return;
+    }
     _monitor = monitor;
     forget();
     _up = true;
@@ -63,6 +67,7 @@ class CallOverlayPanelSync {
 
   /// A new or closed window holds none of what was sent before, so nothing is assumed sent.
   void forget() {
+    _generation++;
     _up = false;
     _last = null;
     _avatarsSent.clear();
@@ -83,8 +88,16 @@ class CallOverlayPanelSync {
       avatars: _watchAvatars(callOverlayShown(participants)),
     );
     if (panel == _last) return;
+    unawaited(_send(panel));
+  }
+
+  Future<void> _send(OverlayPanel panel) async {
+    final generation = _generation;
+    final pending = <String, String>{};
+    final shown = await _window.panel(_picturesOnce(panel, pending));
+    if (!shown || generation != _generation) return;
     _last = panel;
-    unawaited(_window.panel(_picturesOnce(panel)));
+    _avatarsSent.addAll(pending);
   }
 
   /// Follows the shown people's pictures, so one arriving or changing repaints the panel.
@@ -107,16 +120,17 @@ class CallOverlayPanelSync {
     };
   }
 
-  OverlayPanel _picturesOnce(OverlayPanel panel) => panel.withRows([
-    for (final row in panel.rows)
-      if (row.avatarKey == null || _avatarsSent[row.id] == row.avatarKey)
-        row.withoutAvatarBytes()
-      else
-        _markSent(row),
-  ]);
+  OverlayPanel _picturesOnce(OverlayPanel panel, Map<String, String> pending) =>
+      panel.withRows([
+        for (final row in panel.rows)
+          if (row.avatarKey == null || _avatarsSent[row.id] == row.avatarKey)
+            row.withoutAvatarBytes()
+          else
+            _willSend(row, pending),
+      ]);
 
-  OverlayPanelRow _markSent(OverlayPanelRow row) {
-    _avatarsSent[row.id] = row.avatarKey!;
+  OverlayPanelRow _willSend(OverlayPanelRow row, Map<String, String> pending) {
+    pending[row.id] = row.avatarKey!;
     return row;
   }
 }
