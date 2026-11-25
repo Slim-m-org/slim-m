@@ -38,6 +38,7 @@ export 'src/shared_stream.dart';
 export 'src/picture_in_picture_channel.dart';
 export 'src/screen_overlay.dart';
 export 'src/screen_overlay_channel.dart';
+export 'src/session_lock_channel.dart';
 export 'src/shortcuts.dart';
 export 'src/system_idle.dart';
 export 'src/taskbar_attention.dart';

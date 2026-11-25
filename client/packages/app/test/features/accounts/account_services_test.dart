@@ -14,6 +14,8 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/features/accounts/providers/account_services.dart';
 import 'package:slimm_app/src/features/accounts/providers/account_slot.dart';
+import 'package:slimm_app/src/features/auth/providers/new_device_alert.dart';
+import 'package:slimm_app/src/features/settings/providers/notification_sound_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/call_restore.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
@@ -24,6 +26,7 @@ import 'package:slimm_platform/platform.dart';
 import 'package:slimm_platform/testing.dart';
 
 import '../../support/fake_api.dart';
+import '../../support/fake_sound_player.dart';
 import '../../support/fake_sync.dart';
 
 class _Notifications implements LocalNotifications {
@@ -66,6 +69,9 @@ ProviderContainer _space({
     if (notifications != null)
       localNotificationsProvider.overrideWithValue(notifications),
     syncControllerProvider.overrideWith((ref) => NoopSyncController(ref)),
+    notificationSoundControllerProvider.overrideWith(
+      (ref) => NotificationSoundController(ref, player: SilentSoundPlayer()),
+    ),
     storeProvider.overrideWith((ref) async => MessageStore(db)),
     mockApiOverride(
       (_) async => http.Response(
@@ -148,4 +154,54 @@ void main() {
       expect(notifications.shown, [LocalAlertChannel.calls]);
     },
   );
+
+  group('a new-device sign-in alert', () {
+    const signIn = api.NewDeviceSignIn(
+      deviceId: 'd2',
+      deviceName: 'Ada laptop',
+      clientKind: 'desktop',
+      signedInAt: 1700000000000,
+    );
+
+    test('is held for an account nobody is looking at', () async {
+      final events = StreamController<api.ServerEvent>.broadcast();
+      final db = SlimmDatabase(NativeDatabase.memory());
+      final container = _space(events: events.stream, db: db);
+      addTearDown(() async {
+        container.dispose();
+        await events.close();
+        await db.close();
+      });
+
+      startAccountServices(container);
+      events.add(signIn);
+      await pumpEventQueue();
+
+      expect(container.read(newDeviceAlertProvider), signIn);
+    });
+
+    test('is dropped when the account signs out', () async {
+      final events = StreamController<api.ServerEvent>.broadcast();
+      final db = SlimmDatabase(NativeDatabase.memory());
+      final session = api.SessionStore(tokens: _me);
+      final container = _space(
+        events: events.stream,
+        db: db,
+        overrides: [sessionProvider.overrideWithValue(session)],
+      );
+      addTearDown(() async {
+        container.dispose();
+        await events.close();
+        await db.close();
+      });
+
+      startAccountServices(container);
+      events.add(signIn);
+      await pumpEventQueue();
+      session.clear();
+      await pumpEventQueue();
+
+      expect(container.read(newDeviceAlertProvider), isNull);
+    });
+  });
 }

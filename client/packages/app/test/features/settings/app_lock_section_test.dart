@@ -24,7 +24,11 @@ class _NoopAppLockWindowChannel implements AppLockWindowChannel {
   Future<void> setPrivacyShield(bool enabled) async {}
 }
 
-Future<ProviderContainer> _pump(WidgetTester tester, {bool? supported}) async {
+Future<ProviderContainer> _pump(
+  WidgetTester tester, {
+  bool? supported,
+  bool? windows,
+}) async {
   final container = ProviderContainer(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
@@ -41,7 +45,9 @@ Future<ProviderContainer> _pump(WidgetTester tester, {bool? supported}) async {
       child: MaterialApp(
         theme: buildTheme(Brightness.light, AppTokens.light),
         home: Scaffold(
-          body: ListView(children: [AppLockSection(supported: supported)]),
+          body: ListView(
+            children: [AppLockSection(supported: supported, windows: windows)],
+          ),
         ),
       ),
     ),
@@ -79,5 +85,29 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(container.read(appLockPreferenceProvider), isTrue);
+  });
+
+  testWidgets('on Windows it names Windows Hello or PIN and has no phones '
+      'badge', (tester) async {
+    final handle = tester.ensureSemantics();
+    await _pump(tester, supported: true, windows: true);
+
+    expect(find.text('Require Windows Hello or PIN'), findsOneWidget);
+    expect(find.text('PHONES ONLY'), findsNothing);
+    expect(find.textContaining('Face ID'), findsNothing);
+    expect(
+      find.bySemanticsLabel(RegExp('Windows Hello or a PIN')),
+      findsWidgets,
+    );
+    handle.dispose();
+  });
+
+  testWidgets('on a phone it keeps the phones badge and Face ID wording', (
+    tester,
+  ) async {
+    await _pump(tester, supported: true, windows: false);
+
+    expect(find.text('Require Face ID or fingerprint'), findsOneWidget);
+    expect(find.text('PHONES ONLY'), findsOneWidget);
   });
 }
