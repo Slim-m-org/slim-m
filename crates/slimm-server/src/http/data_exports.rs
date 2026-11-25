@@ -171,15 +171,35 @@ async fn download(
     State(state): State<AppState>,
 ) -> Result<Response, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Asset)?;
-    let job = owned(&state, ctx.user_id, &export_id).await?;
+    serve_for(&state, ctx.user_id, &export_id, &headers).await
+}
+
+/// The caller's own export, if it is ready to download; a space archive also needs ADMINISTRATOR now.
+pub(super) async fn downloadable(
+    state: &AppState,
+    user_id: UserId,
+    export_id: &str,
+) -> Result<DataExport, ApiError> {
+    let job = owned(state, user_id, export_id).await?;
     if !job.is_downloadable(now_ms()) {
         return Err(ApiError::NotFound(
             "this export is not available to download",
         ));
     }
     if job.kind == ExportKind::Space {
-        require_base_permission(&state, ctx.user_id, Permissions::ADMINISTRATOR).await?;
+        require_base_permission(state, user_id, Permissions::ADMINISTRATOR).await?;
     }
+    Ok(job)
+}
+
+/// Streams [user_id]'s finished archive, whichever route authenticated them.
+pub(super) async fn serve_for(
+    state: &AppState,
+    user_id: UserId,
+    export_id: &str,
+    headers: &HeaderMap,
+) -> Result<Response, ApiError> {
+    let job = downloadable(state, user_id, export_id).await?;
     let (file, len) = state
         .media
         .open_export(&job.id.to_string())
@@ -194,7 +214,7 @@ async fn download(
         state
             .store
             .record_admin_change_unless_recent(
-                ctx.user_id,
+                user_id,
                 ("space.export_download", &job.id.to_string()),
                 &detail,
                 SAME_DOWNLOAD_WINDOW_MS,
