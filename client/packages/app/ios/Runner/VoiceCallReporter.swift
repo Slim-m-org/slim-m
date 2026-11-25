@@ -137,7 +137,7 @@ final class OutgoingCallLifecycle {
     }
     namedByDart = id
     muted = false
-    if let answered = answeredCallId?() {
+    if let answered = answeredCallId?(), !endingLocally.contains(answered) {
       activeCallId = answered
       adopted.insert(answered)
       report("start", result: "adopted")
@@ -211,6 +211,7 @@ final class OutgoingCallLifecycle {
         // CallKit refused; report it ended anyway so no dead call lingers in the system UI.
         guard error != nil, let self, self.endingLocally.remove(id) != nil else { return }
         self.provider.reportCall(with: id, endedAt: Date(), reason: .remoteEnded)
+        self.audio?.end(id)
       }
     }
   }

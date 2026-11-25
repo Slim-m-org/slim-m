@@ -111,7 +111,7 @@ final class OutgoingCallLifecycleTests: XCTestCase {
 
   func testACallStartedForAnotherCallReplacesTheActiveOne() {
     let controller = RecordingController()
-    let lifecycle = OutgoingCallLifecycle(controller: controller, provider: RecordingProvider(, onMain: { $0() }))
+    let lifecycle = OutgoingCallLifecycle(controller: controller, provider: RecordingProvider(), onMain: { $0() })
     let first = UUID()
     let second = UUID()
 
@@ -125,7 +125,7 @@ final class OutgoingCallLifecycleTests: XCTestCase {
 
   func testALateEndForAReplacedCallIsIgnored() {
     let controller = RecordingController()
-    let lifecycle = OutgoingCallLifecycle(controller: controller, provider: RecordingProvider(, onMain: { $0() }))
+    let lifecycle = OutgoingCallLifecycle(controller: controller, provider: RecordingProvider(), onMain: { $0() })
     let first = UUID()
     let second = UUID()
     lifecycle.callStarted(id: first, displayName: "First")
@@ -151,7 +151,7 @@ final class OutgoingCallLifecycleTests: XCTestCase {
   func testACallKitRefusalToStartIsReportedWithItsCode() {
     let controller = RecordingController()
     controller.startError = NSError(domain: "CXErrorDomain", code: 6)
-    let lifecycle = OutgoingCallLifecycle(controller: controller, provider: RecordingProvider(, onMain: { $0() }))
+    let lifecycle = OutgoingCallLifecycle(controller: controller, provider: RecordingProvider(), onMain: { $0() })
     var events: [[String: Any]] = []
     lifecycle.onEvent = { events.append($0) }
 
@@ -164,7 +164,7 @@ final class OutgoingCallLifecycleTests: XCTestCase {
   }
 
   func testAStartSkippedForACallStillReportedIsReported() {
-    let lifecycle = OutgoingCallLifecycle(controller: RecordingController(, onMain: { $0() }), provider: RecordingProvider())
+    let lifecycle = OutgoingCallLifecycle(controller: RecordingController(), provider: RecordingProvider(), onMain: { $0() })
     var results: [String] = []
     lifecycle.onEvent = { results.append($0["result"] as? String ?? "") }
 
@@ -256,6 +256,19 @@ final class OutgoingCallLifecycleTests: XCTestCase {
     lifecycle.callEnded()
 
     XCTAssertEqual(provider.ended.map(\.uuid), [id])
+  }
+
+  func testARefusedEndRequestHandsTheAudioSessionBack() {
+    let controller = RecordingController()
+    controller.endError = NSError(domain: "CXErrorDomainRequestTransaction", code: 1)
+    let gate = RecordingGate()
+    let lifecycle = OutgoingCallLifecycle(controller: controller, provider: RecordingProvider(), onMain: { $0() })
+    lifecycle.audio = CallAudioHandOff(gate: gate, schedule: { _, _ in })
+
+    lifecycle.callStarted(id: UUID(), displayName: "Voice call")
+    lifecycle.callEnded()
+
+    XCTAssertEqual(gate.log.suffix(2), ["enabled true", "manual false"])
   }
 
   func testCallEndedWithNothingActiveIsSafe() {
@@ -391,6 +404,19 @@ final class OutgoingCallLifecycleSystemTests: XCTestCase {
     lifecycle.onHangUp = { hungUp += 1 }
     lifecycle.reset()
     XCTAssertEqual(hungUp, 0)
+  }
+
+  func testACallEndedWhileItsEndIsPendingIsNotAdoptedByTheNextJoin() {
+    let answered = UUID()
+    let (lifecycle, controller, _) = make(answered: answered)
+    lifecycle.callStarted(id: UUID(), displayName: "Voice call")
+    lifecycle.callEnded()
+    let next = UUID()
+
+    lifecycle.callStarted(id: next, displayName: "Voice call")
+
+    XCTAssertEqual(controller.started.map(\.callUUID), [next], "the ending call cannot carry the new one")
+    XCTAssertEqual(lifecycle.activeCallId, next)
   }
 
   func testACompletionOffTheMainQueueIsHoppedBeforeItTouchesState() {

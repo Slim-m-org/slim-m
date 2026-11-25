@@ -240,7 +240,9 @@ final class WebRTCAudioGate: CallAudioGating {
     let sharedInstance = Selector(("sharedInstance"))
     var found: NSObject?
     for name in ["LKRTCAudioSession", "RTCAudioSession"] {
-      guard let type = NSClassFromString(name) as AnyObject?, type.responds(to: sharedInstance),
+      guard let cls = NSClassFromString(name) else { continue }
+      let type: AnyObject = cls
+      guard type.responds(to: sharedInstance),
         let value = type.perform(sharedInstance)?.takeUnretainedValue() as? NSObject
       else { continue }
       found = value
@@ -249,9 +251,15 @@ final class WebRTCAudioGate: CallAudioGating {
     session = found
   }
 
-  func setManualAudio(_ on: Bool) { session?.setValue(on, forKey: "useManualAudio") }
+  func setManualAudio(_ on: Bool) { set(on, "setUseManualAudio:", key: "useManualAudio") }
 
-  func setAudioEnabled(_ on: Bool) { session?.setValue(on, forKey: "isAudioEnabled") }
+  func setAudioEnabled(_ on: Bool) { set(on, "setIsAudioEnabled:", key: "isAudioEnabled") }
+
+  /// setValue(_:forKey:) raises on an unknown key, so the setter is checked first.
+  private func set(_ on: Bool, _ setter: String, key: String) {
+    guard let target = session, target.responds(to: Selector((setter))) else { return }
+    target.setValue(on, forKey: key)
+  }
 
   func sessionActivated(_ session: AVAudioSession) { notify("audioSessionDidActivate:", session) }
 

@@ -46,6 +46,23 @@ const _export = api.DataExport(
   sizeBytes: 3 * 1024 * 1024 * 1024,
 );
 
+const _small = api.Attachment(
+  id: 'a1',
+  filename: 'notes.txt',
+  contentType: 'text/plain',
+  size: 8,
+);
+
+const _smallExport = api.DataExport(
+  id: 'e2',
+  kind: api.ExportKind.member,
+  status: api.ExportStatus.ready,
+  processed: 1,
+  total: 1,
+  createdAt: 1767225600000,
+  sizeBytes: 8,
+);
+
 ProviderContainer _container(
   _LinkTarget target,
   List<http.BaseRequest> seen, {
@@ -62,6 +79,13 @@ ProviderContainer _container(
           session: ref.watch(sessionProvider),
           httpClient: MockClient.streaming((request, _) async {
             seen.add(request);
+            if (request.url.path != '/downloads/links') {
+              return http.StreamedResponse(
+                Stream.value(utf8.encode('abcdefgh')),
+                200,
+                headers: {'content-length': '8'},
+              );
+            }
             return http.StreamedResponse(
               Stream.value(
                 utf8.encode(
@@ -110,6 +134,41 @@ void main() {
       DownloadPhase.failed,
     );
     expect(target.links, isEmpty);
+  });
+
+  test(
+    'a small attachment saves in memory when the server has no links',
+    () async {
+      final target = _LinkTarget();
+      final seen = <http.BaseRequest>[];
+      final container = _container(target, seen, status: 404);
+      container.listen(downloadsProvider, (_, _) {});
+
+      await container.read(downloadsProvider.notifier).start(_small);
+
+      expect(target.links, isEmpty);
+      expect(target.bytes, utf8.encode('abcdefgh'));
+      expect(target.finished, isTrue);
+      expect(
+        container.read(downloadsProvider).map((t) => t.phase),
+        isNot(contains(DownloadPhase.failed)),
+      );
+    },
+  );
+
+  test('a small export saves in memory when the server has no links', () async {
+    final target = _LinkTarget();
+    final container = _container(target, [], status: 404);
+    container.listen(exportSavesProvider, (_, _) {});
+
+    await container.read(exportSavesProvider.notifier).start(_smallExport);
+
+    expect(target.links, isEmpty);
+    expect(target.finished, isTrue);
+    expect(
+      container.read(exportSavesProvider)['e2']?.phase,
+      ExportSavePhase.done,
+    );
   });
 
   test('an export past the memory cap downloads from a link', () async {

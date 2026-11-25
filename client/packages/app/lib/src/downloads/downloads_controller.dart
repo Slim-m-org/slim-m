@@ -178,12 +178,18 @@ class DownloadsController extends Notifier<List<DownloadTask>> {
       _asking.remove(attachment.id);
     }
     if (target == null) return;
-    if (target is LinkDownloadTarget) {
-      await _startLink(target, attachment, original: original);
-      return;
-    }
     final limit = target.maxBytes;
-    if (limit != null && attachment.size > limit) {
+    final fitsInMemory = limit == null || attachment.size <= limit;
+    if (target is LinkDownloadTarget) {
+      final handled = await _startLink(
+        target,
+        attachment,
+        original: original,
+        canFallBack: fitsInMemory,
+      );
+      if (handled) return;
+    }
+    if (!fitsInMemory) {
       await target.discard();
       _add(
         _failed(
@@ -216,10 +222,13 @@ class DownloadsController extends Notifier<List<DownloadTask>> {
   }
 
   /// Hands the file to the browser's own download from a short-lived link, so its size never meets this app's memory.
-  Future<void> _startLink(
+  ///
+  /// False when the server has no links route (an older one) and the file is small enough to buffer instead.
+  Future<bool> _startLink(
     LinkDownloadTarget target,
     api.Attachment attachment, {
     required bool original,
+    required bool canFallBack,
   }) async {
     try {
       final link = await ref
@@ -232,18 +241,33 @@ class DownloadsController extends Notifier<List<DownloadTask>> {
             'Downloading ${attachment.filename}.',
             severity: AppToastSeverity.success,
           );
+      return true;
+    } on api.NotFoundException catch (e, stack) {
+      if (canFallBack) return false;
+      _linkFailed(attachment, e, stack, original: original);
+      return true;
     } on Object catch (e, stack) {
-      api.reportFailure(api.LogTag.ui, 'start the download', e, stack);
-      _add(
-        _failed(
-          attachment,
-          e is api.ApiException
-              ? describeApiFailure('download ${attachment.filename}', e)
-              : 'Could not save ${attachment.filename}.',
-          original: original,
-        ),
-      );
+      _linkFailed(attachment, e, stack, original: original);
+      return true;
     }
+  }
+
+  void _linkFailed(
+    api.Attachment attachment,
+    Object e,
+    StackTrace stack, {
+    required bool original,
+  }) {
+    api.reportFailure(api.LogTag.ui, 'start the download', e, stack);
+    _add(
+      _failed(
+        attachment,
+        e is api.ApiException
+            ? describeApiFailure('download ${attachment.filename}', e)
+            : 'Could not save ${attachment.filename}.',
+        original: original,
+      ),
+    );
   }
 
   /// Stops a running download and removes its partial file.
