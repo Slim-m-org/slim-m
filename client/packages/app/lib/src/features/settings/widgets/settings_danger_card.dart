@@ -17,12 +17,16 @@ class SettingsDangerCard extends StatelessWidget {
     required this.message,
     required this.action,
     this.error,
+    this.leadingRows = const [],
   });
 
   final String title;
   final String message;
   final Widget action;
   final Widget? error;
+
+  /// Further irreversible actions, each its own row above [action]'s.
+  final List<Widget> leadingRows;
 
   @override
   Widget build(BuildContext context) {
@@ -41,6 +45,7 @@ class SettingsDangerCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                ...leadingRows,
                 SettingsActionRow(message: message, action: action),
                 if (error case final error?)
                   Padding(

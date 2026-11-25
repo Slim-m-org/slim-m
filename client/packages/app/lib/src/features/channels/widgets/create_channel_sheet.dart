@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The sheet for making a channel: a name, a text/voice choice, a Lobby
-/// toggle for voice (decision 0065), and - for a caller who holds
+/// The sheet for making a channel: a name, a text/voice/canvas choice, a
+/// Lobby and a Canvas toggle for voice (decision 0065), a Voice call toggle
+/// for canvas, and - for a caller who holds
 /// MANAGE_ROLES - a Private toggle, sent through
 /// `POST /channels` (`SlimmApi.createChannel`).
 ///
@@ -43,6 +44,7 @@ import 'channel_settings_rooms_section.dart'
 import 'category_choice_row.dart';
 import 'private_audience_picker.dart';
 import '../../settings/widgets/settings_toggle_row.dart';
+import '../providers/canvas_channels_supported.dart';
 import '../providers/channel_actions.dart';
 
 /// Opens the sheet, defaulting the kind picker to [initialKind]: still
@@ -63,6 +65,14 @@ Future<void> showCreateChannelSheet(
   );
 }
 
+const _kindLabels = {'text': 'Text', 'voice': 'Voice', 'canvas': 'Canvas'};
+
+const _kindCaptions = {
+  'text': 'People post messages, images and files to read at their own pace.',
+  'voice': 'People join a live call to talk, share video and their screen.',
+  'canvas': 'A shared board to work on together, with chat to the side.',
+};
+
 class _CreateChannelSheet extends ConsumerStatefulWidget {
   const _CreateChannelSheet({required this.initialKind, this.categoryId});
 
@@ -75,7 +85,7 @@ class _CreateChannelSheet extends ConsumerStatefulWidget {
 }
 
 class _CreateChannelSheetState extends ConsumerState<_CreateChannelSheet> {
-  late String _kind = widget.initialKind;
+  late String _picked = widget.initialKind;
   late String _category = widget.categoryId ?? noCategory;
 
   /// Categories this account may not file under, as the last listing said.
@@ -88,8 +98,22 @@ class _CreateChannelSheetState extends ConsumerState<_CreateChannelSheet> {
   );
   bool _restricted = false;
   bool _lobby = false;
+  bool _canvas = false;
+  bool _call = false;
   final Set<String> _audience = {};
   final _createId = newChannelId();
+
+  /// A kind this server does not know falls back to text.
+  String get _kind => _picked == 'canvas' && !_canvasKinds ? 'text' : _picked;
+
+  bool get _canvasKinds => ref.read(canvasChannelsSupportedProvider);
+
+  void _pickKind(String kind) => setState(() {
+    _picked = kind;
+    _lobby = false;
+    _canvas = false;
+    _call = false;
+  });
 
   Future<VoidCallback?> _create(String name) async {
     final created = await ref
@@ -100,6 +124,8 @@ class _CreateChannelSheetState extends ConsumerState<_CreateChannelSheet> {
           categoryId: _chosen == noCategory ? null : _chosen,
           restricted: _restricted,
           createsRooms: _kind == 'voice' && _lobby,
+          canvasEnabled: _kind == 'voice' && _canvasKinds ? _canvas : null,
+          voiceEnabled: _kind == 'canvas' ? _call : null,
           id: _createId,
         );
     if (_restricted) await _grantAudience(created.id);
@@ -159,6 +185,9 @@ class _CreateChannelSheetState extends ConsumerState<_CreateChannelSheet> {
         .watch(myPermissionsProvider)
         .hasPermission(Perm.manageRoles);
 
+    final canvasKinds = ref.watch(canvasChannelsSupportedProvider);
+    final kinds = ['text', 'voice', if (canvasKinds) 'canvas'];
+
     return NameEntrySheet(
       noun: 'channel',
       title: 'Create a channel',
@@ -175,29 +204,45 @@ class _CreateChannelSheetState extends ConsumerState<_CreateChannelSheet> {
         ],
         AppSegmentedControl.inline(
           semanticLabel: 'Channel kind',
-          options: const [
-            AppSegmentedOption(label: 'Text'),
-            AppSegmentedOption(label: 'Voice'),
+          options: [
+            for (final kind in kinds)
+              AppSegmentedOption(label: _kindLabels[kind]!),
           ],
-          selectedIndex: _kind == 'voice' ? 1 : 0,
-          onSegmentSelected: (i) =>
-              setState(() => _kind = i == 1 ? 'voice' : 'text'),
+          selectedIndex: kinds.indexOf(_kind),
+          onSegmentSelected: (i) => _pickKind(kinds[i]),
         ),
         const SizedBox(height: AppSpacing.s4),
         Text(
-          _kind == 'voice'
-              ? 'People join a live call to talk, share video and their screen.'
-              : 'People post messages, images and files to read at their own pace.',
+          _kindCaptions[_kind]!,
           style: AppText.caption.copyWith(color: tokens.textSecondary),
         ),
         const SizedBox(height: AppSpacing.s8),
-        if (_kind == 'voice')
+        if (_kind == 'voice') ...[
           SettingsToggleRow(
             label: lobbyLabel,
             description: lobbyDescription,
             value: _lobby,
             onChanged: (v) => setState(() => _lobby = v),
             semanticLabel: lobbySemanticLabel,
+            inset: 0,
+          ),
+          if (canvasKinds)
+            SettingsToggleRow(
+              label: 'Canvas',
+              description: 'Adds a shared board to this channel.',
+              value: _canvas,
+              onChanged: (v) => setState(() => _canvas = v),
+              semanticLabel: 'Add a canvas to this channel',
+              inset: 0,
+            ),
+        ],
+        if (_kind == 'canvas')
+          SettingsToggleRow(
+            label: 'Voice call',
+            description: 'Lets people talk while they work.',
+            value: _call,
+            onChanged: (v) => setState(() => _call = v),
+            semanticLabel: 'Let people call in this channel',
             inset: 0,
           ),
         if (canRestrict)

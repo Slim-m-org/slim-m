@@ -262,9 +262,13 @@ class CategoryMenuGlyph extends StatelessWidget {
 }
 
 /// `voice` for a category of calls: every channel in it is voice, or it has
-/// none yet and its name says voice. Anything else starts on `text`.
+/// none yet and its name says voice; `canvas` when every channel in it is a
+/// canvas channel. Anything else starts on `text`.
 String kindToAddIn(ChannelCategoryRow? category, List<Channel> channels) {
   if (category == null) return 'text';
+  if (channels.isNotEmpty && channels.every((c) => c.isCanvasChannel)) {
+    return 'canvas';
+  }
   final forCalls = channels.isEmpty
       ? category.name.toLowerCase().contains('voice')
       : channels.every((c) => c.kind == 'voice');
