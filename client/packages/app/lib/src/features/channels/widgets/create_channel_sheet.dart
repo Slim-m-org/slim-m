@@ -116,6 +116,11 @@ class _CreateChannelSheetState extends ConsumerState<_CreateChannelSheet> {
   });
 
   Future<VoidCallback?> _create(String name) async {
+    if (_picked == 'canvas' && !_canvasKinds) {
+      throw const NameEntryPartialFailure(
+        "This server doesn't support canvas channels.",
+      );
+    }
     final created = await ref
         .read(channelActionsProvider)
         .createChannel(

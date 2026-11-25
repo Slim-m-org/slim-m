@@ -78,7 +78,25 @@ class CanvasExportFailure {
       "Couldn't reach the server. Try again; it won't make a second copy.";
   static const nothingChanged = 'Nothing was changed.';
 
-  factory CanvasExportFailure.of(Object error) {
+  static const stillFinishingMessage =
+      "The first try may still be finishing. Try again; it won't make a second copy.";
+
+  /// [afterUnknown] is true once an earlier try got no answer: a refusal or busy then may be that try still committing, so nothing is claimed unchanged.
+  factory CanvasExportFailure.of(Object error, {bool afterUnknown = false}) {
+    final failure = CanvasExportFailure._of(error);
+    final ambiguous =
+        failure.kind == CanvasExportFailureKind.refused ||
+        failure.kind == CanvasExportFailureKind.busy;
+    if (afterUnknown && ambiguous) {
+      return const CanvasExportFailure(
+        CanvasExportFailureKind.unreachable,
+        stillFinishingMessage,
+      );
+    }
+    return failure;
+  }
+
+  static CanvasExportFailure _of(Object error) {
     return switch (error) {
       api.ConflictException(code: api.CanvasExportRefusal.tooLarge) =>
         const CanvasExportFailure(

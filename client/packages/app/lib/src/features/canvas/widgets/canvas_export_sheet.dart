@@ -69,6 +69,9 @@ class _CanvasExportSheetState extends ConsumerState<_CanvasExportSheet> {
   bool _running = false;
   CanvasExportFailure? _failure;
 
+  /// Once any try got no answer it may still commit, so every later try is the identical request.
+  bool _unknown = false;
+
   @override
   void dispose() {
     _name.dispose();
@@ -84,8 +87,7 @@ class _CanvasExportSheetState extends ConsumerState<_CanvasExportSheet> {
   }
 
   /// After a lost answer the same request must go again, so the form stops changing.
-  bool get _locked =>
-      _running || _failure?.kind == CanvasExportFailureKind.unreachable;
+  bool get _locked => _running || _unknown;
 
   bool get _canSend =>
       !_running && entityNameValid(_name.text) && (_failure?.canRetry ?? true);
@@ -119,9 +121,11 @@ class _CanvasExportSheetState extends ConsumerState<_CanvasExportSheet> {
     } on Object catch (error, stack) {
       api.reportFailure(api.LogTag.ui, 'export the canvas', error, stack);
       if (mounted) {
+        final failure = CanvasExportFailure.of(error, afterUnknown: _unknown);
         setState(() {
           _running = false;
-          _failure = CanvasExportFailure.of(error);
+          _failure = failure;
+          _unknown |= failure.kind == CanvasExportFailureKind.unreachable;
         });
       }
     }
@@ -129,10 +133,16 @@ class _CanvasExportSheetState extends ConsumerState<_CanvasExportSheet> {
 
   String _confirmation(api.CanvasExportResult result) {
     final spared = result.spared;
-    final stayed = spared == 0
+    final left = result.left;
+    final locked = spared == 0
         ? ''
         : ' $spared locked ${spared == 1 ? 'item' : 'items'} stayed.';
-    return 'Exported to ${result.channel.name}.$stayed';
+    final uncopied = left == 0
+        ? ''
+        : left == 1
+        ? " 1 item couldn't be copied and stayed on the original."
+        : " $left items couldn't be copied and stayed on the original.";
+    return 'Exported to ${result.channel.name}.$locked$uncopied';
   }
 
   String get _label {
