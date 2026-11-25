@@ -10,6 +10,7 @@ import 'package:slimm_rtc/rtc.dart';
 
 import '../../../api_failure.dart';
 import '../../../providers/providers.dart';
+import 'bluetooth_permission_provider.dart';
 import 'join_timings_provider.dart';
 import 'voice_input_settings.dart';
 import 'voice_join_muted.dart';
@@ -154,6 +155,9 @@ class VoiceSfuConnect {
         _current.microphoneEnabled &&
         token.canPublish &&
         !_input.pushToTalkEnabled;
+    // Before the session starts routing audio, which reads the grant once; a denial leaves the call on the speaker.
+    await _ref.read(bluetoothPermissionProvider).request();
+    if (superseded()) return;
     await _session.join(
       url: token.url,
       token: token.token,

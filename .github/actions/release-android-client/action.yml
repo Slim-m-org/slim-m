@@ -66,16 +66,18 @@ runs:
 
     - uses: ./.github/actions/verify-android-signer
 
-    # Play restricts this permission and the Play build never installs apks; fail before anything is uploaded.
-    - name: verify the appbundle drops the install permission
+    # Play restricts these permissions and the Play build never installs apks or lists the photo library; fail before anything is uploaded.
+    - name: verify the appbundle drops the restricted permissions
       shell: "bash -e {0}"
       working-directory: client/packages/app
       run: |
-        if unzip -p build/app/outputs/bundle/release/app-release.aab base/manifest/AndroidManifest.xml \
-            | grep -a -q REQUEST_INSTALL_PACKAGES; then
-          echo "::error::the appbundle still requests REQUEST_INSTALL_PACKAGES"
-          exit 1
-        fi
+        for permission in REQUEST_INSTALL_PACKAGES READ_MEDIA_IMAGES READ_MEDIA_VISUAL_USER_SELECTED; do
+          if unzip -p build/app/outputs/bundle/release/app-release.aab base/manifest/AndroidManifest.xml \
+              | grep -a -q "$permission"; then
+            echo "::error::the appbundle still requests $permission"
+            exit 1
+          fi
+        done
 
     - name: checksums
       shell: "bash -e {0}"

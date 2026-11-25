@@ -20,6 +20,16 @@
     <!-- Declared alongside the camera pre-toggle this change adds; without
          it the toggle would appear to work and capture nothing. -->
     <uses-permission android:name="android.permission.CAMERA"/>
+    <!-- Call audio routing (audioswitch): the legacy pair covers API 30 and older, BLUETOOTH_CONNECT is the runtime grant API 31+ needs to list and route to a headset. -->
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
+    <!-- Camera and microphone are optional: text chat works without either, so Play must not filter out devices lacking them. -->
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false"/>
+    <uses-feature android:name="android.hardware.microphone" android:required="false"/>
+    <uses-feature android:name="android.hardware.bluetooth" android:required="false"/>
     <!-- gal writes to shared storage directly only before Android 10; later versions need no permission. -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29"/>
     <!-- The composer photo strip: READ_MEDIA_IMAGES on API 33+, and the user-selected grant that backs limited access on API 34+; photo_manager supplies the pre-33 permission. -->

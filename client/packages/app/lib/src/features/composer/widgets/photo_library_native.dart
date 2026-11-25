@@ -5,11 +5,14 @@ library;
 import 'package:flutter/foundation.dart';
 import 'package:photo_manager/photo_manager.dart';
 
+import '../../../desktop/self_update/play_install.dart' show playBuild;
 import 'file_source_io.dart';
 import 'photo_library.dart';
 import 'staged_attachment_model.dart';
 
-PhotoLibrary? createPhotoLibrary() {
+/// Null in the Play build, whose bundle drops the photo permissions the strip needs (decision 0025).
+PhotoLibrary? createPhotoLibrary({bool isPlayBuild = playBuild}) {
+  if (isPlayBuild) return null;
   final phone =
       defaultTargetPlatform == TargetPlatform.iOS ||
       defaultTargetPlatform == TargetPlatform.android;
