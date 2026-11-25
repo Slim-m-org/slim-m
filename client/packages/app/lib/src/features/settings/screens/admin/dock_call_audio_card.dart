@@ -37,7 +37,7 @@ class DockCallAudioCard extends ConsumerWidget {
       for (final c
           in ref.watch(myVisibleChannelsProvider).valueOrNull ??
               const <api.Channel>[])
-        if (c.kind == 'voice') c,
+        if (c.hostsCall) c,
     ];
     final ids = armed.valueOrNull?.ids ?? const <String>[];
     final saving = armed.valueOrNull?.saving ?? false;

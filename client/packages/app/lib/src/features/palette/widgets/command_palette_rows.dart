@@ -233,9 +233,9 @@ class PaletteResultRow extends StatelessWidget {
               ],
             ),
           )
-        : channel.kind == 'voice' || channel.kind == 'text'
+        : channel.kind != 'dm'
         ? ChannelKindIcon(
-            isVoice: channel.kind == 'voice',
+            glyph: ChannelGlyphKind.of(channel.kind),
             restricted: channel.restricted ?? false,
             color: tokens.textSecondary,
           )

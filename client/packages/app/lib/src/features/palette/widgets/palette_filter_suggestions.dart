@@ -234,7 +234,7 @@ Iterable<Channel> _channels(List<Channel> channels, String typed) {
   final q = api.foldMarks(typed.startsWith('#') ? typed.substring(1) : typed);
   return channels.where(
     (c) =>
-        (c.kind == 'text' || c.kind == 'voice') &&
+        (c.kind == 'text' || c.kind == 'voice' || c.isCanvasChannel) &&
         api.foldMarks(c.name).contains(q),
   );
 }

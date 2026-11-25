@@ -6,7 +6,7 @@ import 'models_attachments.dart';
 import 'models_notification_preference.dart';
 import 'text_marks.dart';
 
-/// A text or voice channel.
+/// A text, voice or canvas channel.
 class Channel {
   const Channel({
     required this.id,
@@ -30,6 +30,8 @@ class Channel {
     this.roomOwnerId,
     this.roomLobbyId,
     this.roomLocked = false,
+    this.canvasEnabled,
+    this.voiceEnabled,
   });
 
   final String id;
@@ -133,7 +135,28 @@ class Channel {
   /// Whether nobody new may join this temporary room.
   final bool roomLocked;
 
+  /// Whether this channel has a board now, as the server computes it; null on
+  /// a server too old to send it - read [hasCanvas], not this.
+  final bool? canvasEnabled;
+
+  /// Whether this channel has a call, as the server computes it; null on a
+  /// server too old to send it - read [hostsCall], not this.
+  final bool? voiceEnabled;
+
   bool get isVoice => kind == 'voice';
+
+  bool get isDm => kind == 'dm';
+
+  /// A channel whose board is the channel itself.
+  bool get isCanvasChannel => kind == 'canvas';
+
+  /// Whether a board exists here; a thread never has one, and an older
+  /// server's silence means the old rule (voice and DM have one).
+  bool get hasCanvas =>
+      !isThread && (canvasEnabled ?? (isVoice || isDm || isCanvasChannel));
+
+  /// Whether a channel call runs here; a DM keeps its own call path.
+  bool get hostsCall => !isThread && !isDm && (voiceEnabled ?? isVoice);
 
   bool get isRoom => roomOwnerId != null;
 
@@ -165,6 +188,8 @@ class Channel {
         roomOwnerId: json['room_owner_id'] as String?,
         roomLobbyId: json['room_lobby_id'] as String?,
         roomLocked: json['room_locked'] as bool? ?? false,
+        canvasEnabled: json['canvas_enabled'] as bool?,
+        voiceEnabled: json['voice_enabled'] as bool?,
       );
 }
 

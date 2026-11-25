@@ -262,7 +262,7 @@ class VoiceChannelRow extends ConsumerWidget {
             leading: channel.createsRooms == true
                 ? RailLobbyIcon(color: iconColor)
                 : ChannelKindIcon(
-                    isVoice: true,
+                    glyph: ChannelGlyphKind.voice,
                     restricted: channel.restricted ?? false,
                     color: iconColor,
                   ),

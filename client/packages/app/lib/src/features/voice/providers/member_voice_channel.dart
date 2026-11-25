@@ -4,7 +4,7 @@
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:slimm_data/data.dart' show Channel;
+import 'package:slimm_data/data.dart' show Channel, ChannelKinds;
 import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
 
 import '../../../providers/providers.dart';
@@ -17,7 +17,7 @@ final visibleVoiceChannelsProvider = StreamProvider.autoDispose<List<Channel>>((
   final store = ref.watch(storeProvider).valueOrNull;
   if (store == null) return const Stream.empty();
   return store.watchChannels().map(
-    (all) => all.where((c) => c.kind == 'voice').toList(growable: false),
+    (all) => all.where((c) => c.hostsCall).toList(growable: false),
   );
 });
 

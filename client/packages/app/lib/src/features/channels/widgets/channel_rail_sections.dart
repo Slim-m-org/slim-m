@@ -423,7 +423,7 @@ class _TextChannelRow extends ConsumerWidget {
       mentioned: indicator.mentioned,
       muted: muted,
       leading: ChannelKindIcon(
-        isVoice: false,
+        glyph: ChannelGlyphKind.text,
         restricted: channel.restricted ?? false,
         color: selected ? tokens.accent : tokens.textSecondary,
       ),

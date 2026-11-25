@@ -117,6 +117,7 @@ http.Response jsonResponse(Object body) => http.Response(
 class CanvasPaneFixture {
   CanvasPaneFixture({
     this.viewportStatus = 200,
+    this.viewportCode,
     this.hasMore = false,
     this.mePermissions = 0,
     int? channelPermissions,
@@ -148,6 +149,9 @@ class CanvasPaneFixture {
       StreamController<api.ServerEvent>.broadcast();
 
   int viewportStatus;
+
+  /// The stable `code` the viewport refusal carries, such as `canvas_off`.
+  String? viewportCode;
   final bool hasMore;
 
   /// The status `POST .../canvas/ops` answers with, so a test can drive the
@@ -448,7 +452,7 @@ class CanvasPaneFixture {
         viewportAnswered++;
         if (viewportStatus != 200) {
           return http.Response(
-            jsonEncode({'error': 'no'}),
+            jsonEncode({'error': 'no', 'code': ?viewportCode}),
             viewportStatus,
             headers: {'content-type': 'application/json'},
           );

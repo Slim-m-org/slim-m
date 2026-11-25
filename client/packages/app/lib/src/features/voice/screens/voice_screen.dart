@@ -40,6 +40,7 @@ import '../../../routing/routes.dart';
 import '../widgets/transcription_notice.dart';
 import 'call_details_pane.dart';
 import 'voice_in_call.dart';
+import '../../canvas/providers/canvas_entry.dart' show canvasEntryProvider;
 import '../../canvas/screens/canvas_pane.dart' show canvasOpenProvider;
 import 'voice_idle/voice_channel_idle.dart';
 import 'voice_join_preview.dart';
@@ -360,8 +361,9 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
           // Whichever join failed, a tap here or the automatic one on arrival.
           onRetry: () =>
               _joinMuted(controller, withMic: !controller.lastJoinMuted),
-          onOpenCanvas: () =>
-              ref.read(canvasOpenProvider.notifier).state = channelId,
+          onOpenCanvas: ref.watch(canvasEntryProvider(channelId))
+              ? () => ref.read(canvasOpenProvider.notifier).state = channelId
+              : null,
         ),
         _ => VoiceRejoinScreen(
           channelId: channelId,

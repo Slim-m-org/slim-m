@@ -29,7 +29,7 @@ class ForwardTarget {
     required this.channelId,
     required this.label,
     required this.isDm,
-    this.isVoice = false,
+    this.kind = 'text',
     this.restricted = false,
     this.isPersonalSpace = false,
     this.userId,
@@ -48,8 +48,8 @@ class ForwardTarget {
   /// choice of leading glyph, nothing that changes how a send to it works.
   final bool isDm;
 
-  /// Whether this is a voice channel, so the picker draws the rail's glyph.
-  final bool isVoice;
+  /// The channel's wire kind, so the picker draws the rail's glyph.
+  final String kind;
 
   /// Mirrors `Channel.restricted`: the picker draws the rail's lock.
   final bool restricted;
@@ -78,6 +78,9 @@ class ForwardTarget {
   final List<String>? groupMemberIds;
 
   bool get isGroup => groupMemberIds != null;
+
+  /// Whether a send here should land on the chat rather than the call or board.
+  bool get opensChat => kind == 'voice' || kind == 'canvas';
 
   /// Whether this target answers to [query], which callers pass already
   /// trimmed and lower-cased. Lives here rather than in the picker so the
@@ -113,7 +116,7 @@ final forwardTargetsProvider = FutureProvider.autoDispose
               channelId: channel.id,
               label: channel.name,
               isDm: false,
-              isVoice: channel.kind == 'voice',
+              kind: channel.kind,
               restricted: channel.restricted ?? false,
             ),
         for (final dm in dms)

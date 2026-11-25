@@ -165,7 +165,7 @@ class _ChannelPickRow extends StatelessWidget {
     return AppListRow(
       key: ValueKey('perm-channel-${channel.id}'),
       leading: ChannelKindIcon(
-        isVoice: channel.kind == 'voice',
+        glyph: ChannelGlyphKind.of(channel.kind),
         restricted: channel.restricted ?? false,
         color: tokens.textSecondary,
       ),

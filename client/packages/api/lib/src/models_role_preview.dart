@@ -42,12 +42,14 @@ class RolePreviewChannel {
     required this.permissions,
     required this.restricted,
     this.categoryId,
+    this.canvasEnabled,
+    this.voiceEnabled,
   });
 
   final String id;
   final String name;
 
-  /// `text` or `voice`.
+  /// `text`, `voice` or `canvas`.
   final String kind;
   final int position;
   final String? categoryId;
@@ -56,7 +58,19 @@ class RolePreviewChannel {
   /// Whether `@everyone` itself lacks view here.
   final bool restricted;
 
+  /// The server's board and call answers; null on an older server.
+  final bool? canvasEnabled;
+  final bool? voiceEnabled;
+
   bool get isVoice => kind == 'voice';
+
+  bool get isCanvasChannel => kind == 'canvas';
+
+  /// Whether a board exists here, falling back to the old rule.
+  bool get hasCanvas => canvasEnabled ?? (isVoice || isCanvasChannel);
+
+  /// Whether a call runs here, falling back to the old rule.
+  bool get hostsCall => voiceEnabled ?? isVoice;
 
   factory RolePreviewChannel.fromJson(Map<String, dynamic> json) =>
       RolePreviewChannel(
@@ -67,5 +81,7 @@ class RolePreviewChannel {
         categoryId: json['category_id'] as String?,
         permissions: json['permissions'] as int,
         restricted: json['restricted'] as bool,
+        canvasEnabled: json['canvas_enabled'] as bool?,
+        voiceEnabled: json['voice_enabled'] as bool?,
       );
 }

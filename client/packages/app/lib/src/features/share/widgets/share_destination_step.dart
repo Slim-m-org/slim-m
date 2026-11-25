@@ -57,7 +57,7 @@ class _ShareDestinationStepState extends ConsumerState<ShareDestinationStep> {
     }
     // Cleared before leaving: the router sends the person back here while a share is pending.
     ref.read(pendingShareProvider.notifier).state = null;
-    context.go(Routes.channel(target.channelId, openChat: target.isVoice));
+    context.go(Routes.channel(target.channelId, openChat: target.opensChat));
   }
 
   @override

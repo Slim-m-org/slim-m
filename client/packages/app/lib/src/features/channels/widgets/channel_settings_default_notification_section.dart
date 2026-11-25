@@ -66,7 +66,7 @@ class _ChannelDefaultNotificationSectionState
           description: channelDefaultNotificationHint,
           sheetTitle: channelDefaultNotificationLabel,
           value: current,
-          choices: stored.kind == 'voice'
+          choices: stored.kind == 'voice' || stored.isCanvasChannel
               ? voiceChannelDefaultNotificationChoices
               : channelDefaultNotificationChoices,
           onChanged: (level) => saving ? null : _set(level),

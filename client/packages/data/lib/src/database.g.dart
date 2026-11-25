@@ -153,6 +153,24 @@ class $ChannelsTable extends Channels with TableInfo<$ChannelsTable, Channel> {
       requiredDuringInsert: false,
       defaultConstraints: GeneratedColumn.constraintIsAlways(
           'CHECK ("creates_rooms" IN (0, 1))'));
+  static const VerificationMeta _canvasEnabledMeta =
+      const VerificationMeta('canvasEnabled');
+  @override
+  late final GeneratedColumn<bool> canvasEnabled = GeneratedColumn<bool>(
+      'canvas_enabled', aliasedName, true,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("canvas_enabled" IN (0, 1))'));
+  static const VerificationMeta _voiceEnabledMeta =
+      const VerificationMeta('voiceEnabled');
+  @override
+  late final GeneratedColumn<bool> voiceEnabled = GeneratedColumn<bool>(
+      'voice_enabled', aliasedName, true,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("voice_enabled" IN (0, 1))'));
   static const VerificationMeta _userLimitMeta =
       const VerificationMeta('userLimit');
   @override
@@ -212,6 +230,8 @@ class $ChannelsTable extends Channels with TableInfo<$ChannelsTable, Channel> {
         joinMuted,
         defaultNotification,
         createsRooms,
+        canvasEnabled,
+        voiceEnabled,
         userLimit,
         roomOwnerId,
         roomLobbyId,
@@ -341,6 +361,18 @@ class $ChannelsTable extends Channels with TableInfo<$ChannelsTable, Channel> {
           createsRooms.isAcceptableOrUnknown(
               data['creates_rooms']!, _createsRoomsMeta));
     }
+    if (data.containsKey('canvas_enabled')) {
+      context.handle(
+          _canvasEnabledMeta,
+          canvasEnabled.isAcceptableOrUnknown(
+              data['canvas_enabled']!, _canvasEnabledMeta));
+    }
+    if (data.containsKey('voice_enabled')) {
+      context.handle(
+          _voiceEnabledMeta,
+          voiceEnabled.isAcceptableOrUnknown(
+              data['voice_enabled']!, _voiceEnabledMeta));
+    }
     if (data.containsKey('user_limit')) {
       context.handle(_userLimitMeta,
           userLimit.isAcceptableOrUnknown(data['user_limit']!, _userLimitMeta));
@@ -420,6 +452,10 @@ class $ChannelsTable extends Channels with TableInfo<$ChannelsTable, Channel> {
           DriftSqlType.string, data['${effectivePrefix}default_notification']),
       createsRooms: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}creates_rooms']),
+      canvasEnabled: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}canvas_enabled']),
+      voiceEnabled: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}voice_enabled']),
       userLimit: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}user_limit']),
       roomOwnerId: attachedDatabase.typeMapping
@@ -545,6 +581,11 @@ class Channel extends DataClass implements Insertable<Channel> {
   /// Temporary voice rooms (decision 0065), nullable so an existing row and
   /// a row built in code read as "not a lobby, no limit, not a room".
   final bool? createsRooms;
+
+  /// Whether this channel has a board and a call, as the server computed
+  /// them. Null for an older server, which reads as the old kind rule.
+  final bool? canvasEnabled;
+  final bool? voiceEnabled;
   final int? userLimit;
   final String? roomOwnerId;
   final String? roomLobbyId;
@@ -577,6 +618,8 @@ class Channel extends DataClass implements Insertable<Channel> {
       required this.joinMuted,
       this.defaultNotification,
       this.createsRooms,
+      this.canvasEnabled,
+      this.voiceEnabled,
       this.userLimit,
       this.roomOwnerId,
       this.roomLobbyId,
@@ -625,6 +668,12 @@ class Channel extends DataClass implements Insertable<Channel> {
     }
     if (!nullToAbsent || createsRooms != null) {
       map['creates_rooms'] = Variable<bool>(createsRooms);
+    }
+    if (!nullToAbsent || canvasEnabled != null) {
+      map['canvas_enabled'] = Variable<bool>(canvasEnabled);
+    }
+    if (!nullToAbsent || voiceEnabled != null) {
+      map['voice_enabled'] = Variable<bool>(voiceEnabled);
     }
     if (!nullToAbsent || userLimit != null) {
       map['user_limit'] = Variable<int>(userLimit);
@@ -686,6 +735,12 @@ class Channel extends DataClass implements Insertable<Channel> {
       createsRooms: createsRooms == null && nullToAbsent
           ? const Value.absent()
           : Value(createsRooms),
+      canvasEnabled: canvasEnabled == null && nullToAbsent
+          ? const Value.absent()
+          : Value(canvasEnabled),
+      voiceEnabled: voiceEnabled == null && nullToAbsent
+          ? const Value.absent()
+          : Value(voiceEnabled),
       userLimit: userLimit == null && nullToAbsent
           ? const Value.absent()
           : Value(userLimit),
@@ -730,6 +785,8 @@ class Channel extends DataClass implements Insertable<Channel> {
       defaultNotification:
           serializer.fromJson<String?>(json['defaultNotification']),
       createsRooms: serializer.fromJson<bool?>(json['createsRooms']),
+      canvasEnabled: serializer.fromJson<bool?>(json['canvasEnabled']),
+      voiceEnabled: serializer.fromJson<bool?>(json['voiceEnabled']),
       userLimit: serializer.fromJson<int?>(json['userLimit']),
       roomOwnerId: serializer.fromJson<String?>(json['roomOwnerId']),
       roomLobbyId: serializer.fromJson<String?>(json['roomLobbyId']),
@@ -762,6 +819,8 @@ class Channel extends DataClass implements Insertable<Channel> {
       'joinMuted': serializer.toJson<bool>(joinMuted),
       'defaultNotification': serializer.toJson<String?>(defaultNotification),
       'createsRooms': serializer.toJson<bool?>(createsRooms),
+      'canvasEnabled': serializer.toJson<bool?>(canvasEnabled),
+      'voiceEnabled': serializer.toJson<bool?>(voiceEnabled),
       'userLimit': serializer.toJson<int?>(userLimit),
       'roomOwnerId': serializer.toJson<String?>(roomOwnerId),
       'roomLobbyId': serializer.toJson<String?>(roomLobbyId),
@@ -792,6 +851,8 @@ class Channel extends DataClass implements Insertable<Channel> {
           bool? joinMuted,
           Value<String?> defaultNotification = const Value.absent(),
           Value<bool?> createsRooms = const Value.absent(),
+          Value<bool?> canvasEnabled = const Value.absent(),
+          Value<bool?> voiceEnabled = const Value.absent(),
           Value<int?> userLimit = const Value.absent(),
           Value<String?> roomOwnerId = const Value.absent(),
           Value<String?> roomLobbyId = const Value.absent(),
@@ -827,6 +888,10 @@ class Channel extends DataClass implements Insertable<Channel> {
             : this.defaultNotification,
         createsRooms:
             createsRooms.present ? createsRooms.value : this.createsRooms,
+        canvasEnabled:
+            canvasEnabled.present ? canvasEnabled.value : this.canvasEnabled,
+        voiceEnabled:
+            voiceEnabled.present ? voiceEnabled.value : this.voiceEnabled,
         userLimit: userLimit.present ? userLimit.value : this.userLimit,
         roomOwnerId: roomOwnerId.present ? roomOwnerId.value : this.roomOwnerId,
         roomLobbyId: roomLobbyId.present ? roomLobbyId.value : this.roomLobbyId,
@@ -875,6 +940,12 @@ class Channel extends DataClass implements Insertable<Channel> {
       createsRooms: data.createsRooms.present
           ? data.createsRooms.value
           : this.createsRooms,
+      canvasEnabled: data.canvasEnabled.present
+          ? data.canvasEnabled.value
+          : this.canvasEnabled,
+      voiceEnabled: data.voiceEnabled.present
+          ? data.voiceEnabled.value
+          : this.voiceEnabled,
       userLimit: data.userLimit.present ? data.userLimit.value : this.userLimit,
       roomOwnerId:
           data.roomOwnerId.present ? data.roomOwnerId.value : this.roomOwnerId,
@@ -911,6 +982,8 @@ class Channel extends DataClass implements Insertable<Channel> {
           ..write('joinMuted: $joinMuted, ')
           ..write('defaultNotification: $defaultNotification, ')
           ..write('createsRooms: $createsRooms, ')
+          ..write('canvasEnabled: $canvasEnabled, ')
+          ..write('voiceEnabled: $voiceEnabled, ')
           ..write('userLimit: $userLimit, ')
           ..write('roomOwnerId: $roomOwnerId, ')
           ..write('roomLobbyId: $roomLobbyId, ')
@@ -943,6 +1016,8 @@ class Channel extends DataClass implements Insertable<Channel> {
         joinMuted,
         defaultNotification,
         createsRooms,
+        canvasEnabled,
+        voiceEnabled,
         userLimit,
         roomOwnerId,
         roomLobbyId,
@@ -974,6 +1049,8 @@ class Channel extends DataClass implements Insertable<Channel> {
           other.joinMuted == this.joinMuted &&
           other.defaultNotification == this.defaultNotification &&
           other.createsRooms == this.createsRooms &&
+          other.canvasEnabled == this.canvasEnabled &&
+          other.voiceEnabled == this.voiceEnabled &&
           other.userLimit == this.userLimit &&
           other.roomOwnerId == this.roomOwnerId &&
           other.roomLobbyId == this.roomLobbyId &&
@@ -1003,6 +1080,8 @@ class ChannelsCompanion extends UpdateCompanion<Channel> {
   final Value<bool> joinMuted;
   final Value<String?> defaultNotification;
   final Value<bool?> createsRooms;
+  final Value<bool?> canvasEnabled;
+  final Value<bool?> voiceEnabled;
   final Value<int?> userLimit;
   final Value<String?> roomOwnerId;
   final Value<String?> roomLobbyId;
@@ -1031,6 +1110,8 @@ class ChannelsCompanion extends UpdateCompanion<Channel> {
     this.joinMuted = const Value.absent(),
     this.defaultNotification = const Value.absent(),
     this.createsRooms = const Value.absent(),
+    this.canvasEnabled = const Value.absent(),
+    this.voiceEnabled = const Value.absent(),
     this.userLimit = const Value.absent(),
     this.roomOwnerId = const Value.absent(),
     this.roomLobbyId = const Value.absent(),
@@ -1060,6 +1141,8 @@ class ChannelsCompanion extends UpdateCompanion<Channel> {
     this.joinMuted = const Value.absent(),
     this.defaultNotification = const Value.absent(),
     this.createsRooms = const Value.absent(),
+    this.canvasEnabled = const Value.absent(),
+    this.voiceEnabled = const Value.absent(),
     this.userLimit = const Value.absent(),
     this.roomOwnerId = const Value.absent(),
     this.roomLobbyId = const Value.absent(),
@@ -1092,6 +1175,8 @@ class ChannelsCompanion extends UpdateCompanion<Channel> {
     Expression<bool>? joinMuted,
     Expression<String>? defaultNotification,
     Expression<bool>? createsRooms,
+    Expression<bool>? canvasEnabled,
+    Expression<bool>? voiceEnabled,
     Expression<int>? userLimit,
     Expression<String>? roomOwnerId,
     Expression<String>? roomLobbyId,
@@ -1122,6 +1207,8 @@ class ChannelsCompanion extends UpdateCompanion<Channel> {
       if (defaultNotification != null)
         'default_notification': defaultNotification,
       if (createsRooms != null) 'creates_rooms': createsRooms,
+      if (canvasEnabled != null) 'canvas_enabled': canvasEnabled,
+      if (voiceEnabled != null) 'voice_enabled': voiceEnabled,
       if (userLimit != null) 'user_limit': userLimit,
       if (roomOwnerId != null) 'room_owner_id': roomOwnerId,
       if (roomLobbyId != null) 'room_lobby_id': roomLobbyId,
@@ -1153,6 +1240,8 @@ class ChannelsCompanion extends UpdateCompanion<Channel> {
       Value<bool>? joinMuted,
       Value<String?>? defaultNotification,
       Value<bool?>? createsRooms,
+      Value<bool?>? canvasEnabled,
+      Value<bool?>? voiceEnabled,
       Value<int?>? userLimit,
       Value<String?>? roomOwnerId,
       Value<String?>? roomLobbyId,
@@ -1181,6 +1270,8 @@ class ChannelsCompanion extends UpdateCompanion<Channel> {
       joinMuted: joinMuted ?? this.joinMuted,
       defaultNotification: defaultNotification ?? this.defaultNotification,
       createsRooms: createsRooms ?? this.createsRooms,
+      canvasEnabled: canvasEnabled ?? this.canvasEnabled,
+      voiceEnabled: voiceEnabled ?? this.voiceEnabled,
       userLimit: userLimit ?? this.userLimit,
       roomOwnerId: roomOwnerId ?? this.roomOwnerId,
       roomLobbyId: roomLobbyId ?? this.roomLobbyId,
@@ -1256,6 +1347,12 @@ class ChannelsCompanion extends UpdateCompanion<Channel> {
     if (createsRooms.present) {
       map['creates_rooms'] = Variable<bool>(createsRooms.value);
     }
+    if (canvasEnabled.present) {
+      map['canvas_enabled'] = Variable<bool>(canvasEnabled.value);
+    }
+    if (voiceEnabled.present) {
+      map['voice_enabled'] = Variable<bool>(voiceEnabled.value);
+    }
     if (userLimit.present) {
       map['user_limit'] = Variable<int>(userLimit.value);
     }
@@ -1301,6 +1398,8 @@ class ChannelsCompanion extends UpdateCompanion<Channel> {
           ..write('joinMuted: $joinMuted, ')
           ..write('defaultNotification: $defaultNotification, ')
           ..write('createsRooms: $createsRooms, ')
+          ..write('canvasEnabled: $canvasEnabled, ')
+          ..write('voiceEnabled: $voiceEnabled, ')
           ..write('userLimit: $userLimit, ')
           ..write('roomOwnerId: $roomOwnerId, ')
           ..write('roomLobbyId: $roomLobbyId, ')
@@ -3659,6 +3758,8 @@ typedef $$ChannelsTableCreateCompanionBuilder = ChannelsCompanion Function({
   Value<bool> joinMuted,
   Value<String?> defaultNotification,
   Value<bool?> createsRooms,
+  Value<bool?> canvasEnabled,
+  Value<bool?> voiceEnabled,
   Value<int?> userLimit,
   Value<String?> roomOwnerId,
   Value<String?> roomLobbyId,
@@ -3688,6 +3789,8 @@ typedef $$ChannelsTableUpdateCompanionBuilder = ChannelsCompanion Function({
   Value<bool> joinMuted,
   Value<String?> defaultNotification,
   Value<bool?> createsRooms,
+  Value<bool?> canvasEnabled,
+  Value<bool?> voiceEnabled,
   Value<int?> userLimit,
   Value<String?> roomOwnerId,
   Value<String?> roomLobbyId,
@@ -3773,6 +3876,12 @@ class $$ChannelsTableFilterComposer
 
   ColumnFilters<bool> get createsRooms => $composableBuilder(
       column: $table.createsRooms, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get canvasEnabled => $composableBuilder(
+      column: $table.canvasEnabled, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get voiceEnabled => $composableBuilder(
+      column: $table.voiceEnabled, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get userLimit => $composableBuilder(
       column: $table.userLimit, builder: (column) => ColumnFilters(column));
@@ -3870,6 +3979,14 @@ class $$ChannelsTableOrderingComposer
       column: $table.createsRooms,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<bool> get canvasEnabled => $composableBuilder(
+      column: $table.canvasEnabled,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get voiceEnabled => $composableBuilder(
+      column: $table.voiceEnabled,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get userLimit => $composableBuilder(
       column: $table.userLimit, builder: (column) => ColumnOrderings(column));
 
@@ -3958,6 +4075,12 @@ class $$ChannelsTableAnnotationComposer
   GeneratedColumn<bool> get createsRooms => $composableBuilder(
       column: $table.createsRooms, builder: (column) => column);
 
+  GeneratedColumn<bool> get canvasEnabled => $composableBuilder(
+      column: $table.canvasEnabled, builder: (column) => column);
+
+  GeneratedColumn<bool> get voiceEnabled => $composableBuilder(
+      column: $table.voiceEnabled, builder: (column) => column);
+
   GeneratedColumn<int> get userLimit =>
       $composableBuilder(column: $table.userLimit, builder: (column) => column);
 
@@ -4018,6 +4141,8 @@ class $$ChannelsTableTableManager extends RootTableManager<
             Value<bool> joinMuted = const Value.absent(),
             Value<String?> defaultNotification = const Value.absent(),
             Value<bool?> createsRooms = const Value.absent(),
+            Value<bool?> canvasEnabled = const Value.absent(),
+            Value<bool?> voiceEnabled = const Value.absent(),
             Value<int?> userLimit = const Value.absent(),
             Value<String?> roomOwnerId = const Value.absent(),
             Value<String?> roomLobbyId = const Value.absent(),
@@ -4047,6 +4172,8 @@ class $$ChannelsTableTableManager extends RootTableManager<
             joinMuted: joinMuted,
             defaultNotification: defaultNotification,
             createsRooms: createsRooms,
+            canvasEnabled: canvasEnabled,
+            voiceEnabled: voiceEnabled,
             userLimit: userLimit,
             roomOwnerId: roomOwnerId,
             roomLobbyId: roomLobbyId,
@@ -4076,6 +4203,8 @@ class $$ChannelsTableTableManager extends RootTableManager<
             Value<bool> joinMuted = const Value.absent(),
             Value<String?> defaultNotification = const Value.absent(),
             Value<bool?> createsRooms = const Value.absent(),
+            Value<bool?> canvasEnabled = const Value.absent(),
+            Value<bool?> voiceEnabled = const Value.absent(),
             Value<int?> userLimit = const Value.absent(),
             Value<String?> roomOwnerId = const Value.absent(),
             Value<String?> roomLobbyId = const Value.absent(),
@@ -4105,6 +4234,8 @@ class $$ChannelsTableTableManager extends RootTableManager<
             joinMuted: joinMuted,
             defaultNotification: defaultNotification,
             createsRooms: createsRooms,
+            canvasEnabled: canvasEnabled,
+            voiceEnabled: voiceEnabled,
             userLimit: userLimit,
             roomOwnerId: roomOwnerId,
             roomLobbyId: roomLobbyId,

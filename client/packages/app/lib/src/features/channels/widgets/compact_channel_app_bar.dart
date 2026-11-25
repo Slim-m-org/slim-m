@@ -25,6 +25,7 @@ import '../../voice/widgets/dm_call_button.dart';
 import '../../voice/providers/voice_flags.dart';
 import '../../voice/screens/voice_text_pane.dart'
     show CallDetailsAction, VoiceChatAction, voiceChatPaneVisibleProvider;
+import 'channel_kind_icon.dart' show ChannelGlyphKind;
 import 'channel_title_glyph.dart';
 import 'group_dm_members_sheet.dart';
 import 'channel_topic_text.dart';
@@ -183,7 +184,7 @@ class _Title extends StatelessWidget {
           children: [
             ChannelTitleGlyph(
               name: name,
-              isVoice: isVoice,
+              glyph: isVoice ? ChannelGlyphKind.voice : ChannelGlyphKind.text,
               restricted: restricted,
               isDm: isDm,
               isPersonalSpace: isPersonalSpace,

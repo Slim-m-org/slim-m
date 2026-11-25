@@ -36,6 +36,7 @@ void main() {
               _channel('general', 'text'),
               _channel('Bob', 'dm'),
               _channel('lounge', 'voice'),
+              _channel('board', 'canvas'),
             ],
           ),
         ),
@@ -45,5 +46,8 @@ void main() {
     expect(find.text('general'), findsOneWidget);
     expect(find.text('lounge'), findsOneWidget);
     expect(find.text('Bob'), findsNothing);
+    expect(find.text('board'), findsOneWidget);
+    expect(find.byIcon(AppIcons.canvas), findsOneWidget);
+    expect(find.byIcon(AppIcons.voice), findsOneWidget);
   });
 }
