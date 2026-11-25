@@ -44,6 +44,9 @@ class _CanvasPeopleClusterState extends ConsumerState<CanvasPeopleCluster> {
   final _link = LayerLink();
   final _open = ValueNotifier<bool>(false);
 
+  /// Whether the list hangs from the trigger's right edge, because opening rightwards would leave the window.
+  bool _alignEnd = false;
+
   void _hide() {
     _portal.hide();
     _open.value = false;
@@ -54,6 +57,12 @@ class _CanvasPeopleClusterState extends ConsumerState<CanvasPeopleCluster> {
     if (MediaQuery.sizeOf(context).width < kCompactWidth) {
       unawaited(showCanvasPeopleSheet(context));
       return;
+    }
+    final box = context.findRenderObject() as RenderBox?;
+    if (box != null && box.hasSize) {
+      final left = box.localToGlobal(Offset.zero).dx;
+      final room = MediaQuery.sizeOf(context).width - AppSpacing.s12;
+      _alignEnd = left + _popoverWidth > room;
     }
     _portal.toggle();
     _open.value = _portal.isShowing;
@@ -191,8 +200,12 @@ class _CanvasPeopleClusterState extends ConsumerState<CanvasPeopleCluster> {
             child: CompositedTransformFollower(
               link: _link,
               showWhenUnlinked: false,
-              targetAnchor: Alignment.bottomLeft,
-              followerAnchor: Alignment.topLeft,
+              targetAnchor: _alignEnd
+                  ? Alignment.bottomRight
+                  : Alignment.bottomLeft,
+              followerAnchor: _alignEnd
+                  ? Alignment.topRight
+                  : Alignment.topLeft,
               offset: const Offset(0, AppSpacing.s4),
               child: ContextMenuKeyboardScope(
                 onDismiss: _hide,

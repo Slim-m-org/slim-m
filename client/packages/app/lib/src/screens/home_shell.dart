@@ -321,7 +321,7 @@ class HomeShell extends ConsumerWidget {
                     null;
                 ref.read(canvasFullscreenProvider.notifier).state = null;
               }
-            : facts.canvasOpen
+            : facts.canvasOpen && !facts.canvasChannel
             ? () => ref.read(canvasOpenProvider.notifier).state = null
             : null,
         showAppBar: !(replacesHeader || facts.notFound),

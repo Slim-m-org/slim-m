@@ -20,8 +20,11 @@ import '../../../routing/breakpoints.dart';
 import '../../../routing/routes.dart';
 import '../widgets/compact_channel_app_bar.dart';
 import '../widgets/channel_header.dart';
+import '../../canvas/providers/canvas_channel_chat_open.dart';
 import '../../canvas/screens/canvas_pane.dart';
 import '../../canvas/screens/canvas_chat_toggle.dart' show canvasChatDocks;
+import '../../canvas/screens/canvas_chat_arrival.dart';
+import '../../canvas/widgets/canvas_turned_off_notice.dart';
 import 'unlisted_channel.dart';
 import 'channel_screen.dart';
 import '../../voice/screens/dm_call_pane.dart';
@@ -112,7 +115,8 @@ class ConversationPane extends ConsumerWidget {
     if (channel?.isThread ?? false) ref.watch(threadAccessProvider(channelId));
     final isVoice = channel?.kind == 'voice';
     final isLobby = isVoice && channel?.createsRooms == true;
-    final canvasOpen = ref.watch(canvasOpenProvider) == channelId;
+    final canvasOpen = ref.watch(canvasShownProvider(channelId));
+    final isCanvasChannel = ref.watch(canvasIsChannelProvider(channelId));
     final dmCallOpen =
         channel?.kind == 'dm' && ref.watch(dmCallOpenProvider) == channelId;
     // Keyed by stage, so each pane fades through the one it replaces.
@@ -127,6 +131,7 @@ class ConversationPane extends ConsumerWidget {
       child: _pane(
         context: context,
         canvasOpen: canvasOpen,
+        isCanvasChannel: isCanvasChannel,
         isLobby: isLobby,
         isVoice: isVoice,
         dmCallOpen: dmCallOpen,
@@ -137,19 +142,22 @@ class ConversationPane extends ConsumerWidget {
       ),
     );
 
-    if (!layout.showsBothPanes || !isVoice || isLobby || canvasOpen) {
-      return body;
-    }
-    return Column(
-      children: [
-        _VoiceConversationHeader(
-          channelId: channelId,
-          name: channel?.name ?? '',
-          topic: channel?.topic,
-          restricted: channel?.restricted ?? false,
-        ),
-        Expanded(child: body),
-      ],
+    if (!isVoice || isLobby) return body;
+    return CanvasTurnedOffNotice(
+      channelId: channelId,
+      child: !layout.showsBothPanes || canvasOpen
+          ? body
+          : Column(
+              children: [
+                _VoiceConversationHeader(
+                  channelId: channelId,
+                  name: channel?.name ?? '',
+                  topic: channel?.topic,
+                  restricted: channel?.restricted ?? false,
+                ),
+                Expanded(child: body),
+              ],
+            ),
     );
   }
 
@@ -192,23 +200,48 @@ class ConversationPane extends ConsumerWidget {
     return 'text';
   }
 
-  /// A voice channel's canvas docks the channel's chat beside it where there
-  /// is room, as the call does; narrower, the canvas's own toggle sheets it.
-  Widget _canvas(BuildContext context, {required bool isVoice}) {
+  /// A voice or canvas channel's board docks the channel's chat beside it where
+  /// there is room, as the call does; narrower, the canvas's own toggle sheets it.
+  Widget _canvas(
+    BuildContext context, {
+    required bool isVoice,
+    required bool isCanvasChannel,
+  }) {
     final canvas = CanvasPane(channelId: channelId);
-    if (!isVoice || !canvasChatDocks(context)) return canvas;
-    return VoiceCallWithChatPane(channelId: channelId, call: canvas);
+    if (!isVoice && !isCanvasChannel) return canvas;
+    final board = isCanvasChannel
+        ? CanvasChatArrival(
+            channelId: channelId,
+            openChat: openChat,
+            child: canvas,
+          )
+        : canvas;
+    if (!canvasChatDocks(context)) return board;
+    return VoiceCallWithChatPane(
+      channelId: channelId,
+      chatOpen: isCanvasChannel
+          ? canvasChannelChatOpenProvider(channelId)
+          : voiceChatPaneVisibleProvider,
+      call: board,
+    );
   }
 
   Widget _pane({
     required BuildContext context,
     required bool canvasOpen,
+    required bool isCanvasChannel,
     required bool isLobby,
     required bool isVoice,
     required bool dmCallOpen,
     required bool caretOnOpen,
   }) {
-    if (canvasOpen) return _canvas(context, isVoice: isVoice);
+    if (canvasOpen) {
+      return _canvas(
+        context,
+        isVoice: isVoice,
+        isCanvasChannel: isCanvasChannel,
+      );
+    }
     if (isLobby) return VoiceLobbyRedirect(lobbyId: channelId);
     if (isVoice) {
       return VoiceScreen(

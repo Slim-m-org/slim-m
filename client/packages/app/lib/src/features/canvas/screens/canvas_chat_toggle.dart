@@ -1,15 +1,17 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Opens the voice channel's own text chat from the canvas.
+/// Opens the channel's own text chat from the canvas, a voice channel's or a canvas channel's.
 ///
 /// Where `LayoutClass.fitsThreadPane` has room the chat docks beside the
-/// canvas, through the same `voiceChatPaneVisibleProvider` the call view uses
-/// (`voice_text_pane.dart`). Narrower, it is a sheet over the canvas
+/// canvas: through the `voiceChatPaneVisibleProvider` the call view uses for a
+/// voice channel (`voice_text_pane.dart`), through the channel's own
+/// `canvasChannelChatOpenProvider` for a canvas channel. Narrower, it is a sheet over the canvas
 /// (desktop-vs-mobile.md rule 3), because swapping the canvas out would drop
 /// its camera, tool and any draft. A dot says a message arrived while closed.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../routing/breakpoints.dart';
@@ -18,13 +20,27 @@ import '../../channels/screens/channel_screen.dart';
 import '../../voice/providers/voice_chat_unread.dart';
 import '../../voice/screens/voice_text_pane.dart';
 import '../../voice/widgets/voice_chat_unread_dot.dart';
+import '../providers/canvas_channel_chat_open.dart';
+import '../providers/canvas_open.dart';
 
-/// Whether the canvas's channel is a voice channel with a chat to open; a
-/// DM's own conversation already holds its text.
+/// Whether the canvas's channel is a voice or canvas channel with a chat to
+/// open; a DM's own conversation already holds its text.
 final canvasHasChatProvider = Provider.autoDispose.family<bool, String>(
-  (ref, channelId) =>
-      ref.watch(channelByIdProvider(channelId)).valueOrNull?.kind == 'voice',
+  (ref, channelId) => ref.watch(
+    channelByIdProvider(channelId).select((c) {
+      final row = c.valueOrNull;
+      return row != null && (row.kind == 'voice' || row.isCanvasChannel);
+    }),
+  ),
 );
+
+/// The flag that docks this channel's chat: its own for a canvas channel, the voice one otherwise.
+StateProvider<bool> canvasChatOpenProviderFor(
+  String channelId, {
+  required bool isCanvasChannel,
+}) => isCanvasChannel
+    ? canvasChannelChatOpenProvider(channelId)
+    : voiceChatPaneVisibleProvider;
 
 /// The chat over the canvas, for a width with no room to dock it.
 Future<void> showCanvasChatSheet(
@@ -74,7 +90,11 @@ class _CanvasChatToggleState extends ConsumerState<CanvasChatToggle> {
       return const SizedBox.shrink();
     }
     final docks = canvasChatDocks(context);
-    final open = docks ? ref.watch(voiceChatPaneVisibleProvider) : _sheetOpen;
+    final chatOpen = canvasChatOpenProviderFor(
+      widget.channelId,
+      isCanvasChannel: ref.watch(canvasIsChannelProvider(widget.channelId)),
+    );
+    final open = docks ? ref.watch(chatOpen) : _sheetOpen;
     final unread =
         !open && ref.watch(voiceChatUnreadProvider(widget.channelId));
     return VoiceChatToggleDot(
@@ -87,8 +107,7 @@ class _CanvasChatToggleState extends ConsumerState<CanvasChatToggle> {
         tooltip: 'Text chat',
         active: open,
         onPressed: docks
-            ? () =>
-                  ref.read(voiceChatPaneVisibleProvider.notifier).state = !open
+            ? () => ref.read(chatOpen.notifier).state = !open
             : _openSheet,
       ),
     );

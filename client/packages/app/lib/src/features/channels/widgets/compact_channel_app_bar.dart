@@ -106,6 +106,7 @@ class CompactChannelAppBar extends ConsumerWidget
         name: channel?.name ?? '',
         topic: departure?.label ?? channel?.topic,
         isVoice: isVoice,
+        glyph: ChannelGlyphKind.of(channel?.kind ?? 'text'),
         restricted: channel?.restricted ?? false,
         isDm: isDm,
         isPersonalSpace: channel?.isPersonalSpace ?? false,
@@ -148,6 +149,7 @@ class _Title extends StatelessWidget {
     required this.name,
     required this.topic,
     required this.isVoice,
+    required this.glyph,
     required this.isDm,
     required this.isPersonalSpace,
     required this.dmParticipantId,
@@ -159,6 +161,7 @@ class _Title extends StatelessWidget {
   final String name;
   final String? topic;
   final bool isVoice;
+  final ChannelGlyphKind glyph;
   final bool isDm;
   final bool isPersonalSpace;
   final String? dmParticipantId;
@@ -184,7 +187,7 @@ class _Title extends StatelessWidget {
           children: [
             ChannelTitleGlyph(
               name: name,
-              glyph: isVoice ? ChannelGlyphKind.voice : ChannelGlyphKind.text,
+              glyph: glyph,
               restricted: restricted,
               isDm: isDm,
               isPersonalSpace: isPersonalSpace,

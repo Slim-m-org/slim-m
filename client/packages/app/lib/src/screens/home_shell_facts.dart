@@ -31,7 +31,10 @@ ShellFacts resolveShellFacts(
   final width = size.width;
   // CanvasBar is the only header while open (ConversationPane's doc); the compact app bar below would otherwise stack a second one above it.
   final canvasOpen =
-      selected != null && ref.watch(canvasOpenProvider) == selected;
+      selected != null && ref.watch(canvasShownProvider(selected));
+  // Its board is the channel, so back leaves the channel instead of closing a mode.
+  final canvasChannel =
+      selected != null && ref.watch(canvasIsChannelProvider(selected));
   // DmCallBar is the same: a DM's call pane replaces the header too.
   final dmCallOpen =
       selected != null && ref.watch(dmCallOpenProvider) == selected;
@@ -76,6 +79,7 @@ ShellFacts resolveShellFacts(
   return ShellFacts(
     selected: selected,
     canvasOpen: canvasOpen,
+    canvasChannel: canvasChannel,
     dmCallOpen: dmCallOpen,
     canvasFullscreen: canvasFullscreen,
     membersFit: membersFit,
@@ -131,6 +135,7 @@ class ShellFacts {
   const ShellFacts({
     required this.selected,
     required this.canvasOpen,
+    required this.canvasChannel,
     required this.dmCallOpen,
     required this.canvasFullscreen,
     required this.membersFit,
@@ -149,6 +154,9 @@ class ShellFacts {
 
   final String? selected;
   final bool canvasOpen;
+
+  /// Whether the open canvas is a canvas channel's own board, which has no close.
+  final bool canvasChannel;
   final bool dmCallOpen;
   final bool canvasFullscreen;
   final bool membersFit;

@@ -370,7 +370,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
             child: CanvasPaneBody(
               channelId: widget.channelId,
               boardFocusNode: _boardFocusNode,
-              onClose: _closeCanvas,
+              onClose: canvasClose(ref, widget.channelId, _closeCanvas),
               onActivityLogOpenChanged: (open) =>
                   setState(() => _activityLogOpen = open),
               fullscreen: fullscreen,

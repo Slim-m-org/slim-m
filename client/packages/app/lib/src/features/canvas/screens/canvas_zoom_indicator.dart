@@ -30,6 +30,7 @@ import 'canvas_board_keys.dart' show canvasZoomStep, zoomCanvasAboutCentre;
 import 'canvas_outside_board_notice.dart';
 import 'canvas_people_cluster.dart';
 import 'canvas_people_panel.dart';
+import 'canvas_people_placement.dart';
 import 'canvas_people_session.dart';
 import 'canvas_view_mode_controls.dart';
 
@@ -75,14 +76,16 @@ class CanvasZoomIndicator extends StatelessWidget {
         Consumer(
           builder: (context, ref, _) {
             final session = CanvasPeopleScope.maybeOf(context);
-            final people = canvasPeople(
-              call: ref.watch(
-                canvasCallPeopleProvider(
-                  CanvasPeopleScope.channelIdOf(context),
-                ),
-              ),
-              onCanvas: session?.onCanvas ?? const [],
-            ).any((p) => !p.isSelf);
+            final people =
+                canvasPeople(
+                  call: ref.watch(
+                    canvasCallPeopleProvider(
+                      CanvasPeopleScope.channelIdOf(context),
+                    ),
+                  ),
+                  onCanvas: session?.onCanvas ?? const [],
+                ).any((p) => !p.isSelf) &&
+                !CanvasPeopleInBar.of(context);
             if (!people && viewMode == null) return const SizedBox.shrink();
             return Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.s4),

@@ -341,8 +341,11 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen>
     // Ored with the store's own answer; see isThread's doc comment.
     final isThread = widget.isThread || channel?.parentMessageId != null;
     final isVoice = channel?.kind == 'voice';
-    // Only a real named channel (text or voice) gets its name; shared so the transcript and composer cannot drift.
-    final hashChannelName = channel?.kind == 'text' || isVoice
+    // Only a real named channel (text, voice or canvas) gets its name; shared so the transcript and composer cannot drift.
+    final hashChannelName =
+        channel?.kind == 'text' ||
+            isVoice ||
+            (channel?.isCanvasChannel ?? false)
         ? channelName
         : null;
     return ChannelAttachmentDropZone(

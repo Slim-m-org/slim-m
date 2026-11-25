@@ -10,6 +10,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/features/canvas/screens/canvas_bar.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_people_cluster.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_presence_tile.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_zoom_indicator.dart';
 import 'package:slimm_app/src/features/canvas/widgets/canvas_note_editor.dart';
@@ -221,15 +223,24 @@ class CanvasGestureFuzz {
       _tester.getRect(find.byType(CanvasPresenceManipulableTile).at(i)),
   ];
 
-  /// The zoom pill and view-mode buttons; the indicator widget itself spans the whole pane.
+  /// The facepile in the bar, then the zoom pill and view-mode buttons; the indicator widget itself spans the whole pane.
   List<Rect> _chipRects() {
-    final chips = find.descendant(
-      of: find.byType(CanvasZoomIndicator),
-      matching: find.byType(InkWell),
-    );
+    final chips = [
+      ...find
+          .descendant(
+            of: find.byWidgetPredicate((w) => w is CanvasBar),
+            matching: find.byWidgetPredicate((w) => w is CanvasPeopleCluster),
+          )
+          .evaluate(),
+      ...find
+          .descendant(
+            of: find.byType(CanvasZoomIndicator),
+            matching: find.byType(InkWell),
+          )
+          .evaluate(),
+    ];
     return [
-      for (var i = 0; i < chips.evaluate().length; i++)
-        _tester.getRect(chips.at(i)),
+      for (final chip in chips) _tester.getRect(find.byWidget(chip.widget)),
     ];
   }
 

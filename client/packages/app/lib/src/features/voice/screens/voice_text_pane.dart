@@ -81,11 +81,15 @@ class VoiceCallWithChatPane extends ConsumerWidget {
     required this.channelId,
     required this.call,
     this.details,
+    this.chatOpen,
     super.key,
   });
 
   final String channelId;
   final Widget call;
+
+  /// The flag that docks the chat; a voice channel passes the shared one, a canvas channel its own. Null reads the voice one.
+  final StateProvider<bool>? chatOpen;
 
   /// The call's details, shown in the slot while [callDetailsOpenProvider] is; null offers none.
   final Widget? details;
@@ -93,8 +97,11 @@ class VoiceCallWithChatPane extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final chat = ref.watch(voiceChatPaneVisibleProvider);
-    final details = ref.watch(callDetailsOpenProvider) ? this.details : null;
+    final chat = ref.watch(chatOpen ?? voiceChatPaneVisibleProvider);
+    // A pane with no details never reads their flag, so a canvas channel leaves it alone.
+    final details = this.details != null && ref.watch(callDetailsOpenProvider)
+        ? this.details
+        : null;
     final open = chat || details != null;
     return Row(
       // A body shorter than the pane, the idle page's, starts under the header rather than centred.
