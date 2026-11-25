@@ -104,6 +104,9 @@ abstract interface class DesktopWindowPort {
   Future<void> hide();
   Future<void> show();
 
+  /// Holds a maximized or fullscreen state back until the next [show], so a window kept hidden is not shown by it.
+  void deferRunState(WindowRunState state);
+
   /// Raises the window and gives it input focus - `window_manager`'s own
   /// `focus`, distinct from [show]: a hidden window needs [show] first, but
   /// a visible one merely buried behind another app or lacking focus needs
@@ -329,10 +332,25 @@ class WindowManagerDesktopWindowPort
     return wm.windowManager.hide();
   }
 
+  WindowRunState? _deferredRunState;
+
   @override
-  Future<void> show() {
+  void deferRunState(WindowRunState state) => _deferredRunState = state;
+
+  @override
+  Future<void> show() async {
     _hidden = false;
-    return wm.windowManager.show();
+    await wm.windowManager.show();
+    final deferred = _deferredRunState;
+    _deferredRunState = null;
+    switch (deferred) {
+      case WindowRunState.maximized:
+        await maximize();
+      case WindowRunState.fullscreen:
+        await setFullScreen(true);
+      case WindowRunState.windowed || null:
+        break;
+    }
   }
 
   @override

@@ -143,10 +143,17 @@ class FakeDesktopWindowPort implements DesktopWindowPort {
   Future<void> center() async => centerCalls++;
   @override
   Future<void> setFullScreen(bool value) async => fullScreen = value;
+  WindowRunState? deferredRunState;
+
+  @override
+  void deferRunState(WindowRunState state) => deferredRunState = state;
+
   @override
   Future<void> show() async {
     showCalls++;
     hiddenByApp = false;
+    if (deferredRunState == WindowRunState.maximized) await maximize();
+    deferredRunState = null;
   }
 
   @override

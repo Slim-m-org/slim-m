@@ -318,7 +318,10 @@ class DesktopWindowShell {
       await Future<void>.delayed(fadeOut);
     }
     try {
-      await _applyFinalGeometry(container).timeout(_setupTimeout);
+      await _applyFinalGeometry(
+        container,
+        deferRunState: startHidden,
+      ).timeout(_setupTimeout);
     } catch (error, stack) {
       AppLog.warning(
         LogTag.platform,
@@ -335,7 +338,10 @@ class DesktopWindowShell {
   /// On Windows the window grows in place: the engine holds a resize until a
   /// frame of the new size is drawn, so the splash goes straight to the full
   /// window with nothing hidden in between.
-  Future<void> _applyFinalGeometry(ProviderContainer container) async {
+  Future<void> _applyFinalGeometry(
+    ProviderContainer container, {
+    required bool deferRunState,
+  }) async {
     final prefs = await container.read(preferencesProvider.future);
     final inPlace =
         (_chromePlatform ?? currentDesktopPlatform()) ==
@@ -346,6 +352,7 @@ class DesktopWindowShell {
       WindowGeometryStore(prefs),
       positionSupported: _positionSupported(),
       hideFirst: !inPlace,
+      deferRunState: deferRunState,
       onTarget: (target) {
         _handoffTargetSize = viewSizeFor(target.size, inset);
         _handoffFillsDisplay = target.fillsDisplay;

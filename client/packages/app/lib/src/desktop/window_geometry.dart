@@ -312,19 +312,16 @@ WindowGeometry _keptOnScreen(
   if (covered >= windowArea - 0.5) {
     return position.scale == null ? geometry : _restated(geometry, inHome);
   }
+  const floor = WindowGeometry.minimumWindowSize;
+  final width = math.max(math.min(inHome.width, home.width), floor.width);
+  final height = math.max(math.min(inHome.height, home.height), floor.height);
   return _restated(
     geometry,
     WindowRect(
-      x: math.max(
-        home.x,
-        math.min(inHome.x, home.x + home.width - inHome.width),
-      ),
-      y: math.max(
-        home.y,
-        math.min(inHome.y, home.y + home.height - inHome.height),
-      ),
-      width: inHome.width,
-      height: inHome.height,
+      x: math.max(home.x, math.min(inHome.x, home.x + home.width - width)),
+      y: math.max(home.y, math.min(inHome.y, home.y + home.height - height)),
+      width: width,
+      height: height,
       scale: inHome.scale,
     ),
   );
