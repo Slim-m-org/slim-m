@@ -6,7 +6,6 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_text_focus.dart';
-import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../support/async_wait.dart';
 import 'canvas_pane_harness.dart';

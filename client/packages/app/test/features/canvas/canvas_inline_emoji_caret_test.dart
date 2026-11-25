@@ -3,7 +3,6 @@
 library;
 
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -71,7 +70,9 @@ void main() {
 
   testWidgets('Left steps back over an emoji in one press', (tester) async {
     final controller = await _field(tester, 'a${_blobby}b');
-    controller.selection = TextSelection.collapsed(offset: 1 + _blobby.length);
+    controller.selection = const TextSelection.collapsed(
+      offset: 1 + _blobby.length,
+    );
     await tester.pump();
 
     await _press(tester, LogicalKeyboardKey.arrowLeft);
@@ -101,7 +102,9 @@ void main() {
     tester,
   ) async {
     final controller = await _field(tester, 'a${_blobby}b');
-    controller.selection = TextSelection.collapsed(offset: 1 + _blobby.length);
+    controller.selection = const TextSelection.collapsed(
+      offset: 1 + _blobby.length,
+    );
     await tester.pump();
 
     await _press(tester, LogicalKeyboardKey.backspace);
@@ -125,7 +128,7 @@ void main() {
   testWidgets('an emoji stays drawn while another word is being composed', (
     tester,
   ) async {
-    final controller = await _field(tester, '${_blobby} wor');
+    final controller = await _field(tester, '$_blobby wor');
     controller.value = controller.value.copyWith(
       composing: const TextRange(start: 9, end: 12),
     );
@@ -137,7 +140,7 @@ void main() {
   testWidgets('an emoji the keyboard is composing inside is left as text', (
     tester,
   ) async {
-    final controller = await _field(tester, '${_blobby} wor');
+    final controller = await _field(tester, '$_blobby wor');
     controller.value = controller.value.copyWith(
       composing: const TextRange(start: 2, end: 6),
     );
