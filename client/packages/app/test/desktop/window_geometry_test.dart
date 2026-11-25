@@ -79,13 +79,7 @@ void main() {
       const external = DisplayArea(x: 0, y: 0, width: 1920, height: 1080);
       const geometry = WindowGeometry(
         windowedSize: WindowSize(width: 2400, height: 1300),
-        position: WindowRect(
-          x: 0,
-          y: 0,
-          width: 2400,
-          height: 1300,
-          scale: 1.5,
-        ),
+        position: WindowRect(x: 0, y: 0, width: 2400, height: 1300, scale: 1.5),
       );
 
       final placed = clampToAttachedDisplays(geometry, [external]).position!;
