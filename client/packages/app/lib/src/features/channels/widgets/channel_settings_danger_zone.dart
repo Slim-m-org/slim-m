@@ -62,9 +62,13 @@ class ChannelDangerZoneSection extends ConsumerStatefulWidget {
     super.key,
     required this.channel,
     required this.wasOpen,
+    this.leadingRows = const [],
   });
 
   final Channel channel;
+
+  /// Other irreversible actions for this channel, shown above Delete.
+  final List<Widget> leadingRows;
 
   /// Whether this channel was the one open behind the row whose kebab
   /// reached this screen - captured at that point rather than here; see
@@ -123,6 +127,7 @@ class _ChannelDangerZoneSectionState
   @override
   Widget build(BuildContext context) => SettingsDangerCard(
     title: 'Danger zone',
+    leadingRows: widget.leadingRows,
     message: 'Deletes the channel and its message history for everyone.',
     action: AppButton(
       label: _deleting ? 'Deleting...' : 'Delete channel...',

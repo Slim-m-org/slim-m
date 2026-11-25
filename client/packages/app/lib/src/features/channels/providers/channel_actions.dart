@@ -24,6 +24,8 @@ class ChannelActions {
     bool restricted = false,
     bool joinMuted = false,
     bool createsRooms = false,
+    bool? canvasEnabled,
+    bool? voiceEnabled,
     NotificationPreference defaultNotification =
         NotificationPreference.everything,
     String? id,
@@ -35,6 +37,8 @@ class ChannelActions {
       restricted: restricted,
       joinMuted: joinMuted,
       createsRooms: createsRooms,
+      canvasEnabled: canvasEnabled,
+      voiceEnabled: voiceEnabled,
       defaultNotification: defaultNotification,
       id: id,
     );
