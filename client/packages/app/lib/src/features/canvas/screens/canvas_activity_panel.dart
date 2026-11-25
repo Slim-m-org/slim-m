@@ -18,6 +18,7 @@ import '../../members/providers/user_profiles.dart';
 import '../../../providers/dock_reservation.dart';
 import '../../../format.dart';
 import '../../messages/widgets/author_label.dart';
+import '../providers/canvas_viewers.dart';
 import 'canvas_activity_log.dart';
 
 /// Renders nothing visible, but its `Semantics` label changes on every
@@ -93,14 +94,41 @@ class _CanvasActivityAnnouncerState
   void _announce(List<CanvasActivityEntry> batch) {
     if (!mounted) return;
     final profiles = ref.read(batchProfilesControllerProvider);
-    final text = summarizeCanvasActivity(
-      batch,
-      nameFor: (id) => authorLabel(
-        authorId: id,
-        cachedDisplayName: null,
-        profiles: profiles,
+    _say(
+      summarizeCanvasActivity(
+        batch,
+        nameFor: (id) => authorLabel(
+          authorId: id,
+          cachedDisplayName: null,
+          profiles: profiles,
+        ),
       ),
     );
+  }
+
+  void _onArrival(CanvasViewerArrival? arrival) {
+    if (arrival == null) return;
+    final id = arrival.userId;
+    final known = ref.read(batchProfilesControllerProvider);
+    if (known.containsKey(id)) return _announceArrival(id);
+    final pending = ref
+        .read(batchProfilesControllerProvider.notifier)
+        .resolve([id])
+        .timeout(_resolveTimeout, onTimeout: () {});
+    unawaited(pending.then((_) => _announceArrival(id)));
+  }
+
+  void _announceArrival(String userId) {
+    if (!mounted) return;
+    final name = authorLabel(
+      authorId: userId,
+      cachedDisplayName: null,
+      profiles: ref.read(batchProfilesControllerProvider),
+    );
+    _say('$name opened the canvas');
+  }
+
+  void _say(String text) {
     final direction = Directionality.maybeOf(context) ?? TextDirection.ltr;
     final view = View.maybeOf(context);
     if (view != null) {
@@ -110,14 +138,20 @@ class _CanvasActivityAnnouncerState
   }
 
   @override
-  Widget build(BuildContext context) => Semantics(
-    key: CanvasActivityAnnouncer.liveRegionKey,
-    // Its own node: merged into the pane's focus scope, the call timer's tick rewrote this label every second.
-    container: true,
-    liveRegion: true,
-    label: _text,
-    child: const SizedBox.shrink(),
-  );
+  Widget build(BuildContext context) {
+    ref.listen(
+      canvasViewerArrivalProvider,
+      (_, arrival) => _onArrival(arrival),
+    );
+    return Semantics(
+      key: CanvasActivityAnnouncer.liveRegionKey,
+      // Its own node: merged into the pane's focus scope, the call timer's tick rewrote this label every second.
+      container: true,
+      liveRegion: true,
+      label: _text,
+      child: const SizedBox.shrink(),
+    );
+  }
 }
 
 /// A full-height, navigable substitute for the canvas surface: a summary of

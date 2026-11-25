@@ -1032,6 +1032,33 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /presence/canvas-viewers:
+    get:
+      operationId: listCanvasViewers
+      tags: [presence]
+      summary: Who has each open board the caller can view open.
+      description: >
+        One batched snapshot, read when first needed, on every reconnect and
+        on resync, so a client makes one roster call however many boards or
+        rows show it. Lists the open boards the caller can view that have
+        anyone shown on them, each viewer ordered by `since` (milliseconds
+        since the epoch, when their first connection opened the board). A
+        viewer is shown when they have a live connection on the board, can
+        view the channel, and have not chosen `hidden`; the caller always
+        sees their own entry. A voice channel's board counts only while its
+        canvas is on. Live changes arrive as `canvas.viewer.changed`.
+      responses:
+        "200":
+          description: The boards with viewers.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CanvasViewersResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
   /presence/activity:
     put:
       operationId: setPresenceActivity
@@ -23423,6 +23450,7 @@ components:
         - $ref: "#/components/schemas/CanvasMediaSlotChanged"
         - $ref: "#/components/schemas/CanvasObjectLockChanged"
         - $ref: "#/components/schemas/CanvasTileSceneChanged"
+        - $ref: "#/components/schemas/CanvasViewerChanged"
         - $ref: "#/components/schemas/ReportsChanged"
         - $ref: "#/components/schemas/AdminAlertsChanged"
         - $ref: "#/components/schemas/ReadStateChanged"
@@ -24015,6 +24043,62 @@ components:
         ran_at:
           type: integer
           format: int64
+    CanvasViewerChanged:
+      type: object
+      required: [type, channel_id, user_id, viewing]
+      description: >-
+        A user started or stopped being shown as viewing a board: their first
+        connection opened it, their last one closed it, or their visibility
+        moved to or from `hidden`. Batched, so at most one frame per user and
+        channel every half second, and none when a toggle ends where it began.
+        Delivered to every connection that can view the channel while its board
+        is open, whether or not that connection has the board open, and never
+        filtered by `canvas.watch`. A hidden user's arrivals and departures
+        publish nothing. Turning a board off sends no frame; a client clears the
+        roster when `channel.updated` says the canvas is off. An older client
+        ignores the type.
+      properties:
+        type:
+          type: string
+          enum: [canvas.viewer.changed]
+        channel_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        viewing:
+          type: boolean
+    CanvasViewersResponse:
+      type: object
+      required: [channels]
+      properties:
+        channels:
+          type: array
+          items:
+            $ref: "#/components/schemas/CanvasBoardViewers"
+    CanvasBoardViewers:
+      type: object
+      required: [channel_id, viewers]
+      properties:
+        channel_id:
+          type: string
+          format: uuid
+        viewers:
+          type: array
+          items:
+            $ref: "#/components/schemas/CanvasViewer"
+    CanvasViewer:
+      type: object
+      required: [user_id, since]
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        since:
+          type: integer
+          format: int64
+          description: Milliseconds since the epoch.
     CanvasTileScene:
       type: object
       required: [object_id, output, ran_at]

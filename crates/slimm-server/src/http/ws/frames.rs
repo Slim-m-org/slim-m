@@ -398,6 +398,9 @@ pub(super) enum ServerFrame {
     /// A module tile's shared frame changed; `output` is the scene every viewer draws.
     #[serde(rename = "canvas.tile.scene_changed")]
     CanvasTileSceneChanged(canvas_wire::TileSceneChanged),
+    /// A user started or stopped being shown as viewing a board.
+    #[serde(rename = "canvas.viewer.changed")]
+    CanvasViewerChanged(canvas_wire::ViewerChanged),
     /// The moderation queue changed: a report was filed or resolved. Carries
     /// nothing beyond the type tag; see [`crate::hub::Event::ReportsChanged`]
     /// for why. Delivered only to a connection whose user holds

@@ -8,6 +8,7 @@ mod account_sync_events;
 mod blocking_live;
 mod blocking_live_cache;
 mod bulk_delete_events;
+mod canvas_viewers_live;
 mod device_liveness;
 mod dm_open_publishes_no_event;
 mod live_channel_deleted_admin;

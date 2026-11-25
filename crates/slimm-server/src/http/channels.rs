@@ -399,6 +399,9 @@ async fn update(
             .await?
             .ok_or(ApiError::NotFound("channel not found"))?
     };
+    if req.canvas_enabled == Some(false) {
+        state.hub.canvas_viewers().close_channel(channel_id);
+    }
     if req.voice_enabled == Some(false) {
         end_voice_room(&state, channel_id).await;
     }
