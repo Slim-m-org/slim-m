@@ -11,6 +11,7 @@ import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_move_follower.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_session_sync.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_rtc/rtc.dart';
 
@@ -86,7 +87,7 @@ void main() {
     fakeAsync((async) {
       final call = inCall(async);
       call.session.dropWith(VoiceDisconnect.removed);
-      async.flushMicrotasks();
+      async.elapse(voiceRemovalGrace);
       expect(call.controller.state.error, _removed);
 
       serverSaysMoved(async, 'channel-1');
@@ -128,7 +129,7 @@ void main() {
 
       serverSaysMoved(async, 'another-channel');
       call.session.dropWith(VoiceDisconnect.removed);
-      async.flushMicrotasks();
+      async.elapse(voiceRemovalGrace);
 
       expect(call.controller.state.error, _removed);
     });
@@ -146,9 +147,53 @@ void main() {
       call.session.emitState(VoiceSessionState.connected);
       async.flushMicrotasks();
       call.session.dropWith(VoiceDisconnect.removed);
-      async.flushMicrotasks();
+      async.elapse(voiceRemovalGrace);
 
       expect(call.controller.state.error, _removed);
+    });
+  });
+
+  group('a moderator move', () {
+    const move = api.VoiceMoved(
+      fromChannelId: 'channel-1',
+      toChannelId: 'channel-2',
+      toChannelName: 'Lounge',
+      movedById: 'mod',
+      movedByName: 'Mod',
+    );
+
+    test('is a switch when the SFU drop beats the frame', () {
+      fakeAsync((async) {
+        final call = inCall(async);
+        call.session.dropWith(VoiceDisconnect.removed);
+        async.flushMicrotasks();
+        expect(
+          call.controller.state.state,
+          VoiceSessionState.connected,
+          reason: 'the drop waits for the frame before it tears the call down',
+        );
+        expect(call.controller.state.error, isNull);
+
+        events.add(move);
+        async.elapse(voiceRemovalGrace * 2);
+
+        expect(call.controller.state.error, isNull);
+        expect(call.controller.state.channelId, 'channel-2');
+      });
+    });
+
+    test('is a removal when no frame follows the drop', () {
+      fakeAsync((async) {
+        final call = inCall(async);
+        call.session.dropWith(VoiceDisconnect.removed);
+        async.elapse(voiceRemovalGrace - const Duration(milliseconds: 1));
+        expect(call.controller.state.state, VoiceSessionState.connected);
+
+        async.elapse(const Duration(milliseconds: 1));
+
+        expect(call.controller.state.state, VoiceSessionState.failed);
+        expect(call.controller.state.error, _removed);
+      });
     });
   });
 }

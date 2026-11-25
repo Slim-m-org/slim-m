@@ -300,6 +300,11 @@ impl RoomLiveState {
         lock(&self.state).session_reopen.insert(channel_id);
     }
 
+    /// The calls whose sessions are still waiting to be reopened.
+    pub fn deferred_session_reopens(&self) -> Vec<ChannelId> {
+        lock(&self.state).session_reopen.iter().copied().collect()
+    }
+
     /// Whether `channel_id`'s sessions were waiting to be reopened; asking clears the note.
     pub fn take_session_reopen(&self, channel_id: ChannelId) -> bool {
         lock(&self.state).session_reopen.remove(&channel_id)

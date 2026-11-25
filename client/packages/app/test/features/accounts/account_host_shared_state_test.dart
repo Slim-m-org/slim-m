@@ -5,6 +5,8 @@ library;
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/features/accounts/providers/account.dart'
+    show AccountIndex;
 import 'package:slimm_app/src/features/accounts/providers/account_slot.dart';
 import 'package:slimm_app/src/features/accounts/providers/account_store.dart';
 import 'package:slimm_app/src/providers/providers.dart';
@@ -78,6 +80,37 @@ void main() {
       await addServer(tabTwo, _c);
 
       expect(await storedOrigins(tabOne), containsAll([_a, _b, _c]));
+    });
+
+    test(
+      'a tab that removed the last account is not undone by another',
+      () async {
+        final keys = InMemoryKeyStore();
+        final tabOne = open(AccountHarness(keys: keys));
+        await tabOne.seed(_a, user: 'ann', active: true);
+        await tabOne.boot();
+
+        await tabOne.store.save(const AccountIndex());
+        await addServer(tabOne, _b);
+
+        expect(await storedOrigins(tabOne), [_b]);
+      },
+    );
+
+    test('two tabs that add one server keep one database file', () async {
+      final keys = InMemoryKeyStore();
+      final tabOne = open(AccountHarness(keys: keys, newDbFile: () => 'one'));
+      await tabOne.seed(_a, user: 'ann', active: true);
+      await tabOne.boot();
+      final tabTwo = open(AccountHarness(keys: keys, newDbFile: () => 'two'));
+      await tabTwo.boot();
+
+      await addServer(tabOne, _b);
+      await addServer(tabTwo, _b);
+
+      final stored = (await tabOne.store.load()).byOrigin(_b);
+      expect(stored!.dbFile, 'one');
+      expect(tabTwo.host.runtimeFor(_b)!.account!.dbFile, 'one');
     });
 
     test('every write runs under the cross-tab lock', () async {

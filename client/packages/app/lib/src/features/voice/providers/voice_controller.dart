@@ -249,6 +249,7 @@ class VoiceController extends StateNotifier<VoiceState> {
 
   /// [join] for a move somebody else made: it never opens a microphone that is closed in this call.
   Future<void> joinMoved(String channelId) {
+    _sync.cancelHeldRemoval();
     _keepMicNextJoin = true;
     return join(channelId);
   }
@@ -518,6 +519,7 @@ class VoiceController extends StateNotifier<VoiceState> {
     input.stopWatchingSpaceNoiseSuppression();
     _autoRejoin.reset();
     _reconnectDisplay.dispose();
+    _sync.cancelHeldRemoval();
     unawaited(_states.cancel());
     unawaited(_transportRestarts.cancel());
     unawaited(_participants.cancel());

@@ -25,7 +25,7 @@ class AccountIndexWriter {
 
   /// Applies [change] to the index stored now, not to this tab's copy of it.
   ///
-  /// [known] is what this tab holds: it is added to a stored list that is unread or empty, never replaces one.
+  /// [known] is what this tab holds: it is added to a stored list that could not be read, never replaces one.
   Future<void> save(
     AccountIndex Function(AccountIndex stored) change, {
     required AccountIndex known,
@@ -42,9 +42,7 @@ class AccountIndexWriter {
     try {
       Future<void> body() async {
         final stored = await _store.loadOrMigrate();
-        final base = unread || stored.accounts.isEmpty
-            ? _withKnown(stored, known)
-            : stored;
+        final base = unread ? _withKnown(stored, known) : stored;
         await _store.save(change(base));
         unread = false;
       }

@@ -46,4 +46,36 @@ void main() {
     expect(answers, 4, reason: 'it kept asking until the timeout was gone');
     expect(container.read(meProvider).valueOrNull?.timedOutUntil, isNull);
   });
+
+  test('a refetch that fails is not retried every floor', () async {
+    var answers = 0;
+    final until = clock.now().millisecondsSinceEpoch + 30;
+    final container = ProviderContainer(
+      overrides: [
+        meProvider.overrideWith((ref) async {
+          answers++;
+          if (answers > 1) throw Exception('offline');
+          return api.Me(
+            id: 'me',
+            username: 'me',
+            displayName: 'Me',
+            createdAt: 0,
+            permissions: 0,
+            timedOutUntil: until,
+          );
+        }),
+      ],
+    );
+    addTearDown(container.dispose);
+    container.listen(meProvider, (_, _) {});
+    container.listen(timeoutExpiryWatcherProvider, (_, _) {});
+
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+
+    expect(answers, 2, reason: 'one failed refetch ends the loop');
+  });
+
+  test('the recheck floor is a second', () {
+    expect(floor, const Duration(seconds: 1));
+  });
 }

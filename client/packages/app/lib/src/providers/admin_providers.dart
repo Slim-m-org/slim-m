@@ -205,7 +205,7 @@ final timeoutExpiryWatcherProvider = Provider.autoDispose<void>((ref) {
   Timer? expiry;
   ref.onDispose(() => expiry?.cancel());
   ref.listen(meProvider, (_, me) {
-    if (me.isLoading) return;
+    if (me.isLoading || me.hasError) return;
     expiry?.cancel();
     final until = me.valueOrNull?.timedOutUntil;
     if (until == null) return;

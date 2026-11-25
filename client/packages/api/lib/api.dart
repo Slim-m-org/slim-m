@@ -144,6 +144,7 @@ export 'src/events.dart'
         ChannelCreated,
         ChannelDeleted,
         ChannelUpdated,
+        ParseResyncThrottle,
         EventConnection,
         EventConnectionRefused,
         ErrorEvent,

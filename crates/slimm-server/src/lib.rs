@@ -72,7 +72,9 @@ pub use sweeps::{
     run_token_sweep_pass, run_transcript_retention_sweep_pass, sweep_stale_call_rings,
     sweep_stale_call_rings_at, sweep_stale_voice_calls, sweep_stale_voice_calls_at,
 };
-pub use voice_session_sweeps::{close_stale_sessions, reconcile_on_startup, reopen_deferred};
+pub use voice_session_sweeps::{
+    close_stale_sessions, reconcile_on_startup, reopen_deferred, retry_deferred_reopens,
+};
 
 use anyhow::Context as _;
 

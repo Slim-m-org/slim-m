@@ -17,6 +17,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import 'package:slimm_app/src/features/voice/providers/voice_session_sync.dart';
+
 import 'voice_controller_harness.dart';
 
 const _channelName = 'top.npcserver.slimm/call_lifecycle';
@@ -105,8 +107,10 @@ void main() {
     await Future<void>.delayed(Duration.zero);
     calls.clear();
 
+    voiceRemovalGrace = Duration.zero;
+    addTearDown(() => voiceRemovalGrace = const Duration(milliseconds: 1500));
     session.dropWith(VoiceDisconnect.removed);
-    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(const Duration(milliseconds: 20));
 
     expect(calls.map((c) => c.method), ['callEnded']);
   });

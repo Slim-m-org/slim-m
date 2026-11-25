@@ -18,25 +18,50 @@ final favoritesProvider =
     );
 
 class FavoritesController extends AsyncNotifier<List<api.Favorite>> {
+  int _mutating = 0;
+  bool _resyncWaiting = false;
+
   @override
   Future<List<api.Favorite>> build() {
-    ref.watch(syncResyncProvider);
+    ref.listen(syncResyncProvider, (_, _) => _resync());
     return ref.watch(apiProvider).listFavorites();
   }
 
+  /// A reconnect mid-mutation would replace the list with one fetched before the change landed, so it waits for the change.
+  void _resync() {
+    if (_mutating > 0) {
+      _resyncWaiting = true;
+      return;
+    }
+    ref.invalidateSelf();
+  }
+
+  Future<T> _mutation<T>(Future<T> Function() change) async {
+    _mutating++;
+    try {
+      return await change();
+    } finally {
+      _mutating--;
+      if (_mutating == 0 && _resyncWaiting) {
+        _resyncWaiting = false;
+        ref.invalidateSelf();
+      }
+    }
+  }
+
   /// Favorites a live GIF result; a failure is thrown for the caller to show.
-  Future<void> addGif(String gifId) async {
+  Future<void> addGif(String gifId) => _mutation(() async {
     final added = await ref
         .read(apiProvider)
         .addGifFavorite(newFavoriteId(), gifId: gifId);
     _putFirst(added);
-  }
+  });
 
   /// Favorites an image or video on a message; a failure is thrown.
   Future<void> addAttachment({
     required String messageId,
     required String attachmentId,
-  }) async {
+  }) => _mutation(() async {
     final added = await ref
         .read(apiProvider)
         .addAttachmentFavorite(
@@ -45,7 +70,7 @@ class FavoritesController extends AsyncNotifier<List<api.Favorite>> {
           attachmentId: attachmentId,
         );
     _putFirst(added);
-  }
+  });
 
   /// A list that never loaded is fetched again rather than replaced by the one
   /// favorite just added, which would hide every other.
@@ -59,7 +84,7 @@ class FavoritesController extends AsyncNotifier<List<api.Favorite>> {
   }
 
   /// A failure puts back only this entry, so a change made meanwhile stays.
-  Future<void> remove(String id) async {
+  Future<void> remove(String id) => _mutation(() async {
     final current = state.valueOrNull ?? const <api.Favorite>[];
     final index = current.indexWhere((f) => f.id == id);
     if (index >= 0) state = AsyncData([...current]..removeAt(index));
@@ -69,10 +94,10 @@ class FavoritesController extends AsyncNotifier<List<api.Favorite>> {
       if (index >= 0) _putBack(current[index], index);
       rethrow;
     }
-  }
+  });
 
   /// Moves the entry at [from] to index [to] in the current list.
-  Future<void> move(int from, int to) async {
+  Future<void> move(int from, int to) => _mutation(() async {
     final before = state.valueOrNull ?? const <api.Favorite>[];
     if (from == to || from < 0 || from >= before.length) return;
     final moved = before[from];
@@ -88,7 +113,7 @@ class FavoritesController extends AsyncNotifier<List<api.Favorite>> {
       if (_ids().contains(moved.id)) _putBack(moved, from);
       rethrow;
     }
-  }
+  });
 
   Set<String> _ids() => {
     for (final f in state.valueOrNull ?? const <api.Favorite>[]) f.id,

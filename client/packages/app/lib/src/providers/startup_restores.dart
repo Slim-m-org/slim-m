@@ -124,7 +124,10 @@ Future<void> resyncVoiceDevicePreferences(ProviderContainer container) async {
 }
 
 bool _inCall(VoiceFlags flags) =>
-    flags.state == VoiceSessionState.connected || flags.rejoining;
+    flags.state == VoiceSessionState.connected ||
+    flags.rejoining ||
+    flags.joining ||
+    flags.channelId != null;
 
 final _waitingForCall = Expando<ProviderSubscription<VoiceFlags>>();
 

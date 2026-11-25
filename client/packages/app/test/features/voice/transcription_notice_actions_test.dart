@@ -21,6 +21,24 @@ void main() {
     expect(await actions.isDue(), isTrue);
   });
 
+  TranscriptionNoticeActions answering(int status) {
+    final client = testApi((_) async => http.Response('{}', status));
+    addTearDown(client.close);
+    return TranscriptionNoticeActions(client);
+  }
+
+  test('a server without the route owes no notice', () async {
+    final old = answering(404);
+    expect(await old.dueNotice(), isNull);
+    expect(await old.isDue(), isFalse);
+  });
+
+  test('a server that is down still owes the notice', () async {
+    final down = answering(503);
+    expect(await down.isDue(), isTrue);
+    await expectLater(down.dueNotice(), throwsA(isA<api.ApiException>()));
+  });
+
   test('an unreadable notice is an error, not "nothing due"', () async {
     await expectLater(actions.dueNotice(), throwsA(isA<api.ApiException>()));
   });

@@ -261,6 +261,33 @@ void main() {
     }
   });
 
+  const bot = api.UserProfile(
+    id: 'user-bob',
+    username: 'bob',
+    displayName: 'Bob',
+    createdAt: 0,
+    isBot: true,
+  );
+
+  testWidgets('a bot is not offered Move to', (tester) async {
+    await _pump(tester, _Wire(), permissions: Perm.moveMembers, bob: bot);
+    await rightClickMenu(tester, find.text('Bob'));
+    expect(find.text('Move to...'), findsNothing);
+  });
+
+  testWidgets('a bot cannot be dragged to another channel', (tester) async {
+    final wire = _Wire();
+    await _pump(
+      tester,
+      wire,
+      permissions: Perm.moveMembers,
+      beside: _games,
+      bob: bot,
+    );
+    await _dragBobOntoGames(tester);
+    expect(wire.posts, isEmpty);
+  });
+
   testWidgets('a finger dragging a person moves nobody', (tester) async {
     final wire = _Wire();
     await _pump(

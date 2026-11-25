@@ -197,6 +197,31 @@ void main() {
       expect(_failedRestores(parent), hasLength(11));
     });
 
+    test('a switch to another channel is not the call ending', () async {
+      final flags = StateProvider<VoiceFlags>(
+        (ref) => const VoiceFlags(state: VoiceSessionState.connected),
+      );
+      final parent = _unreadable();
+      final container = ProviderContainer(
+        parent: parent,
+        overrides: [voiceFlagsProvider.overrideWith((ref) => ref.watch(flags))],
+      );
+      addTearDown(container.dispose);
+      await resyncVoiceDevicePreferences(container);
+
+      container.read(flags.notifier).state = const VoiceFlags(
+        channelId: 'next',
+        state: VoiceSessionState.connecting,
+        joining: true,
+      );
+      await pumpEventQueue();
+      expect(_recorded(parent), isEmpty);
+
+      container.read(flags.notifier).state = const VoiceFlags();
+      await pumpEventQueue();
+      expect(_failedRestores(parent), hasLength(11));
+    });
+
     test('a second resync does not queue a second one', () async {
       final parent = _unreadable();
       final container = wired(parent);

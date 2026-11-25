@@ -12,6 +12,7 @@ import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/favorites/providers/favorites_controller.dart';
 import 'package:slimm_app/src/providers/providers.dart';
+import 'package:slimm_app/src/sync/providers/sync_status.dart';
 import 'package:slimm_platform/testing.dart';
 
 import '../../support/fake_api.dart';
@@ -39,11 +40,13 @@ class _Server {
   final List<String> favorites;
   final bool failFirstList;
   int _lists = 0;
+  int listCalls = 0;
   final Map<String, Completer<http.Response>> _writes = {};
 
   Future<http.Response> handle(http.Request request) {
     final call = '${request.method} ${request.url.path}';
     if (call == 'GET /favorites') {
+      listCalls++;
       if (failFirstList && _lists++ == 0) {
         return Future.value(http.Response(jsonEncode({'error': 'down'}), 500));
       }
@@ -122,6 +125,28 @@ void main() {
     await moveFailed;
 
     expect(_ids(container), ['A', 'B']);
+  });
+
+  test('a reconnect during a reorder waits for it, then refetches', () async {
+    final server = _Server(['A', 'B', 'C']);
+    final container = _container(server);
+    container.listen(favoritesProvider, (_, _) {});
+    await container.read(favoritesProvider.future);
+    final controller = container.read(favoritesProvider.notifier);
+
+    final move = controller.move(0, 2);
+    await _pump();
+    container.read(syncResyncProvider.notifier).state++;
+    await _pump();
+
+    expect(_ids(container), ['B', 'C', 'A']);
+    expect(server.listCalls, 1, reason: 'the list is not read mid-change');
+
+    server.accept('PUT /favorites/order');
+    await move;
+    await _pump();
+
+    expect(server.listCalls, 2);
   });
 
   test(

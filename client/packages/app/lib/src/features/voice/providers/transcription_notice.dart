@@ -29,9 +29,16 @@ class TranscriptionNoticeActions {
   }
 
   /// The notice while it is owed, else null; throws [api.ApiException] when it cannot be read.
+  ///
+  /// A bare 404 is a server from before the route existed, which owes nothing.
   Future<api.TranscriptionNotice?> dueNotice() async {
-    final notice = await _api.transcriptionNotice();
-    return notice.due ? notice : null;
+    try {
+      final notice = await _api.transcriptionNotice();
+      return notice.due ? notice : null;
+    } on api.NotFoundException catch (error) {
+      if (error.unexplained) return null;
+      rethrow;
+    }
   }
 
   /// Records the acknowledgement; a failure only means it asks again next time.

@@ -44,7 +44,7 @@ pub async fn close_stale_sessions(store: &Store, hub: &Hub, stale: &[(UserId, Ch
 /// opens one again for each member the SFU still has on those calls.
 ///
 /// Tells modules about the closes, so call this once their consumer is subscribed. A call the
-/// SFU did not answer for stays closed until its next heartbeat, see [`reopen_deferred`].
+/// SFU did not answer for stays closed until [`retry_deferred_reopens`] reaches it.
 pub async fn reconcile_on_startup(store: &Store, voice: &VoiceService, hub: &Hub) {
     let at = store::now_ms();
     let closed = match store.close_voice_sessions(SessionScope::Everyone, at).await {
@@ -111,15 +111,26 @@ async fn reopen_channel(
     Ok(reopened)
 }
 
-/// Opens the sessions of a call startup could not read off the SFU, on the first heartbeat
-/// that shows someone is on it again; a read that fails again leaves it for the next one.
-pub async fn reopen_deferred(store: &Store, voice: &VoiceService, channel_id: ChannelId) {
+/// Opens the sessions of a call startup could not read off the SFU; a read that fails again
+/// leaves it for the next try and answers false.
+pub async fn reopen_deferred(store: &Store, voice: &VoiceService, channel_id: ChannelId) -> bool {
     if !voice.live_state().take_session_reopen(channel_id) {
-        return;
+        return true;
     }
     if let Err(err) = reopen_channel(store, voice, channel_id, store::now_ms()).await {
         tracing::warn!(?err, %channel_id, "could not reopen a voice call's sessions");
         voice.live_state().defer_session_reopen(channel_id);
+        return false;
+    }
+    true
+}
+
+/// Retries every call still waiting to be reopened, stopping at the first the SFU does not answer for.
+pub async fn retry_deferred_reopens(store: &Store, voice: &VoiceService) {
+    for channel_id in voice.live_state().deferred_session_reopens() {
+        if !reopen_deferred(store, voice, channel_id).await {
+            return;
+        }
     }
 }
 

@@ -207,13 +207,26 @@ class AccountHost extends ChangeNotifier {
         scheduleMicrotask(() => _reopenDatabase(runtime));
       }
     }
+    Account? stored;
     unawaited(
-      _saveIndex(
-        (index) => (dropsPrevious ? index.without(previous.origin) : index)
-            .withAccount(account),
-      ),
+      _saveIndex((index) {
+        final base = dropsPrevious ? index.without(previous.origin) : index;
+        stored = base.byOrigin(origin);
+        return stored == null ? base.withAccount(account) : base;
+      }).then((_) => _adoptStoredFile(slot, account, stored)),
     );
     return account;
+  }
+
+  /// Another tab filed this server first: its database file stays, so every tab caches into the same one.
+  void _adoptStoredFile(AccountSlot slot, Account mine, Account? stored) {
+    if (_disposed || stored == null || stored.dbFile == mine.dbFile) return;
+    if (slot.account != mine) return;
+    slot.account = stored;
+    _index = _index.withAccount(stored);
+    final runtime = _runtimeOf(slot);
+    if (runtime != null) _reopenDatabase(runtime);
+    _changed();
   }
 
   /// A file name no other account already caches into.
