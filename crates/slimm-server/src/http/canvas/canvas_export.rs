@@ -7,26 +7,25 @@ use std::sync::{Arc, LazyLock, Mutex};
 use axum::Router;
 use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::StatusCode;
-use axum::http::request::Parts;
 use axum::middleware::from_fn;
 use axum::routing::post;
 use serde::{Deserialize, Serialize};
 
 use super::super::AppState;
 use super::super::category_sight::CategorySight;
-use super::super::channels::ChannelDto;
 use super::super::channels::channel_validation::validate_channel_name;
+use super::super::channels::{ChannelDto, require_manager_who_sees};
 use super::super::error::ApiError;
-use super::super::extract::{Authed, Json, enforce};
+use super::super::extract::{CANVAS_EXPORT, Json};
 use super::super::messages::parse_uuid;
+use super::super::participant::Participant;
 use super::super::post_commit::run_to_completion;
 use super::canvas_ops_write::publish;
 use super::canvas_write::ensure_may_draw;
 use crate::hub::Event;
 use crate::ids::{ChannelCategoryId, ChannelId, UserId};
 use crate::permissions::Permissions;
-use crate::ratelimit::Class;
-use crate::store::{CreateChannelError, DM_CHANNEL_KIND, ExportError, ExportRequest};
+use crate::store::{CreateChannelError, ExportError, ExportRequest};
 
 /// The body is a name and a few flags.
 const BODY_LIMIT: usize = 16 * 1024;
@@ -61,6 +60,7 @@ struct ExportDto {
     skipped: i64,
     cleared: i64,
     spared: i64,
+    left: i64,
 }
 
 /// Sources being exported right now. The server is one process, so a set is enough to hold a second export of one board off.
@@ -153,15 +153,11 @@ async fn require_exporter(
     source_id: ChannelId,
     clear_source: bool,
 ) -> Result<Option<ChannelCategoryId>, ApiError> {
-    let base = state.store.base_permissions(user_id).await?;
-    if !base.contains(Permissions::MANAGE_CHANNELS) {
-        return Err(ApiError::Forbidden);
-    }
+    require_manager_who_sees(state, user_id, source_id).await?;
     let source = state
         .store
         .channel_including_deleted(source_id)
         .await?
-        .filter(|channel| channel.kind != DM_CHANNEL_KIND)
         .ok_or(ApiError::NotFound("channel not found"))?;
     let permissions = ensure_may_draw(state, user_id, source_id).await?;
     if clear_source && !permissions.contains(Permissions::MANAGE_CANVAS) {
@@ -172,15 +168,14 @@ async fn require_exporter(
 
 /// Copies the source's board into a new canvas channel with the source's audience, and clears the source when asked.
 ///
-/// Idempotent by `id`: a retry answers the stored outcome and publishes nothing.
+/// Idempotent by `id`: a retry answers the stored outcome, ignoring a changed name, category or `voice_enabled`, and publishes nothing.
+/// A replay is charged like any attempt, since the rate limit runs before the body is read.
 async fn export(
-    Authed(ctx): Authed,
-    parts: Parts,
+    Participant(ctx): Participant<CANVAS_EXPORT>,
     Path(channel_id): Path<String>,
     State(state): State<AppState>,
     Json(body): Json<ExportBody>,
 ) -> Result<Json<ExportDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::CanvasExport)?;
     let source_id = ChannelId(parse_uuid(&channel_id)?);
     let id = ChannelId(parse_uuid(&body.id)?);
     let clear_source = body.clear_source == Some(true);
@@ -224,5 +219,6 @@ async fn export(
         skipped: done.skipped,
         cleared: done.cleared,
         spared: done.spared,
+        left: done.left,
     }))
 }

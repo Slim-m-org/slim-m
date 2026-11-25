@@ -265,16 +265,19 @@ pub(in crate::store) async fn cascade_after_clear(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     channel_id: ChannelId,
     now: i64,
+    keep_json: &str,
 ) -> Result<Vec<CanvasObjectId>, sqlx::Error> {
     sqlx::query_scalar!(
         r#"UPDATE canvas_objects SET deleted_at = ?
            WHERE channel_id = ? AND kind = 'edge' AND deleted_at IS NULL
+             AND lower(hex(id)) NOT IN (SELECT value FROM json_each(?))
              AND id IN (SELECT e.edge_id FROM canvas_edge_ends e
                         JOIN canvas_objects end_o ON end_o.id = e.object_id
                         WHERE end_o.channel_id = ? AND end_o.deleted_at IS NOT NULL)
            RETURNING id AS "id!: CanvasObjectId""#,
         now,
         channel_id,
+        keep_json,
         channel_id
     )
     .fetch_all(&mut **tx)

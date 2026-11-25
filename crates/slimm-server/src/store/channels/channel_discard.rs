@@ -88,6 +88,7 @@ impl Store {
                 before_seq,
                 scope: &ClearScope::default(),
                 spare_locks: false,
+                keep: &[],
                 now,
             },
         )

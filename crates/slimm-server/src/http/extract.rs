@@ -232,6 +232,7 @@ pub(crate) const SCREEN_STAMP: u8 = 20;
 
 /// A watch-together session update or tick; see [`Class::WatchTick`].
 pub(crate) const WATCH_TICK: u8 = 21;
+pub(crate) const CANVAS_EXPORT: u8 = 22;
 
 /// Panics on an unknown code rather than falling back.
 ///
@@ -264,6 +265,7 @@ fn class_of(code: u8) -> Class {
         CANVAS_BATCH => Class::CanvasBatch,
         SCREEN_STAMP => Class::ScreenStamp,
         WATCH_TICK => Class::WatchTick,
+        CANVAS_EXPORT => Class::CanvasExport,
         other => unreachable!("no rate-limit class for code {other}"),
     }
 }

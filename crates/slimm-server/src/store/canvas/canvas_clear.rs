@@ -26,20 +26,35 @@ pub(in crate::store) async fn apply_clear(
     scope: &ClearScope,
     now: i64,
     spare_locks: bool,
+    keep: &[CanvasObjectId],
 ) -> Result<ClearOutcome, sqlx::Error> {
-    let cleared = clear_matching(tx, channel_id, before_seq, scope, now, spare_locks).await?;
+    let keep_ids: Vec<String> = keep.iter().map(|id| id.0.simple().to_string()).collect();
+    let keep_json = serde_json::to_string(&keep_ids).unwrap_or_default();
+    let cleared = clear_matching(
+        tx,
+        channel_id,
+        before_seq,
+        scope,
+        now,
+        spare_locks,
+        &keep_json,
+    )
+    .await?;
     if cleared.is_empty() {
-        let cleared = clear_matching(tx, channel_id, before_seq, scope, now, false).await?;
-        let cascaded = cascade_after_clear(tx, channel_id, now).await?;
+        let cleared =
+            clear_matching(tx, channel_id, before_seq, scope, now, false, &keep_json).await?;
+        let cascaded = cascade_after_clear(tx, channel_id, now, &keep_json).await?;
         return Ok(ClearOutcome {
             cleared,
-            spared: Vec::new(),
+            spared: keep.to_vec(),
             cascaded,
         });
     }
-    let cascaded = cascade_after_clear(tx, channel_id, now).await?;
+    let cascaded = cascade_after_clear(tx, channel_id, now, &keep_json).await?;
     let mut spared = locked_matching(tx, channel_id, before_seq, scope).await?;
     spared.retain(|id| !cascaded.contains(id));
+    let locked = spared.clone();
+    spared.extend(keep.iter().filter(|id| !locked.contains(id)));
     Ok(ClearOutcome {
         cleared,
         spared,
@@ -54,6 +69,7 @@ async fn clear_matching(
     scope: &ClearScope,
     now: i64,
     skip_locked: bool,
+    keep_json: &str,
 ) -> Result<Vec<CanvasObjectId>, sqlx::Error> {
     let kinds_json = scope.kinds_json();
     // RETURNING rather than rows_affected(): the audit log needs the ids.
@@ -63,6 +79,7 @@ async fn clear_matching(
              AND (? IS NULL OR kind IN (SELECT value FROM json_each(?)))
              AND (? IS NULL OR author_id = ?)
              AND (? = 0 OR id NOT IN (SELECT object_id FROM canvas_object_locks))
+             AND lower(hex(id)) NOT IN (SELECT value FROM json_each(?))
            RETURNING id AS "id!: CanvasObjectId""#,
         now,
         channel_id,
@@ -71,7 +88,8 @@ async fn clear_matching(
         kinds_json,
         scope.author_id,
         scope.author_id,
-        skip_locked
+        skip_locked,
+        keep_json
     )
     .fetch_all(&mut **tx)
     .await
@@ -110,6 +128,8 @@ pub(in crate::store) struct ClearInTx<'a> {
     pub scope: &'a ClearScope,
     /// False takes locked objects too, for a board nobody can see (decision 0139).
     pub spare_locks: bool,
+    /// Live objects the clear must leave alone whatever their lock, such as what an export could not copy.
+    pub keep: &'a [CanvasObjectId],
     pub now: i64,
 }
 
@@ -127,9 +147,10 @@ pub(in crate::store) async fn clear_in_tx(
         before_seq,
         scope,
         spare_locks,
+        keep,
         now,
     } = params;
-    let outcome = apply_clear(tx, channel_id, before_seq, scope, now, spare_locks).await?;
+    let outcome = apply_clear(tx, channel_id, before_seq, scope, now, spare_locks, keep).await?;
     let touched_ids = outcome.cleared;
     let affected = touched_ids.len() as i64;
     if affected == 0 {

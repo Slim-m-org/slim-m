@@ -11,6 +11,7 @@ use std::sync::{Arc, Mutex, MutexGuard};
 
 use super::Visibility;
 use crate::ids::{ChannelId, UserId};
+use crate::store::now_ms;
 
 /// A user's live connections on one board, each with when it opened it (ms since epoch).
 pub type Entry = BTreeMap<u64, i64>;
@@ -29,11 +30,6 @@ pub fn viewer_shown(entry: &Entry, visibility: Option<Visibility>) -> bool {
     !entry.is_empty() && matches!(visibility, Some(v) if v != Visibility::Hidden)
 }
 
-/// The earliest connection's open time: when the user arrived.
-pub fn since(entry: &Entry) -> Option<i64> {
-    entry.values().min().copied()
-}
-
 struct Connection {
     user_id: UserId,
     channels: HashSet<ChannelId>,
@@ -43,7 +39,10 @@ struct Connection {
 struct Inner {
     boards: HashMap<ChannelId, HashMap<UserId, Entry>>,
     connections: HashMap<u64, Connection>,
-    published: HashSet<(UserId, ChannelId)>,
+    /// When each published pair first became shown; time spent hidden never counts.
+    published: HashMap<(UserId, ChannelId), i64>,
+    /// The last visibility change of a pair that is not published yet; `since` never predates it.
+    floor: HashMap<(UserId, ChannelId), i64>,
     dirty: HashSet<(UserId, ChannelId)>,
 }
 
@@ -109,8 +108,8 @@ impl CanvasViewers {
         }
     }
 
-    /// Marks every pair a user is viewing dirty, for a visibility change.
-    pub fn mark_user_dirty(&self, user_id: UserId) {
+    /// Marks every pair a user is viewing dirty, for a visibility change at `now_ms`.
+    pub fn mark_user_dirty(&self, user_id: UserId, now_ms: i64) {
         let mut inner = lock(&self.inner);
         let pairs: Vec<_> = inner
             .connections
@@ -118,6 +117,11 @@ impl CanvasViewers {
             .filter(|c| c.user_id == user_id)
             .flat_map(|c| c.channels.iter().map(|ch| (user_id, *ch)))
             .collect();
+        for pair in &pairs {
+            if !inner.published.contains_key(pair) {
+                inner.floor.insert(*pair, now_ms);
+            }
+        }
         inner.dirty.extend(pairs);
     }
 
@@ -126,7 +130,8 @@ impl CanvasViewers {
     pub fn close_channel(&self, channel_id: ChannelId) {
         let mut inner = lock(&self.inner);
         inner.boards.remove(&channel_id);
-        inner.published.retain(|(_, ch)| *ch != channel_id);
+        inner.published.retain(|(_, ch), _| *ch != channel_id);
+        inner.floor.retain(|(_, ch), _| *ch != channel_id);
         inner.dirty.retain(|(_, ch)| *ch != channel_id);
         for connection in inner.connections.values_mut() {
             connection.channels.remove(&channel_id);
@@ -135,21 +140,36 @@ impl CanvasViewers {
 
     /// The changes since the last flush, one per dirty pair whose shown state moved.
     pub fn flush(&self, visibility: impl Fn(UserId) -> Option<Visibility>) -> Vec<ViewerChange> {
+        self.flush_at(visibility, now_ms())
+    }
+
+    /// [`CanvasViewers::flush`] with an explicit clock, for a pair whose arrival is unknown.
+    pub fn flush_at(
+        &self,
+        visibility: impl Fn(UserId) -> Option<Visibility>,
+        now_ms: i64,
+    ) -> Vec<ViewerChange> {
         let mut inner = lock(&self.inner);
         let dirty = std::mem::take(&mut inner.dirty);
         let mut changes = Vec::new();
         for (user_id, channel_id) in dirty {
-            let shown = inner
+            let entry = inner
                 .boards
                 .get(&channel_id)
-                .and_then(|users| users.get(&user_id))
-                .is_some_and(|entry| viewer_shown(entry, visibility(user_id)));
-            let was = inner.published.contains(&(user_id, channel_id));
+                .and_then(|users| users.get(&user_id));
+            let shown = entry.is_some_and(|entry| viewer_shown(entry, visibility(user_id)));
+            let arrived = entry.and_then(|entry| entry.values().min().copied());
+            let was = inner.published.contains_key(&(user_id, channel_id));
             if shown == was {
                 continue;
             }
+            if arrived.is_none() {
+                inner.floor.remove(&(user_id, channel_id));
+            }
             if shown {
-                inner.published.insert((user_id, channel_id));
+                let floor = inner.floor.remove(&(user_id, channel_id));
+                let since = arrived.unwrap_or(now_ms).max(floor.unwrap_or(i64::MIN));
+                inner.published.insert((user_id, channel_id), since);
             } else {
                 inner.published.remove(&(user_id, channel_id));
             }
@@ -169,6 +189,23 @@ impl CanvasViewers {
             .get(&channel_id)
             .map(|users| users.iter().map(|(u, e)| (*u, e.clone())).collect())
             .unwrap_or_default()
+    }
+
+    /// When `user_id` started being shown on `channel_id`: the published time, or for a pair not
+    /// published yet its earliest open, never earlier than their last visibility change.
+    pub fn shown_since(&self, user_id: UserId, channel_id: ChannelId) -> Option<i64> {
+        let inner = lock(&self.inner);
+        let pair = (user_id, channel_id);
+        if let Some(since) = inner.published.get(&pair) {
+            return Some(*since);
+        }
+        let arrived = inner
+            .boards
+            .get(&channel_id)?
+            .get(&user_id)?
+            .values()
+            .min()?;
+        Some(*arrived.max(inner.floor.get(&pair).unwrap_or(&i64::MIN)))
     }
 
     /// Boards that have any live connection.

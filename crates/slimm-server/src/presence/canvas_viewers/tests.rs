@@ -136,11 +136,11 @@ fn turning_hidden_publishes_a_leave_and_turning_visible_a_join() {
     let w = world();
     w.viewers.replace(w.user, 1, set(&[w.board]), 10);
     w.viewers.flush(online);
-    w.viewers.mark_user_dirty(w.user);
+    w.viewers.mark_user_dirty(w.user, 0);
     let leave = w.viewers.flush(hidden);
     assert_eq!(leave.len(), 1);
     assert!(!leave[0].viewing);
-    w.viewers.mark_user_dirty(w.user);
+    w.viewers.mark_user_dirty(w.user, 0);
     let join = w.viewers.flush(online);
     assert_eq!(join.len(), 1);
     assert!(join[0].viewing);
@@ -166,5 +166,25 @@ fn viewer_shown_fails_closed_without_a_known_visibility() {
     assert!(viewer_shown(&entry, Some(Visibility::Away)));
     assert!(!viewer_shown(&entry, None));
     assert!(!viewer_shown(&Entry::new(), Some(Visibility::Online)));
-    assert_eq!(since(&entry), Some(5));
+}
+
+#[test]
+fn arrival_while_shown_keeps_the_open_time() {
+    let w = world();
+    w.viewers.replace(w.user, 1, set(&[w.board]), 10);
+    w.viewers.flush_at(online, 900);
+    assert_eq!(w.viewers.shown_since(w.user, w.board), Some(10));
+}
+
+#[test]
+fn time_spent_hidden_never_shows_up_as_since() {
+    let w = world();
+    w.viewers.replace(w.user, 1, set(&[w.board]), 10);
+    assert!(w.viewers.flush_at(hidden, 20).is_empty());
+    w.viewers.mark_user_dirty(w.user, 30_000);
+    assert_eq!(w.viewers.flush_at(online, 30_500).len(), 1);
+    assert_eq!(w.viewers.shown_since(w.user, w.board), Some(30_000));
+    w.viewers.mark_user_dirty(w.user, 60_000);
+    w.viewers.flush_at(online, 60_500);
+    assert_eq!(w.viewers.shown_since(w.user, w.board), Some(30_000));
 }

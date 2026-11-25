@@ -26,7 +26,7 @@ pub(super) struct ExportPlan {
     pub(super) order: Vec<CanvasObjectId>,
     pub(super) map: HashMap<CanvasObjectId, CanvasObjectId>,
     /// Objects left behind: module tiles whose module is gone, and edges that lost an end.
-    pub(super) skipped: i64,
+    pub(super) dropped: Vec<CanvasObjectId>,
 }
 
 /// An edge copied but not yet attached: its ends are resolved once every object exists.
@@ -100,7 +100,7 @@ pub(super) async fn plan_copy(
     Ok(ExportPlan {
         order,
         map,
-        skipped: dropped.len() as i64,
+        dropped: dropped.into_iter().collect(),
     })
 }
 

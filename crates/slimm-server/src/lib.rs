@@ -67,10 +67,10 @@ pub use attachment_text::WORKER_ARG as PDF_WORKER_ARG;
 pub use attachment_text::{Limit, PdfParse, PdfWorker, TextExtractor, run_pdf_worker};
 pub mod voice_transcripts;
 pub use sweeps::{
-    flush_canvas_viewers, run_attachment_sweep_pass, run_audit_log_sweep_pass,
-    run_message_retention_sweep_pass, run_token_sweep_pass, run_transcript_retention_sweep_pass,
-    spawn_canvas_viewer_flush, sweep_stale_call_rings, sweep_stale_call_rings_at,
-    sweep_stale_voice_calls, sweep_stale_voice_calls_at,
+    flush_canvas_viewers, flush_canvas_viewers_at, run_attachment_sweep_pass,
+    run_audit_log_sweep_pass, run_message_retention_sweep_pass, run_token_sweep_pass,
+    run_transcript_retention_sweep_pass, spawn_canvas_viewer_flush, sweep_stale_call_rings,
+    sweep_stale_call_rings_at, sweep_stale_voice_calls, sweep_stale_voice_calls_at,
 };
 pub use voice_session_sweeps::{close_stale_sessions, reconcile_on_startup};
 

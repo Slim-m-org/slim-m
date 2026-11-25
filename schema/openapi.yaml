@@ -8458,7 +8458,12 @@ paths:
         counted in `spared`. `id` is the new channel's id and keys the whole
         request: a retry with the same `id`, source and `clear_source` answers
         the stored outcome and changes and announces nothing, and any other
-        channel under that `id` is a 409.
+        channel under that `id` is a 409. A replay returns the original
+        outcome and ignores a changed `name`, `category_id` or
+        `voice_enabled`.
+
+        With `clear_source`, objects that could not be copied (counted in
+        `left`) are never cleared and stay on the source.
       requestBody:
         required: true
         content:
@@ -24202,7 +24207,7 @@ components:
             on it. Defaults to false.
     ExportCanvasResult:
       type: object
-      required: [channel, copied, skipped, cleared, spared]
+      required: [channel, copied, skipped, cleared, spared, left]
       properties:
         channel:
           $ref: "#/components/schemas/Channel"
@@ -24224,6 +24229,13 @@ components:
           type: integer
           format: int64
           description: Locked objects the clear left on the source.
+        left:
+          type: integer
+          format: int64
+          description: >
+            Skipped objects that stayed on the source because they could not
+            be copied; always present, 0 without `clear_source`. Never counted
+            in `spared`.
     CanvasTileScene:
       type: object
       required: [object_id, output, ran_at]
