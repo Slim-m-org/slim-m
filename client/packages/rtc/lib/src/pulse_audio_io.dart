@@ -72,6 +72,9 @@ const pactlTimeout = Duration(seconds: 3);
 /// The exit code a killed or unreachable `pactl` is reported with.
 const pactlTimedOutExit = 124;
 
+/// The exit code reported when `pactl` cannot be started at all, as a shell reports a missing command.
+const pactlUnavailableExit = 127;
+
 /// Runs `pactl`, killing it and answering a non-zero exit when it outlasts [within].
 @visibleForTesting
 Future<ProcessResult> runPactlWithin(
@@ -79,7 +82,13 @@ Future<ProcessResult> runPactlWithin(
   Duration within = pactlTimeout,
   ProcessStarter start = Process.start,
 }) async {
-  final process = await start('pactl', args);
+  final Process process;
+  try {
+    process = await start('pactl', args);
+  } on ProcessException catch (error) {
+    AppLog.warning(LogTag.voice, 'pactl is not available: ${error.message}');
+    return ProcessResult(0, pactlUnavailableExit, '', error.message);
+  }
   final out = process.stdout.transform(utf8.decoder).join();
   final err = process.stderr.transform(utf8.decoder).join();
   out.ignore();

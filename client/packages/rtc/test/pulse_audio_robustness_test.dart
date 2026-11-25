@@ -43,6 +43,16 @@ void main() {
     expect(await started.single.exitCode, isNot(0));
   });
 
+  test('a system with no pactl binary answers a failure instead of throwing',
+      () async {
+    final result = await runPactlWithin(
+      _sources,
+      start: (exe, args) => throw ProcessException(exe, args),
+    );
+
+    expect(result.exitCode, isNot(0));
+  });
+
   test('a killed pactl with undecodable output raises no uncaught error',
       () async {
     final uncaught = <Object>[];
