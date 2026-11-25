@@ -121,11 +121,13 @@ def _while_alice_was_away(w, c):
     home = _close(c)
     w.until("Carol", "offline", "carol closing before alice drops")
     w.a.go_offline()
-    _reopen(c, home)
-    c.wait_for("Rejoin the call", timeout=60)
-    c.click("Rejoin", settle=0)
-    c.wait_for(L.IN_CALL)
-    w.a.go_online()
+    try:
+        _reopen(c, home)
+        c.wait_for("Rejoin the call", timeout=60)
+        c.click("Rejoin", settle=0)
+        c.wait_for(L.IN_CALL)
+    finally:
+        w.a.go_online()
     w.until("Carol", "online", "carol rejoining while alice was offline")
 
 
@@ -142,10 +144,12 @@ def _while_alice_was_starting(w, b):
     home = _close(b)
     w.until("Bob", "offline", "bob closing before alice restarts")
     _slow_network(w.a, 1500)
-    w.a.ev("location.reload()")
-    time.sleep(3)
-    w.a.enable_semantics()
-    w.until("Bob", "offline", "alice's restarted list shows bob")
-    _reopen(b, home)
-    w.a.go_online()
+    try:
+        w.a.ev("location.reload()")
+        time.sleep(3)
+        w.a.enable_semantics()
+        w.until("Bob", "offline", "alice's restarted list shows bob")
+        _reopen(b, home)
+    finally:
+        w.a.go_online()
     w.until("Bob", "online", "bob back while alice was starting")

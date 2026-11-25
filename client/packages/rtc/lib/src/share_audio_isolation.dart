@@ -4,6 +4,7 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show compute;
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 import 'share_audio_graph.dart';
@@ -11,7 +12,7 @@ import 'share_audio_graph_parse.dart';
 
 export 'share_audio_graph_parse.dart' show shareMixNode;
 
-/// What the share capture records instead of the default output's monitor.
+/// What the share capture records instead of the default output's monitor; the Linux runner exports it once at startup.
 const shareMixSource = '$shareMixNode.monitor';
 
 /// Bounds the unlink-and-check rounds before the mix goes regardless.
@@ -43,17 +44,28 @@ Future<void> endShareAudioBeforeExit({
 class ShareAudioIsolation {
   ShareAudioIsolation({
     ShareAudioGraph? graph,
-    this.followEvery = const Duration(seconds: 1),
+    this.followEvery = const Duration(seconds: 5),
+    this.settleAfterStart = const [
+      Duration(milliseconds: 250),
+      Duration(seconds: 1),
+    ],
     this.emptyWithin = const Duration(milliseconds: 1500),
   }) : _graph = graph ?? PipewireShareGraph();
 
   final ShareAudioGraph _graph;
+
+  /// How often the graph is read when no new stream was announced, a backstop for one that was missed.
   final Duration followEvery;
+
+  /// When to link after an app announces a new stream, since its ports appear a moment later.
+  final List<Duration> settleAfterStart;
 
   /// How long ending a share waits for the mix to empty before removing it anyway, so a wedged sound server cannot hold up stopping the share or leaving the call.
   final Duration emptyWithin;
   int? _mixNode;
   Timer? _follow;
+  StreamSubscription<void>? _starts;
+  final _settling = <Timer>[];
   Future<void>? _linking;
   // Null while idle, so no future is made in whichever zone built this object.
   Future<void>? _queue;
@@ -105,9 +117,9 @@ class ShareAudioIsolation {
       return false;
     }
     _mixNode = node;
-    _graph.exportCaptureSource(shareMixSource);
     await _link();
     _follow = Timer.periodic(followEvery, (_) => unawaited(_link()));
+    _starts = _graph.playbackStarts.listen((_) => _linkSoon());
     return true;
   }
 
@@ -115,9 +127,14 @@ class ShareAudioIsolation {
     _live.remove(this);
     _follow?.cancel();
     _follow = null;
+    unawaited(_starts?.cancel());
+    _starts = null;
+    for (final timer in _settling) {
+      timer.cancel();
+    }
+    _settling.clear();
     final mix = _mixNode;
     if (mix == null) return;
-    _graph.exportCaptureSource(null);
     _mixNode = null;
     try {
       await _unhook(mix).timeout(emptyWithin, onTimeout: () {
@@ -170,29 +187,29 @@ class ShareAudioIsolation {
     return _linking ??= _linkInto(mix).whenComplete(() => _linking = null);
   }
 
+  void _linkSoon() {
+    for (final delay in settleAfterStart) {
+      late final Timer timer;
+      timer = Timer(delay, () {
+        _settling.remove(timer);
+        unawaited(_link());
+      });
+      _settling.add(timer);
+    }
+  }
+
   Future<void> _linkInto(int mix) async {
     final dump = await _graph.dump();
     if (dump == null || !active) return;
-    final snapshot = ShareGraphSnapshot.parse(dump);
-    final state = snapshot.mixState(mix);
-    final linked = {for (final link in state.links) link.out};
-    final channels = snapshot.portChannels();
-    final foreign = snapshot.foreignPlayback(
-      _graph.processId,
+    final wanted = await compute(mixLinksToMake, (
+      dump: dump,
+      mix: mix,
+      processId: _graph.processId,
       binary: _graph.executableName,
-    );
-    for (final stream in foreign) {
-      for (final out in stream.outPorts) {
-        if (linked.contains(out)) continue;
-        final wanted = mixChannelsFor(
-          channels[out],
-          onlyPort: stream.outPorts.length == 1,
-        );
-        for (final input in state.inPorts) {
-          if (!active) return;
-          if (wanted.contains(channels[input])) await _graph.link(out, input);
-        }
-      }
+    ));
+    for (final link in wanted) {
+      if (!active) return;
+      await _graph.link(link.out, link.input);
     }
   }
 }

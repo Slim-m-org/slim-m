@@ -20,7 +20,7 @@ use crate::ids::{ChannelId, UserId};
 use crate::permissions::Permissions;
 use crate::presence::Visibility;
 use crate::ratelimit::Class;
-use crate::store::{CALL_HISTORY_RETENTION_DAYS, VoiceEvent};
+use crate::store::{CALL_HISTORY_RETENTION_DAYS, VoiceEvent, bucket_activity};
 use crate::voice::VoiceError;
 
 const DEFAULT_CALLS: usize = 10;
@@ -94,24 +94,36 @@ async fn list(
         .into_iter()
         .filter(|e| !hidden.contains(&e.user_id))
         .collect();
-    let present: HashSet<UserId> = match state.voice.list_participants(channel_id).await {
+    let present: HashSet<UserId> = match state.voice.list_participants_shared(channel_id).await {
         Ok(list) => list.into_iter().map(|p| p.user_id).collect(),
         // Without an answer from the SFU, an open call reads as over.
         Err(VoiceError::Unavailable | VoiceError::Internal(_)) => HashSet::new(),
     };
 
-    let transcripts = visible_transcripts(&state, ctx.user_id, channel_id).await?;
-    let mut calls = Vec::new();
-    for call in segment(&events, &present)
+    let listed: Vec<Call> = segment(&events, &present)
         .into_iter()
         .filter(Call::is_listed)
         .take(limit)
-    {
-        let end = call.ended_at.unwrap_or_else(crate::store::now_ms);
-        let canvas = state
-            .store
-            .canvas_activity_between(channel_id, call.started_at, end)
-            .await?
+        .collect();
+    let now = crate::store::now_ms();
+    let span = (
+        listed.iter().map(|c| c.started_at).min(),
+        listed.iter().map(|c| c.ended_at.unwrap_or(now)).max(),
+    );
+    let placements = match span {
+        (Some(from), Some(to)) => {
+            state
+                .store
+                .canvas_placements_between(channel_id, from, to)
+                .await?
+        }
+        _ => Vec::new(),
+    };
+    let transcripts = visible_transcripts(&state, ctx.user_id, channel_id).await?;
+    let mut calls = Vec::new();
+    for call in listed {
+        let end = call.ended_at.unwrap_or(now);
+        let canvas = bucket_activity(&placements, call.started_at, end)
             .into_iter()
             .filter(|a| !hidden.contains(&a.user_id))
             .map(|a| CanvasDto {

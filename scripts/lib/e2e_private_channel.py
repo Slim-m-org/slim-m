@@ -21,6 +21,14 @@ def _row(client, name):
     return next((n for n in client.nodes() if n["t"].split(", ")[0] == name), None)
 
 
+def _never_in_rail(client, name, seconds):
+    """Fails if [name] is a row at any sample over [seconds]."""
+    deadline = time.time() + seconds
+    while time.time() < deadline:
+        assert _row(client, name) is None, f"{client.name}'s rail shows {name!r}, a private channel they were never added to"
+        time.sleep(0.25)
+
+
 def _wait_row(client, name, present, timeout=TIMEOUT):
     deadline = time.time() + timeout
     while (_row(client, name) is not None) != present:
@@ -81,8 +89,7 @@ def private_channel_follows_who_was_added(a, b, admin, member):
         channel_id = channel["id"]
         assert channel.get("restricted") is True, channel
         admin.send_message(channel_id, secret_line)
-        time.sleep(2)
-        assert _row(b, name) is None, "bob's rail shows a private channel he was never added to"
+        _never_in_rail(b, name, 3)
         assert name not in {c["name"] for c in member.channels()}, "the server lists it to bob"
         status = _bob_reads(member, channel_id)
         assert status in (403, 404), f"the server answered bob's read of a private channel with {status}"
