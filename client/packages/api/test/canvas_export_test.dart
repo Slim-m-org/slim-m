@@ -74,6 +74,25 @@ void main() {
     );
   });
 
+  test('left is read when present and is 0 from an older server', () {
+    Map<String, dynamic> body(Map<String, dynamic> extra) => {
+          'channel': {
+            'id': 'new',
+            'name': 'c',
+            'kind': 'canvas',
+            'created_at': 5,
+          },
+          'copied': 2,
+          'skipped': 0,
+          'cleared': 0,
+          'spared': 0,
+          ...extra,
+        };
+
+    expect(CanvasExportResult.fromJson(body({'left': 3})).left, 3);
+    expect(CanvasExportResult.fromJson(body({})).left, 0);
+  });
+
   test('a refusal carries its code on the conflict', () async {
     final api = _api(
       (request) async => http.Response(

@@ -12,6 +12,7 @@ class CanvasExportResult {
     required this.skipped,
     required this.cleared,
     required this.spared,
+    this.left = 0,
   });
 
   factory CanvasExportResult.fromJson(Map<String, dynamic> json) =>
@@ -21,6 +22,7 @@ class CanvasExportResult {
         skipped: (json['skipped'] as num).toInt(),
         cleared: (json['cleared'] as num).toInt(),
         spared: (json['spared'] as num).toInt(),
+        left: (json['left'] as num?)?.toInt() ?? 0,
       );
 
   final Channel channel;
@@ -36,6 +38,9 @@ class CanvasExportResult {
 
   /// Locked objects a clear left on the source.
   final int spared;
+
+  /// Objects that could not be copied and so stayed on the source, which a clear spared; 0 from an older server.
+  final int left;
 }
 
 /// The `code` values of an export's 409 refusals; mirror `http/canvas/canvas_export.rs`.
