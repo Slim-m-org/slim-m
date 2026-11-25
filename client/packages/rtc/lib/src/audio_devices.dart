@@ -5,6 +5,8 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/services.dart'
+    show MethodChannel, MissingPluginException;
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
@@ -28,6 +30,11 @@ abstract class AudioDevices {
   Stream<void> get onChange;
 }
 
+/// Asks the Windows plugin which listed device is the system default, or null
+/// when it cannot say.
+typedef DefaultAudioDeviceId = Future<String?> Function(
+    {required bool capture});
+
 /// Opens audio once so a platform that lists nothing before then will list
 /// devices; [sourceId] keeps that open on the chosen microphone.
 typedef AudioWarmUp = Future<void> Function(String? sourceId);
@@ -41,7 +48,9 @@ class HardwareAudioDevices implements AudioDevices {
     Future<List<lk.MediaDevice>> Function()? listOutputs,
     AudioWarmUp? warm,
     lk.PlatformType Function()? platform,
-  })  : _pulse = pulse ?? PulseAudio(),
+    DefaultAudioDeviceId? defaultId,
+  })  : _defaultId = defaultId ?? _pluginDefaultId,
+        _pulse = pulse ?? PulseAudio(),
         _listInputs = listInputs ?? (() => lk.Hardware.instance.audioInputs()),
         _listOutputs =
             listOutputs ?? (() => lk.Hardware.instance.audioOutputs()),
@@ -51,10 +60,24 @@ class HardwareAudioDevices implements AudioDevices {
   static bool _never() => false;
   static String? _none() => null;
 
+  static const _channel = MethodChannel('FlutterWebRTC.Method');
+
+  /// A plugin without the method keeps the default unresolved, as before.
+  static Future<String?> _pluginDefaultId({required bool capture}) async {
+    try {
+      return await _channel.invokeMethod<String>('defaultAudioDevice', {
+        'kind': capture ? 'audioinput' : 'audiooutput',
+      });
+    } on MissingPluginException {
+      return null;
+    }
+  }
+
   final PulseAudio _pulse;
   final Future<List<lk.MediaDevice>> Function() _listInputs;
   final Future<List<lk.MediaDevice>> Function() _listOutputs;
   final AudioWarmUp _warm;
+  final DefaultAudioDeviceId _defaultId;
   final lk.PlatformType Function() _platform;
 
   /// Whether a call is up. The warm-up must never run then: it opens a capture
@@ -133,13 +156,26 @@ class HardwareAudioDevices implements AudioDevices {
   Future<AudioDevice?> systemDefaultInput() async =>
       await _pulse.defaultNode(capture: true) != null
           ? null
-          : _systemDefaultOf(_toAudioDevices(await _listInputs()));
+          : _defaultOf(await _listInputs(), capture: true);
 
   @override
   Future<AudioDevice?> systemDefaultOutput() async =>
       await _pulse.defaultNode(capture: false) != null
           ? null
-          : _systemDefaultOf(_toAudioDevices(await _listOutputs()));
+          : _defaultOf(await _listOutputs(), capture: false);
+
+  /// Windows lists no "default" entry, so the plugin names the device that is.
+  Future<AudioDevice?> _defaultOf(
+    List<lk.MediaDevice> listed, {
+    required bool capture,
+  }) async {
+    final devices = _toAudioDevices(listed);
+    if (_platform() != lk.PlatformType.windows) {
+      return _systemDefaultOf(devices);
+    }
+    final id = await _defaultId(capture: capture);
+    return devices.where((d) => d.id == id).firstOrNull;
+  }
 
   @override
   Stream<void> get onChange => _merged([

@@ -20,5 +20,8 @@ Future<bool> osBlocksMicrophone({RegQuery? query, bool? windows}) async {
       return true;
     }
   }
-  return false;
+  final policy = await run(
+    ['query', windowsMicPolicyKey, '/v', windowsMicPolicyValue],
+  );
+  return policy.exitCode == 0 && policyForcesMicDeny(policy.stdout as String);
 }
