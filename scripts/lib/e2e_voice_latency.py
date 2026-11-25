@@ -13,6 +13,7 @@ import e2e_xp as xp
 import e2e_voice_quality as vq
 import make_speech_clip as speech
 import voice_latency as lat
+from e2e_skip import Skip
 
 SECONDS = int(os.environ.get("E2E_VQ_SECONDS", "45"))
 SETTLE = 4
@@ -111,5 +112,5 @@ def a_timed_call(server, secret, admin_api, sign_in):
 def run_if_selected(server, secret, admin_api, sign_in):
     if "voice latency" not in os.environ.get("E2E_ONLY", ""):
         print("  skipped: set E2E_ONLY='voice latency' to run it")
-        return
+        raise Skip
     a_timed_call(server, secret, admin_api, sign_in)

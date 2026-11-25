@@ -21,6 +21,7 @@ import make_speech_clip as speech
 import voice_corpus
 import voice_noise
 import voice_quality_dsp as dsp
+from e2e_skip import Skip
 
 SECONDS = int(os.environ.get("E2E_DESKTOP_SECONDS", "60"))
 WARMUP = 12
@@ -260,5 +261,5 @@ def _arm_with_retry(name, ctx):
 def run_if_selected(server, secret, admin_api, sign_in):
     if "voice desktop" not in os.environ.get("E2E_ONLY", ""):
         print("  skipped: set E2E_ONLY='voice desktop' to run it")
-        return
+        raise Skip
     a_noisy_desktop(server, secret, admin_api, sign_in)

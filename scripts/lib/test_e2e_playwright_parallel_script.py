@@ -91,8 +91,18 @@ class InterruptTest(PlaywrightParallelCase):
             time.sleep(0.1)
         self.assertFalse(any(os.path.exists(f"/proc/{pid}") for pid in pids))
         stub_calls = self.log.read_text()
-        self.assertIn("docker rm -f slimm-e2e-pw-0", stub_calls)
-        self.assertIn("docker rm -f slimm-e2e-pw-1", stub_calls)
+        self.assertIn("docker rm -f slimm-e2e-pw-3000-0", stub_calls)
+        self.assertIn("docker rm -f slimm-e2e-pw-3000-1", stub_calls)
+
+    def test_two_shifts_never_share_a_container_or_a_work_dir(self):
+        def names(shift):
+            got = self.call('shard_env 0; echo "$E2E_LK_CONTAINER"; confine_work',
+                            E2E_PORT_SHIFT=str(shift), E2E_PW_WORK="")
+            self.assertEqual(got.returncode, 0, got.stderr)
+            return got.stdout.split()
+        self.assertNotEqual(names(1000)[0], names(2000)[0])
+        self.assertNotEqual(names(1000)[1], names(2000)[1])
+        self.assertEqual(names(0)[0], "slimm-e2e-pw-0")
 
     def test_a_run_that_finished_leaves_its_stacks_to_their_own_teardown(self):
         got = self.call("finished=1; cleanup")

@@ -4,9 +4,12 @@
 Each of these drives the UI the way a person would and then asks the server
 whether it happened, because a chip that renders is not a row that was stored.
 """
+import os
 import time
 
 import e2e_labels as L
+
+MENTION_TAIL = 'take a look at this'
 
 
 def send_and_receive(sender, receiver, channel, text, api):
@@ -58,7 +61,7 @@ def react(client, other, message_text, emoji_name, api, channel):
         time.sleep(0.5)
     stored = api.message_with(channel_id, message_text)
     assert stored.get('reactions'), 'the server recorded no reaction'
-    other.wait_for('reaction')
+    other.wait_for('reaction, 1')
     client.shot('reaction-added')
     print(f'  reacted with {emoji_name}, and {other.name} sees it: '
           f'{stored["reactions"]}')
@@ -66,11 +69,11 @@ def react(client, other, message_text, emoji_name, api, channel):
 
 def mention(sender, receiver, channel, who, api):
     """A mention is ordinary message text the server has to keep verbatim."""
-    text = f'@{who} take a look at this'
+    text = f'@{who} {MENTION_TAIL}'
     sender.click(channel)
     sender.type_into(L.COMPOSER, text)
     sender.click(L.SEND, settle=2)
-    receiver.wait_for(who)
+    receiver.wait_for(MENTION_TAIL)
     stored = api.message_with(api.channel_named(channel)['id'], f'@{who}')
     assert f'@{who}' in stored['content'], stored['content']
     print(f'  a mention of @{who} reached {receiver.name} intact')
@@ -96,6 +99,7 @@ def attach(client, other, channel, path, api):
             time.sleep(0.5)
     assert found, 'the server stored no attachment'
     client.shot('attachment-sent')
+    other.wait_for(os.path.basename(path))
     other.shot('attachment-received')
     print(f'  an attachment reached the server: {found["attachments"]}')
     return found

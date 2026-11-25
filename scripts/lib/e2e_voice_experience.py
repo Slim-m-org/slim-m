@@ -14,6 +14,7 @@ import e2e_netem
 import e2e_xp as xp
 import make_speech_clip as speech
 import voice_experience as ex
+from e2e_skip import Skip
 
 JOINS = int(os.environ.get("E2E_XP_JOINS", "5"))
 CUTS = os.environ.get("E2E_XP_CUTS", "3,10,30,60")
@@ -167,5 +168,5 @@ def a_timed_experience(server, secret, admin_api, sign_in):
 def run_if_selected(server, secret, admin_api, sign_in):
     if "voice experience" not in os.environ.get("E2E_ONLY", ""):
         print("  skipped: set E2E_ONLY='voice experience' to run it")
-        return
+        raise Skip
     a_timed_experience(server, secret, admin_api, sign_in)

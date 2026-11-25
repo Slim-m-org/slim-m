@@ -12,6 +12,7 @@ import os
 import e2e_voice_desktop as desktop
 import fetch_mouth_noise
 import voice_quality_dsp as dsp
+from e2e_skip import Skip
 
 KINDS = ("smack", "chew", "swallow", "breath")
 # In an arm the native chain owns, a gap event may never come out louder than it went in; a listener hears that as pumping.
@@ -144,5 +145,5 @@ def mouth_sounds_through_the_desktop(server, secret, admin_api, sign_in):
 def run_if_selected(server, secret, admin_api, sign_in):
     if "voice transients" not in os.environ.get("E2E_ONLY", ""):
         print("  skipped: set E2E_ONLY='voice transients' to run it")
-        return
+        raise Skip
     mouth_sounds_through_the_desktop(server, secret, admin_api, sign_in)

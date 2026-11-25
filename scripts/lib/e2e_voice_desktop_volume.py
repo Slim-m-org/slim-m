@@ -20,6 +20,7 @@ import e2e_voice_desktop as vd
 import e2e_xp as xp
 from e2e_voice import _tap_label as tap
 from private_pulse import private_server
+from e2e_skip import Skip
 
 SLIDERS = "0,0.25,0.5,1,1.5,2"
 RATE = 48000
@@ -219,5 +220,5 @@ def a_desktop_slider_changes_the_loudness(server, secret, admin_api, sign_in):
 def run_if_selected(server, secret, admin_api, sign_in):
     if "volume slider on the desktop" not in os.environ.get("E2E_ONLY", ""):
         print("  skipped: set E2E_ONLY='volume slider on the desktop' to run it")
-        return
+        raise Skip
     a_desktop_slider_changes_the_loudness(server, secret, admin_api, sign_in)

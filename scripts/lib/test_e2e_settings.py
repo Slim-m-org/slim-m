@@ -46,11 +46,15 @@ class _FakeApi:
     def __init__(self, status):
         self._status = status
         self.user_id = 'user-1'
+        self.patches = []
 
     def me(self):
         return {'id': self.user_id}
 
     def call(self, method, path, body=None):
+        if method == 'PATCH':
+            self.patches.append((path, body))
+            return body
         assert path == f'/presence?ids={self.user_id}'
         return [{'user_id': self.user_id, 'status': self._status}]
 
@@ -101,6 +105,20 @@ class ChangeStatusTest(unittest.TestCase):
         ), patch.object(e2e_settings.time, 'sleep'):
             with self.assertRaises(AssertionError):
                 e2e_settings.change_status(client, api)
+
+    def test_it_hands_alice_back_online_after_a_pass(self):
+        api = _FakeApi(status='dnd')
+        e2e_settings.change_status(_FakeClient(stored_theme=None), api)
+        self.assertEqual(api.patches, [('/presence', {'visibility': 'online'})])
+
+    def test_it_hands_alice_back_online_after_a_failure(self):
+        api = _FakeApi(status='online')
+        with patch.object(
+            e2e_settings.time, 'time', side_effect=[0, 5, 25]
+        ), patch.object(e2e_settings.time, 'sleep'):
+            with self.assertRaises(AssertionError):
+                e2e_settings.change_status(_FakeClient(stored_theme=None), api)
+        self.assertEqual(api.patches, [('/presence', {'visibility': 'online'})])
 
 
 if __name__ == '__main__':

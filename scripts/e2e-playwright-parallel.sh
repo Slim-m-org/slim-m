@@ -12,7 +12,7 @@
 #
 # Usage: scripts/e2e-playwright-parallel.sh [spec-name ...]   (default: every spec)
 #
-# E2E_PW_WORK [~/.cache/slimm-e2e/pw]  must sit inside ~/.cache/slimm-e2e or e2e/.work
+# E2E_PW_WORK [~/.cache/slimm-e2e/pw, pw-<shift> when shifted]  must sit inside ~/.cache/slimm-e2e or e2e/.work
 #
 # Needs `npm ci` and `npx playwright install chromium` in e2e/ first.
 set -euo pipefail
@@ -20,6 +20,9 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CACHE="${XDG_CACHE_HOME:-$HOME/.cache}"
 SHIFT="${E2E_PORT_SHIFT:-0}"
+# A shifted run beside another one needs its own container names and work dir too.
+TAG=""
+[[ "$SHIFT" == 0 ]] || TAG="-$SHIFT"
 export E2E_EVIDENCE="${E2E_EVIDENCE:-failure}"
 
 WORK=""
@@ -29,7 +32,7 @@ finished=""
 
 # Only a directory this script owns the contents of is ever emptied.
 confine_work() {
-  python3 "$ROOT/scripts/lib/safe_paths.py" confined "${E2E_PW_WORK:-$CACHE/slimm-e2e/pw}" \
+  python3 "$ROOT/scripts/lib/safe_paths.py" confined "${E2E_PW_WORK:-$CACHE/slimm-e2e/pw$TAG}" \
     "$CACHE/slimm-e2e" "$ROOT/e2e/.work"
 }
 
@@ -47,7 +50,7 @@ shard_env() {
   export E2E_API_PORT=$((28600 + SHIFT + i)) E2E_WEB_PORT=$((28700 + SHIFT + i))
   export E2E_LK_PORT=$((28800 + SHIFT + i)) E2E_RTC_TCP_PORT=$((28900 + SHIFT + i))
   export E2E_RTC_UDP_START=$((29400 + SHIFT + i * 60)) E2E_RTC_UDP_END=$((29450 + SHIFT + i * 60))
-  export E2E_LK_CONTAINER="slimm-e2e-pw-$i"
+  export E2E_LK_CONTAINER="slimm-e2e-pw$TAG-$i"
 }
 
 port_busy() {

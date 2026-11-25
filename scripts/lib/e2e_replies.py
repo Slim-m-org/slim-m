@@ -49,8 +49,7 @@ def reply_and_a_deleted_parent(sender, receiver, channel, api):
           f'kept reply_to_id={stored["reply_to_id"]}')
 
     receiver.click(quote, settle=2)
-    assert receiver.find(L.JUMP_FAILED) is None, \
-        'jumping to a live parent showed the "not found" notice'
+    receiver.never_shows(L.JUMP_FAILED, 3)
     print('  tapping the quote reached its live parent with no failure notice')
 
     api.delete_message(channel_id, parent['id'])
