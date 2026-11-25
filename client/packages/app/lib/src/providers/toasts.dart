@@ -9,6 +9,7 @@
 library;
 
 import 'dart:async';
+import 'dart:ui' show VoidCallback;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -21,12 +22,16 @@ class ToastMessage {
     required this.message,
     required this.severity,
     required this.duration,
+    this.actionLabel,
+    this.onAction,
   });
 
   final int id;
   final String message;
   final AppToastSeverity severity;
   final Duration duration;
+  final String? actionLabel;
+  final VoidCallback? onAction;
 }
 
 class ToastsController extends StateNotifier<List<ToastMessage>> {
@@ -48,6 +53,8 @@ class ToastsController extends StateNotifier<List<ToastMessage>> {
     String message, {
     AppToastSeverity severity = AppToastSeverity.info,
     Duration duration = defaultDuration,
+    String? actionLabel,
+    VoidCallback? onAction,
   }) {
     final id = _nextId++;
     var next = [
@@ -57,6 +64,8 @@ class ToastsController extends StateNotifier<List<ToastMessage>> {
         message: message,
         severity: severity,
         duration: duration,
+        actionLabel: actionLabel,
+        onAction: onAction,
       ),
     ];
     if (next.length > maxVisible) {
