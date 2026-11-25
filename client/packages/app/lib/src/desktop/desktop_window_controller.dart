@@ -7,6 +7,7 @@ library;
 
 import 'dart:async';
 import 'dart:math' as math;
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 import 'close_behavior.dart';
 import 'desktop_window_port.dart';
@@ -128,8 +129,13 @@ class DesktopWindowController {
     if (inFlight != null) {
       try {
         await inFlight;
-      } catch (_) {
-        // The repeat below reports a persistent failure to the caller.
+      } catch (error, stack) {
+        AppLog.swallowed(
+          LogTag.platform,
+          'Earlier window geometry write failed; repeating it',
+          error,
+          stack,
+        );
       }
     }
     await _writeNow();
