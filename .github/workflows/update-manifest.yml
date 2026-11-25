@@ -99,11 +99,14 @@ jobs:
         run: |
           mkdir -p expected
           for label in linux android windows macos; do
-            id="$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=digests-$TAG-$label&per_page=30" \
-              | jq -r --arg tag "$TAG" '[.artifacts[] | select(.expired == false and .workflow_run.head_repository_id == .workflow_run.repository_id and (.workflow_run.head_branch == "main" or .workflow_run.head_branch == $tag))][0].id // empty')"
-            [ -n "$id" ] || { echo "::notice::no digests recorded for $label"; continue; }
-            gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$id/zip" > "$RUNNER_TEMP/$label.zip"
-            unzip -q -o "$RUNNER_TEMP/$label.zip" -d expected
+            ids="$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=digests-$TAG-$label&per_page=30" \
+              | jq -r --arg tag "$TAG" '.artifacts[] | select(.expired == false and .workflow_run.head_repository_id == .workflow_run.repository_id and (.workflow_run.head_branch == "main" or .workflow_run.head_branch == $tag)) | .id')"
+            [ -n "$ids" ] || { echo "::notice::no digests recorded for $label"; continue; }
+            # Two runs can build one tag; every candidate is kept and the one that matches the attached asset wins.
+            for id in $ids; do
+              gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$id/zip" > "$RUNNER_TEMP/$label-$id.zip"
+              unzip -q -o "$RUNNER_TEMP/$label-$id.zip" -d "expected/$label-$id"
+            done
           done
 
       # The Linux tarball (release) and the Windows and macOS archives (desktop-clients) land in either order, so each producer calls this with defer and the last one to attach signs.
