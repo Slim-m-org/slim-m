@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../widgets/context_menu_focus.dart';
+import '../../members/widgets/avatar_facepile.dart';
 import '../../members/widgets/user_avatar.dart';
 import '../widgets/canvas_pill_surface.dart';
 import '../widgets/canvas_roster_avatar.dart';
@@ -113,7 +114,6 @@ class _CanvasPeopleClusterState extends ConsumerState<CanvasPeopleCluster> {
     final shown = ordered.take(_shownInPill).toList();
     final more = people.length - shown.length;
     const size = AppAvatarSize.s20;
-    const step = size - AppSpacing.s4;
     return Semantics(
       container: true,
       button: true,
@@ -138,30 +138,11 @@ class _CanvasPeopleClusterState extends ConsumerState<CanvasPeopleCluster> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  SizedBox(
-                    width: size + step * (shown.length - 1),
-                    height: size,
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        for (var i = 0; i < shown.length; i++)
-                          Positioned(
-                            left: i * step,
-                            child: _avatar(shown[i], size),
-                          ),
-                      ],
-                    ),
+                  AvatarFacepile(
+                    size: size,
+                    more: more,
+                    avatars: [for (final p in shown) _avatar(p, size)],
                   ),
-                  if (more > 0) ...[
-                    const SizedBox(width: AppSpacing.s4),
-                    Text(
-                      '+$more',
-                      style: AppText.caption.copyWith(
-                        color: tokens.textSecondary,
-                        fontWeight: AppWeights.medium,
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ),

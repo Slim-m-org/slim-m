@@ -86,6 +86,7 @@ List<Widget> channelRowMenuItems(
       if (channel.hasCanvas) _openCanvasItem(context, channel, close),
       _viewDetailsItem(context, channel, close),
     ],
+    if (channel.isCanvasChannel) _openChatItem(context, channel, close),
     ?markRead,
   ];
 
@@ -100,7 +101,9 @@ List<Widget> channelRowMenuItems(
       channelDefault: container
           .read(channelNotificationOverridesProvider)
           .defaultFor(channel),
-      voiceChannel: channel.kind == 'voice',
+      voiceChannel:
+          channel.kind == 'voice' ||
+          (channel.isCanvasChannel && channel.hostsCall),
     ),
     if (canManage || canManageRoles || canEditThisRoom) ...[
       const AppMenuDivider(),
