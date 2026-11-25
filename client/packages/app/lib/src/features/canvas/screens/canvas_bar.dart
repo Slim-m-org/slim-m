@@ -23,75 +23,88 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../routing/routes.dart';
 import '../../channels/providers/channel_by_id_provider.dart';
-import '../../members/widgets/member_list_toggle.dart';
 import '../../voice/widgets/call_header_facts.dart';
-import 'canvas_chat_toggle.dart';
+import 'canvas_bar_actions.dart';
 
 class CanvasBar extends ConsumerWidget {
   const CanvasBar({super.key, required this.channelId, this.trailing});
 
   final String channelId;
 
-  /// Undo, the overflow and close at phone width; null where the dock has them.
+  /// Join call, undo, the overflow and close at phone width; null where the dock has them.
   final Widget? trailing;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final kind = ref.watch(channelByIdProvider(channelId)).valueOrNull?.kind;
-    final isDm = kind == 'dm';
-    final phoneControls = this.trailing;
-    // The member list docks beside the canvas too, so its toggle lives here as it does on the channel header.
-    final members = !isDm && MemberListToggle.fits(context);
-    // A DM's own conversation already holds its text; only a voice channel's chat is out of reach from here.
-    final chat = kind == 'voice' && phoneControls == null;
-    final trailing =
-        phoneControls ??
-        (members || chat
-            ? Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (chat) CanvasChatToggle(channelId: channelId),
-                  if (members) const MemberListToggle(),
-                ],
-              )
-            : null);
+    final channel = ref.watch(channelByIdProvider(channelId)).valueOrNull;
+    final isDm = channel?.kind == 'dm';
+    final board = channel?.isCanvasChannel ?? false;
+    final phoneControls = trailing;
+    final compact = phoneControls != null;
     final line = CallHeaderLine(
       channelId: channelId,
-      mode: 'Canvas',
-      stacked: phoneControls != null,
-      leading: Padding(
-        padding: const EdgeInsets.only(right: AppSpacing.s8),
-        child: Icon(
-          AppIcons.canvas,
-          size: AppSizes.icon16,
-          color: tokens.textSecondary,
-        ),
-      ),
+      // A canvas channel is its board, so its name needs no mode beside it.
+      mode: board ? null : 'Canvas',
+      stacked: compact,
+      // A phone gives the glyph's width to the title; the back arrow and the board already say what this is.
+      leading: compact
+          ? Semantics(
+              label: board ? 'Canvas channel' : 'Canvas',
+              child: const SizedBox.shrink(),
+            )
+          : Padding(
+              padding: const EdgeInsets.only(right: AppSpacing.s8),
+              child: Icon(
+                AppIcons.canvas,
+                size: AppSizes.icon16,
+                color: tokens.textSecondary,
+              ),
+            ),
     );
+    final actions =
+        phoneControls ?? CanvasBarActions(channelId: channelId, isDm: isDm);
     return Container(
-      height: phoneControls == null
-          ? AppSizes.headerBar
-          : AppSizes.rowTouch + AppSpacing.s8,
-      padding: const EdgeInsets.symmetric(horizontal: AppSizes.paneGutter),
+      height: compact ? AppSizes.rowTouch + AppSpacing.s8 : AppSizes.headerBar,
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? AppSizes.paneGutterCompact : AppSizes.paneGutter,
+      ),
       alignment: Alignment.centerLeft,
       // Raised off the drawing surface so the strip reads as a pane header, not canvas.
       decoration: BoxDecoration(
         color: tokens.surfaceRaised,
         border: Border(bottom: BorderSide(color: tokens.borderSubtle)),
       ),
-      child: trailing == null
-          ? line
-          : Row(
-              children: [
-                Expanded(child: line),
-                const SizedBox(width: AppSpacing.s8),
-                trailing,
-              ],
-            ),
+      child: Row(
+        children: [
+          // A canvas channel has no close, so a phone leaves it the way any channel is left.
+          if (board && compact) const _BackToChannels(),
+          Expanded(child: line),
+          const SizedBox(width: AppSpacing.s8),
+          actions,
+        ],
+      ),
     );
   }
+}
+
+class _BackToChannels extends StatelessWidget {
+  const _BackToChannels();
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(right: AppSpacing.s8),
+    child: AppIconButton(
+      icon: AppIcons.back,
+      semanticLabel: 'Back to channels',
+      tooltip: 'Back to channels',
+      onPressed: () => context.go(Routes.channels),
+    ),
+  );
 }

@@ -67,8 +67,8 @@ abstract final class Perm {
     (attachFiles, 'Attach files'),
     (connect, 'Join voice channels'),
     (speak, 'Speak in voice channels'),
-    (useCanvas, 'Draw on the voice canvas'),
-    (manageCanvas, 'Manage the voice canvas'),
+    (useCanvas, 'Draw on canvases'),
+    (manageCanvas, 'Manage canvases'),
     (manageServer, 'Manage Space settings'),
     (mentionEveryone, 'Mention @everyone and @here'),
     (runCode, 'Run code blocks'),
@@ -142,13 +142,13 @@ abstract final class Perm {
       ),
       PermSpec(
         useCanvas,
-        'Draw on the voice canvas',
+        'Draw on canvases',
         'Draw and place objects. Without it, members can still watch.',
       ),
       PermSpec(
         manageCanvas,
-        'Manage the voice canvas',
-        'Clear or reset the canvas for everyone in the call.',
+        'Manage canvases',
+        'Clear or reset a canvas for everyone.',
       ),
       PermSpec(
         moveMembers,

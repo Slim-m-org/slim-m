@@ -32,7 +32,13 @@ Future<({ProviderContainer container, SlimmDatabase db})> _pumpCanvasOpen(
 }) async {
   final s = setup(httpClient: quietClient(), signedIn: true);
   await MessageStore(s.db).upsertChannels([
-    api.Channel(id: 'c1', name: 'general', kind: kind, createdAt: 0),
+    api.Channel(
+      id: 'c1',
+      name: 'general',
+      kind: kind,
+      createdAt: 0,
+      canvasEnabled: true,
+    ),
   ]);
   s.container.read(canvasOpenProvider.notifier).state = 'c1';
   await pumpAtWidth(tester, s.container, width, location: '/channels/c1');
@@ -111,6 +117,7 @@ void main() {
           name: 'general',
           kind: 'text',
           createdAt: 0,
+          canvasEnabled: true,
         ),
       ]);
       await pumpAtWidth(tester, s.container, 1400, location: '/channels/c1');
@@ -145,6 +152,7 @@ void main() {
           name: 'general',
           kind: 'text',
           createdAt: 0,
+          canvasEnabled: true,
         ),
       ]);
       await pumpAtWidth(

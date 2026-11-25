@@ -56,7 +56,13 @@ Future<_Shell> _shell(
     ],
   );
   await MessageStore(s.db).upsertChannels([
-    const api.Channel(id: 'c1', name: 'general', kind: 'text', createdAt: 0),
+    const api.Channel(
+      id: 'c1',
+      name: 'general',
+      kind: 'text',
+      createdAt: 0,
+      canvasEnabled: true,
+    ),
     const api.Channel(id: 'c2', name: 'random', kind: 'text', createdAt: 0),
   ]);
   await pumpAtWidth(tester, s.container, width, location: '/channels/c1');

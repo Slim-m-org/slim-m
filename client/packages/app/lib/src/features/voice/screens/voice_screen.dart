@@ -37,7 +37,7 @@ import '../providers/voice_roster.dart';
 import '../../../routing/breakpoints.dart';
 import '../../../routing/launch_route.dart';
 import '../../../routing/routes.dart';
-import '../widgets/transcription_notice.dart';
+import '../widgets/confirmed_join.dart';
 import 'call_details_pane.dart';
 import 'voice_in_call.dart';
 import '../../canvas/providers/canvas_entry.dart' show canvasEntryProvider;
@@ -45,25 +45,6 @@ import '../../canvas/screens/canvas_pane.dart' show canvasOpenProvider;
 import 'voice_idle/voice_channel_idle.dart';
 import 'voice_join_preview.dart';
 import 'voice_text_pane.dart';
-
-/// Whether [voice] describes a live call somewhere other than [channelId]:
-/// the one case an arrival still has to ask about before joining.
-///
-/// `voice.joining` covers the window a join has already claimed
-/// [VoiceState.channelId] but has not yet moved [VoiceState.state] off
-/// whatever it was before (the token round trip in
-/// [VoiceController.join] carries no state transition of its own) - without
-/// it, an arrival during that window read the controller as idle and
-/// auto-joined a second call with no [VoiceSwitchPrompt] at all.
-///
-/// Takes [VoiceFlags]: the roster has nothing to say about whether another
-/// channel's call is already busy.
-bool _busyElsewhere(VoiceFlags voice, String channelId) =>
-    voice.channelId != null &&
-    voice.channelId != channelId &&
-    (voice.state == VoiceSessionState.connected ||
-        voice.state == VoiceSessionState.connecting ||
-        voice.joining);
 
 /// [voice]'s recap, but only when it belongs to [channelId]: `VoiceController`
 /// is one instance for every channel, and an in-call error message has
@@ -189,29 +170,23 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
     });
   }
 
-  /// Runs [join] now, after the one-time transcription notice, or after "Join here" when it would move a call open on another device.
-  /// A call that came up meanwhile, here or elsewhere, wins over the join.
-  Future<void> _joinConfirmed(Future<void> Function() join) async {
+  Future<void> _joinConfirmed(Future<void> Function() join) {
     final check = ++_check;
-    final channelId = widget.channelId;
-    bool dropped() => !mounted || check != _check;
-    if (!widget.isDm && !await confirmTranscriptionNotice(context, ref)) return;
-    if (dropped()) return;
-    setState(() => _checking = true);
-    final String? elsewhere;
-    try {
-      elsewhere = await ref.read(voiceElsewhereCheckProvider)(channelId);
-    } finally {
-      if (!dropped()) setState(() => _checking = false);
-    }
-    final voice = ref.read(voiceFlagsProvider);
-    if (dropped() || voice.inCallStageFor(channelId)) return;
-    if (_busyElsewhere(voice, channelId)) return;
-    if (elsewhere == null) return join();
-    setState(() {
-      _elsewhere = elsewhere;
-      _confirmedJoin = () => unawaited(join());
-    });
+    return runConfirmedJoin(
+      context,
+      ref,
+      channelId: widget.channelId,
+      isDm: widget.isDm,
+      join: join,
+      host: ConfirmedJoinHost(
+        dropped: () => !mounted || check != _check,
+        checking: (checking) => setState(() => _checking = checking),
+        askJoinHere: (elsewhere, proceed) => setState(() {
+          _elsewhere = elsewhere;
+          _confirmedJoin = proceed;
+        }),
+      ),
+    );
   }
 
   void _joinHere() {
@@ -259,7 +234,7 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
     final channelId = widget.channelId;
     Future<void> join() =>
         withMic ? controller.join(channelId) : controller.joinMuted(channelId);
-    if (_busyElsewhere(ref.read(voiceFlagsProvider), channelId)) {
+    if (callBusyElsewhere(ref.read(voiceFlagsProvider), channelId)) {
       setState(() => _switchJoin = join);
       return;
     }
@@ -409,7 +384,7 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
         inThisChannel && voice.state == VoiceSessionState.connecting;
     // Without this, `join`'s own in-flight window (see its own comment) reads as `attemptedThis` and briefly flashes the rejoin screen.
     final joiningHere = inThisChannel && voice.joining;
-    final busyElsewhere = _busyElsewhere(voice, channelId);
+    final busyElsewhere = callBusyElsewhere(voice, channelId);
     // The same canvas-pane remount that connectedHere guards against also
     // wipes this memory when the user hung up *before* closing the canvas:
     // `leave()` nulls `voice.channelId`, so the remounted screen cannot read
@@ -467,6 +442,7 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
       child: canDock
           ? VoiceCallWithChatPane(
               channelId: channelId,
+              chatOpen: voiceChatPaneVisibleProvider,
               call: callBody,
               details: stage == 'call'
                   ? CallDetailsPanel(channelId: channelId)

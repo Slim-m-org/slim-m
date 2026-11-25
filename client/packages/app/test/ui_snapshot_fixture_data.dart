@@ -352,6 +352,8 @@ const fixtureChannels = [
     name: 'general',
     kind: 'text',
     createdAt: 0,
+    // Tests that open its board through the provider need a channel that holds one.
+    canvasEnabled: true,
     categoryId: 'cat-text',
     topic:
         'General chat for the whole Space - keep it friendly, and keep '

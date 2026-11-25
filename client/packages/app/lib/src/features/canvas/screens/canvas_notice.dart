@@ -15,12 +15,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../providers/dock_reservation.dart';
+import '../../../widgets/status_banner.dart';
 import '../../../widgets/status_pill.dart';
+import '../providers/canvas_open.dart';
+import '../providers/canvas_spectating.dart';
 import 'canvas_forbidden_message.dart';
 
 class CanvasNotice extends ConsumerStatefulWidget {
   const CanvasNotice({
     super.key,
+    required this.channelId,
     required this.callError,
     required this.onRetryCall,
     required this.error,
@@ -29,6 +33,7 @@ class CanvasNotice extends ConsumerStatefulWidget {
     required this.unsavedInk,
   });
 
+  final String channelId;
   final String? callError;
 
   /// Null when the call cannot be retried, which gives its notice a close button instead.
@@ -49,6 +54,9 @@ class CanvasNotice extends ConsumerStatefulWidget {
 class _CanvasNoticeState extends ConsumerState<CanvasNotice> {
   /// The call failure closed here; a failure that clears and comes back shows again.
   String? _closedCallError;
+
+  /// The spectator's one-time line, gone once it has cleared.
+  bool _spectatorNoticeDone = false;
 
   @override
   void didUpdateWidget(CanvasNotice oldWidget) {
@@ -114,7 +122,21 @@ class _CanvasNoticeState extends ConsumerState<CanvasNotice> {
             : () => setState(() => _closedCallError = message),
       );
     }
-    return null;
+    return _spectatorNotice();
+  }
+
+  /// A canvas channel's viewer who may not draw, told once in the dock's place that the board is theirs to watch.
+  Widget? _spectatorNotice() {
+    final watching =
+        !_spectatorNoticeDone &&
+        ref.watch(canvasIsChannelProvider(widget.channelId)) &&
+        ref.watch(canvasSpectatingProvider(widget.channelId));
+    if (!watching) return null;
+    return StatusBanner(
+      key: const ValueKey('spectator'),
+      message: 'You can view this canvas.',
+      onDismiss: () => setState(() => _spectatorNoticeDone = true),
+    );
   }
 
   Widget _errorPill(String message) {

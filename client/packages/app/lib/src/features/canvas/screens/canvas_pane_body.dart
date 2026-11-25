@@ -27,6 +27,7 @@ import 'canvas_call_dock.dart';
 import 'canvas_compact_dock.dart';
 import 'canvas_forbidden_message.dart';
 import 'canvas_hidden_tiles.dart';
+import 'canvas_people_placement.dart';
 import 'canvas_people_session.dart';
 import 'canvas_view_relay.dart';
 import 'canvas_object_context_menu.dart';
@@ -51,7 +52,7 @@ class CanvasPaneBody extends StatefulWidget {
   const CanvasPaneBody({
     super.key,
     required this.channelId,
-    required this.onClose,
+    this.onClose,
     this.onActivityLogOpenChanged,
     required this.tool,
     required this.onToolChanged,
@@ -136,7 +137,9 @@ class CanvasPaneBody extends StatefulWidget {
   });
 
   final String channelId;
-  final VoidCallback onClose;
+
+  /// Closes the canvas; null for a canvas channel, whose board is the channel.
+  final VoidCallback? onClose;
 
   /// Focus node handed down to [CanvasBoardKeys].
   final FocusNode? boardFocusNode;
@@ -390,74 +393,82 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
     final compact = size.width < kCompactWidth;
     // A short window gives the header's height to the board; the dock repeats its controls and the member toggle floats.
     final shortWindow = size.height < kShortHeight && !compact;
+    final barShown = !widget.fullscreen && !shortWindow;
     // Left stays unconsumed in windowed mode because a rail occupies the true left edge; fullscreen claims the edge and respects its cutout.
     return Container(
       color: tokens.surfaceBase,
       child: SafeArea(
         left: widget.fullscreen,
-        child: Column(
-          children: [
-            // Fullscreen can drop the header whole without taking an action with it: its controls are the dock's, repeated.
-            if (!widget.fullscreen && !shortWindow)
-              CanvasBar(
-                channelId: widget.channelId,
-                // Rebuilt when the hidden set changes, so a tile hidden later gets its Show row here too.
-                trailing: compact
-                    ? ListenableBuilder(
-                        listenable: _hiddenTiles,
-                        builder: (context, _) => CanvasCompactEditGroup(
-                          canvas: _dockData(),
-                          chatChannelId: widget.channelId,
-                        ),
-                      )
-                    : null,
-              ),
-            Expanded(
-              child: CanvasPeopleHost(
-                channelId: widget.channelId,
-                relay: widget.viewRelay,
-                cursors: widget.cursors,
-                selfId: widget.selfId,
-                viewMode: widget.viewMode,
-                onBringEveryone: () => widget.viewRelay?.summonEveryone(
-                  widget.document.visibleBoard ?? canvasSharedArea,
-                ),
-                // Canvas content panned past the top edge must never paint over the header above it.
-                child: _withPeerStrip(
-                  CanvasBoardStack(
-                    surface: _activityLogOpen ? _panel() : _surface(tokens),
+        // Over bar and board both, so the bar's facepile reads the same session as the board's.
+        child: CanvasPeopleHost(
+          channelId: widget.channelId,
+          relay: widget.viewRelay,
+          cursors: widget.cursors,
+          selfId: widget.selfId,
+          viewMode: widget.viewMode,
+          onBringEveryone: () => widget.viewRelay?.summonEveryone(
+            widget.document.visibleBoard ?? canvasSharedArea,
+          ),
+          child: CanvasPeopleInBar(
+            inBar: barShown && !compact,
+            child: Column(
+              children: [
+                // Fullscreen can drop the header whole without taking an action with it: its controls are the dock's, repeated.
+                if (barShown)
+                  CanvasBar(
                     channelId: widget.channelId,
-                    cursors: widget.cursors,
-                    callParticipants: widget.callParticipants,
-                    viewRelay: widget.viewRelay,
-                    selfId: widget.selfId,
-                    onAcceptSummon: _acceptSummon,
-                    paging: widget.paging,
-                    notice: CanvasNotice(
-                      callError: widget.callError,
-                      onRetryCall: widget.onRetryCall,
-                      error: widget.error,
-                      onDismissError: widget.onDismissError,
-                      onRetryError: widget.onRetryError,
-                      unsavedInk: widget.document.unsavedInk.count,
-                    ),
-                    callDock: widget.callDock,
-                    dockData: _dockData,
-                    tileOverrides: widget.tileOverrides,
-                    compact: compact,
-                    showShortToggle: shortWindow && !widget.fullscreen,
-                    showPeerControls: !_activityLogOpen,
+                    // Rebuilt when the hidden set changes, so a tile hidden later gets its Show row here too.
+                    trailing: compact
+                        ? ListenableBuilder(
+                            listenable: _hiddenTiles,
+                            builder: (context, _) => CanvasCompactEditGroup(
+                              canvas: _dockData(),
+                              chatChannelId: widget.channelId,
+                              joinChannelId: widget.channelId,
+                            ),
+                          )
+                        : null,
                   ),
-                ),
-              ),
+                Expanded(child: _board(tokens, compact, shortWindow)),
+                // Mounted regardless of the panel's own open state: browsing history is optional, hearing about it is not.
+                CanvasActivityAnnouncer(activityLog: widget.activityLog),
+              ],
             ),
-            // Mounted regardless of the panel's own open state: browsing history is optional, hearing about it is not.
-            CanvasActivityAnnouncer(activityLog: widget.activityLog),
-          ],
+          ),
         ),
       ),
     );
   }
+
+  // Canvas content panned past the top edge must never paint over the header above it.
+  Widget _board(AppTokens tokens, bool compact, bool shortWindow) =>
+      _withPeerStrip(
+        CanvasBoardStack(
+          surface: _activityLogOpen ? _panel() : _surface(tokens),
+          channelId: widget.channelId,
+          cursors: widget.cursors,
+          callParticipants: widget.callParticipants,
+          viewRelay: widget.viewRelay,
+          selfId: widget.selfId,
+          onAcceptSummon: _acceptSummon,
+          paging: widget.paging,
+          notice: CanvasNotice(
+            channelId: widget.channelId,
+            callError: widget.callError,
+            onRetryCall: widget.onRetryCall,
+            error: widget.error,
+            onDismissError: widget.onDismissError,
+            onRetryError: widget.onRetryError,
+            unsavedInk: widget.document.unsavedInk.count,
+          ),
+          callDock: widget.callDock,
+          dockData: _dockData,
+          tileOverrides: widget.tileOverrides,
+          compact: compact,
+          showShortToggle: shortWindow && !widget.fullscreen,
+          showPeerControls: !_activityLogOpen,
+        ),
+      );
 
   // The chip and summon card take their own row, so they never cover a tile.
   Widget _withPeerStrip(Widget board) => Column(

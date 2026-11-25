@@ -20,6 +20,7 @@ import '../../../widgets/floating_dock_card.dart';
 import '../../voice/widgets/bot_call_chips.dart';
 import '../../voice/widgets/call_leave_button.dart';
 import '../../voice/screens/dock_solo_controls.dart';
+import '../widgets/canvas_join_call.dart';
 import 'canvas_call_dock.dart';
 import 'canvas_dock_group.dart';
 import 'canvas_dock_toggle.dart';
@@ -98,12 +99,13 @@ class CanvasCompactDock extends StatelessWidget {
   }
 }
 
-/// Undo, the overflow menu and close, drawn in the header at phone width.
+/// Join call, undo, the overflow menu and close, drawn in the header at phone width.
 class CanvasCompactEditGroup extends StatelessWidget {
   const CanvasCompactEditGroup({
     super.key,
     required this.canvas,
     this.chatChannelId,
+    this.joinChannelId,
   });
 
   final CanvasDockData canvas;
@@ -111,18 +113,28 @@ class CanvasCompactEditGroup extends StatelessWidget {
   /// The voice channel whose chat the overflow can open; null where there is none.
   final String? chatChannelId;
 
+  /// The canvas channel whose call this offers to join; null where the bar has none.
+  final String? joinChannelId;
+
   @override
-  Widget build(BuildContext context) => Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      CanvasDockToolsRow(
-        canvas: canvas,
-        part: CanvasToolsRowPart.editOnly,
-        overflowOpensBelow: true,
-        chatChannelId: chatChannelId,
-      ),
-      const CanvasDockGroupDivider(),
-      CanvasDockToggle(open: true, onPressed: canvas.onClose),
-    ],
-  );
+  Widget build(BuildContext context) {
+    final close = canvas.onClose;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (joinChannelId case final id?)
+          CanvasJoinCall(channelId: id, compact: true),
+        CanvasDockToolsRow(
+          canvas: canvas,
+          part: CanvasToolsRowPart.editOnly,
+          overflowOpensBelow: true,
+          chatChannelId: chatChannelId,
+        ),
+        if (close != null) ...[
+          const CanvasDockGroupDivider(),
+          CanvasDockToggle(open: true, onPressed: close),
+        ],
+      ],
+    );
+  }
 }
