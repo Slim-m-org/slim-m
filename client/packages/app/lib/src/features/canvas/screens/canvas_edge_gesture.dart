@@ -140,8 +140,18 @@ class CanvasEdgeGesture {
   void hover(Offset world) {
     if (active) return;
     final mouse = document.lastPointerKind == PointerDeviceKind.mouse;
-    _hovered = mouse && _supported ? _objectAt(world) : null;
+    _hovered = mouse && _supported ? _hoverAt(world) : null;
     syncDots();
+  }
+
+  /// The hovered object holds on while the pointer is within a dot's reach, so a dot's outer half does not hide it.
+  String? _hoverAt(Offset world) {
+    final held = _hovered;
+    final box = held == null ? null : _edges.boxOf(held);
+    final holds =
+        box != null &&
+        holdsSideDots(box, world, zoom: document.camera.zoom, touch: touch());
+    return holds ? held : _objectAt(world);
   }
 
   bool get picking => _edges.connectFrom.value != null;
