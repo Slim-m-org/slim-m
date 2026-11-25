@@ -106,6 +106,7 @@ class WindowRect {
     required this.y,
     required this.width,
     required this.height,
+    this.scale,
   });
 
   factory WindowRect.fromJson(Map<String, dynamic> json) => WindowRect(
@@ -113,6 +114,7 @@ class WindowRect {
     y: (json['y'] as num).toDouble(),
     width: (json['width'] as num).toDouble(),
     height: (json['height'] as num).toDouble(),
+    scale: (json['scale'] as num?)?.toDouble(),
   );
 
   final double x;
@@ -120,18 +122,41 @@ class WindowRect {
   final double width;
   final double height;
 
+  /// The monitor scale factor the logical numbers above were taken at. Null
+  /// for an older save or a platform without per-monitor scaling, which reads
+  /// as already being in the space of whichever display it is compared with.
+  final double? scale;
+
   Map<String, dynamic> toJson() => {
     'x': x,
     'y': y,
     'width': width,
     'height': height,
+    if (scale != null) 'scale': scale,
   };
+
+  /// This rectangle restated in [display]'s own logical units.
+  WindowRect inSpaceOf(DisplayArea display) {
+    final from = scale;
+    if (from == null) return this;
+    final factor = from / display.scaleFactor;
+    return WindowRect(
+      x: x * factor,
+      y: y * factor,
+      width: width * factor,
+      height: height * factor,
+      scale: display.scaleFactor,
+    );
+  }
 
   /// Whether this rectangle shares any area with [display]. A rectangle with
   /// zero or negative overlap on either axis is entirely off that display.
   bool overlaps(DisplayArea display) {
-    final overlapsX = x < display.x + display.width && x + width > display.x;
-    final overlapsY = y < display.y + display.height && y + height > display.y;
+    final r = inSpaceOf(display);
+    final overlapsX =
+        r.x < display.x + display.width && r.x + r.width > display.x;
+    final overlapsY =
+        r.y < display.y + display.height && r.y + r.height > display.y;
     return overlapsX && overlapsY;
   }
 }
@@ -144,12 +169,17 @@ class DisplayArea {
     required this.y,
     required this.width,
     required this.height,
+    this.scaleFactor = 1.0,
   });
 
   final double x;
   final double y;
   final double width;
   final double height;
+
+  /// Physical pixels per logical unit on this display; the numbers above are
+  /// already divided by it.
+  final double scaleFactor;
 }
 
 /// The whole persisted answer: a size (always), a position (only where the
@@ -256,6 +286,7 @@ WindowGeometry clampToAttachedDisplays(
 /// A window whose rectangle hangs off every display it touches is moved back
 /// onto the one it overlaps most, so a size capped to a smaller or more scaled
 /// display does not leave its far edge, and the close button, off screen.
+/// The result is stated in the units of the display it lands on.
 WindowGeometry _keptOnScreen(
   WindowGeometry geometry,
   WindowRect position,
@@ -267,31 +298,53 @@ WindowGeometry _keptOnScreen(
     y: position.y,
     width: size.width,
     height: size.height,
+    scale: position.scale,
   );
   final overlaps = {for (final d in displays) d: _overlapArea(placed, d)};
-  final covered = overlaps.values.fold(0.0, (sum, area) => sum + area);
-  if (covered >= size.width * size.height - 0.5) return geometry;
+  final covered = overlaps.entries.fold(
+    0.0,
+    (sum, e) => sum + e.value * e.key.scaleFactor * e.key.scaleFactor,
+  );
+  final own = position.scale ?? 1.0;
+  final windowArea = size.width * size.height * own * own;
   final home = displays.reduce((a, b) => overlaps[a]! >= overlaps[b]! ? a : b);
-  return geometry.copyWith(
-    position: WindowRect(
-      x: math.max(home.x, math.min(placed.x, home.x + home.width - size.width)),
+  final inHome = placed.inSpaceOf(home);
+  if (covered >= windowArea - 0.5) {
+    return position.scale == null ? geometry : _restated(geometry, inHome);
+  }
+  return _restated(
+    geometry,
+    WindowRect(
+      x: math.max(
+        home.x,
+        math.min(inHome.x, home.x + home.width - inHome.width),
+      ),
       y: math.max(
         home.y,
-        math.min(placed.y, home.y + home.height - size.height),
+        math.min(inHome.y, home.y + home.height - inHome.height),
       ),
-      width: size.width,
-      height: size.height,
+      width: inHome.width,
+      height: inHome.height,
+      scale: inHome.scale,
     ),
   );
 }
 
+WindowGeometry _restated(WindowGeometry geometry, WindowRect rect) {
+  return geometry.copyWith(
+    windowedSize: WindowSize(width: rect.width, height: rect.height),
+    position: rect,
+  );
+}
+
 double _overlapArea(WindowRect rect, DisplayArea display) {
+  final r = rect.inSpaceOf(display);
   final width =
-      math.min(rect.x + rect.width, display.x + display.width) -
-      math.max(rect.x, display.x);
+      math.min(r.x + r.width, display.x + display.width) -
+      math.max(r.x, display.x);
   final height =
-      math.min(rect.y + rect.height, display.y + display.height) -
-      math.max(rect.y, display.y);
+      math.min(r.y + r.height, display.y + display.height) -
+      math.max(r.y, display.y);
   return width > 0 && height > 0 ? width * height : 0;
 }
 
