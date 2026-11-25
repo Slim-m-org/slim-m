@@ -40,8 +40,27 @@ class CallForegroundService : Service() {
         val entered = fallbackChain(call, camera, share).any { (withCamera, withShare) ->
             enterForeground(call, withCamera, withShare)
         }
-        if (!entered) stopSelf()
+        if (!entered) {
+            satisfyStartContract(call)
+            stopSelf()
+        }
         return START_NOT_STICKY
+    }
+
+    /** A service started with startForegroundService must call startForeground in time, even when it is about to stop. */
+    private fun satisfyStartContract(call: Boolean) {
+        ensureChannel(this)
+        try {
+            val notification = buildNotification(call, false)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+            stopForeground(STOP_FOREGROUND_REMOVE)
+        } catch (error: RuntimeException) {
+            Log.w(TAG, "Could not satisfy the foreground start contract", error)
+        }
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
