@@ -4,8 +4,9 @@
 Each of these fails silently when it is missing:
 
 1. The activation GUID the plugin registers is the CLSID of a `LocalServer32`
-   key naming the launcher with `-ToastActivated`, written by both the setup
-   and the runner; without it Windows has nothing to start for the click.
+   key naming the launcher with `-ToastActivated`, written by the runner at
+   each start and removed by both uninstallers; without it Windows has nothing
+   to start for the click.
 2. The runner removes a grouped toast by tag and group (Windows rejects an
    empty group, so a group-less one needs the clear and restore), and the
    restore of each toast is guarded on its own.
@@ -37,10 +38,14 @@ def activation_guid() -> str:
 
 
 class ServerIsRegistered(unittest.TestCase):
-    def test_setup_registers_the_activation_guid_as_a_local_server(self):
-        text = SETUP.read_text()
-        self.assertIn("{{" + activation_guid() + r"}\LocalServer32", text)
-        self.assertIn("-ToastActivated", text)
+    def test_uninstall_removes_the_server_the_app_registers(self):
+        key = "Software\\Classes\\CLSID\\{{" + activation_guid() + "}"
+        entries = [line for line in SETUP.read_text().splitlines() if key in line]
+        self.assertEqual(len(entries), 1)
+        self.assertIn("uninsdeletekey", entries[0])
+        self.assertIn("dontcreatekey", entries[0])
+        script = (ROOT / "packaging" / "windows" / "uninstall.ps1").read_text()
+        self.assertIn("Classes\\CLSID\\{" + activation_guid() + "}", script)
 
     def test_runner_registers_the_same_guid(self):
         source = strip_c_comments((RUNNER_DIR / "link_scheme.cpp").read_text())
