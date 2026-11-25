@@ -15,6 +15,8 @@ import 'dart:io';
 
 import 'package:dbus/dbus.dart';
 
+import 'serial_queue.dart';
+
 export 'kwin_window_rule.dart';
 
 const _service = 'org.kde.KWin';
@@ -33,27 +35,37 @@ for (const w of windows) {
 ''';
 }
 
-/// Asks KWin to keep this process's window titled [caption] above others; false where KWin is not running.
-Future<bool> kwinKeepAbove(String caption, {DBusClient? client}) async {
+// Pop-outs open close together; each load and unload must finish before the next one starts.
+final _queue = SerialQueue();
+var _loads = 0;
+
+/// Asks KWin to keep this process's window titled [caption] above others; false where KWin is not running or the script did not run.
+Future<bool> kwinKeepAbove(String caption, {DBusClient? client}) =>
+    _queue.run(() => _keepAbove(caption, client));
+
+Future<bool> _keepAbove(String caption, DBusClient? client) async {
   final bus = client ?? DBusClient.session();
+  final plugin = '$_plugin-${_loads++}';
   final dir = await Directory.systemTemp.createTemp('slimm-kwin-');
   try {
     final file = File('${dir.path}/keep_above.js');
     await file.writeAsString(keepAboveScript(pid: pid, caption: caption));
-    await _unload(bus);
+    await _unload(bus, plugin);
     final loaded = await bus.callMethod(
       destination: _service,
       path: _scripting,
       interface: _scriptingInterface,
       name: 'loadScript',
-      values: [DBusString(file.path), const DBusString(_plugin)],
+      values: [DBusString(file.path), DBusString(plugin)],
       replySignature: DBusSignature('i'),
     );
     final id = (loaded.values.first as DBusInt32).value;
     if (id < 0) return false;
-    await _run(bus, id);
-    await _unload(bus);
-    return true;
+    try {
+      return await _run(bus, id);
+    } finally {
+      await _unload(bus, plugin);
+    }
   } on DBusMethodResponseException {
     return false;
   } finally {
@@ -62,8 +74,8 @@ Future<bool> kwinKeepAbove(String caption, {DBusClient? client}) async {
   }
 }
 
-/// Plasma 6 puts a loaded script at `/Scripting/Script<id>`, Plasma 5 at `/<id>`.
-Future<void> _run(DBusClient bus, int id) async {
+/// Plasma 6 puts a loaded script at `/Scripting/Script<id>`, Plasma 5 at `/<id>`; true once one path ran it.
+Future<bool> _run(DBusClient bus, int id) async {
   for (final path in ['/Scripting/Script$id', '/$id']) {
     try {
       await bus.callMethod(
@@ -73,18 +85,19 @@ Future<void> _run(DBusClient bus, int id) async {
         name: 'run',
         replySignature: DBusSignature(''),
       );
-      return;
+      return true;
     } on DBusMethodResponseException {
       continue;
     }
   }
+  return false;
 }
 
-Future<void> _unload(DBusClient bus) => bus.callMethod(
+Future<void> _unload(DBusClient bus, String plugin) => bus.callMethod(
       destination: _service,
       path: _scripting,
       interface: _scriptingInterface,
       name: 'unloadScript',
-      values: [const DBusString(_plugin)],
+      values: [DBusString(plugin)],
       replySignature: DBusSignature('b'),
     );
