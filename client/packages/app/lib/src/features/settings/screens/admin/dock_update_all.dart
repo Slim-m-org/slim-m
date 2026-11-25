@@ -53,7 +53,7 @@ _UpdateAsk _updateAsk(
   );
 }
 
-enum _Outcome { updated, skipped, failed }
+enum _Outcome { updated, skipped, needsPassword, failed }
 
 class _Turn {
   const _Turn(this.outcome, {this.failure, this.declined = const []});
@@ -69,6 +69,13 @@ class _Turn {
 /// private-network yes goes with it.
 typedef _Grant = ({Set<String> host, bool localNetwork});
 
+/// The admin's password for the run: asked for at the first Administrator
+/// connector, reused for the rest, and never asked again once dismissed.
+class _AdminPassword {
+  String? value;
+  bool dismissed = false;
+}
+
 /// Updates [outdated] one at a time, the sequence that keeps a partial result
 /// easy to explain: each install is a write against one space.
 ///
@@ -81,14 +88,18 @@ Future<DockUpdateReport?> updateAllDockModules({
 }) async {
   var updated = 0;
   final skipped = <api.DockIndexEntry>[];
+  final needPassword = <api.DockIndexEntry>[];
+  final password = _AdminPassword();
   final failures = <String>[];
   final withoutAccess = <DockLeftBare>[];
   for (final item in outdated) {
-    final turn = await _updateOne(context, ref, item);
+    final turn = await _updateOne(context, ref, item, password);
     if (turn == null || !context.mounted) return null;
     switch (turn.outcome) {
       case _Outcome.skipped:
         skipped.add(item.entry);
+      case _Outcome.needsPassword:
+        needPassword.add(item.entry);
       case _Outcome.failed:
         failures.add(turn.failure!);
       case _Outcome.updated:
@@ -104,6 +115,7 @@ Future<DockUpdateReport?> updateAllDockModules({
     total: outdated.length,
     updated: updated,
     skipped: skipped,
+    needPassword: needPassword,
     failures: failures,
     withoutAccess: withoutAccess,
   );
@@ -135,6 +147,7 @@ Future<_Turn?> _updateOne(
   BuildContext context,
   WidgetRef ref,
   DockOutdated item,
+  _AdminPassword password,
 ) async {
   try {
     final current = await _heldNow(ref, item.entry.id);
@@ -161,16 +174,25 @@ Future<_Turn?> _updateOne(
     final connector = manifest.isConnector
         ? (current.connectorPermissions ?? 0) & manifest.connectorPermissions!
         : null;
-    if (holdsAdministrator(connector)) return const _Turn(_Outcome.skipped);
-    final installed = await _install(
-      context,
-      ref,
-      item,
-      manifest,
-      grant,
-      connector: connector,
-    );
+    final installed = holdsAdministrator(connector)
+        ? await _installAsAdministrator(
+            context,
+            ref,
+            item,
+            manifest,
+            connector,
+            password,
+          )
+        : await _install(
+            context,
+            ref,
+            item,
+            manifest,
+            grant,
+            connector: connector,
+          );
     if (!context.mounted) return null;
+    if (installed == null) return const _Turn(_Outcome.needsPassword);
     final lost = grant == null
         ? _lostAccess(manifest, current, installed)
         : const <String>[];
@@ -218,6 +240,46 @@ Future<_Turn?> _updateOne(
       ),
     );
   }
+}
+
+/// Installs an Administrator connector with the run's password, asking for it
+/// the first time. Null when the admin dismissed the prompt, now or earlier.
+Future<api.InstalledDockModule?> _installAsAdministrator(
+  BuildContext context,
+  WidgetRef ref,
+  DockOutdated item,
+  api.DockManifest manifest,
+  int? connector,
+  _AdminPassword password,
+) async {
+  if (password.dismissed) return null;
+  Future<api.InstalledDockModule> install(String? typed) => _install(
+    context,
+    ref,
+    item,
+    manifest,
+    null,
+    connector: connector,
+    password: typed,
+  );
+  final known = password.value;
+  if (known != null) return install(known);
+  api.InstalledDockModule? installed;
+  final done = await runWithAdminPassword(
+    context,
+    needed: true,
+    title: 'Confirm with your password',
+    description:
+        'Connectors with Administrator keep their power past any password change.',
+    submitLabel: 'Update',
+    whatFailed: 'update ${item.entry.name}',
+    run: (typed) async {
+      installed = await install(typed);
+      password.value = typed;
+    },
+  );
+  if (!done) password.dismissed = true;
+  return installed;
 }
 
 /// The consent step for [ask]. With [updated] the install already happened and
@@ -275,6 +337,7 @@ Future<api.InstalledDockModule> _install(
   api.DockManifest manifest,
   _Grant? grant, {
   int? connector,
+  String? password,
 }) async {
   try {
     return await ref
@@ -290,7 +353,10 @@ Future<api.InstalledDockModule> _install(
               : grant.localNetwork,
           reviewedDigest: manifest.reviewDigest,
           source: item.source,
-          connector: api.ConnectorApproval(permissions: connector),
+          connector: api.ConnectorApproval(
+            permissions: connector,
+            password: password,
+          ),
         );
   } finally {
     if (context.mounted) _refreshAfterInstall(ref);
