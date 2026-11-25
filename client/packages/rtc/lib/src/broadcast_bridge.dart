@@ -27,6 +27,8 @@ import 'package:livekit_client/src/managers/broadcast_manager.dart'
     as lk_broadcast;
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
+import 'broadcast_heartbeat_watch.dart';
+
 /// The seam. The default implementation talks to the app's iOS host; a test
 /// supplies its own, which is the only way any of this is exercisable off a
 /// device.
@@ -81,11 +83,42 @@ class MethodChannelBroadcastBridge implements BroadcastBridge {
   @override
   bool get usesBroadcastExtension => lk.lkPlatformIs(lk.PlatformType.iOS);
 
+  static BroadcastHeartbeatWatch? _heartbeat;
+
+  /// A memory kill of the extension posts no stop, so LiveKit would keep a dead share published.
+  static BroadcastHeartbeatWatch _startHeartbeatWatch() {
+    final manager = lk_broadcast.BroadcastManager();
+    final watch = BroadcastHeartbeatWatch(
+      silence: _extensionSilence,
+      onLost: () {
+        AppLog.warning(LogTag.voice, 'Screen broadcast extension went silent');
+        // ignore: invalid_use_of_internal_member
+        manager.broadcastStateChanged(false);
+      },
+    );
+    manager.addListener(
+      () => watch.broadcastChanged(broadcasting: manager.isBroadcasting),
+    );
+    return watch;
+  }
+
+  static Future<Duration?> _extensionSilence() async {
+    try {
+      final ms = await channel.invokeMethod<int>('extensionSilenceMs');
+      return ms == null ? null : Duration(milliseconds: ms);
+    } on PlatformException {
+      return null;
+    } on MissingPluginException {
+      return null;
+    }
+  }
+
   /// A missing handler answers false rather than throwing: an app build
   /// without this channel has no extension either, which is the same answer.
   @override
   Future<bool> isAvailable() async {
     if (!usesBroadcastExtension) return true;
+    _heartbeat ??= _startHeartbeatWatch();
     try {
       return await channel.invokeMethod<bool>('isAvailable') ?? false;
     } on PlatformException catch (error, stack) {

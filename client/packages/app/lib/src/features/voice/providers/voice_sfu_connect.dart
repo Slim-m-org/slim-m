@@ -2,6 +2,8 @@
 /// Fetching a call token and opening the SFU session for it.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
@@ -65,6 +67,21 @@ class VoiceSfuConnect {
   final VoiceRejoin _rejoin;
 
   VoiceState get _current => _access.state;
+
+  /// Follows a Speak grant or revoke the server pushes to a call in progress.
+  StreamSubscription<bool> watchPublishPermission() =>
+      _session.publishPermission.listen(_onPublishPermission);
+
+  void _onPublishPermission(bool canPublish) {
+    if (_current.channelId == null || _current.canPublish == canPublish) return;
+    _access.state = canPublish
+        ? _current.copyWith(canPublish: true)
+        : _current.copyWith(
+            canPublish: false,
+            microphoneEnabled: false,
+            cameraEnabled: false,
+          );
+  }
 
   /// Connects, turns a refusal into the failure the call shows, and clears `joining` unless a newer call took over.
   Future<void> run(

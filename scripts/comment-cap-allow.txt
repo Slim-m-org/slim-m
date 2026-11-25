@@ -136,7 +136,6 @@ client/packages/platform/lib/src/apns_token_channel.dart 2
 client/packages/platform/lib/src/persistent_key_store.dart 1
 client/packages/platform/test/apns_token_channel_test.dart 3
 client/packages/platform/test/device_push_keys_test.dart 1
-client/packages/platform/test/host_platform_test.dart 1
 client/packages/platform/test/local_notifications_test.dart 1
 client/packages/platform/test/persistent_key_store_test.dart 3
 client/packages/platform/test/platform_test.dart 4
@@ -238,7 +237,6 @@ scripts/lib/e2e_voice.py 3
 client/packages/app/android/app/build.gradle.kts 6
 client/packages/app/android/build.gradle.kts 1
 client/packages/app/android/settings.gradle.kts 1
-client/packages/app/ios/BroadcastExtension/Atomic.swift 1
 client/packages/app/ios/BroadcastExtension/DarwinNotificationCenter.swift 1
 client/packages/app/ios/BroadcastExtension/SampleHandler.swift 1
 client/packages/app/ios/BroadcastExtension/SampleUploader.swift 1

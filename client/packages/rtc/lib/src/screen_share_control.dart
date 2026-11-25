@@ -60,20 +60,26 @@ final shareAudioNote = ValueNotifier<String?>(null);
 /// iOS.
 ///
 /// The fix is LiveKit's own documented escape hatch,
-/// `BroadcastManager.shouldPublishTrack`. [setEnabled] sets it false before
-/// requesting activation, so the automatic republish becomes a harmless
-/// no-op (`_broadcastStateChanged` computes `isBroadcasting &&
-/// shouldPublishTrack`, which is false either way while nothing is
-/// published), waits for [BroadcastBridge.broadcastingChanges] to report the
-/// broadcast actually starting, and only then publishes itself with this
-/// call's own options. Restoring `shouldPublishTrack` to true happens after
-/// that publish succeeds or fails, never before: while it is false a second
-/// native notification resolves to nothing, but once it is back to true the
-/// same notification resolves to `unmute()` on the publication this class
-/// just created rather than a second, option-less publish clobbering it.
+/// `BroadcastManager.shouldPublishTrack`. It is false whenever no share of
+/// ours is published, so a start event from any other process publishes
+/// nothing. [setEnabled] waits for [BroadcastBridge.broadcastingChanges] to
+/// report the broadcast starting, and only while such a request is pending
+/// publishes with this call's own options. It is true only while that
+/// publication is live: LiveKit re-evaluates it on every broadcast
+/// notification, and a repeated start must find the share published, not
+/// unpublish it.
 class ScreenShareControl {
   ScreenShareControl(this._broadcast, {ShareAudioIsolation? isolation})
-      : _isolation = isolation;
+      : _isolation = isolation {
+    _autoPublish(false);
+  }
+
+  /// Held off whenever no share of ours is published: any process can post the start event.
+  void _autoPublish(bool enabled) {
+    if (_broadcast.usesBroadcastExtension) {
+      _broadcast.autoPublishEnabled = enabled;
+    }
+  }
 
   final BroadcastBridge _broadcast;
 
@@ -87,6 +93,7 @@ class ScreenShareControl {
   /// button, the captured window closing); its audio mix must go with it.
   Future<void> shareEnded() async {
     if (_startsInFlight != 0) return;
+    _autoPublish(false);
     shareAudioNote.value = null;
     await _isolation?.end();
   }
@@ -127,6 +134,7 @@ class ScreenShareControl {
   }) async {
     if (enabled) _startsInFlight++;
     shareAudioNote.value = null;
+    _autoPublish(false);
     try {
       await _cancelHandoff();
       if (enabled && !await _broadcast.isAvailable()) {
@@ -190,7 +198,6 @@ class ScreenShareControl {
     required bool Function() isSharing,
     required void Function(Object? error) onSettled,
   }) async {
-    _broadcast.autoPublishEnabled = false;
     final options = captureOptionsFor(
       quality,
       sourceId,
@@ -201,13 +208,12 @@ class ScreenShareControl {
       await publish(true, options, includeAudio);
     } catch (e, stack) {
       reportFailure(LogTag.voice, 'start sharing the screen', e, stack);
-      _broadcast.autoPublishEnabled = true;
       onSettled(e);
       return ScreenShareOutcome.failed;
     }
     if (isSharing()) {
       // Already broadcasting (a resumed session, most likely): nothing left to arm.
-      _broadcast.autoPublishEnabled = true;
+      _autoPublish(true);
       return ScreenShareOutcome.started;
     }
     _armHandoff(options, includeAudio, publish, onSettled);
@@ -246,13 +252,12 @@ class ScreenShareControl {
   ) async {
     try {
       await publish(true, options, includeAudio);
+      _autoPublish(true);
       onSettled(null);
     } catch (e, stack) {
       reportFailure(LogTag.voice,
           'start sharing after the screen broadcast began', e, stack);
       onSettled(e);
-    } finally {
-      _broadcast.autoPublishEnabled = true;
     }
   }
 
@@ -264,7 +269,6 @@ class ScreenShareControl {
     _handoff = null;
     if (sub == null) return;
     await sub.cancel();
-    _broadcast.autoPublishEnabled = true;
   }
 
   /// Ends a running platform broadcast outright. Unpublishing the LiveKit
@@ -284,11 +288,11 @@ class ScreenShareControl {
   /// Called from [VoiceSession]'s own teardown as a backstop, after
   /// [stopActiveBroadcast] has already run on every path this package knows
   /// about. Cancels a hand-off still waiting on the picker, so leaving
-  /// mid-request cannot leave a listener running or `autoPublishEnabled`
-  /// stuck false past the call that set it, and asks the platform to stop
+  /// mid-request cannot leave a listener running, and asks the platform to stop
   /// again in case some future call-ending path is added that reaches
   /// disposal without going through the ordered call first.
   Future<void> dispose() async {
+    _autoPublish(false);
     await _isolation?.end();
     await _cancelHandoff();
     await stopActiveBroadcast();

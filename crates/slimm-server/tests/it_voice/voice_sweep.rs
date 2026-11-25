@@ -407,3 +407,55 @@ async fn a_member_who_rejoins_before_their_queued_removal_keeps_the_call() {
         assert!(voice.has_heartbeat(*user, *channel));
     }
 }
+
+fn unix_ms_ago(ago: Duration) -> i64 {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap();
+    (now - ago).as_millis() as i64
+}
+
+/// The sweep forgot the heartbeat, but a connection that joined the room after the last one is a
+/// rejoin whose first heartbeat has not landed yet, and removing by identity would hit it.
+#[tokio::test]
+async fn a_connection_that_joined_after_the_last_heartbeat_is_not_removed() {
+    let recorder = RecordingRoomService::default();
+    let url = spawn_sfu(recorder.clone()).await;
+    let voice = voice_at(&url);
+    let (user, channel) = (UserId::generate(), ChannelId::generate());
+    let start = Instant::now();
+    voice.record_heartbeat_at_for_test(user, channel, start);
+    recorder.seat_joined_in(
+        &format!("channel-{channel}"),
+        &[(user, unix_ms_ago(Duration::from_secs(1)))],
+    );
+
+    let evicted = slimm_server::sweep_stale_voice_calls_at(
+        &voice,
+        &Hub::new(),
+        start + Duration::from_secs(41),
+    )
+    .await;
+
+    assert!(recorder.removed.lock().unwrap().is_empty());
+    assert!(evicted.is_empty(), "their new session is not closed either");
+}
+
+#[tokio::test]
+async fn a_connection_older_than_the_last_heartbeat_is_still_removed() {
+    let recorder = RecordingRoomService::default();
+    let url = spawn_sfu(recorder.clone()).await;
+    let voice = voice_at(&url);
+    let (user, channel) = (UserId::generate(), ChannelId::generate());
+    let start = Instant::now();
+    voice.record_heartbeat_at_for_test(user, channel, start);
+    recorder.seat_joined_in(
+        &format!("channel-{channel}"),
+        &[(user, unix_ms_ago(Duration::from_secs(300)))],
+    );
+
+    slimm_server::sweep_stale_voice_calls_at(&voice, &Hub::new(), start + Duration::from_secs(41))
+        .await;
+
+    assert_eq!(recorder.removed.lock().unwrap().len(), 1);
+}

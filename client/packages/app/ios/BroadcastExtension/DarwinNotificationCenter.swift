@@ -2,16 +2,17 @@
 // Adapted from the LiveKit Flutter example's broadcast extension.
 import Foundation
 
-/// The three notification names livekit_client's iOS plugin uses.
+/// The notification names this process and the app share.
 ///
-/// These strings are the wire protocol between this process and the app, and
-/// they are defined by the package, not by us: see `DarwinNotification` in
-/// `livekit_client/ios/Classes/DarwinNotificationCenter.swift`. Renaming one
-/// here silently detaches the app from the broadcast.
+/// The first three are defined by livekit_client's iOS plugin, not by us: see
+/// `DarwinNotification` in `livekit_client/ios/Classes/DarwinNotificationCenter.swift`.
+/// Renaming one here silently detaches the app from the broadcast. The heartbeat
+/// is ours, and only tells the app the extension process is still alive.
 enum DarwinNotification: String {
   case broadcastStarted = "iOS_BroadcastStarted"
   case broadcastStopped = "iOS_BroadcastStopped"
   case broadcastRequestStop = "iOS_BroadcastRequestStop"
+  case broadcastHeartbeat = "top.npcserver.slimm.BroadcastHeartbeat"
 }
 
 /// Darwin notifications are the only IPC that reaches a broadcast extension

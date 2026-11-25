@@ -16,6 +16,9 @@ abstract interface class DesktopVideoPlayer implements EmbeddedVideoPlayer {
   /// The Flutter texture showing the player, null until its view exists.
   ValueListenable<int?> get texture;
 
+  /// Fires when another player took the native view, so this one is gone.
+  Stream<void> get displaced;
+
   /// Sizes the page to the box showing it: [size] in logical pixels, drawn
   /// at [pixelRatio] physical pixels to each.
   Future<void> resize(Size size, double pixelRatio);

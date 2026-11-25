@@ -25,7 +25,6 @@
 		7A11C0DE0002000000000011 /* SampleHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE0002000000000001 /* SampleHandler.swift */; };
 		7A11C0DE0002000000000012 /* SocketConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE0002000000000002 /* SocketConnection.swift */; };
 		7A11C0DE0002000000000013 /* SampleUploader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE0002000000000003 /* SampleUploader.swift */; };
-		7A11C0DE0002000000000014 /* Atomic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE0002000000000004 /* Atomic.swift */; };
 		7A11C0DE0002000000000015 /* DarwinNotificationCenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE0002000000000005 /* DarwinNotificationCenter.swift */; };
 		7A11C0DE0002000000000016 /* BroadcastConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE0002000000000006 /* BroadcastConstants.swift */; };
 		7A11C0DE0002000000000017 /* BroadcastExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 7A11C0DE0002000000000009 /* BroadcastExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -143,7 +142,6 @@
 		7A11C0DE0002000000000001 /* SampleHandler.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SampleHandler.swift; sourceTree = "<group>"; };
 		7A11C0DE0002000000000002 /* SocketConnection.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SocketConnection.swift; sourceTree = "<group>"; };
 		7A11C0DE0002000000000003 /* SampleUploader.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SampleUploader.swift; sourceTree = "<group>"; };
-		7A11C0DE0002000000000004 /* Atomic.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Atomic.swift; sourceTree = "<group>"; };
 		7A11C0DE0002000000000005 /* DarwinNotificationCenter.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = DarwinNotificationCenter.swift; sourceTree = "<group>"; };
 		7A11C0DE0002000000000006 /* BroadcastConstants.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = BroadcastConstants.swift; sourceTree = "<group>"; };
 		7A11C0DE0002000000000007 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -233,7 +231,6 @@
 				7A11C0DE0002000000000001 /* SampleHandler.swift */,
 				7A11C0DE0002000000000002 /* SocketConnection.swift */,
 				7A11C0DE0002000000000003 /* SampleUploader.swift */,
-				7A11C0DE0002000000000004 /* Atomic.swift */,
 				7A11C0DE0002000000000005 /* DarwinNotificationCenter.swift */,
 				7A11C0DE0002000000000006 /* BroadcastConstants.swift */,
 				7A11C0DE0002000000000007 /* Info.plist */,
@@ -580,7 +577,6 @@
 				7A11C0DE0002000000000011 /* SampleHandler.swift in Sources */,
 				7A11C0DE0002000000000012 /* SocketConnection.swift in Sources */,
 				7A11C0DE0002000000000013 /* SampleUploader.swift in Sources */,
-				7A11C0DE0002000000000014 /* Atomic.swift in Sources */,
 				7A11C0DE0002000000000015 /* DarwinNotificationCenter.swift in Sources */,
 				7A11C0DE0002000000000016 /* BroadcastConstants.swift in Sources */,
 			);

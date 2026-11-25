@@ -163,23 +163,60 @@ void main() {
       expect(settled.single, isNull);
     });
 
-    test('restores auto-publish only after the deferred publish, not before',
+    test('auto-publish is on only while this share is published', () async {
+      expect(bridge.autoPublishWrites, [false],
+          reason: 'disarmed before any share is asked for, so a start event '
+              'with no request pending publishes nothing');
+
+      await start();
+      expect(bridge.autoPublishWrites.last, isFalse,
+          reason: 'still waiting on the picker');
+      bridge.startBroadcasting();
+      await pumpEventQueue();
+      expect(bridge.autoPublishWrites.last, isTrue,
+          reason: 'a repeated start event must find the share published');
+
+      await control.dispose();
+      expect(bridge.autoPublishWrites.last, isFalse);
+    });
+
+    test('a share that ends on its own disarms auto-publish again', () async {
+      await start();
+      bridge.startBroadcasting();
+      await pumpEventQueue();
+
+      await control.shareEnded();
+
+      expect(bridge.autoPublishWrites.last, isFalse);
+    });
+
+    test('a broadcast start with no share request pending publishes nothing',
+        () async {
+      bridge.startBroadcasting();
+      await pumpEventQueue();
+
+      expect(calls, isEmpty);
+    });
+
+    test('a broadcast start after the request was cancelled publishes nothing',
         () async {
       await start();
-      expect(bridge.autoPublishWrites, [false],
-          reason: 'still disarmed while nothing has published yet');
+      await control.setEnabled(
+        false,
+        quality: ScreenShareQuality.standard,
+        publish: publish,
+        isSharing: () => sharing,
+        onSettled: (e) {},
+      );
+      calls.clear();
 
       bridge.startBroadcasting();
       await pumpEventQueue();
 
-      expect(bridge.autoPublishWrites, [false, true],
-          reason: 'restored is the last write, made after the publish '
-              'landed, or a later native notification could unpublish the '
-              'track this call just created');
+      expect(calls, isEmpty);
     });
 
-    test('a deferred publish that throws is reported and still restores',
-        () async {
+    test('a deferred publish that throws is reported', () async {
       calls.clear();
       var attempt = 0;
       final failing = ScreenShareControl(bridge);
@@ -203,8 +240,6 @@ void main() {
 
       expect(settledCount, 1);
       expect(settled.single, isA<StateError>());
-      expect(bridge.autoPublishWrites.last, isTrue,
-          reason: 'a failed publish must not leave the flag disarmed');
     });
 
     test('a throwing unpublish still asks the platform to stop', () async {
@@ -237,7 +272,7 @@ void main() {
       );
 
       expect(outcome, ScreenShareOutcome.started);
-      expect(bridge.autoPublishWrites, [false, true]);
+      expect(bridge.autoPublishWrites.last, isTrue);
 
       // Nothing was armed, so a later native notification must not reach a second publish.
       bridge.startBroadcasting();
@@ -248,8 +283,6 @@ void main() {
     test('disabling while still awaiting the picker cancels the hand-off',
         () async {
       await start();
-      expect(bridge.autoPublishWrites, [false]);
-
       final stopped = await control.setEnabled(
         false,
         quality: ScreenShareQuality.standard,
@@ -259,9 +292,6 @@ void main() {
       );
       expect(stopped, ScreenShareOutcome.stopped);
       expect(bridge.stopRequests, 1);
-      expect(bridge.autoPublishWrites.last, isTrue,
-          reason: 'cancelling must not leave the flag disarmed for the next '
-              'share attempt');
 
       // The picker being answered after cancellation must reach nothing.
       calls.clear();
@@ -282,8 +312,6 @@ void main() {
       expect(bridge.stopRequests, 1,
           reason: 'a call ending must not leave the phone still recording, '
               'whether or not this hand-off ever reached a real broadcast');
-      expect(bridge.autoPublishWrites.last, isTrue,
-          reason: 'disposing must not leave the flag disarmed past this call');
 
       // The picker being answered after disposal must reach nothing.
       calls.clear();
@@ -324,8 +352,8 @@ void main() {
         onSettled: (e) => settled.add(e),
       );
       expect(outcome, ScreenShareOutcome.unsupported);
-      expect(unsupported.autoPublishWrites, isEmpty,
-          reason: 'nothing to disarm when the request is refused up front');
+      expect(unsupported.autoPublishWrites, everyElement(isFalse),
+          reason: 'never armed, before or after the request is refused');
       await unsupported.dispose();
     });
   });

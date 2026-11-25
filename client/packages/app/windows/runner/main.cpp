@@ -11,6 +11,7 @@
 #include "main_window.h"
 #include "single_instance.h"
 #include "utils.h"
+#include "youtube_player_channel.h"
 
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                       _In_ wchar_t *command_line, _In_ int show_command) {
@@ -60,6 +61,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   // window_manager quits with PostQuitMessage, so the windows are still alive here; tear them down while Dart still runs.
   UnregisterGlobalHotkeys();
   DestroyDartWindows();
+  ShutdownYoutubePlayer();
   engine.reset();
   ::CoUninitialize();
   return EXIT_SUCCESS;

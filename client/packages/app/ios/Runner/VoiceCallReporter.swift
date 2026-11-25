@@ -279,6 +279,7 @@ final class VoiceCallChannel: NSObject, CXProviderDelegate {
     configuration.supportsVideo = false
     configuration.maximumCallsPerCallGroup = 1
     configuration.supportedHandleTypes = [.generic]
+    configuration.includesCallsInRecents = false
     configuration.ringtoneSound = callKitRingtoneFileName
     return CXProvider(configuration: configuration)
   }

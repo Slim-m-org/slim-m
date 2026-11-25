@@ -32,12 +32,15 @@ export 'src/now_playing.dart';
 export 'src/global_hotkeys.dart';
 export 'src/global_hotkeys_keys.dart'
     show portalTriggerFor, windowsVirtualKeyFor;
+export 'src/linux_key_store.dart';
+export 'src/migrating_key_store.dart';
 export 'src/persistent_key_store.dart';
 export 'src/polled_stream.dart';
 export 'src/shared_stream.dart';
 export 'src/picture_in_picture_channel.dart';
 export 'src/screen_overlay.dart';
 export 'src/screen_overlay_channel.dart';
+export 'src/session_lock_channel.dart';
 export 'src/shortcuts.dart';
 export 'src/system_idle.dart';
 export 'src/taskbar_attention.dart';

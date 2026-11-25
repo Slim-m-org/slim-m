@@ -56,13 +56,13 @@ It is never derived from the account password: the password is not available at 
 A new key is written and read back before anything is sealed with it.
 A key the store did not really keep would strand the database on the next launch.
 
-The store is the one the session token already uses: Keychain on iOS and macOS, Keystore on Android, the Windows credential store, and on Linux the owner-only file described in `persistent_key_store.dart`.
+The store is the one the session token already uses: Keychain on iOS and macOS, Keystore on Android, the Windows credential store, and on Linux the Secret Service keyring when one answers, with the owner-only file described in `persistent_key_store.dart` as the fallback.
 That last one matters for honesty.
-On Linux the key sits in the owner-only secrets file beside the database, so encryption there protects the database file when it is copied, backed up or read by another account, and does not protect it from a process already running as the same user, which can read the key file as easily as the database.
+Where no Secret Service answers, the key sits in the owner-only secrets file beside the database, so encryption there protects the database file when it is copied, backed up or read by another account, and does not protect it from a process already running as the same user, which can read the key file as easily as the database.
 That file is now written through a 0600 temp file inside a 0700 directory and renamed into place, flushed first, and a failed `chmod` is an error instead of being swallowed.
 A secrets file that does not parse reads as empty, so one torn write means a sign-in and a fresh database key, not a permanent lock-out.
-Linux is deliberately not moved to libsecret here: a session with no secret service would then fail at every launch, and the existing file store was chosen for exactly that reason.
-Moving Linux to a real keyring where one exists is a separate card.
+Linux was first left on the file because a session with no secret service would fail at every launch.
+It now uses the keyring when a startup probe gets an answer, keeps the file as the fallback, and moves the file's entries over (`LinuxKeyStore`).
 
 ### When the key is unavailable
 
