@@ -163,21 +163,31 @@ void main() {
       expect(settled.single, isNull);
     });
 
-    test('auto-publish stays off for the whole session, share after share',
-        () async {
+    test('auto-publish is on only while this share is published', () async {
       expect(bridge.autoPublishWrites, [false],
           reason: 'disarmed before any share is asked for, so a start event '
               'with no request pending publishes nothing');
 
       await start();
+      expect(bridge.autoPublishWrites.last, isFalse,
+          reason: 'still waiting on the picker');
       bridge.startBroadcasting();
       await pumpEventQueue();
+      expect(bridge.autoPublishWrites.last, isTrue,
+          reason: 'a repeated start event must find the share published');
+
+      await control.dispose();
+      expect(bridge.autoPublishWrites.last, isFalse);
+    });
+
+    test('a share that ends on its own disarms auto-publish again', () async {
       await start();
       bridge.startBroadcasting();
       await pumpEventQueue();
-      await control.dispose();
 
-      expect(bridge.autoPublishWrites, isNot(contains(true)));
+      await control.shareEnded();
+
+      expect(bridge.autoPublishWrites.last, isFalse);
     });
 
     test('a broadcast start with no share request pending publishes nothing',
@@ -262,7 +272,7 @@ void main() {
       );
 
       expect(outcome, ScreenShareOutcome.started);
-      expect(bridge.autoPublishWrites, everyElement(isFalse));
+      expect(bridge.autoPublishWrites.last, isTrue);
 
       // Nothing was armed, so a later native notification must not reach a second publish.
       bridge.startBroadcasting();
@@ -342,8 +352,8 @@ void main() {
         onSettled: (e) => settled.add(e),
       );
       expect(outcome, ScreenShareOutcome.unsupported);
-      expect(unsupported.autoPublishWrites, [false],
-          reason: 'disarmed at construction, before the request is refused');
+      expect(unsupported.autoPublishWrites, everyElement(isFalse),
+          reason: 'never armed, before or after the request is refused');
       await unsupported.dispose();
     });
   });
