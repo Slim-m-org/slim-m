@@ -30,7 +30,7 @@ void _dispatchDrop(web.DataTransfer transfer) => web.window.dispatchEvent(
 
 void main() {
   test('a large file is read in bounded slices', () async {
-    final size = kDropReadChunk * 2 + 10;
+    const size = kDropReadChunk * 2 + 10;
     final sizes = [
       await for (final c in blobChunks(_file('big.bin', size))) c.length,
     ];

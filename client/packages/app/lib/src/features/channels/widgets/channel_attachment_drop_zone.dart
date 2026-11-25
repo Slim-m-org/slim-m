@@ -50,15 +50,7 @@ Future<void> handleComposerDrop(
       target.setError("Folders can't be attached - drop a file instead.");
       continue;
     }
-    await target.stageFile(
-      FileSource(
-        name: file.name,
-        length: file.length,
-        readAll: file.readAsBytes,
-        openRead: file.openRead,
-        openReadAt: (offset) => file.openRead(offset),
-      ),
-    );
+    await target.stageFile(dropFileSource(file));
   }
 }
 

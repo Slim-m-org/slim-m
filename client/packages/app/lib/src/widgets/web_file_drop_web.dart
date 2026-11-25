@@ -29,10 +29,10 @@ Stream<Uint8List> blobChunks(web.Blob blob, [int? start, int? end]) async* {
 
 /// A dropped browser file whose bytes are read in slices.
 class WebDropFile extends DropItemFile {
-  WebDropFile(this.file)
+  WebDropFile(this.file, {String? name})
     : super(
         web.URL.createObjectURL(file),
-        name: file.name,
+        name: name ?? file.name,
         length: file.size,
         mimeType: file.type.isEmpty ? null : file.type,
         lastModified: DateTime.fromMillisecondsSinceEpoch(file.lastModified),

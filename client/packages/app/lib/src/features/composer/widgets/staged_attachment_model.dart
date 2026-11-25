@@ -2,6 +2,7 @@
 /// The staged-attachment model: bodies, sources and the sealed staged states.
 library;
 
+import 'package:desktop_drop/desktop_drop.dart' show DropItem;
 import 'package:flutter/foundation.dart';
 import 'package:slimm_api/api.dart' as api;
 
@@ -54,6 +55,15 @@ class FileSource {
   final Stream<List<int>> Function() openRead;
   final Stream<List<int>> Function(int offset)? openReadAt;
 }
+
+/// [file] as the staging path reads it: by name, by length and in slices.
+FileSource dropFileSource(DropItem file) => FileSource(
+  name: file.name,
+  length: file.length,
+  readAll: file.readAsBytes,
+  openRead: file.openRead,
+  openReadAt: (offset) => file.openRead(offset),
+);
 
 /// Files up to this size are read whole, which also gives them a preview;
 /// anything larger is streamed from disk so it never sits in memory.
