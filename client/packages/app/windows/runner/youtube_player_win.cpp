@@ -261,6 +261,12 @@ void Configure(ICoreWebView2* webview) {
   }
 }
 
+// Closed here on the UI thread, since the last reference may be dropped by Flutter's raster thread.
+void ReleaseCapture() {
+  if (auto capture = std::atomic_load(&g.capture)) capture->Close();
+  std::atomic_store(&g.capture, std::shared_ptr<VisualCapture>());
+}
+
 void Close(ICoreWebView2CompositionController* composition) {
   ComPtr<ICoreWebView2Controller> controller;
   if (composition != nullptr &&
@@ -282,7 +288,7 @@ void OnController(int generation, ICoreWebView2CompositionController* compositio
   if (!g.capture ||
       FAILED(composition->put_RootVisualTarget(g.capture->RootVisual())) ||
       FAILED(composition->QueryInterface(IID_PPV_ARGS(&g.controller)))) {
-    std::atomic_store(&g.capture, std::shared_ptr<VisualCapture>());
+    ReleaseCapture();
     Close(composition);
     done(false);
     return;
@@ -454,7 +460,7 @@ void Destroy() {
     g.controller->Close();
     g.controller.Reset();
   }
-  std::atomic_store(&g.capture, std::shared_ptr<VisualCapture>());
+  ReleaseCapture();
   // A new view gets a new environment, so a crashed browser process or an updated runtime never leaves the player dead.
   g.environment.Reset();
 }

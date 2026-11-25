@@ -91,7 +91,15 @@ class Capture final : public VisualCapture,
     return static_cast<IUnknown*>(winrt::get_abi(root_));
   }
 
+  void Close() override {
+    closed_ = true;
+    Stop();
+    root_ = nullptr;
+    compositor_ = nullptr;
+  }
+
   void Resize(UINT width, UINT height) override {
+    if (closed_) return;
     width = std::max<UINT>(width, 1);
     height = std::max<UINT>(height, 1);
     if (width == size_.Width && height == size_.Height) return;
@@ -184,6 +192,7 @@ class Capture final : public VisualCapture,
 
   static constexpr size_t kRetiredTextures = 4;
   std::deque<winrt::com_ptr<ID3D11Texture2D>> retired_;
+  bool closed_ = false;
   std::function<void()> on_frame_;
   winrt::com_ptr<ID3D11Device> device_;
   winrt::com_ptr<ID3D11DeviceContext> context_;
