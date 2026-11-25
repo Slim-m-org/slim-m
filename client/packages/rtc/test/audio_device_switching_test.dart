@@ -118,6 +118,62 @@ void main() {
     });
   });
 
+  group('AudioDeviceSwitching follows the system default speaker', () {
+    AudioDeviceSwitching build(
+      List<String> applied,
+      lk.PlatformType platform, {
+      List<AudioDevice> speakers = const [],
+    }) =>
+        AudioDeviceSwitching(
+          _FixedAudioDevices(outputDevices: speakers),
+          liveOutput: (room, device) async => applied.add(device.deviceId),
+          platform: () => platform,
+        );
+
+    test('on Windows a call on the system default asks for the default again',
+        () async {
+      final applied = <String>[];
+      final switching = build(applied, lk.PlatformType.windows,
+          speakers: [_mic('spkA'), _mic('spkB')]);
+
+      await switching.reapplyOutput(lk.Room());
+
+      expect(applied, ['default']);
+    });
+
+    test('on Windows a chosen speaker is selected again by its id', () async {
+      final applied = <String>[];
+      final switching = build(applied, lk.PlatformType.windows,
+          speakers: [_mic('spkA'), _mic('spkB')]);
+      await switching.selectOutput(null, _mic('spkB'));
+
+      await switching.reapplyOutput(lk.Room());
+
+      expect(applied, ['spkB']);
+    });
+
+    test('elsewhere a call on the system default leaves the speaker alone',
+        () async {
+      final applied = <String>[];
+      final switching = build(applied, lk.PlatformType.macOS);
+
+      await switching.reapplyOutput(lk.Room());
+
+      expect(applied, isEmpty);
+    });
+
+    test('choosing the system default on Windows applies it to the live call',
+        () async {
+      final applied = <String>[];
+      final switching =
+          build(applied, lk.PlatformType.windows, speakers: [_mic('spkA')]);
+
+      await switching.selectOutput(lk.Room(), null);
+
+      expect(applied, ['default']);
+    });
+  });
+
   group('AudioDeviceSwitching chosen devices that come and go', () {
     test('a chosen microphone that is plugged in again is used again',
         () async {
