@@ -20,6 +20,7 @@ import 'package:slimm_app/src/features/messages/providers/reply_mention_preferen
 import 'package:slimm_app/src/features/messages/widgets/message_row.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_row_callbacks.dart';
 import 'package:slimm_app/src/features/messages/widgets/reply_banner.dart';
+import 'package:slimm_app/src/features/messages/widgets/reply_quote.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -251,6 +252,22 @@ void main() {
       ).extension<AppTokens>()!;
       expect(_fill(tester), tokens.accentSoft);
       expect(find.textContaining('@Me Myself'), findsOneWidget);
+    });
+
+    testWidgets('writes the @name in the mention colour', (tester) async {
+      await tester.pumpWidget(_row(mentionsMe: true, parentAuthor: 'me'));
+      final tokens = Theme.of(
+        tester.element(find.byType(MessageRow)),
+      ).extension<AppTokens>()!;
+
+      final name = tester.widget<RichText>(
+        find.descendant(
+          of: find.byKey(ReplyQuote.quoteKey),
+          matching: find.textContaining('@Me Myself', findRichText: true),
+        ),
+      );
+
+      expect(name.text.style?.color, tokens.accent);
     });
 
     testWidgets('an ordinary reply has neither', (tester) async {

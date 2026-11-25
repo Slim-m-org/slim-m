@@ -245,9 +245,10 @@ class ReplyQuote extends ConsumerWidget {
               name: label,
               profile: profile,
               style: snippetStyle.copyWith(
-                color:
-                    memberNameColor(profile, tokens.surfaceBase) ??
-                    tokens.textPrimary,
+                color: pinged
+                    ? tokens.accent
+                    : memberNameColor(profile, tokens.surfaceBase) ??
+                          tokens.textPrimary,
                 fontWeight: AppWeights.semi,
               ),
               secondary: snippet,
