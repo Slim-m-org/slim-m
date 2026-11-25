@@ -22,6 +22,7 @@ import '../../../modules/providers/app_launch.dart';
 import '../../../modules/providers/module_panels.dart';
 import '../../../modules/providers/code_block_runner.dart';
 import 'dock_install_consent.dart';
+import '../../../../picker_extensions.dart';
 
 /// A package file the admin chose: its name and what it held.
 class DockPackagePick {
@@ -50,7 +51,7 @@ final dockPackageSaverProvider = Provider<DockPackageSaver>(
 Future<DockPackagePick?> _pickPackage() async {
   final files = await FilePicker.pickFiles(
     type: FileType.custom,
-    allowedExtensions: const ['json'],
+    allowedExtensions: pickerExtensions(const ['json']),
   );
   final file = files.firstOrNull;
   if (file == null) return null;
