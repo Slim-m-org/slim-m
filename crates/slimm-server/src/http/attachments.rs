@@ -248,14 +248,24 @@ fn upload_stream_error(err: StreamError) -> ApiError {
 const NEUTRAL_FILENAME: &str = "attachment";
 
 /// Query for [`fetch`].
-#[derive(Deserialize)]
-struct FetchParams {
+#[derive(Deserialize, Default)]
+pub(super) struct FetchParams {
     /// Asks for a bounded-size preview of a still image; see [`super::attachment_preview`].
     w: Option<u32>,
     /// With `w`, also answers an animated WebP or PNG with its first frame.
     still: Option<bool>,
     /// Asks for the uploaded original kept beside a compressed copy.
     original: Option<bool>,
+}
+
+impl FetchParams {
+    /// The whole file, as stored or as uploaded, with no preview.
+    pub(super) fn whole(original: bool) -> Self {
+        Self {
+            original: original.then_some(true),
+            ..Self::default()
+        }
+    }
 }
 
 /// Serves stored bytes back, gated on the same VIEW_CHANNEL a caller needs to
@@ -275,25 +285,41 @@ async fn fetch(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Response, ApiError> {
-    let sha256 = media::from_hex(&attachment_id)
-        .filter(|bytes| bytes.len() == 32)
-        .ok_or(ApiError::BadRequest("invalid attachment id"))?;
-    let attachment_id = media::to_hex(&sha256);
+    serve_for(&state, ctx.user_id, &attachment_id, params, &headers).await
+}
 
+/// The sha256 an attachment id spells, when the id is well formed.
+pub(super) fn parse_attachment_id(attachment_id: &str) -> Result<Vec<u8>, ApiError> {
+    media::from_hex(attachment_id)
+        .filter(|bytes| bytes.len() == 32)
+        .ok_or(ApiError::BadRequest("invalid attachment id"))
+}
+
+/// Whether [user_id] may read these bytes, by the rule [`fetch`] and a download link share.
+pub(super) async fn may_fetch(
+    state: &AppState,
+    user_id: crate::ids::UserId,
+    sha256: &[u8],
+) -> Result<bool, ApiError> {
     // The uploader may always fetch what they uploaded, even before it is on any message
     // (previewing a just-picked GIF needs it); everyone else needs VIEW_CHANNEL on a
     // referencing channel, a rule `may_link` shares; a screen stamp adds a fetch-only grant.
-    let allowed = state
-        .store
-        .can_fetch_attachment(ctx.user_id, &sha256)
-        .await?
-        || super::screen_stamps::stamp_access::may_fetch_stamp_picture(
-            &state,
-            ctx.user_id,
-            &sha256,
-        )
-        .await;
-    if !allowed {
+    Ok(state.store.can_fetch_attachment(user_id, sha256).await?
+        || super::screen_stamps::stamp_access::may_fetch_stamp_picture(state, user_id, sha256)
+            .await)
+}
+
+/// Serves an attachment to [user_id], who has already been authenticated by whatever route got here.
+pub(super) async fn serve_for(
+    state: &AppState,
+    user_id: crate::ids::UserId,
+    attachment_id: &str,
+    params: FetchParams,
+    headers: &HeaderMap,
+) -> Result<Response, ApiError> {
+    let sha256 = parse_attachment_id(attachment_id)?;
+    let attachment_id = media::to_hex(&sha256);
+    if !may_fetch(state, user_id, &sha256).await? {
         // 404, not 403, and the difference is the whole point. An attachment id
         // is the content's sha256, so anyone holding a candidate file can
         // compute it; a 403-versus-404 split would tell them whether those
@@ -310,16 +336,16 @@ async fn fetch(
         .ok_or(ApiError::NotFound("attachment not found"))?;
     meta.filename = state
         .store
-        .attachment_display_filename(ctx.user_id, &sha256)
+        .attachment_display_filename(user_id, &sha256)
         .await?
         .unwrap_or_else(|| NEUTRAL_FILENAME.to_owned());
     if params.original == Some(true) {
         return super::attachment_original::serve(
-            &state,
+            state,
             &attachment_id,
             &sha256,
             &meta.filename,
-            &headers,
+            headers,
         )
         .await;
     }
@@ -332,7 +358,7 @@ async fn fetch(
                 width,
                 still: params.still == Some(true),
             },
-            &headers,
+            headers,
         )
         .await
     {

@@ -178,6 +178,10 @@ class DownloadsController extends Notifier<List<DownloadTask>> {
       _asking.remove(attachment.id);
     }
     if (target == null) return;
+    if (target is LinkDownloadTarget) {
+      await _startLink(target, attachment, original: original);
+      return;
+    }
     final limit = target.maxBytes;
     if (limit != null && attachment.size > limit) {
       await target.discard();
@@ -209,6 +213,37 @@ class DownloadsController extends Notifier<List<DownloadTask>> {
       ),
     ];
     await _run(id, run, attachment, original: original);
+  }
+
+  /// Hands the file to the browser's own download from a short-lived link, so its size never meets this app's memory.
+  Future<void> _startLink(
+    LinkDownloadTarget target,
+    api.Attachment attachment, {
+    required bool original,
+  }) async {
+    try {
+      final link = await ref
+          .read(apiProvider)
+          .createAttachmentDownloadLink(attachment.id, original: original);
+      await target.openLink(link.uri, attachment.filename);
+      ref
+          .read(toastsProvider.notifier)
+          .show(
+            'Downloading ${attachment.filename}.',
+            severity: AppToastSeverity.success,
+          );
+    } on Object catch (e, stack) {
+      api.reportFailure(api.LogTag.ui, 'start the download', e, stack);
+      _add(
+        _failed(
+          attachment,
+          e is api.ApiException
+              ? describeApiFailure('download ${attachment.filename}', e)
+              : 'Could not save ${attachment.filename}.',
+          original: original,
+        ),
+      );
+    }
   }
 
   /// Stops a running download and removes its partial file.

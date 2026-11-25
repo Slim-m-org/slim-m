@@ -2,9 +2,9 @@
 /// Where a download's bytes go as they arrive.
 ///
 /// On desktop that is a new file in the Downloads folder, written chunk by
-/// chunk so a multi-gigabyte attachment never sits in memory. Where
-/// the platform's save flow only takes bytes (phones, web) it is a buffer
-/// handed to that flow at the end.
+/// chunk so a multi-gigabyte attachment never sits in memory. On phones it is a
+/// file in the app cache handed to the platform's save step at the end. The
+/// browser has no file to write, so it downloads from a link instead.
 library;
 
 import 'dart:typed_data';
@@ -29,6 +29,12 @@ abstract interface class DownloadTarget {
   Future<void> discard();
 }
 
+/// A save the browser performs itself from a link, so no byte passes through the app.
+abstract interface class LinkDownloadTarget implements DownloadTarget {
+  /// Starts the browser's own download of [link] under [filename].
+  Future<void> openLink(Uri link, String filename);
+}
+
 /// Opens the place [filename] is saved to; null when the user declines a save step.
 typedef DownloadTargetOpener =
     Future<DownloadTarget?> Function(String filename);
@@ -36,8 +42,8 @@ typedef DownloadTargetOpener =
 Future<DownloadTarget?> openDownloadTarget(String filename) =>
     platform.openPlatformDownloadTarget(filename);
 
-/// The most a memory-buffered target takes before refusing; phones and the
-/// browser would otherwise run out of memory on a multi-gigabyte file.
+/// The most a memory-buffered target takes before refusing; the browser's own small saves
+/// (a theme, a sample) use it, while large files go through a link.
 const int kMemoryDownloadLimit = 256 * 1024 * 1024;
 
 /// The name a browser save uses: an extensionless name gets `.bin`, since a save has to end in one.
@@ -51,8 +57,11 @@ String webSaveName(String filename) {
 /// Hands finished bytes to the browser's download, under a name.
 typedef BrowserSave = void Function(Uint8List bytes, String filename);
 
+/// Starts the browser's download of a link, under a name.
+typedef BrowserLinkSave = void Function(Uri link, String filename);
+
 /// Buffers in memory, then gives the bytes to `file_picker`'s save flow,
-/// which on Android, iOS and web only accepts bytes.
+/// for the small saves that have no file to stream to.
 class MemoryDownloadTarget implements DownloadTarget {
   MemoryDownloadTarget(this.filename);
 
@@ -88,10 +97,16 @@ class MemoryDownloadTarget implements DownloadTarget {
 
 /// Browser saves: the buffer goes out as a download of its own, which works for
 /// empty and extensionless files that the picker's save flow refuses.
-class BrowserDownloadTarget extends MemoryDownloadTarget {
-  BrowserDownloadTarget(super.filename, this._save);
+class BrowserDownloadTarget extends MemoryDownloadTarget
+    implements LinkDownloadTarget {
+  BrowserDownloadTarget(super.filename, this._save, this._saveLink);
 
   final BrowserSave _save;
+  final BrowserLinkSave _saveLink;
+
+  @override
+  Future<void> openLink(Uri link, String filename) async =>
+      _saveLink(link, webSaveName(filename));
 
   @override
   Future<bool> finish() async {

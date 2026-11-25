@@ -154,6 +154,7 @@ mod roles;
 use roles::{role_preview, role_reorder};
 mod call_stats;
 mod data_exports;
+mod download_links;
 mod favorites;
 mod hold_music;
 mod media_compression;
@@ -419,6 +420,7 @@ pub fn router_with_slow_body_timeout(state: AppState, slow_body_timeout: Duratio
         .merge(role_preview::routes())
         .merge(safety::routes())
         .merge(data_exports::routes())
+        .merge(download_links::routes())
         .merge(dms::routes())
         .merge(group_dms::routes())
         .merge(search::routes())

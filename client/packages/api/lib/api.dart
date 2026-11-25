@@ -60,6 +60,8 @@ export 'src/client.dart'
         SlimmApiAuth,
         SlimmApiTotp,
         SlimmApiDiagnostics,
+        SlimmApiDownloadLinks,
+        DownloadLink,
         SlimmApiExports,
         SlimmApiDirectRoute,
         SlimmApiEdge,

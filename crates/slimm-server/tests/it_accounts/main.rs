@@ -36,6 +36,7 @@ mod device_version_refresh;
 mod discord_link;
 mod discord_link_avatar;
 mod display_name_trim;
+mod download_links;
 mod favorites;
 mod identity;
 mod install_sessions;

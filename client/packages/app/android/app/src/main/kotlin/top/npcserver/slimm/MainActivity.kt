@@ -19,6 +19,7 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterFragmentActivity() {
     private val pictureInPicture = PictureInPictureBridge(this)
     private var videoFullscreen = false
+    private val fileExport = FileExportChannel(this)
     private val shareIntake by lazy { ShareIntakeChannel(applicationContext) }
 
     /**
@@ -61,6 +62,7 @@ class MainActivity : FlutterFragmentActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         ClipboardImageChannel(applicationContext).attach(flutterEngine.dartExecutor.binaryMessenger)
+        fileExport.attach(flutterEngine.dartExecutor.binaryMessenger)
         shareIntake.attach(flutterEngine.dartExecutor.binaryMessenger)
         pictureInPicture.attach(flutterEngine.dartExecutor.binaryMessenger)
         // The Play build has no install permission and Play updates it, so it leaves the sideload updater out.
