@@ -45,10 +45,13 @@ bool RemoveToast(const std::wstring& tag, const std::wstring& aumid) {
     const auto history = ToastNotificationManager::History();
     std::wstring group;
     if (!HasToast(history, tag, aumid, &group)) return false;
-    try {
-      history.Remove(tag, group, aumid);
-      if (!HasToast(history, tag, aumid, nullptr)) return true;
-    } catch (const winrt::hresult_error&) {
+    // Windows rejects an empty group, so only a grouped toast can be removed on its own.
+    if (!group.empty()) {
+      try {
+        history.Remove(tag, group, aumid);
+        if (!HasToast(history, tag, aumid, nullptr)) return true;
+      } catch (const winrt::hresult_error&) {
+      }
     }
     std::vector<ToastNotification> others;
     for (const auto& toast : history.GetHistory(aumid)) {

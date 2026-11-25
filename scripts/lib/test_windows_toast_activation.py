@@ -6,8 +6,9 @@ Each of these fails silently when it is missing:
 1. The activation GUID the plugin registers is the CLSID of a `LocalServer32`
    key naming the launcher with `-ToastActivated`, written by both the setup
    and the runner; without it Windows has nothing to start for the click.
-2. The runner removes one toast by tag and group before it falls back to
-   clearing the history, and the fallback restores each toast on its own.
+2. The runner removes a grouped toast by tag and group (Windows rejects an
+   empty group, so a group-less one needs the clear and restore), and the
+   restore of each toast is guarded on its own.
 3. A cold start reads the launching click, so the payload is not dropped.
 
 Stdlib only; hygiene installs nothing.
@@ -50,7 +51,7 @@ class ServerIsRegistered(unittest.TestCase):
 
 
 class RemovingOneToast(unittest.TestCase):
-    def test_it_removes_by_tag_before_clearing_the_history(self):
+    def test_a_grouped_toast_is_removed_by_tag_before_clearing_the_history(self):
         source = strip_c_comments((RUNNER_DIR / "toast_history_win.cpp").read_text())
         self.assertIn("history.Remove(tag, group, aumid)", source)
         self.assertLess(source.index("history.Remove("), source.index("history.Clear("))
