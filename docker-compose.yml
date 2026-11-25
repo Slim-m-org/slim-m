@@ -46,9 +46,8 @@ x-hardened: &hardened
 services:
   server:
     <<: *hardened
-    # Set SLIMM_VERSION in .env to pin a release, and bump it on every upgrade:
-    # a stale tag predates every security fix since. See deploy/README.md.
-    image: ghcr.io/slim-m-org/slim-m-server:${SLIMM_VERSION:-latest}
+    # Required, so a fresh pull never drifts onto an unreleased build; bump it on every upgrade. See deploy/README.md.
+    image: ghcr.io/slim-m-org/slim-m-server:${SLIMM_VERSION:?set SLIMM_VERSION in .env to the release you run, for example 0.117.0}
     restart: unless-stopped
     environment:
       SLIMM_LOG: ${SLIMM_LOG:-info}
@@ -186,8 +185,8 @@ services:
       - "443:443"     # HTTPS
       - "443:443/udp" # HTTP/3 (QUIC)
     environment:
-      SLIMM_API_DOMAIN: ${SLIMM_API_DOMAIN}
-      ACME_EMAIL: ${ACME_EMAIL}
+      SLIMM_API_DOMAIN: ${SLIMM_API_DOMAIN:?set SLIMM_API_DOMAIN in .env to the domain this host serves, for example chat.example.com}
+      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env to the address Let's Encrypt may write to}
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data     # ACME account + issued certificates, must persist
