@@ -31,7 +31,7 @@ Stream<Uint8List> blobChunks(web.Blob blob, [int? start, int? end]) async* {
 class WebDropFile extends DropItemFile {
   WebDropFile(this.file, {String? name})
     : super(
-        web.URL.createObjectURL(file),
+        file.name,
         name: name ?? file.name,
         length: file.size,
         mimeType: file.type.isEmpty ? null : file.type,

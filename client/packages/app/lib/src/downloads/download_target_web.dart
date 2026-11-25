@@ -26,9 +26,17 @@ void _download(Uint8List bytes, String filename) {
   );
 }
 
-void _downloadLink(Uri link, String filename) {
-  web.HTMLAnchorElement()
-    ..href = link.toString()
-    ..download = filename
-    ..click();
+/// How long the frame lives; the browser has long since taken the file or shown its error inside it.
+const Duration kDownloadFrameLife = Duration(minutes: 2);
+
+/// Loads [link] in a hidden frame, so an error page or a navigation can never replace the app's own document.
+web.HTMLIFrameElement downloadInFrame(Uri link) {
+  final frame = web.HTMLIFrameElement()
+    ..style.display = 'none'
+    ..src = link.toString();
+  web.document.body?.append(frame);
+  Future<void>.delayed(kDownloadFrameLife, () => frame.remove());
+  return frame;
 }
+
+void _downloadLink(Uri link, String filename) => downloadInFrame(link);

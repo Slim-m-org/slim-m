@@ -6,8 +6,10 @@ import 'dart:js_interop';
 import 'dart:typed_data';
 
 import 'package:desktop_drop/desktop_drop.dart' show DropItem;
+import 'package:flutter/material.dart' show Icons, MaterialApp;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/widgets/app_drop_zone.dart';
 import 'package:slimm_app/src/widgets/web_file_drop_web.dart';
 import 'package:web/web.dart' as web;
 
@@ -76,6 +78,31 @@ void main() {
     _dispatchDrop(transfer);
 
     expect(dropped!.map((f) => f.name), ['cat.png']);
+  });
+
+  test('a dropped file holds no blob URL to leak', () {
+    expect(WebDropFile(_file('a.bin', 5)).path, isNot(startsWith('blob:')));
+  });
+
+  testWidgets('nested zones stage a drop once, in the innermost', (
+    tester,
+  ) async {
+    final taken = <String>[];
+    Widget zone(String name, Widget child) => AppDropZone(
+      enabled: true,
+      label: name,
+      icon: Icons.upload,
+      onDrop: (items, at) => taken.add(name),
+      child: child,
+    );
+    await tester.pumpWidget(
+      MaterialApp(home: zone('outer', zone('inner', const SizedBox.expand()))),
+    );
+    final transfer = web.DataTransfer()..items.add(_file('a.png', 4));
+
+    _dispatchDrop(transfer);
+
+    expect(taken, ['inner']);
   });
 
   testWidgets('a drag of only text is left to the browser', (tester) async {
