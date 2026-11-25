@@ -396,7 +396,7 @@ The Linux and Windows archives (and the macOS one, when it built) come from two 
 Both call this workflow with `defer: true` and the default `require` of `windows-x64,linux-x64`.
 `desktop-clients` calls it with `always()` once the Windows build succeeds, so a failed macOS build never costs Windows and Linux their update.
 Each producer (`linux-client`, `android-client`, `windows-client`, `macos-client`) runs `.github/actions/record-asset-digests` before attaching, which uploads the sha256 and size of what it built as a `digests-<tag>-<label>` artifact.
-The signer reads the newest artifact of each name from a run on `main` or the tag and fails on an attached asset with a different digest, or with none; a hand dispatch with `trust_release_assets` skips that for a release cut before digests existed.
+The signer reads every unexpired artifact of each name from a run on `main` or the tag (two runs can build one tag), accepts an attached asset that matches any of them, and fails when it matches none, naming each recorded digest, or when none was recorded; a hand dispatch with `trust_release_assets` skips that for a release cut before digests existed.
 With `defer`, a call that finds a required archive not attached yet signs nothing and passes with a notice, and the producer that attaches the last archive signs the full manifest.
 The `update-manifest` job in `release` needs `linux-client` and names its result in its `if:` (`scripts/lib/test_conditional_jobs_keep_their_needs_gate.py`).
 Client 0.88.0 shipped a manifest without `linux-x64` because the only caller ran before the tarball existed; the Linux tarball updater then found no artifact for its platform.
