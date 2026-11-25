@@ -63,6 +63,11 @@ class PushController extends StateNotifier<PushStatus>
         .onVoipToken
         .listen((_) => _reregisterAfterVoipToken());
 
+    _apnsTokenSubscription = _ref
+        .read(apnsTokenChannelProvider)
+        .onToken
+        .listen(_reregisterAfterApnsToken);
+
     // FcmTokenChannel.onTokenRefresh is permanently empty off Android, so this
     // costs nothing on iOS or desktop and needs no platform check of its own.
     _fcmRefreshSubscription = _fcmTokenRefreshStream().listen((token) {
@@ -74,6 +79,8 @@ class PushController extends StateNotifier<PushStatus>
 
   final Ref _ref;
   StreamSubscription<String>? _voipRefreshSubscription;
+  StreamSubscription<String>? _apnsTokenSubscription;
+  String? _registeredApnsToken;
   late final StreamSubscription<TokenPair?> _sessionSubscription;
   late final StreamSubscription<String> _fcmRefreshSubscription;
   bool _lastSignedIn = false;
@@ -119,6 +126,19 @@ class PushController extends StateNotifier<PushStatus>
       return;
     }
     unawaited(inFlight.whenComplete(() => unawaited(register())));
+  }
+
+  /// An APNs token that differs from the one the server holds, such as a
+  /// rotation while the app runs, needs a fresh registration of its own.
+  void _reregisterAfterApnsToken(String token) {
+    if (!_ref.read(sessionProvider).isSignedIn) return;
+    if (token == _registeredApnsToken) return;
+    final inFlight = _registering;
+    if (inFlight == null) {
+      unawaited(register());
+      return;
+    }
+    unawaited(inFlight.whenComplete(() => _reregisterAfterApnsToken(token)));
   }
 
   /// Whether the server holds a live token for this device, including
@@ -199,6 +219,8 @@ class PushController extends StateNotifier<PushStatus>
           token: token,
           voipToken: voipToken,
         );
+        if (state == PushStatus.registered) _registeredApnsToken = token;
+        await _applyNotificationPermission();
     }
   }
 
@@ -227,6 +249,29 @@ class PushController extends StateNotifier<PushStatus>
         if (!permitted && state == PushStatus.registered) {
           state = PushStatus.registeredNotificationsBlocked;
         }
+    }
+  }
+
+  /// Reads, without prompting, whether the OS lets this app show notifications.
+  /// Null where the platform cannot say, which leaves the status as it is.
+  Future<bool?> _notificationsPermitted() async {
+    final ios = await _ref
+        .read(apnsTokenChannelProvider)
+        .notificationsAllowed();
+    if (ios != null) return ios;
+    return _ref.read(localNotificationsProvider).notificationsEnabled();
+  }
+
+  /// Moves a registered device between [PushStatus.registered] and
+  /// [PushStatus.registeredNotificationsBlocked] to match the OS permission.
+  Future<void> _applyNotificationPermission() async {
+    final permitted = await _notificationsPermitted();
+    if (permitted == null || !_ref.read(sessionProvider).isSignedIn) return;
+    if (!permitted && state == PushStatus.registered) {
+      state = PushStatus.registeredNotificationsBlocked;
+    } else if (permitted &&
+        state == PushStatus.registeredNotificationsBlocked) {
+      state = PushStatus.registered;
     }
   }
 
@@ -291,6 +336,7 @@ class PushController extends StateNotifier<PushStatus>
             includeContent: includeContent,
           );
       if (includeContent != null) unawaited(preview.markSent());
+      if (!_ref.read(sessionProvider).isSignedIn) return;
       state = PushStatus.registered;
       unawaited(_reportLifecycle(_currentLabel()));
     } catch (error, stack) {
@@ -300,7 +346,9 @@ class PushController extends StateNotifier<PushStatus>
         error,
         stack,
       );
-      state = PushStatus.serverError;
+      if (_ref.read(sessionProvider).isSignedIn) {
+        state = PushStatus.serverError;
+      }
     }
   }
 
@@ -327,20 +375,25 @@ class PushController extends StateNotifier<PushStatus>
     };
   }
 
-  /// A resume retries registration when this device is not registered yet. A
-  /// denied permission, a token that had not arrived, or a server that was
-  /// briefly unreachable all self-heal the same way: try again the next time
-  /// the user opens the app, rather than staying silent until the next full
-  /// sign-in.
+  /// A resume retries registration when it can recover without the user: a
+  /// token that had not arrived, or a server that was briefly unreachable. A
+  /// denied permission or a failed native registration is not retried, which
+  /// would re-prompt and re-hit the server on every resume; the permission is
+  /// re-read quietly instead, so granting it in system settings shows up.
   ///
   /// Note `this.state` is the push status while the bare `state` parameter is
   /// the lifecycle transition being reported.
+  void _onResumed() {
+    if (state == PushStatus.serverError || state == PushStatus.noTokenYet) {
+      unawaited(register());
+    } else if (_isRegisteredWithServer) {
+      unawaited(_applyNotificationPermission());
+    }
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed &&
-        this.state != PushStatus.registered) {
-      unawaited(register());
-    }
+    if (state == AppLifecycleState.resumed) _onResumed();
     final label = _stateLabel(state);
     // An alt-tab flips focus without changing the label; the heartbeat keeps a foreground report fresh.
     if (_isRegisteredWithServer && label != _lastReportedLabel) {
@@ -395,7 +448,16 @@ class PushController extends StateNotifier<PushStatus>
       _stopForegroundHeartbeat();
     }
     try {
-      await _ref.read(apiProvider).reportPushLifecycle(state: lifecycleLabel);
+      final api = _ref.read(apiProvider);
+      if (lifecycleLabel == 'foreground') {
+        await api.reportPushLifecycle(state: lifecycleLabel);
+      } else {
+        await _ref
+            .read(apnsTokenChannelProvider)
+            .whileKeptAlive(
+              () => api.reportPushLifecycle(state: lifecycleLabel),
+            );
+      }
       _lastReportedLabel = lifecycleLabel;
     } catch (error, stack) {
       reportFailure(
@@ -414,6 +476,7 @@ class PushController extends StateNotifier<PushStatus>
     unawaited(_sessionSubscription.cancel());
     unawaited(_fcmRefreshSubscription.cancel());
     unawaited(_voipRefreshSubscription?.cancel());
+    unawaited(_apnsTokenSubscription?.cancel());
     _stopForegroundHeartbeat();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();

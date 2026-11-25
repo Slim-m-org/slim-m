@@ -164,6 +164,9 @@ abstract interface class AndroidPermissionRequester {
   /// API 33) and reports whether the app is left permitted to show
   /// notifications, one way or another.
   Future<bool> requestNotificationsPermission();
+
+  /// Whether the app may show notifications right now, without asking.
+  Future<bool> areNotificationsEnabled();
 }
 
 /// The real seam, backed by the plugin's own Android implementation.
@@ -176,6 +179,13 @@ class _PluginPermissionRequester implements AndroidPermissionRequester {
     final android = _plugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
     return await android?.requestNotificationsPermission() ?? false;
+  }
+
+  @override
+  Future<bool> areNotificationsEnabled() async {
+    final android = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    return await android?.areNotificationsEnabled() ?? false;
   }
 }
 
@@ -312,6 +322,22 @@ class LocalNotifications {
     final requester =
         _permissionRequester ?? _PluginPermissionRequester(_plugin);
     return requester.requestNotificationsPermission();
+  }
+
+  /// Whether Android currently lets this app show notifications, read without
+  /// prompting; null off Android or when the plugin cannot say.
+  Future<bool?> notificationsEnabled() async {
+    if (!_isAndroid) return null;
+    try {
+      await _ensureReady();
+      final requester =
+          _permissionRequester ?? _PluginPermissionRequester(_plugin);
+      return await requester.areNotificationsEnabled();
+    } catch (error, stack) {
+      AppLog.swallowed(LogTag.platform,
+          'Could not read the notification permission', error, stack);
+      return null;
+    }
   }
 
   /// Shows [text] on [channel], replacing whatever this app last showed under
