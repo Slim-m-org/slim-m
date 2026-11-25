@@ -320,6 +320,22 @@ class FileKeyStore implements KeyStore {
     return data.map((key, value) => MapEntry(key, value as String));
   }
 
+  /// The non-secret marker beside the file that records the keyring has
+  /// taken over, so a later locked keyring is never mistaken for a fresh install.
+  Future<File> _keyringMarker() async {
+    final file = await _fileNoCreate();
+    return File('${file.path}.keyring');
+  }
+
+  Future<bool> keyringIsAuthoritative() async =>
+      (await _keyringMarker()).exists();
+
+  Future<void> markKeyringAuthoritative() async {
+    final marker = await _keyringMarker();
+    await marker.parent.create(recursive: true);
+    await marker.writeAsString('1');
+  }
+
   /// Deletes the file this store reads and writes. Only ever called once
   /// every entry [readAllForMigration] returned has been written somewhere
   /// else - see [migrateLegacyFileSecretsIfNeeded].
@@ -412,6 +428,8 @@ Future<void> migrateLegacyFileSecretsIfNeeded() async {
 /// [LinuxKeyStore] perform, split out so a test can supply an in-memory
 /// [destination] and a [legacy] store pointed at a throwaway directory.
 ///
+/// A handle the destination already holds is kept, never overwritten.
+///
 /// True when nothing is left in the file: it was moved, empty or never there.
 Future<bool> migrateLegacyFileSecrets({
   required FileKeyStore legacy,
@@ -429,6 +447,7 @@ Future<bool> migrateLegacyFileSecrets({
 
   try {
     for (final entry in entries.entries) {
+      if (await destination.read(entry.key) != null) continue;
       await destination.put(entry.key, entry.value);
     }
   } catch (error, stack) {

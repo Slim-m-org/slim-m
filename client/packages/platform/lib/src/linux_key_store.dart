@@ -11,6 +11,16 @@ import 'package:slimm_api/api.dart' show AppLog, LogTag;
 import 'key_store.dart';
 import 'persistent_key_store.dart';
 
+/// Thrown when the keyring held this install's secrets once and does not answer now.
+///
+/// Callers treat a failed read as "retry later", never as signed out.
+class KeyringUnavailableException implements Exception {
+  const KeyringUnavailableException();
+
+  @override
+  String toString() => 'The system keyring did not answer';
+}
+
 /// Picks its backend once per process, on first use, by asking the Secret
 /// Service to store, read and delete a probe entry.
 ///
@@ -18,7 +28,9 @@ import 'persistent_key_store.dart';
 /// still keep a sign-in, so the file stays the fallback. When the keyring
 /// answers, what the file holds moves over and the file is removed; if that
 /// move cannot finish, the file stays the store for this run and the next
-/// launch tries again.
+/// launch tries again. Once the keyring has taken over it is the only store:
+/// a locked keyring then fails the call and is asked again, never replaced by
+/// an empty file.
 class LinuxKeyStore implements KeyStore {
   LinuxKeyStore({
     FileKeyStore? file,
@@ -35,27 +47,53 @@ class LinuxKeyStore implements KeyStore {
   final KeyStore? _secretService;
   Future<KeyStore>? _backend;
 
-  Future<KeyStore> _resolve() => _backend ??= _choose();
+  Future<KeyStore> _resolve() => _backend ??= _choose().catchError(
+        (Object error, StackTrace stack) {
+          _backend = null;
+          Error.throwWithStackTrace(error, stack);
+        },
+      );
 
   Future<KeyStore> _choose() async {
     final keyring = _secretService ?? SecureKeyStore();
-    if (!await _answers(keyring)) return _file;
+    final authoritative = await _keyringIsAuthoritative();
+    if (!await _answers(keyring)) {
+      if (authoritative) throw const KeyringUnavailableException();
+      return _file;
+    }
     final moved = await migrateLegacyFileSecrets(
       legacy: _file,
       destination: keyring,
     );
-    return moved ? keyring : _file;
+    if (!moved) return _file;
+    await _markAuthoritative();
+    return keyring;
+  }
+
+  Future<bool> _keyringIsAuthoritative() async {
+    try {
+      return await _file.keyringIsAuthoritative();
+    } catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.auth, 'Could not read the keyring marker', error, stack);
+      return false;
+    }
+  }
+
+  Future<void> _markAuthoritative() async {
+    try {
+      await _file.markKeyringAuthoritative();
+    } catch (error, stack) {
+      AppLog.swallowed(LogTag.auth, 'Could not record the keyring as the store',
+          error, stack);
+    }
   }
 
   Future<bool> _answers(KeyStore keyring) async {
     try {
       return await _withDeadline(_roundTrip(keyring));
     } catch (error, stack) {
-      AppLog.swallowed(
-          LogTag.auth,
-          'No Secret Service answered; the owner-only file is used',
-          error,
-          stack);
+      AppLog.swallowed(LogTag.auth, 'No Secret Service answered', error, stack);
       return false;
     }
   }

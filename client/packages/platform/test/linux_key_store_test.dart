@@ -79,6 +79,38 @@ void main() {
     expect(secretsFile().existsSync(), isTrue);
   });
 
+  test(
+      'once migrated, a keyring that stops answering is unavailable, not empty',
+      () async {
+    await file.put('session', 'refresh-token');
+    final keyring = _Switchable();
+    await LinuxKeyStore(file: file, secretService: keyring).read('session');
+    keyring.answering = false;
+    final next = LinuxKeyStore(
+      file: file,
+      secretService: keyring,
+      probeTimeout: const Duration(milliseconds: 50),
+    );
+
+    await expectLater(
+        next.read('session'), throwsA(isA<KeyringUnavailableException>()));
+    expect(secretsFile().existsSync(), isFalse);
+
+    keyring.answering = true;
+    expect(await next.read('session'), 'refresh-token');
+  });
+
+  test('a later move never overwrites what the keyring already holds',
+      () async {
+    final keyring = InMemoryKeyStore();
+    await keyring.put('slimm.accounts', 'kept');
+    await file.put('slimm.accounts', 'stale');
+
+    await migrateLegacyFileSecrets(legacy: file, destination: keyring);
+
+    expect(await keyring.read('slimm.accounts'), 'kept');
+  });
+
   test('the probe leaves nothing behind in the Secret Service', () async {
     final keyring = _Recording();
     final store = LinuxKeyStore(file: file, secretService: keyring);
@@ -150,4 +182,12 @@ class _ProbeOnly extends InMemoryKeyStore {
     }
     return super.put(name, secret);
   }
+}
+
+class _Switchable extends InMemoryKeyStore {
+  bool answering = true;
+
+  @override
+  Future<KeyHandle> put(String name, String secret) =>
+      answering ? super.put(name, secret) : Completer<KeyHandle>().future;
 }
