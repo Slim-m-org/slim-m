@@ -2,6 +2,7 @@
 #include "main_window.h"
 
 #include <dwmapi.h>
+#include <shellapi.h>
 #include <flutter/encodable_value.h>
 #include <flutter/flutter_view.h>
 #include <flutter/method_channel.h>
@@ -58,9 +59,20 @@ HBRUSH g_background = nullptr;
 constexpr wchar_t kLoginArgument[] = L"--autostart";
 
 /// A sign-in launch goes to the tray, so its window is never shown at all.
+/// Matches the whole argument, as Dart does, so a link or path that merely
+/// contains the flag is an ordinary launch.
 bool LaunchedAtLogin() {
-  static const bool login =
-      std::wcsstr(::GetCommandLineW(), kLoginArgument) != nullptr;
+  static const bool login = [] {
+    int count = 0;
+    LPWSTR* args = ::CommandLineToArgvW(::GetCommandLineW(), &count);
+    if (args == nullptr) return false;
+    bool found = false;
+    for (int i = 1; i < count; ++i) {
+      if (std::wcscmp(args[i], kLoginArgument) == 0) found = true;
+    }
+    ::LocalFree(args);
+    return found;
+  }();
   return login;
 }
 
@@ -153,7 +165,8 @@ std::optional<LRESULT> HandleTopLevelMessage(HWND window, UINT message,
     OnSecondInstance(window);
     return 0;
   }
-  if (message == TaskbarButtonCreatedMessage() || message == WM_DPICHANGED) {
+  if (message == TaskbarButtonCreatedMessage() || message == WM_DPICHANGED ||
+      message == WM_DISPLAYCHANGE || message == WM_SETTINGCHANGE) {
     OnTaskbarButtonCreated();
   }
   if (message == WM_FONTCHANGE) g_engine->ReloadSystemFonts();

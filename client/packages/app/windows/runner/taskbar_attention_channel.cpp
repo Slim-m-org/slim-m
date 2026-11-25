@@ -24,6 +24,13 @@ bool FlashTaskbarButton(HWND window, DWORD flags) {
   return FlashWindowEx(&info) != FALSE || flags == FLASHW_STOP;
 }
 
+// The overlay is drawn on the taskbar, which can sit on a monitor with another DPI than the app window.
+UINT TaskbarDpi(HWND window) {
+  const HWND taskbar = FindWindowW(L"Shell_TrayWnd", nullptr);
+  const UINT dpi = taskbar ? GetDpiForWindow(taskbar) : 0;
+  return dpi != 0 ? dpi : GetDpiForWindow(window);
+}
+
 // A red disc with the count in white; GDI draws no alpha, so a mask bitmap cuts the corners.
 HICON DrawBadge(int count, UINT dpi) {
   const int kIconSize = GetSystemMetricsForDpi(SM_CXSMICON, dpi);
@@ -83,7 +90,7 @@ class OverlayBadge {
     if (count <= 0) {
       return SUCCEEDED(taskbar_->SetOverlayIcon(window_, nullptr, nullptr));
     }
-    HICON icon = DrawBadge(count, GetDpiForWindow(window_));
+    HICON icon = DrawBadge(count, TaskbarDpi(window_));
     if (!icon) return false;
     const std::wstring label = std::to_wstring(count) + L" unread";
     const bool shown =

@@ -56,6 +56,22 @@ class PluginsWaitForTheWindow(unittest.TestCase):
         hold = hold[: hold.index("\n}")]
         self.assertIn("if (LaunchedAtLogin()) ReleaseFirstShowHeld();", hold)
 
+    def test_login_detection_matches_a_whole_argument(self):
+        window = strip_c_comments((RUNNER_DIR / "main_window.cpp").read_text())
+        login = window[window.index("bool LaunchedAtLogin("):]
+        login = login[: login.index("\n}")]
+        self.assertIn("CommandLineToArgvW", login)
+        self.assertIn("wcscmp(args[i], kLoginArgument)", login)
+        self.assertNotIn("wcsstr", login)
+
+    def test_the_taskbar_badge_follows_the_taskbar_and_display_changes(self):
+        badge = strip_c_comments((RUNNER_DIR / "taskbar_attention_channel.cpp").read_text())
+        self.assertIn("DrawBadge(count, TaskbarDpi(window_))", badge)
+        self.assertIn("Shell_TrayWnd", badge)
+        window = strip_c_comments((RUNNER_DIR / "main_window.cpp").read_text())
+        for message in ("WM_DISPLAYCHANGE", "WM_SETTINGCHANGE"):
+            self.assertRegex(window, message + r"[^;]*\)\s*\{\s*OnTaskbarButtonCreated")
+
     def test_plugins_follow_the_main_view(self):
         window = strip_c_comments((RUNNER_DIR / "main_window.cpp").read_text())
         self.assertLess(window.index("GetViewById("), window.index("RegisterPlugins("))
