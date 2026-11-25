@@ -211,6 +211,7 @@ final class VoipPushRegistrar: NSObject, PKPushRegistryDelegate, CXProviderDeleg
     configuration.supportsVideo = false
     configuration.maximumCallsPerCallGroup = 1
     configuration.supportedHandleTypes = [.generic]
+    configuration.includesCallsInRecents = false
     // The one provider that reports an incoming call, so the one that rings.
     configuration.ringtoneSound = callKitRingtoneFileName
     provider = CXProvider(configuration: configuration)

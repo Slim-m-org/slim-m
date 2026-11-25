@@ -18,10 +18,17 @@ enum AppLockWindowChannel {
   /// can never race the preference's own restore.
   private(set) static var shieldEnabled = false
 
+  /// Set by `SceneDelegate` while its shield is up; Dart calls it through
+  /// `releasePrivacyShield` once the lock screen or the app has painted.
+  static var releaseShield: (() -> Void)?
+
   static func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     switch call.method {
     case "setPrivacyShield":
       shieldEnabled = (call.arguments as? Bool) ?? false
+      result(nil)
+    case "releasePrivacyShield":
+      releaseShield?()
       result(nil)
     default:
       result(FlutterMethodNotImplemented)

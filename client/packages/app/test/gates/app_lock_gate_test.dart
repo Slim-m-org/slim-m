@@ -52,6 +52,9 @@ class _FakeBiometricAuthChannel implements BiometricAuthChannel {
 class _NoopAppLockWindowChannel implements AppLockWindowChannel {
   @override
   Future<void> setPrivacyShield(bool enabled) async {}
+
+  @override
+  Future<void> releasePrivacyShield() async {}
 }
 
 Future<ProviderContainer> _lockedContainer(

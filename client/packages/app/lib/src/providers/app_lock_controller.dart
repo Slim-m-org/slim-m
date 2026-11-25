@@ -43,6 +43,7 @@ class AppLockHost {
     required this.signedInChanges,
     required this.channel,
     required this.disable,
+    this.releaseShield = _noShield,
   });
 
   final bool Function() enabled;
@@ -50,6 +51,9 @@ class AppLockHost {
   final Stream<bool> signedInChanges;
   final BiometricAuthChannel Function() channel;
   final Future<void> Function() disable;
+  final Future<void> Function() releaseShield;
+
+  static Future<void> _noShield() async {}
 
   /// A host over one container's own session and preference.
   factory AppLockHost.forRef(Ref ref) => AppLockHost(
@@ -61,6 +65,8 @@ class AppLockHost {
         .map((tokens) => tokens != null),
     channel: () => ref.read(biometricAuthChannelProvider),
     disable: () => ref.read(appLockPreferenceProvider.notifier).set(false),
+    releaseShield: () =>
+        ref.read(appLockWindowChannelProvider).releasePrivacyShield(),
   );
 }
 
@@ -105,6 +111,19 @@ class AppLockController extends StateNotifier<bool>
   /// identical shadowing.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    _applyLifecycle(state);
+    if (state == AppLifecycleState.resumed) _releaseShieldAfterFrame();
+  }
+
+  /// The iOS cover stays up across a resume until the frame that shows the
+  /// lock screen, or the unlocked app, has been drawn.
+  void _releaseShieldAfterFrame() {
+    final binding = WidgetsBinding.instance;
+    binding.addPostFrameCallback((_) => unawaited(_host.releaseShield()));
+    binding.scheduleFrame();
+  }
+
+  void _applyLifecycle(AppLifecycleState state) {
     // Matches PushController's own iOS `inactive` reasoning: a visible-but-unfocused app is not backgrounded.
     final backgrounded =
         state != AppLifecycleState.resumed &&

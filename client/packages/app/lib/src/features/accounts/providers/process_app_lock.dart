@@ -38,6 +38,11 @@ AppLockController createProcessAppLock(
             .read(appLockPreferenceProvider.notifier)
             .set(false);
       },
+      releaseShield: () async {
+        await onScreen()?.container
+            .read(appLockWindowChannelProvider)
+            .releasePrivacyShield();
+      },
     ),
   );
   (sessionLock ?? SessionLockChannel()).listen(
