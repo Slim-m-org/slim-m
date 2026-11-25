@@ -248,6 +248,16 @@ impl RoomLiveState {
             .collect()
     }
 
+    /// Every `(user, channel)` a join webhook announced and no leave has ended.
+    pub fn everyone_present(&self) -> Vec<(UserId, ChannelId)> {
+        lock(&self.state)
+            .participants
+            .iter()
+            .filter(|(_, entry)| entry.announced)
+            .map(|((channel, user), _)| (*user, *channel))
+            .collect()
+    }
+
     /// Whether a join webhook announced `user_id` on `channel_id`.
     pub fn is_present(&self, channel_id: ChannelId, user_id: UserId) -> bool {
         lock(&self.state)

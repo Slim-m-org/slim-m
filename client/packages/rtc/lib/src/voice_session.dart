@@ -154,6 +154,9 @@ class VoiceSession {
   /// which rejoins this client as a new participant with none of its attributes.
   Stream<void> get transportRestarts => _core.flow.restarts;
 
+  /// Whether the SFU lets this client publish, each time a role or overwrite change flips it mid-call.
+  Stream<bool> get publishPermission => _core.flow.publishPermission;
+
   /// What a call report needs, kept apart from the debug log; see [CallDiagnostics].
   CallDiagnostics get diagnostics => _core.healthWatch.diagnostics;
 

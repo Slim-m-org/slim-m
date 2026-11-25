@@ -148,6 +148,7 @@ String? _systemAct(api.AuditLogAction action, String subject) =>
   api.AuditLogAction.nicknameSet => (AppBadgeVariant.tag, 'Nickname set'),
   api.AuditLogAction.nicknameClear => (AppBadgeVariant.tag, 'Nickname cleared'),
   api.AuditLogAction.voiceMove => (AppBadgeVariant.tag, 'Moved between calls'),
+  api.AuditLogAction.voiceKick => (AppBadgeVariant.warn, 'Removed from a call'),
   api.AuditLogAction.ownerHandoff => (AppBadgeVariant.tag, 'Became owner'),
   api.AuditLogAction.ownerTimeoutEnded => (
     AppBadgeVariant.tag,

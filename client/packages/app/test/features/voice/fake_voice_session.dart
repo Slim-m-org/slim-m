@@ -35,6 +35,11 @@ class FakeSession extends DeadVoiceSession {
     this.audioOutputDeviceList = const [],
   });
 
+  final publishPermissions = StreamController<bool>.broadcast();
+
+  @override
+  Stream<bool> get publishPermission => publishPermissions.stream;
+
   @override
   bool get supportsParticipantVolume => true;
 
