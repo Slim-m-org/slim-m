@@ -18,23 +18,33 @@ extension SlimmApiDownloadLinks on SlimmApi {
   Future<DownloadLink> createAttachmentDownloadLink(
     String attachmentId, {
     bool original = false,
-  }) =>
-      _create({
-        'kind': 'attachment',
-        'id': attachmentId,
-        if (original) 'original': true,
-      });
+  }) async =>
+      _link(
+        await send(
+          'POST',
+          '/downloads/links',
+          body: {
+            'kind': 'attachment',
+            'id': attachmentId,
+            if (original) 'original': true,
+          },
+        ),
+      );
 
   /// A link to a finished export archive.
-  Future<DownloadLink> createExportDownloadLink(String exportId) =>
-      _create({'kind': 'export', 'id': exportId});
+  Future<DownloadLink> createExportDownloadLink(String exportId) async => _link(
+        await send(
+          'POST',
+          '/downloads/links',
+          body: {'kind': 'export', 'id': exportId},
+        ),
+      );
 
-  Future<DownloadLink> _create(Map<String, Object?> body) async {
-    final json = await send('POST', '/downloads/links', body: body)
-        as Map<String, dynamic>;
+  DownloadLink _link(Object? json) {
+    final map = json as Map<String, dynamic>;
     return DownloadLink(
-      uri: requestUri(json['path'] as String, null),
-      expiresAt: json['expires_at'] as int,
+      uri: requestUri(map['path'] as String, null),
+      expiresAt: map['expires_at'] as int,
     );
   }
 }
