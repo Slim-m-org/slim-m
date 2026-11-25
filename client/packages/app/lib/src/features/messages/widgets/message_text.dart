@@ -62,9 +62,13 @@ class MessageBody extends StatelessWidget {
     this.dim = false,
     this.announceSending = false,
     this.trailing,
+    this.runnable = true,
   });
 
   final String content;
+
+  /// False where the body is only shown, so a fenced block offers no Run.
+  final bool runnable;
 
   /// A short note set after the last word of the body, as part of the same
   /// line of text (the edited marker). A body that does not end in running
@@ -159,6 +163,7 @@ class MessageBody extends StatelessWidget {
               code: code,
               messageId: messageId,
               blockIndex: codeBlockIndex++,
+              runnable: runnable,
             ),
           );
       }
