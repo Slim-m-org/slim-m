@@ -19,6 +19,7 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterFragmentActivity() {
     private val pictureInPicture = PictureInPictureBridge(this)
     private var videoFullscreen = false
+    private val bluetoothPermission = BluetoothPermissionChannel(this)
     private val shareIntake by lazy { ShareIntakeChannel(applicationContext) }
 
     /**
@@ -63,6 +64,7 @@ class MainActivity : FlutterFragmentActivity() {
         ClipboardImageChannel(applicationContext).attach(flutterEngine.dartExecutor.binaryMessenger)
         shareIntake.attach(flutterEngine.dartExecutor.binaryMessenger)
         pictureInPicture.attach(flutterEngine.dartExecutor.binaryMessenger)
+        bluetoothPermission.attach(flutterEngine.dartExecutor.binaryMessenger)
         // The Play build has no install permission and Play updates it, so it leaves the sideload updater out.
         if (BuildConfig.SIDELOAD_UPDATER) {
             ApkInstallChannel(this).attach(flutterEngine.dartExecutor.binaryMessenger)
@@ -110,6 +112,12 @@ class MainActivity : FlutterFragmentActivity() {
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         applyOrientationLock()
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        if (!bluetoothPermission.onResult(requestCode, grantResults)) {
+            super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        }
     }
 
     override fun onResume() {
