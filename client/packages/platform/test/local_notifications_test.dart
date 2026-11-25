@@ -480,4 +480,7 @@ class _FakePermissionRequester implements AndroidPermissionRequester {
     calls++;
     return granted;
   }
+
+  @override
+  Future<bool> areNotificationsEnabled() async => granted;
 }
