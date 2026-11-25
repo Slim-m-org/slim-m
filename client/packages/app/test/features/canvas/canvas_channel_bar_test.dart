@@ -4,6 +4,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show RenderParagraph;
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
@@ -17,6 +18,7 @@ import 'package:slimm_app/src/features/voice/providers/voice_elsewhere.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_roster.dart';
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_data/data.dart';
+import 'package:slimm_rtc/rtc.dart';
 
 import '../../support/fake_voice.dart';
 import '../../ui_snapshot_fonts.dart';
@@ -79,6 +81,7 @@ Future<_Pane> _pump(
   bool notice = false,
   bool withPeople = true,
   String name = 'new-designs-MVP',
+  VoiceState? joinOutcome,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -92,7 +95,8 @@ Future<_Pane> _pump(
         ),
       ),
       voiceControllerProvider.overrideWith(
-        (ref) => FakeVoiceController(ref, recording: true),
+        (ref) =>
+            FakeVoiceController(ref, recording: true, joinOutcome: joinOutcome),
       ),
       voiceElsewhereCheckProvider.overrideWithValue((_) async => elsewhere),
       if (notice)
@@ -120,6 +124,31 @@ Future<_Pane> _pump(
 Rect _bar(WidgetTester tester) => tester.getRect(_of<CanvasBar>());
 
 Finder get _facepile => find.byTooltip('People here');
+
+/// Every screen-reader announcement made while the test runs.
+List<String> _announcements(WidgetTester tester) {
+  final heard = <String>[];
+  tester.binding.defaultBinaryMessenger.setMockDecodedMessageHandler<Object?>(
+    SystemChannels.accessibility,
+    (message) async {
+      final map = message as Map<Object?, Object?>?;
+      if (map?['type'] == 'announce') {
+        heard.add(
+          (map!['data'] as Map<Object?, Object?>)['message']! as String,
+        );
+      }
+      return null;
+    },
+  );
+  addTearDown(
+    () => tester.binding.defaultBinaryMessenger
+        .setMockDecodedMessageHandler<Object?>(
+          SystemChannels.accessibility,
+          null,
+        ),
+  );
+  return heard;
+}
 
 /// A widget located by its type through a predicate, the repo's way past the find.byType ceiling.
 Finder _of<T extends Widget>() => find.byWidgetPredicate((w) => w is T);
@@ -248,6 +277,69 @@ void main() {
       expect(pane.voice.joins, ['c1']);
       expect(_of<CanvasBar>(), findsOneWidget);
       expect(find.text('Join call'), findsNothing);
+    });
+
+    testWidgets('announces the join once it is up, on a plain join', (
+      tester,
+    ) async {
+      final heard = _announcements(tester);
+      await _pump(tester, voiceEnabled: true);
+
+      await tester.tap(find.text('Join call'));
+      await tester.pump(_settle);
+
+      expect(heard, ['Joined the call']);
+    });
+
+    testWidgets('announces the join after Join here, not before', (
+      tester,
+    ) async {
+      final heard = _announcements(tester);
+      final pane = await _pump(tester, voiceEnabled: true, elsewhere: 'other');
+
+      await tester.tap(find.text('Join call'));
+      await tester.pump(_settle);
+      expect(heard, isEmpty);
+
+      await tester.tap(find.text('Join here'));
+      await tester.pump(_settle);
+      expect(pane.voice.joins, ['c1']);
+      expect(heard, ['Joined the call']);
+    });
+
+    testWidgets('says nothing when Join here is declined', (tester) async {
+      final heard = _announcements(tester);
+      final pane = await _pump(tester, voiceEnabled: true, elsewhere: 'other');
+
+      await tester.tap(find.text('Join call'));
+      await tester.pump(_settle);
+      await tester.tap(find.text('Cancel'));
+      await tester.pump(_settle);
+
+      expect(pane.voice.joins, isEmpty);
+      expect(heard, isEmpty);
+    });
+
+    testWidgets('says nothing when the join fails', (tester) async {
+      final heard = _announcements(tester);
+      final pane = await _pump(
+        tester,
+        voiceEnabled: true,
+        elsewhere: 'other',
+        joinOutcome: const VoiceState(
+          state: VoiceSessionState.failed,
+          channelId: 'c1',
+          error: 'Connection lost.',
+        ),
+      );
+
+      await tester.tap(find.text('Join call'));
+      await tester.pump(_settle);
+      await tester.tap(find.text('Join here'));
+      await tester.pump(_settle);
+
+      expect(pane.voice.joins, ['c1']);
+      expect(heard, isEmpty);
     });
 
     testWidgets('leaving the call keeps the board', (tester) async {
