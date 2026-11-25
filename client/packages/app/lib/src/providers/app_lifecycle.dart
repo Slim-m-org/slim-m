@@ -208,12 +208,19 @@ class AppLifecycleNotifier extends StateNotifier<AppLifecycleState>
   }
 }
 
+/// Where window focus comes from: the browser's own events on web, the shell's port elsewhere.
+final lifecycleWindowEventsProvider = Provider<Stream<DesktopWindowEventKind>>(
+  (ref) => kIsWeb
+      ? browserWindowEvents()
+      : ref.read(desktopWindowShellProvider).port.events,
+);
+
 final appLifecycleProvider =
     StateNotifierProvider<AppLifecycleNotifier, AppLifecycleState>((ref) {
       final port = ref.read(desktopWindowShellProvider).port;
       return AppLifecycleNotifier(
         mobile: ref.watch(mobileLifecycleHostProvider),
-        windowEvents: kIsWeb ? browserWindowEvents() : port.events,
+        windowEvents: ref.read(lifecycleWindowEventsProvider),
         inTray: () => port.hiddenByApp,
         suspended: () => port.suspendedByCompositor,
         stillMinimized: port.isMinimized,
