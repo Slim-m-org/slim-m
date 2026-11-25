@@ -55,14 +55,14 @@ class CallNotificationPlugin : FlutterPlugin, MethodCallHandler {
             "updateCallService" -> {
                 val inCall = call.argument<Boolean>("call") ?: false
                 val sharing = call.argument<Boolean>("share") ?: false
-                CallForegroundService.update(
+                val started = CallForegroundService.update(
                     appContext,
                     call = inCall,
                     camera = call.argument<Boolean>("camera") ?: false,
                     share = sharing,
                 )
-                ownsCallService = inCall || sharing
-                result.success(null)
+                ownsCallService = started && (inCall || sharing)
+                result.success(started)
             }
             else -> result.notImplemented()
         }
