@@ -164,6 +164,35 @@ void main() {
     await _close(tester, opened);
   });
 
+  testWidgets('from: and mentions: rows show the person\'s avatar, not the '
+      'key glyph, while in: rows keep theirs', (tester) async {
+    final opened = await _openInGeneral(tester);
+
+    for (final key in ['from:re', 'mentions:re']) {
+      await _type(tester, key);
+      final avatar = find.descendant(
+        of: find.byType(AppMenu),
+        matching: find.byWidgetPredicate(
+          (w) => w is AppAvatar && w.name == 'Ren',
+        ),
+      );
+      expect(avatar, findsOneWidget, reason: key);
+      expect(tester.getSize(avatar), const Size.square(AppAvatarSize.s28));
+      expect(
+        tester.getCenter(avatar).dy,
+        tester.getCenter(inPalette('Ren')).dy,
+        reason: '$key: avatar and name share one row',
+      );
+      expect(find.byIcon(AppIcons.account), findsNothing, reason: key);
+      expect(find.byIcon(AppIcons.mentions), findsNothing, reason: key);
+    }
+
+    await _type(tester, 'in:');
+    expect(find.byIcon(AppIcons.hash), findsWidgets);
+
+    await _close(tester, opened);
+  });
+
   testWidgets('Tab completes a key, arrows pick a value, and Backspace in an '
       'empty field takes the chips back off one by one', (tester) async {
     final opened = await _openInGeneral(tester);
