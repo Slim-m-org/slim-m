@@ -63,6 +63,7 @@ const EXEMPT: &[(&str, &[&str])] = &[
             "POST /reports",
             "PATCH /presence",
             "PUT /me/hold-music",
+            "POST /downloads/links",
             "POST /exports/member",
             "DELETE /exports/{export_id}",
             "DELETE /dms/{user_id}",

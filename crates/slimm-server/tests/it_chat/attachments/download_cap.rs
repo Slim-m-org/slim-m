@@ -8,7 +8,7 @@ use tower::ServiceExt;
 
 use crate::attachments::fixtures::*;
 
-const CAP: usize = 32;
+const CAP: usize = 64;
 
 #[tokio::test]
 async fn open_downloads_are_capped_per_member_and_a_finished_one_frees_a_slot() {

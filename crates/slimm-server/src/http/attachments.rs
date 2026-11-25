@@ -28,7 +28,7 @@ use super::extract::{ASSET, AuthedLimited, Json, Query, UPLOAD, user_limit_key};
 use super::message_dto::AttachmentDto;
 use super::storage_room::{reserve_room, room_for};
 use crate::media::{self, StreamError};
-use crate::store::{AttachmentSummary, SessionContext};
+use crate::store::AttachmentSummary;
 
 /// A fetched attachment's bytes never change (they are keyed by their own
 /// content hash), so a client may cache one forever.

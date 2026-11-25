@@ -291,6 +291,7 @@ pub const EXEMPT_ROUTES: &[(&str, &str, &str)] = &[
     ("POST", "/dms/groups/{channel_id}/leave", OWN_DATA),
     ("POST", "/dms/groups/{channel_id}/members", OWN_DATA),
     ("POST", "/dms/{user_id}", OWN_DATA),
+    ("POST", "/downloads/links", OWN_DATA),
     ("POST", "/exports/member", OWN_DATA),
     ("POST", "/favorites", OWN_DATA),
     ("POST", "/favorites/{favorite_id}/select", OWN_DATA),
