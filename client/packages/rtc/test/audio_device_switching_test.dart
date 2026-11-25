@@ -11,6 +11,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' show LogLevel;
 import 'package:livekit_client/livekit_client.dart' as lk;
@@ -172,7 +173,7 @@ void main() {
 
       expect(applied, ['default']);
     });
-  });
+  }, skip: kIsWeb ? 'output selection needs a native platform' : null);
 
   group('AudioDeviceSwitching chosen devices that come and go', () {
     test('a chosen microphone that is plugged in again is used again',
