@@ -170,11 +170,8 @@ void main() {
 
     for (final key in ['from:re', 'mentions:re']) {
       await _type(tester, key);
-      final avatar = find.descendant(
-        of: find.byType(AppMenu),
-        matching: find.byWidgetPredicate(
-          (w) => w is AppAvatar && w.name == 'Ren',
-        ),
+      final avatar = find.byWidgetPredicate(
+        (w) => w is AppAvatar && w.name == 'Ren',
       );
       expect(avatar, findsOneWidget, reason: key);
       expect(tester.getSize(avatar), const Size.square(AppAvatarSize.s28));

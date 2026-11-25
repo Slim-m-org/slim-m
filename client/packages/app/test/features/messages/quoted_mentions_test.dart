@@ -44,7 +44,9 @@ List<String> _boldRuns(WidgetTester tester) {
     span.children?.forEach(walk);
   }
 
-  for (final rich in tester.widgetList<RichText>(find.byType(RichText))) {
+  for (final rich in tester.widgetList<RichText>(
+    find.byWidgetPredicate((w) => w is RichText),
+  )) {
     walk(rich.text);
   }
   return runs;
