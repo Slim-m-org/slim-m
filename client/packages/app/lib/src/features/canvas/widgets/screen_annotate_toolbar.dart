@@ -5,9 +5,10 @@ library;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../providers/screen_annotate_tool.dart';
 import 'stamp_tool_button.dart';
 
-enum ScreenAnnotateTool { pen, ellipse, note, stamp }
+export '../providers/screen_annotate_tool.dart' show ScreenAnnotateTool;
 
 /// Picking the tool in use again puts the pen down, so the tile's own controls come back.
 class ScreenAnnotateToolbar extends StatelessWidget {

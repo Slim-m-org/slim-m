@@ -29,6 +29,7 @@ import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
 import '../providers/share_zoom_controller.dart';
 import '../../../widgets/double_click_detector.dart';
+import 'fullscreen_share_annotate.dart';
 import 'fullscreen_video_controls.dart';
 import 'share_zoom_view.dart';
 import 'stream_volume_pill.dart';
@@ -205,6 +206,11 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
               !p.isLocal &&
               controller.volumes.hasScreenAudio(p.identity),
         );
+    final annotated = widget.kind == FullscreenVideoKind.screenShare
+        ? participants
+              .where((p) => p.identity == widget.identity && !p.isLocal)
+              .firstOrNull
+        : null;
     // A touch shows the controls for a few seconds, a pointer while it is over the video.
     final Widget stage = StreamControlsReveal(
       initiallyShown: true,
@@ -223,6 +229,13 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
                   )
                 : video,
           ),
+          if (live && annotated != null)
+            FullscreenShareAnnotate(
+              sharerId: annotated.identity,
+              sharerName: annotated.name,
+              zoom: _zoom,
+              toolbarBottom: 96 + inset.bottom,
+            ),
           Positioned(
             top: 0,
             left: 0,

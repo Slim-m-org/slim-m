@@ -170,6 +170,7 @@ class _ScreenShareStageState extends ConsumerState<ScreenShareStage> {
             sharerName: widget.sharerName,
             tileRect: Offset.zero & box.biggest,
             zoom: _zoom,
+            shareToolState: true,
           ),
         ],
       ),
