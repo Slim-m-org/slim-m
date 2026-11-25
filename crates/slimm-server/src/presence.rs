@@ -32,6 +32,7 @@ use crate::ids::UserId;
 use crate::presence_activity::Activity;
 use crate::viewing::ViewingTracker;
 
+mod device_sockets;
 mod devices;
 
 use devices::DeviceCounts;
@@ -40,6 +41,7 @@ pub use devices::DeviceKind;
 pub mod presence_activity;
 pub mod typing;
 pub mod viewing;
+pub use device_sockets::DeviceSockets;
 
 /// How long a connected user with no observed activity (an `active` frame, typing refresh, or a ping from a client that sends no `active`) shows as away rather than online.
 /// Only affects the `Online` preference; Away, Dnd and Hidden already said what to show.

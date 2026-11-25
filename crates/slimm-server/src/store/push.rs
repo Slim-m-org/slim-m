@@ -248,6 +248,29 @@ impl Store {
         Ok(())
     }
 
+    /// Marks a device that closed its last socket as backgrounded, unless it
+    /// reported anything after `closed_at_ms`. A closed socket is firm evidence
+    /// the app is gone, which a lifecycle report that never came cannot be.
+    pub async fn report_socket_closed(
+        &self,
+        user_id: UserId,
+        device_id: DeviceId,
+        closed_at_ms: i64,
+    ) -> Result<(), PushError> {
+        sqlx::query!(
+            "UPDATE devices SET lifecycle_state = 'background', lifecycle_reported_at = ?
+             WHERE id = ? AND user_id = ? AND lifecycle_state = 'foreground'
+               AND lifecycle_reported_at <= ?",
+            closed_at_ms,
+            device_id,
+            user_id,
+            closed_at_ms
+        )
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
     /// The push-capable devices for a set of users, used to fan a
     /// notification out to every recipient's registered devices. A device
     /// missing either its token or its public key is never returned: it

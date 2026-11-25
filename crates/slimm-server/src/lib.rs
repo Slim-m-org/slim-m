@@ -25,6 +25,7 @@ pub mod db;
 pub mod emoji;
 pub mod ephemeral;
 pub mod export;
+pub mod fd_limit;
 mod forward_backfill;
 mod forward_events;
 pub(crate) mod hidden_chars;
@@ -139,6 +140,8 @@ async fn serve(config: config::Config, logging: &'static logging::Logging) -> an
     // Before the database is touched, so a misconfigured origin list is a
     // startup error and not a half-initialized deployment.
     let cors = cors::CorsPolicy::new(&config)?;
+    let fd_limit = fd_limit::raise();
+    log_fd_limit(fd_limit);
     let pool = db::connect(&config).await?;
 
     let store = store::Store::new(pool);
@@ -261,8 +264,29 @@ async fn serve(config: config::Config, logging: &'static logging::Logging) -> an
         .with_context(|| format!("binding to {addr}"))?;
     tracing::info!(%addr, version = env!("CARGO_PKG_VERSION"), "slim-m server listening");
 
-    serve::serve(listener, app, shutdown_signal()).await?;
+    let max_connections = fd_limit.map_or(serve::MAX_CONNECTIONS, |limit| {
+        limit.connection_cap(serve::MAX_CONNECTIONS)
+    });
+    serve::serve(listener, app, shutdown_signal(), max_connections).await?;
     Ok(())
+}
+
+fn log_fd_limit(limit: Option<fd_limit::FdLimit>) {
+    let Some(limit) = limit else {
+        return;
+    };
+    tracing::info!(
+        inherited = limit.inherited,
+        soft = limit.soft,
+        hard = limit.hard,
+        "open file limit"
+    );
+    if limit.connection_cap(hub::MAX_CONNECTIONS) < hub::MAX_CONNECTIONS {
+        tracing::warn!(
+            soft = limit.soft,
+            "the open file limit is too low for the live connection cap; raise the container's nofile ulimit"
+        );
+    }
 }
 
 /// Imports a directory of images as custom emoji, printing a line per file.

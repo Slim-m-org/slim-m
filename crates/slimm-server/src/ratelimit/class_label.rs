@@ -40,6 +40,7 @@ impl Class {
             Class::ModuleRoomInput => "module_room_input",
             Class::SignInAlert => "sign_in_alert",
             Class::PresenceActivity => "presence_activity",
+            Class::ProfileEdit => "profile_edit",
             Class::Totp => "totp",
             Class::WatchTick => "watch_tick",
             Class::DiagnosticPing => "diagnostic_ping",

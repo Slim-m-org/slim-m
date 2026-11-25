@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE devices SET lifecycle_state = 'background', lifecycle_reported_at = ?\n             WHERE id = ? AND user_id = ? AND lifecycle_state = 'foreground'\n               AND lifecycle_reported_at <= ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "bc4fc191e1e0a183d827299c8f47a2d8e5c31b63b5eab03e5ff581757ca1392b"
+}

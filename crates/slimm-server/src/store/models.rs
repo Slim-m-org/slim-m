@@ -91,7 +91,7 @@ pub struct ChannelCategory {
 /// display name, and creation time only. Nothing from the auth tables
 /// (password hash, sessions, tokens) has a type that could even be confused
 /// with this one.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct User {
     pub id: UserId,
     pub username: String,
