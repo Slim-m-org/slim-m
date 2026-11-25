@@ -3,18 +3,23 @@
 #include <flutter/encodable_value.h>
 #include <flutter/method_channel.h>
 #include <flutter/standard_method_codec.h>
+#include <shellapi.h>
 #include <shlobj.h>
 #include <wincodec.h>
 #include <wrl/client.h>
 
 #include <cstdint>
 #include <cstring>
+#include <exception>
 #include <memory>
 #include <string>
+#include <system_error>
+#include <thread>
 #include <utility>
 #include <vector>
 
 #include "bounded_retry.h"
+#include "clipboard_image_limits.h"
 
 namespace {
 
@@ -50,45 +55,15 @@ void Reply(flutter::MethodResult<flutter::EncodableValue>& result,
   }
 }
 
-struct Bitmap {
-  UINT width = 0;
-  UINT height = 0;
-  std::vector<BYTE> bgra;  // top-down
-};
+constexpr char kTooLargeMessage[] = "That image is too large to copy.";
 
-// Decodes the PNG with WIC, which ships with Windows.
-bool DecodePng(const std::vector<uint8_t>& png, Bitmap* out) {
-  ComPtr<IWICImagingFactory> factory;
-  if (FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr,
-                              CLSCTX_INPROC_SERVER,
-                              IID_PPV_ARGS(&factory)))) {
-    return false;
-  }
-  ComPtr<IWICStream> stream;
-  if (FAILED(factory->CreateStream(&stream)) ||
-      FAILED(stream->InitializeFromMemory(
-          const_cast<BYTE*>(png.data()), static_cast<DWORD>(png.size())))) {
-    return false;
-  }
-  ComPtr<IWICBitmapDecoder> decoder;
-  ComPtr<IWICBitmapFrameDecode> frame;
-  ComPtr<IWICFormatConverter> converter;
-  if (FAILED(factory->CreateDecoderFromStream(
-          stream.Get(), nullptr, WICDecodeMetadataCacheOnDemand, &decoder)) ||
-      FAILED(decoder->GetFrame(0, &frame)) ||
-      FAILED(factory->CreateFormatConverter(&converter)) ||
-      FAILED(converter->Initialize(frame.Get(), GUID_WICPixelFormat32bppBGRA,
-                                   WICBitmapDitherTypeNone, nullptr, 0.0,
-                                   WICBitmapPaletteTypeCustom)) ||
-      FAILED(converter->GetSize(&out->width, &out->height)) ||
-      out->width == 0 || out->height == 0) {
-    return false;
-  }
-  out->bgra.resize(static_cast<size_t>(out->width) * out->height * 4);
-  return SUCCEEDED(converter->CopyPixels(
-      nullptr, out->width * 4, static_cast<UINT>(out->bgra.size()),
-      out->bgra.data()));
-}
+/// An image decoded and laid out for the clipboard, built off the UI thread.
+struct PreparedImage {
+  CopyResult status = CopyResult::kFailed;
+  bool too_large = false;
+  HGLOBAL dib = nullptr;
+  HGLOBAL png = nullptr;
+};
 
 HGLOBAL AllocCopy(const void* data, size_t size) {
   HGLOBAL handle = GlobalAlloc(GMEM_MOVEABLE, size);
@@ -103,53 +78,182 @@ HGLOBAL AllocCopy(const void* data, size_t size) {
   return handle;
 }
 
-// A bottom-up V5 DIB with an alpha mask; Windows derives CF_DIB from it.
-HGLOBAL MakeDib(const Bitmap& bitmap) {
-  const size_t row = static_cast<size_t>(bitmap.width) * 4;
-  std::vector<BYTE> blob(sizeof(BITMAPV5HEADER) + row * bitmap.height);
+void FreePrepared(PreparedImage* image) {
+  if (image->dib != nullptr) GlobalFree(image->dib);
+  if (image->png != nullptr) GlobalFree(image->png);
+  image->dib = nullptr;
+  image->png = nullptr;
+}
+
+BITMAPV5HEADER DibHeader(UINT width, UINT height) {
+  const size_t row = static_cast<size_t>(width) * 4;
   BITMAPV5HEADER header = {};
   header.bV5Size = sizeof(BITMAPV5HEADER);
-  header.bV5Width = static_cast<LONG>(bitmap.width);
-  header.bV5Height = static_cast<LONG>(bitmap.height);
+  header.bV5Width = static_cast<LONG>(width);
+  header.bV5Height = static_cast<LONG>(height);
   header.bV5Planes = 1;
   header.bV5BitCount = 32;
   header.bV5Compression = BI_BITFIELDS;
-  header.bV5SizeImage = static_cast<DWORD>(row * bitmap.height);
+  header.bV5SizeImage = static_cast<DWORD>(row * height);
   header.bV5RedMask = 0x00FF0000;
   header.bV5GreenMask = 0x0000FF00;
   header.bV5BlueMask = 0x000000FF;
   header.bV5AlphaMask = 0xFF000000;
   header.bV5CSType = LCS_sRGB;
   header.bV5Intent = LCS_GM_IMAGES;
-  std::memcpy(blob.data(), &header, sizeof(header));
-  for (UINT y = 0; y < bitmap.height; ++y) {
-    std::memcpy(blob.data() + sizeof(header) + row * y,
-                bitmap.bgra.data() + row * (bitmap.height - 1 - y), row);
-  }
-  return AllocCopy(blob.data(), blob.size());
+  return header;
 }
 
-CopyResult WriteClipboard(HWND owner, const std::vector<uint8_t>& png) {
-  Bitmap bitmap;
-  if (!DecodePng(png, &bitmap)) return CopyResult::kFailed;
-  HGLOBAL dib = MakeDib(bitmap);
-  HGLOBAL png_copy = AllocCopy(png.data(), png.size());
-  const bool allocated = dib != nullptr && png_copy != nullptr;
-  if (!allocated || !OpenClipboardPatiently(owner)) {
-    if (dib != nullptr) GlobalFree(dib);
-    if (png_copy != nullptr) GlobalFree(png_copy);
-    return allocated ? CopyResult::kBusy : CopyResult::kFailed;
+/// Decodes the PNG with WIC, which ships with Windows, straight into a
+/// bottom-up V5 DIB with an alpha mask; Windows derives CF_DIB from it.
+bool DecodeToDib(IWICImagingFactory* factory, const std::vector<uint8_t>& png,
+                 PreparedImage* out) {
+  ComPtr<IWICStream> stream;
+  if (FAILED(factory->CreateStream(&stream)) ||
+      FAILED(stream->InitializeFromMemory(
+          const_cast<BYTE*>(png.data()), static_cast<DWORD>(png.size())))) {
+    return false;
+  }
+  ComPtr<IWICBitmapDecoder> decoder;
+  ComPtr<IWICBitmapFrameDecode> frame;
+  UINT width = 0;
+  UINT height = 0;
+  if (FAILED(factory->CreateDecoderFromStream(
+          stream.Get(), nullptr, WICDecodeMetadataCacheOnDemand, &decoder)) ||
+      FAILED(decoder->GetFrame(0, &frame)) ||
+      FAILED(frame->GetSize(&width, &height)) || width == 0 || height == 0) {
+    return false;
+  }
+  if (slimm::ClipboardImageTooLarge(width, height)) {
+    out->too_large = true;
+    return false;
+  }
+  ComPtr<IWICFormatConverter> converter;
+  ComPtr<IWICBitmapFlipRotator> flip;
+  if (FAILED(factory->CreateFormatConverter(&converter)) ||
+      FAILED(converter->Initialize(frame.Get(), GUID_WICPixelFormat32bppBGRA,
+                                   WICBitmapDitherTypeNone, nullptr, 0.0,
+                                   WICBitmapPaletteTypeCustom)) ||
+      FAILED(factory->CreateBitmapFlipRotator(&flip)) ||
+      FAILED(flip->Initialize(converter.Get(),
+                              WICBitmapTransformFlipVertical))) {
+    return false;
+  }
+  const UINT row = width * 4;
+  const size_t pixels = static_cast<size_t>(row) * height;
+  out->dib = GlobalAlloc(GMEM_MOVEABLE, sizeof(BITMAPV5HEADER) + pixels);
+  if (out->dib == nullptr) return false;
+  BYTE* base = static_cast<BYTE*>(GlobalLock(out->dib));
+  if (base == nullptr) return false;
+  const BITMAPV5HEADER header = DibHeader(width, height);
+  std::memcpy(base, &header, sizeof(header));
+  const bool copied = SUCCEEDED(flip->CopyPixels(
+      nullptr, row, static_cast<UINT>(pixels), base + sizeof(header)));
+  GlobalUnlock(out->dib);
+  return copied;
+}
+
+PreparedImage PrepareImage(const std::vector<uint8_t>& png) {
+  PreparedImage image;
+  try {
+    ComPtr<IWICImagingFactory> factory;
+    if (SUCCEEDED(CoCreateInstance(CLSID_WICImagingFactory, nullptr,
+                                   CLSCTX_INPROC_SERVER,
+                                   IID_PPV_ARGS(&factory))) &&
+        DecodeToDib(factory.Get(), png, &image)) {
+      image.png = AllocCopy(png.data(), png.size());
+    }
+  } catch (const std::exception&) {
+    // An allocation or decoder failure is a failed copy, never a crash.
+  }
+  if (image.dib == nullptr || image.png == nullptr) FreePrepared(&image);
+  if (image.dib != nullptr) image.status = CopyResult::kCopied;
+  return image;
+}
+
+CopyResult CommitImage(HWND owner, PreparedImage* image) {
+  if (image->status != CopyResult::kCopied) return CopyResult::kFailed;
+  if (!OpenClipboardPatiently(owner)) {
+    FreePrepared(image);
+    return CopyResult::kBusy;
   }
   EmptyClipboard();
   // The clipboard owns each handle once SetClipboardData accepts it.
-  bool ok = SetClipboardData(CF_DIBV5, dib) != nullptr;
-  if (!ok) GlobalFree(dib);
+  bool ok = SetClipboardData(CF_DIBV5, image->dib) != nullptr;
+  if (!ok) GlobalFree(image->dib);
   const UINT png_format = RegisterClipboardFormatW(L"PNG");
-  if (png_format == 0 || SetClipboardData(png_format, png_copy) == nullptr) {
-    GlobalFree(png_copy);
+  if (png_format == 0 ||
+      SetClipboardData(png_format, image->png) == nullptr) {
+    GlobalFree(image->png);
   }
   CloseClipboard();
+  image->dib = nullptr;
+  image->png = nullptr;
   return ok ? CopyResult::kCopied : CopyResult::kFailed;
+}
+
+/// What a worker thread hands back to the platform thread, which alone may
+/// answer the method call.
+struct Completion {
+  std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result;
+  HWND owner;
+  PreparedImage image;
+};
+
+constexpr UINT kImagePreparedMessage = WM_APP + 41;
+constexpr wchar_t kSinkClass[] = L"SlimmClipboardImageSink";
+
+void FinishImageWrite(Completion* completion) {
+  std::unique_ptr<Completion> done(completion);
+  if (done->image.too_large) {
+    done->result->Error("write_failed", kTooLargeMessage);
+    return;
+  }
+  Reply(*done->result, CommitImage(done->owner, &done->image),
+        "The image could not be copied.");
+}
+
+LRESULT CALLBACK SinkProc(HWND window, UINT message, WPARAM wparam,
+                          LPARAM lparam) {
+  if (message == kImagePreparedMessage) {
+    FinishImageWrite(reinterpret_cast<Completion*>(lparam));
+    return 0;
+  }
+  return DefWindowProcW(window, message, wparam, lparam);
+}
+
+/// A message-only window on the platform thread, so a decode finishing on
+/// another thread can hop back to answer the call.
+HWND CreateSinkWindow() {
+  WNDCLASSW cls = {};
+  cls.lpfnWndProc = SinkProc;
+  cls.hInstance = GetModuleHandleW(nullptr);
+  cls.lpszClassName = kSinkClass;
+  RegisterClassW(&cls);
+  return CreateWindowExW(0, kSinkClass, L"", 0, 0, 0, 0, 0, HWND_MESSAGE,
+                         nullptr, cls.hInstance, nullptr);
+}
+
+void WriteImageOffThread(
+    HWND owner, HWND sink, std::vector<uint8_t> png,
+    std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result) {
+  auto* completion = new Completion{std::move(result), owner, {}};
+  try {
+    std::thread([completion, sink, png = std::move(png)] {
+      const bool com = SUCCEEDED(CoInitializeEx(nullptr, COINIT_MULTITHREADED));
+      completion->image = PrepareImage(png);
+      if (com) CoUninitialize();
+      if (sink == nullptr ||
+          !PostMessageW(sink, kImagePreparedMessage, 0,
+                        reinterpret_cast<LPARAM>(completion))) {
+        FreePrepared(&completion->image);
+        delete completion;
+      }
+    }).detach();
+  } catch (const std::system_error&) {
+    completion->result->Error("write_failed", "The image could not be copied.");
+    delete completion;
+  }
 }
 
 // A CF_HDROP file list, what Explorer's Copy puts down, so a paste elsewhere
@@ -278,10 +382,43 @@ bool ReadClipboardImage(HWND owner, std::vector<uint8_t>* image) {
   return true;
 }
 
+std::string WideToUtf8(const std::wstring& wide) {
+  if (wide.empty()) return {};
+  const int len = WideCharToMultiByte(CP_UTF8, 0, wide.data(),
+                                      static_cast<int>(wide.size()), nullptr, 0,
+                                      nullptr, nullptr);
+  std::string utf8(static_cast<size_t>(len), '\0');
+  WideCharToMultiByte(CP_UTF8, 0, wide.data(), static_cast<int>(wide.size()),
+                      utf8.data(), len, nullptr, nullptr);
+  return utf8;
+}
+
+/// Fills `paths` from the clipboard's CF_HDROP list, what Explorer's Copy
+/// puts down, and leaves it empty when there is none. False when the
+/// clipboard stayed busy.
+bool ReadClipboardFiles(HWND owner, std::vector<std::string>* paths) {
+  if (!OpenClipboardPatiently(owner)) return false;
+  if (IsClipboardFormatAvailable(CF_HDROP)) {
+    HDROP drop = static_cast<HDROP>(GetClipboardData(CF_HDROP));
+    const UINT count =
+        drop == nullptr ? 0 : DragQueryFileW(drop, 0xFFFFFFFF, nullptr, 0);
+    for (UINT i = 0; i < count; ++i) {
+      const UINT len = DragQueryFileW(drop, i, nullptr, 0);
+      std::wstring path(static_cast<size_t>(len) + 1, L'\0');
+      DragQueryFileW(drop, i, path.data(), len + 1);
+      path.resize(len);
+      paths->push_back(WideToUtf8(path));
+    }
+  }
+  CloseClipboard();
+  return true;
+}
+
 }  // namespace
 
 void RegisterClipboardImageChannel(flutter::BinaryMessenger* messenger,
                                    HWND owner) {
+  static const HWND sink = CreateSinkWindow();
   static std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>>
       channel;
   channel = std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
@@ -304,6 +441,17 @@ void RegisterClipboardImageChannel(flutter::BinaryMessenger* messenger,
           } else {
             result->Success(flutter::EncodableValue(std::move(image)));
           }
+          return;
+        }
+        if (call.method_name() == "readFiles") {
+          std::vector<std::string> paths;
+          if (!ReadClipboardFiles(owner, &paths)) {
+            result->Error("clipboard_busy", kBusyMessage);
+            return;
+          }
+          flutter::EncodableList list;
+          for (auto& path : paths) list.emplace_back(std::move(path));
+          result->Success(flutter::EncodableValue(std::move(list)));
           return;
         }
         if (call.method_name() == "writeFile") {
@@ -331,7 +479,6 @@ void RegisterClipboardImageChannel(flutter::BinaryMessenger* messenger,
           result->Error("write_failed", "The image could not be copied.");
           return;
         }
-        Reply(*result, WriteClipboard(owner, *png),
-              "The image could not be copied.");
+        WriteImageOffThread(owner, sink, *png, std::move(result));
       });
 }

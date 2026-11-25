@@ -3,6 +3,7 @@
 // Run by scripts/lib/test_linux_runner_logic.py; no GTK or WebKit headers needed.
 #include <cstdio>
 
+#include "../clipboard_image_limits.h"
 #include "../youtube_player_policy.h"
 
 namespace {
@@ -83,9 +84,36 @@ void LinksAndNewWindowsOpenInTheBrowser() {
   CHECK(Decide(window) == Verdict::kOpenExternally);
 }
 
+void ClipboardImageSizesAreCapped() {
+  using slimm_clipboard::ImageTooLarge;
+  CHECK(!ImageTooLarge(8192, 8192));
+  CHECK(ImageTooLarge(8193, 10));
+  CHECK(ImageTooLarge(10, 8193));
+  CHECK(ImageTooLarge(0, 10));
+  CHECK(ImageTooLarge(-1, 10));
+}
+
+void PngSizeIsReadFromTheHeaderAlone() {
+  const unsigned char png[] = {0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A,
+                               0,    0,   0,   13,  'I',  'H',  'D',  'R',
+                               0,    0,   0x4E, 0x20, 0,   0,   0x27, 0x10};
+  int width = 0;
+  int height = 0;
+  CHECK(slimm_clipboard::PngDimensions(png, sizeof(png), &width, &height));
+  CHECK(width == 20000 && height == 10000);
+  CHECK(slimm_clipboard::ImageTooLarge(width, height));
+  CHECK(!slimm_clipboard::PngDimensions(png, 23, &width, &height));
+  unsigned char bad[sizeof(png)];
+  for (unsigned i = 0; i < sizeof(png); ++i) bad[i] = png[i];
+  bad[1] = 'X';
+  CHECK(!slimm_clipboard::PngDimensions(bad, sizeof(bad), &width, &height));
+}
+
 }  // namespace
 
 int main() {
+  ClipboardImageSizesAreCapped();
+  PngSizeIsReadFromTheHeaderAlone();
   HostPageMatchesOnlyItself();
   TheTopDocumentNeverLeavesTheHostPage();
   ThePlayersOwnFramesLoad();

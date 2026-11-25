@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "../bounded_retry.h"
+#include "../clipboard_image_limits.h"
 #include "../hotkey_modifiers.h"
 #include "../link_handoff.h"
 #include "../startup_handoff.h"
@@ -258,6 +259,14 @@ void OnlyWebLinksReachTheBrowser() {
   CHECK(!slimm::IsWebUrl(L"ms-settings:"));
 }
 
+void ClipboardImagesPastTheServersPixelCapAreRefused() {
+  CHECK(!slimm::ClipboardImageTooLarge(6324, 6324));
+  CHECK(slimm::ClipboardImageTooLarge(6325, 6325));
+  CHECK(slimm::ClipboardImageTooLarge(40000, 40000));
+  CHECK(slimm::ClipboardImageTooLarge(0, 10));
+  CHECK(slimm::ClipboardImageTooLarge(4294967295u, 9));
+}
+
 }  // namespace
 
 void TestPendingLinks() {
@@ -291,6 +300,7 @@ void TestShortcutRepairDue() {
 int main() {
   TestPendingLinks();
   TestShortcutRepairDue();
+  ClipboardImagesPastTheServersPixelCapAreRefused();
   ATogglesShiftIsExact();
   AToggleNeedsEveryModifierItNames();
   AnExtraCtrlAltOrMetaBlocksABareKey();

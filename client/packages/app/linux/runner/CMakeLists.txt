@@ -10,6 +10,7 @@ add_executable(${BINARY_NAME}
   "main.cc"
   "my_application.cc"
   "clipboard_image_channel.cc"
+  "drop_data_guard.cc"
   "linux_tray_probe_channel.cc"
   "linux_second_instance_channel.cc"
   "linux_window_mapped_channel.cc"

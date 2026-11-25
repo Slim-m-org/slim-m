@@ -10,6 +10,7 @@ import 'dart:typed_data';
 import 'package:web/web.dart' as web;
 
 import 'clipboard_lone_web_address.dart';
+import 'staged_attachment_model.dart';
 
 /// False here: the browser hands the bytes over on its own `paste` event, so a polling keystroke would stage the image twice.
 const bool pasteKeystrokeReadsClipboardImage = false;
@@ -134,3 +135,7 @@ class ClipboardImageReadException implements Exception {
   @override
   String toString() => message;
 }
+
+/// A browser hands pasted files over through its paste event, not a list to read.
+Future<({List<FileSource> files, bool hadFolder})> readClipboardFiles() async =>
+    (files: const <FileSource>[], hadFolder: false);
