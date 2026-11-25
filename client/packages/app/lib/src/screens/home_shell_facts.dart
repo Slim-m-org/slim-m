@@ -10,6 +10,8 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../features/canvas/providers/canvas_open.dart';
+import '../features/canvas/screens/canvas_chat_toggle.dart'
+    show canvasChatFlaggedOpenProvider;
 import '../features/canvas/screens/canvas_fullscreen.dart';
 import '../features/channels/providers/channel_by_id_provider.dart';
 import '../features/channels/providers/rail_width_preference.dart';
@@ -54,8 +56,14 @@ ShellFacts resolveShellFacts(
   final channelRow = _channelRow(ref, selected);
   final synced = ref.watch(initialSyncCompleteProvider);
   final notFound = (channelRow?.missing ?? false) && synced;
+  // A docked canvas chat takes the third-pane slot, so the roster yields as it does to a docked thread.
+  final canvasChatDocked =
+      canvasOpen &&
+      layout.fitsThreadPane(width) &&
+      ref.watch(canvasChatFlaggedOpenProvider(selected));
   final membersWanted =
       membersFit &&
+      !canvasChatDocked &&
       !notFound &&
       !canvasFullscreen &&
       !showThread &&

@@ -34,6 +34,18 @@ final canvasHasChatProvider = Provider.autoDispose.family<bool, String>(
   ),
 );
 
+/// Whether the channel's chat is flagged open beside its board, a canvas channel's own or a voice canvas's; false for anything else.
+final canvasChatFlaggedOpenProvider = Provider.autoDispose.family<bool, String>(
+  (ref, channelId) {
+    final row = ref.watch(channelByIdProvider(channelId)).valueOrNull;
+    if (row == null) return false;
+    if (row.isCanvasChannel) {
+      return ref.watch(canvasChannelChatOpenProvider(channelId));
+    }
+    return row.kind == 'voice' && ref.watch(voiceChatPaneVisibleProvider);
+  },
+);
+
 /// The flag that docks this channel's chat: its own for a canvas channel, the voice one otherwise.
 StateProvider<bool> canvasChatOpenProviderFor(
   String channelId, {

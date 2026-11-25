@@ -12,7 +12,13 @@ import '../../../widgets/header_icon_action.dart';
 import 'member_pane.dart';
 
 class MemberListToggle extends ConsumerWidget {
-  const MemberListToggle({super.key});
+  const MemberListToggle({super.key, this.yielded = false, this.onReveal});
+
+  /// The list is held back by another pane in its slot, so the toggle reads off and a press brings the list back.
+  final bool yielded;
+
+  /// Closes the pane the list yielded to; called when the list is asked for while [yielded].
+  final VoidCallback? onReveal;
 
   /// Whether the list can dock at all here; a toggle shown past that would sit lit over a pane that never appears.
   static bool fits(BuildContext context) =>
@@ -20,12 +26,19 @@ class MemberListToggle extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final visible = memberPaneWanted(ref, MediaQuery.sizeOf(context));
+    final visible =
+        !yielded && memberPaneWanted(ref, MediaQuery.sizeOf(context));
     return HeaderIconAction(
       icon: AppIcons.members,
       label: 'Toggle member list',
       active: visible,
       onPressed: () {
+        if (yielded) {
+          onReveal?.call();
+          ref.read(memberPaneVisibleProvider.notifier).state = true;
+          ref.read(memberPaneOpenedByHandProvider.notifier).state = true;
+          return;
+        }
         ref.read(memberPaneVisibleProvider.notifier).state = !visible;
         ref.read(memberPaneOpenedByHandProvider.notifier).state = !visible;
       },

@@ -8,6 +8,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../members/widgets/member_list_toggle.dart';
 import '../widgets/canvas_join_call.dart';
+import '../providers/canvas_open.dart';
 import 'canvas_chat_toggle.dart';
 import 'canvas_people_cluster.dart';
 
@@ -23,6 +24,21 @@ class CanvasBarActions extends ConsumerWidget {
   /// A DM's own conversation holds its text and its roster, so neither toggle shows.
   final bool isDm;
 
+  /// The list yields to a docked chat, so the toggle reads off then and a press swaps the chat out for it.
+  Widget _membersToggle(BuildContext context, WidgetRef ref) {
+    final yielded =
+        canvasChatDocks(context) &&
+        ref.watch(canvasChatFlaggedOpenProvider(channelId));
+    final chatOpen = canvasChatOpenProviderFor(
+      channelId,
+      isCanvasChannel: ref.watch(canvasIsChannelProvider(channelId)),
+    );
+    return MemberListToggle(
+      yielded: yielded,
+      onReveal: () => ref.read(chatOpen.notifier).state = false,
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final chat = !isDm && ref.watch(canvasHasChatProvider(channelId));
@@ -35,7 +51,7 @@ class CanvasBarActions extends ConsumerWidget {
         const CanvasPeopleCluster(),
         if (chat) CanvasChatToggle(channelId: channelId),
         CanvasJoinCall(channelId: channelId),
-        if (members) const MemberListToggle(),
+        if (members) _membersToggle(context, ref),
       ],
     );
   }

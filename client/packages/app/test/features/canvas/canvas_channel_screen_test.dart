@@ -2,6 +2,8 @@
 /// A canvas channel's route is its board, with the chat beside it when asked and its own open state per channel.
 library;
 
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -11,6 +13,7 @@ import 'package:slimm_app/src/features/canvas/providers/canvas_channel_chat_open
 import 'package:slimm_app/src/features/canvas/screens/canvas_bar.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_pane.dart';
 import 'package:slimm_app/src/features/channels/screens/channel_screen.dart';
+import 'package:slimm_app/src/features/members/widgets/member_pane.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_text_pane.dart';
 import 'package:slimm_app/src/routing/breakpoints.dart';
 import 'package:slimm_app/src/routing/routes.dart';
@@ -139,7 +142,7 @@ void main() {
   });
 
   group('chat beside the board', () {
-    testWidgets('docks at 1400, snapping the board narrower by the pane', (
+    testWidgets('docks at 1400 in the roster slot, snapping the board narrower', (
       tester,
     ) async {
       final s = await _pump(tester, width: 1400);
@@ -148,7 +151,11 @@ void main() {
       await tester.tap(find.bySemanticsLabel(_chatToggle));
       await tester.pump(const Duration(milliseconds: 400));
 
-      expect(before - _boardWidth(tester), kThreadPaneWidth);
+      // The roster gives its slot to the chat, so the board loses the difference.
+      expect(
+        before - _boardWidth(tester),
+        kThreadPaneWidth - AppMemberPane.width,
+      );
       expect(s.container.read(canvasChannelChatOpenProvider('c1')), isTrue);
       expect(s.container.read(voiceChatPaneVisibleProvider), isFalse);
       await teardown(tester, s.container, s.db);
@@ -230,6 +237,48 @@ void main() {
       expect(s.container.read(canvasChannelChatOpenProvider('c1')), isTrue);
       expect(s.container.read(voiceChatPaneVisibleProvider), isFalse);
       expect(s.container.read(callDetailsOpenProvider), isFalse);
+      await teardown(tester, s.container, s.db);
+    });
+  });
+
+  group('the member list and the docked chat share a slot', () {
+    bool membersLit(WidgetTester tester) =>
+        tester
+            .getSemantics(find.bySemanticsLabel('Toggle member list'))
+            .flagsCollection
+            .isToggled ==
+        ui.Tristate.isTrue;
+
+    testWidgets('the toggle reads on only while the list is showing', (
+      tester,
+    ) async {
+      final s = await _pump(tester, width: 1400);
+      expect(_of<AppMemberPane>(), findsOneWidget);
+      expect(membersLit(tester), isTrue);
+
+      await tester.tap(find.bySemanticsLabel(_chatToggle));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(_of<AppMemberPane>(), findsNothing);
+      expect(membersLit(tester), isFalse);
+
+      await tester.tap(find.bySemanticsLabel('Toggle member list'));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(_of<AppMemberPane>(), findsOneWidget);
+      expect(membersLit(tester), isTrue);
+      expect(s.container.read(canvasChannelChatOpenProvider('c1')), isFalse);
+      await teardown(tester, s.container, s.db);
+    });
+
+    testWidgets('closing the chat brings the list back', (tester) async {
+      final s = await _pump(tester, width: 1400);
+      await tester.tap(find.bySemanticsLabel(_chatToggle));
+      await tester.pump(const Duration(milliseconds: 400));
+
+      await tester.tap(find.bySemanticsLabel(_chatToggle));
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(_of<AppMemberPane>(), findsOneWidget);
+      expect(membersLit(tester), isTrue);
       await teardown(tester, s.container, s.db);
     });
   });
