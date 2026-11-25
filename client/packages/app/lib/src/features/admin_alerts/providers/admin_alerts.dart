@@ -14,10 +14,12 @@ import 'package:slimm_api/api.dart' as api;
 import '../../../permissions.dart';
 import '../../../providers/live_events.dart';
 import '../../../providers/providers.dart';
+import '../../../sync/providers/sync_status.dart';
 
 final adminAlertsProvider = FutureProvider.autoDispose<api.AdminAlerts?>((
   ref,
 ) async {
+  ref.watch(syncResyncProvider);
   final me = await ref.watch(meProvider.future);
   if (!me.heldPermissions.hasPermission(Perm.manageServer)) return null;
   final subscription = ref.watch(liveEventsProvider).listen((event) {

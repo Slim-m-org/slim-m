@@ -11,6 +11,7 @@ import 'package:slimm_api/api.dart' as api;
 import '../../../providers/cache_for.dart';
 import '../../../providers/live_events.dart';
 import '../../../providers/providers.dart';
+import '../../../sync/providers/sync_status.dart';
 
 /// Long enough for the server's webhook write to land before the refetch.
 const voiceCallHistoryRefreshDelay = Duration(seconds: 2);
@@ -21,6 +22,7 @@ final _recent = KeepAliveCache(8);
 final voiceCallHistoryProvider = FutureProvider.autoDispose
     .family<api.VoiceCallHistory, String>((ref, channelId) async {
       _recent.hold(ref, channelId);
+      ref.watch(syncResyncProvider);
       Timer? pending;
       var watched = true;
       var stale = false;

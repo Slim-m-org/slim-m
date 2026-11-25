@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The caller's own favorites: GIFs and media kept from messages.
 ///
-/// Held for the session and mutated optimistically, because the server is the
+/// Held for the session, read again on every reconnect, and mutated optimistically, because the server is the
 /// only source of order and availability but a reorder should not wait on it.
 library;
 
@@ -10,6 +10,7 @@ import 'package:slimm_api/api.dart' as api;
 
 import '../../../ids.dart';
 import '../../../providers/providers.dart';
+import '../../../sync/providers/sync_status.dart';
 
 final favoritesProvider =
     AsyncNotifierProvider<FavoritesController, List<api.Favorite>>(
@@ -18,7 +19,10 @@ final favoritesProvider =
 
 class FavoritesController extends AsyncNotifier<List<api.Favorite>> {
   @override
-  Future<List<api.Favorite>> build() => ref.watch(apiProvider).listFavorites();
+  Future<List<api.Favorite>> build() {
+    ref.watch(syncResyncProvider);
+    return ref.watch(apiProvider).listFavorites();
+  }
 
   /// Favorites a live GIF result; a failure is thrown for the caller to show.
   Future<void> addGif(String gifId) async {

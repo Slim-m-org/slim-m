@@ -8,6 +8,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// pretending everything is fine while messages silently stop arriving.
 enum SyncStatus { offline, connecting, live }
 
+/// Bumped each time the connection goes live, so a consumer that holds what the
+/// socket would have told it watches this and reads it again after a gap.
+///
+/// A resync after a frame this client could not read ends in the same edge.
+final syncResyncProvider = StateProvider<int>((ref) => 0);
+
 /// Whether this session's first catch-up round has completed, independent of
 /// whether the live socket then attaches.
 ///
