@@ -14,6 +14,9 @@ export 'src/call_notifications.dart';
 export 'src/call_service.dart';
 export 'src/clipboard_image_png.dart' show isPng, toPng;
 export 'src/clipboard_file_writer.dart';
+export 'src/clipboard_staging.dart'
+    show clipboardStagingRoot, stageClipboardFile;
+export 'src/safe_file_name.dart' show safeFileName;
 export 'src/clipboard_image_writer.dart';
 export 'src/browser_attention.dart';
 export 'src/cross_tab.dart';

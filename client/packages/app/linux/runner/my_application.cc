@@ -6,6 +6,7 @@
 #endif
 
 #include "clipboard_image_channel.h"
+#include "drop_data_guard.h"
 #include "flutter/generated_plugin_registrant.h"
 #include "flutter_view_focus.h"
 #include "linux_screen_overlay_channel.h"
@@ -108,6 +109,7 @@ static void my_application_activate(GApplication* application) {
                            self);
   gtk_widget_realize(GTK_WIDGET(view));
 
+  drop_data_guard_install(GTK_WIDGET(view));
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
 
   self->messenger = fl_engine_get_binary_messenger(fl_view_get_engine(view));
