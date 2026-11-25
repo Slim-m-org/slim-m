@@ -148,4 +148,4 @@ Take the next free number from `origin/main` at the moment you open the PR, sinc
 | [0137](0137-canvas-edges.md) | Canvas edges: connections between objects | accepted |
 | [0138](0138-canvas-note-style-and-in-place-editing.md) | Canvas notes are edited in place, styled with four optional props the server merges, and rendered as Markdown | accepted |
 | [0139](0139-canvas-channels.md) | Canvas channels, and the canvas as a setting on voice channels | accepted |
-| [0141](0141-web-session-storage.md) | Where the web client keeps its sign-in (A) | proposed, waiting for the owner |
+| [0141](0141-web-session-storage.md) | Where the web client keeps its sign-in (A) | accepted, not implemented yet |

@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0 -->
 # 0141 - Where the web client keeps its sign-in (A)
 
-Status: proposed, waiting for the owner
+Status: accepted, option 1 (owner, 2026-11-25); not implemented yet
 Date: 2026-11-24
 Extends: 0042 (local database key)
 
@@ -39,3 +39,10 @@ Until the owner picks, the web build stays on today's storage and `docs/internal
 ## What this record does not decide
 
 Cookie lifetime, whether a cookie session also needs a CSRF token on `/auth/refresh`, and whether an admin session on the web should get a shorter refresh window than a member's.
+
+## Decision
+
+The owner chose option 1 on 2026-11-25.
+The web client's refresh token moves to an HttpOnly, Secure, SameSite=Strict cookie scoped to `/auth/refresh`, and the access token is kept in memory only.
+Desktop and phone clients keep their current storage.
+The server and client work is tracked on Planka ("Web sign-in: refresh token in an HttpOnly cookie").
