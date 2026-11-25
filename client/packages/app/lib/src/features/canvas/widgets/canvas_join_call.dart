@@ -55,7 +55,11 @@ class _CanvasJoinCallState extends ConsumerState<CanvasJoinCall> {
   Future<void> _press() async {
     final channelId = widget.channelId;
     final controller = ref.read(voiceControllerProvider.notifier);
-    Future<void> join() => controller.join(channelId);
+    Future<void> join() async {
+      await controller.join(channelId);
+      _announceJoined();
+    }
+
     if (callBusyElsewhere(ref.read(voiceFlagsProvider), channelId)) {
       final switching = await confirmChoice(
         context,
@@ -80,7 +84,6 @@ class _CanvasJoinCallState extends ConsumerState<CanvasJoinCall> {
             unawaited(_askJoinHere(elsewhere, proceed)),
       ),
     );
-    _announceJoined();
   }
 
   Future<void> _askJoinHere(String elsewhere, VoidCallback proceed) async {
