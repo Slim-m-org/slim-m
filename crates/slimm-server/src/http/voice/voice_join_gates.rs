@@ -10,7 +10,8 @@ use crate::ids::{ChannelId, UserId};
 use crate::store::Channel;
 
 /// Whether a join the SFU accepted is turned away. A join inside one token lifetime of a mint
-/// already met these gates; anything else came in on a renewed token.
+/// already met these gates, and so did a member whose call is on record (a reconnect on a
+/// renewed token); anything else came in on a renewed token.
 pub(in crate::http) async fn refuses_renewed_join(
     state: &AppState,
     user_id: UserId,
@@ -21,6 +22,9 @@ pub(in crate::http) async fn refuses_renewed_join(
         .asked_calls()
         .minted_recently(user_id, channel_id)
     {
+        return false;
+    }
+    if state.voice.has_heartbeat(user_id, channel_id) {
         return false;
     }
     let channel = match state.store.channel(channel_id).await {

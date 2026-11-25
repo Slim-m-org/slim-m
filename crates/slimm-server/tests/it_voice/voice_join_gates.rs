@@ -169,3 +169,19 @@ async fn a_heartbeat_from_someone_the_sfu_lists_in_a_locked_room_is_kept() {
 
     assert!(room.has_heartbeat(room.guest.id));
 }
+
+#[tokio::test]
+async fn a_member_already_in_a_locked_room_stays_when_the_sfu_reports_a_reconnect() {
+    let room = LockedRoom::start(true).await;
+    room.recorder
+        .seat_in(&format!("channel-{}", room.room), &[room.guest.id]);
+    assert_eq!(room.heartbeat(&room.guest).await, StatusCode::NO_CONTENT);
+
+    room.sfu_reports_join(room.guest.id).await;
+
+    let removed = holds_within(Duration::from_millis(400), || room.removed(room.guest.id)).await;
+    assert!(
+        !removed,
+        "a member already in the call was removed on a reconnect"
+    );
+}
