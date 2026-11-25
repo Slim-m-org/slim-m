@@ -187,7 +187,15 @@ class _HeldToasts extends ToastsController {
     String message, {
     AppToastSeverity severity = AppToastSeverity.info,
     Duration duration = ToastsController.defaultDuration,
-  }) => super.show(message, severity: severity, duration: Duration.zero);
+    String? actionLabel,
+    VoidCallback? onAction,
+  }) => super.show(
+    message,
+    severity: severity,
+    duration: Duration.zero,
+    actionLabel: actionLabel,
+    onAction: onAction,
+  );
 }
 
 /// The laptop the editor is judged at, and the phone.

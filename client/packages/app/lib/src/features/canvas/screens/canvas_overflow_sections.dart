@@ -3,10 +3,12 @@
 library;
 
 import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../widgets/canvas_clear_scope.dart';
+import 'canvas_export_entry.dart';
 import 'canvas_shape_icons.dart';
 import 'canvas_tools_row.dart' show CanvasHiddenTile;
 
@@ -25,6 +27,7 @@ class CanvasOverflowSections {
     required this.onDelete,
     required this.onClear,
     required this.onScopedClear,
+    required this.onExport,
   });
 
   final List<CanvasHiddenTile> hiddenTiles;
@@ -39,6 +42,7 @@ class CanvasOverflowSections {
   final void Function(String objectId) onDelete;
   final VoidCallback onClear;
   final void Function(CanvasScopedClear control) onScopedClear;
+  final VoidCallback onExport;
 
   List<Widget> hiddenTileItems() {
     if (hiddenTiles.isEmpty) return const [];
@@ -87,10 +91,32 @@ class CanvasOverflowSections {
     ),
   ];
 
-  List<Widget> manageItems() {
+  /// Export for anyone who can draw on an exportable board, then Clear for those who manage it; one block, so no divider stands alone.
+  List<Widget> manageItems() => [
+    Consumer(
+      builder: (context, ref, _) {
+        final items = [
+          if (canvasExportOffered(context, ref))
+            AppMenuItem(
+              label: 'Export canvas...',
+              leading: AppIcons.share,
+              onTap: onExport,
+            ),
+          ..._clearItems(),
+        ];
+        if (items.isEmpty) return const SizedBox.shrink();
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [const AppMenuDivider(), ...items],
+        );
+      },
+    ),
+  ];
+
+  List<Widget> _clearItems() {
     if (!canManage) return const [];
     return [
-      const AppMenuDivider(),
       AppMenuItem(
         label: 'Clear canvas',
         leading: AppIcons.delete,

@@ -20,6 +20,7 @@ import '../../app_icons.dart';
 import '../../app_metrics.dart';
 import '../../app_tokens.dart';
 import '../../app_typography.dart';
+import '../core/button.dart';
 
 /// The widest a toast grows, so a long message wraps rather than spanning the
 /// window.
@@ -38,11 +39,17 @@ class AppToast extends StatelessWidget {
     required this.message,
     this.severity = AppToastSeverity.info,
     this.onDismiss,
+    this.actionLabel,
+    this.onAction,
   });
 
   final String message;
   final AppToastSeverity severity;
   final VoidCallback? onDismiss;
+
+  /// One follow-on step, such as opening what the toast confirms; drawn only with [onAction].
+  final String? actionLabel;
+  final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
@@ -73,6 +80,15 @@ class AppToast extends StatelessWidget {
               style: AppText.body.copyWith(color: tokens.textPrimary),
             ),
           ),
+          if (actionLabel != null && onAction != null) ...[
+            const SizedBox(width: AppSpacing.s8),
+            AppButton(
+              label: actionLabel!,
+              variant: AppButtonVariant.ghost,
+              size: AppButtonSize.sm,
+              onPressed: onAction,
+            ),
+          ],
           if (onDismiss != null) ...[
             const SizedBox(width: AppSpacing.s8),
             Icon(

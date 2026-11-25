@@ -406,6 +406,11 @@ classes! {
     /// twenty at once and two a second is far above use. Over it, additions wait for the next
     /// accepted declaration while removals still apply.
     CanvasWatch,
+    /// Exporting a board into a new canvas channel, charged per account (decision 0139).
+    ///
+    /// One export copies up to a few thousand objects under the writer lock, so five at once and
+    /// then five an hour is far above anyone organising a workspace and well below a loop.
+    CanvasExport,
 }
 
 impl Class {
@@ -438,6 +443,8 @@ impl Class {
             Class::GroupDmCreate => (5.0, 1.0 / 60.0),
             // See this variant's own doc comment for how these were sized.
             Class::CanvasWatch => (20.0, 2.0),
+            // See this variant's own doc comment for how these were sized.
+            Class::CanvasExport => (5.0, 5.0 / 3600.0),
             // See this variant's own doc comment for how these were sized.
             Class::Ring => (5.0, 1.0 / 5.0),
             // See this variant's own doc comment for the roster and reconnect math.

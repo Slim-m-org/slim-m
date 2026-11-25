@@ -54,6 +54,7 @@ export 'models_linked_account.dart';
 export 'models_moderation.dart';
 export 'models_moderation_history.dart';
 export 'models_canvas.dart';
+export 'models_canvas_export.dart';
 export 'models_canvas_tiles.dart';
 export 'models_canvas_ops.dart';
 export 'models_channel.dart';

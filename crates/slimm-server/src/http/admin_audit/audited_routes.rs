@@ -170,6 +170,12 @@ pub const AUDITED_ROUTES: &[AuditedRoute] = &[
         "channel.overwrite_clear",
         CH,
     ),
+    route(
+        Method::POST,
+        "/channels/{channel_id}/canvas/export",
+        "channel.canvas_export",
+        CH,
+    ),
     route(Method::POST, "/categories", "category.create", None),
     route(
         Method::PATCH,

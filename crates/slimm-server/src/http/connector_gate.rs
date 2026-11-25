@@ -153,6 +153,10 @@ mod tests {
         );
         assert_eq!(rule("POST", &seg("/channels/{}/messages")), Rule::Handler);
         assert_eq!(
+            rule("POST", &seg("/channels/{}/canvas/export")),
+            Rule::Handler
+        );
+        assert_eq!(
             rule("POST", &seg("/dms")),
             Rule::Needs(Permissions::SEND_MESSAGES)
         );

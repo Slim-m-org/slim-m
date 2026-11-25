@@ -260,4 +260,36 @@ extension SlimmApiCanvas on SlimmApi {
       CanvasObject.fromJson,
     );
   }
+
+  /// Copies [channelId]'s board into a new canvas channel [id], clearing it in
+  /// the same transaction when [clearSource] is set.
+  ///
+  /// [id] keys the whole request: send the same one on a retry and the server
+  /// answers the first outcome instead of copying twice. [categoryId] is always
+  /// sent; null leaves the copy uncategorised.
+  Future<CanvasExportResult> exportCanvas(
+    String channelId, {
+    required String id,
+    required String name,
+    required String? categoryId,
+    bool voiceEnabled = false,
+    bool clearSource = false,
+  }) async {
+    final json = await send(
+      'POST',
+      '/channels/$channelId/canvas/export',
+      body: {
+        'id': id,
+        'name': name,
+        'category_id': categoryId,
+        'voice_enabled': voiceEnabled,
+        'clear_source': clearSource,
+      },
+    );
+    return decodeShape(
+      json,
+      'POST /channels/$channelId/canvas/export',
+      CanvasExportResult.fromJson,
+    );
+  }
 }
