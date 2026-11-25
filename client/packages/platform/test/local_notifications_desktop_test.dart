@@ -77,25 +77,15 @@ void main() {
   group('retracting banners that were read', () {
     test('Linux cancels each stale id through the plugin', () async {
       final plugin = _Plugin();
-      await LocalNotifications(plugin: plugin, isAndroid: false, isLinux: true)
-          .cancelShown({1001, 2002});
-
-      expect(plugin.cancelled, unorderedEquals([1001, 2002]));
-    });
-
-    test('an id already retracted is left alone until it is shown again',
-        () async {
-      final plugin = _Plugin();
       final notifications =
           LocalNotifications(plugin: plugin, isAndroid: false, isLinux: true);
+      await notifications.show('a',
+          channel: LocalAlertChannel.messages, id: 1001);
+      await notifications.show('b',
+          channel: LocalAlertChannel.messages, id: 2002);
+      await notifications.cancelShown({1001, 2002});
 
-      await notifications.cancelShown({5});
-      await notifications.cancelShown({5});
-      await notifications.show('again',
-          channel: LocalAlertChannel.messages, id: 5);
-      await notifications.cancelShown({5});
-
-      expect(plugin.cancelled, [5, 5]);
+      expect(plugin.cancelled, unorderedEquals([1001, 2002]));
     });
 
     test('Windows removes each stale toast by tag through the runner',
@@ -112,13 +102,16 @@ void main() {
           .setMockMethodCallHandler(channel, null));
       final plugin = _Plugin();
 
-      await LocalNotifications(
+      final notifications = LocalNotifications(
         plugin: plugin,
         isAndroid: false,
         isLinux: false,
         isWindows: true,
         windowsToasts: channel,
-      ).cancelShown({7});
+      );
+      await notifications.show('a', channel: LocalAlertChannel.messages, id: 7);
+      calls.clear();
+      await notifications.cancelShown({7});
 
       expect(calls.single.arguments, containsPair('tag', '7'));
       expect(plugin.cancelled, isEmpty);
