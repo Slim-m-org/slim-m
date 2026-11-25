@@ -1,14 +1,17 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+import 'dart:async';
+
 import 'package:dbus/dbus.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_platform/src/kwin_keep_above.dart';
 
 /// A KWin scripting service that logs each call and can refuse to run a script.
 class _ScriptingBus extends DBusClient {
-  _ScriptingBus({this.runs = true})
+  _ScriptingBus({this.runs = true, this.hangs = false})
       : super(DBusAddress.unix(path: '/nonexistent'));
 
   final bool runs;
+  final bool hangs;
   final calls = <String>[];
   var _nextId = 0;
 
@@ -24,6 +27,7 @@ class _ScriptingBus extends DBusClient {
     bool noAutoStart = false,
     bool allowInteractiveAuthorization = false,
   }) async {
+    if (hangs) await Completer<void>().future;
     await Future<void>.delayed(const Duration(milliseconds: 5));
     final plugin = values.isEmpty ? '' : (values.last as DBusString).value;
     calls.add('$name $plugin'.trim());
@@ -68,6 +72,16 @@ void main() {
   });
 
   group('against KWin', () {
+    test('a KWin that never answers does not block the next pop-out', () async {
+      final hung = _ScriptingBus(hangs: true);
+      final ok = _ScriptingBus();
+      final first = kwinKeepAbove('first',
+          client: hung, timeout: const Duration(milliseconds: 20));
+      final second = kwinKeepAbove('second', client: ok);
+      expect(await first, isFalse);
+      expect(await second, isTrue);
+    });
+
     test('two pop-outs opened together load and unload one after the other',
         () async {
       final bus = _ScriptingBus();

@@ -39,9 +39,16 @@ for (const w of windows) {
 final _queue = SerialQueue();
 var _loads = 0;
 
-/// Asks KWin to keep this process's window titled [caption] above others; false where KWin is not running or the script did not run.
-Future<bool> kwinKeepAbove(String caption, {DBusClient? client}) =>
-    _queue.run(() => _keepAbove(caption, client));
+/// Asks KWin to keep this process's window titled [caption] above others; false where KWin is not running, the script did not run, or KWin did not answer within [timeout].
+Future<bool> kwinKeepAbove(
+  String caption, {
+  DBusClient? client,
+  Duration timeout = const Duration(seconds: 10),
+}) =>
+    _queue.run(
+      () =>
+          _keepAbove(caption, client).timeout(timeout, onTimeout: () => false),
+    );
 
 Future<bool> _keepAbove(String caption, DBusClient? client) async {
   final bus = client ?? DBusClient.session();
