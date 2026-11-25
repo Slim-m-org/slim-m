@@ -6,6 +6,7 @@
 #include <dxgi.h>
 
 #include <functional>
+#include <memory>
 #include <string>
 
 #include "youtube_player_capture.h"
@@ -33,6 +34,8 @@ void Create(HWND parent, IDXGIAdapter* adapter, const std::string& html,
 void Resize(double width, double height, double scale);
 void Pointer(PointerKind kind, double x, double y);
 SharedFrame Latest();
+// Keeps the current frames' textures alive for as long as the caller holds it, so Flutter's raster thread can finish with them.
+std::shared_ptr<void> HoldFrames();
 void Run(const std::string& script);
 void Destroy();
 

@@ -13,6 +13,7 @@
 #include <winrt/Windows.UI.Composition.h>
 
 #include <algorithm>
+#include <deque>
 #include <mutex>
 
 namespace slimm_youtube {
@@ -164,6 +165,7 @@ class Capture final : public VisualCapture,
   void Copy(ID3D11Texture2D* source, UINT width, UINT height) {
     std::lock_guard<std::mutex> guard(lock_);
     if (!shared_ || frame_.width != width || frame_.height != height) {
+      Retire();
       HANDLE handle = nullptr;
       shared_ = SharedTexture(device_.get(), width, height, &handle);
       frame_ = SharedFrame{handle, width, height};
@@ -173,6 +175,15 @@ class Capture final : public VisualCapture,
     context_->Flush();
   }
 
+  // Flutter's raster thread may still open the previous size's handle, so a few outlive their replacement.
+  void Retire() {
+    if (!shared_) return;
+    retired_.push_back(std::move(shared_));
+    while (retired_.size() > kRetiredTextures) retired_.pop_front();
+  }
+
+  static constexpr size_t kRetiredTextures = 4;
+  std::deque<winrt::com_ptr<ID3D11Texture2D>> retired_;
   std::function<void()> on_frame_;
   winrt::com_ptr<ID3D11Device> device_;
   winrt::com_ptr<ID3D11DeviceContext> context_;

@@ -12,4 +12,8 @@
 /// WebView2 runtime or visual capture.
 void RegisterYoutubePlayerChannel(flutter::FlutterEngine* engine, HWND view);
 
+/// Tears the player down while the engine still runs, so no WebView2 or WinRT
+/// object outlives COM.
+void ShutdownYoutubePlayer();
+
 #endif  // RUNNER_YOUTUBE_PLAYER_CHANNEL_H_

@@ -12,6 +12,7 @@
 #include "youtube_player_input.h"
 #include "youtube_player_navigation.h"
 #include "youtube_player_policy.h"
+#include "youtube_player_sandbox.h"
 #include "youtube_player_texture.h"
 
 namespace {
@@ -159,7 +160,14 @@ void OpenExternally(const char* uri) {
   if (uri == nullptr) return;
   // Only a secure web link goes to the browser, never plain http, a file or a custom scheme.
   if (std::strncmp(uri, "https://", 8) != 0) return;
-  g_app_info_launch_default_for_uri(uri, nullptr, nullptr);
+  // Through the window, so the launch carries its activation token and the browser is raised.
+  GtkWidget* window = gtk_widget_get_toplevel(GTK_WIDGET(FlutterView()));
+  g_autoptr(GError) error = nullptr;
+  if (!gtk_show_uri_on_window(GTK_IS_WINDOW(window) ? GTK_WINDOW(window)
+                                                    : nullptr,
+                              uri, GDK_CURRENT_TIME, &error)) {
+    g_warning("youtube player: could not open a link: %s", error->message);
+  }
 }
 
 // WebKit fullscreens the window (FALSE lets it); Dart covers it with the texture and sizes the view to match.
@@ -207,6 +215,7 @@ int64_t Create(const char* html) {
     return -1;
   }
   Destroy();
+  slimm_youtube::ConfigureContext(api);
   SlimmVideoTexture* texture = slimm_video_texture_new();
   if (!fl_texture_registrar_register_texture(g_player.registrar,
                                              FL_TEXTURE(texture))) {
@@ -234,6 +243,7 @@ int64_t Create(const char* html) {
                "enable-fullscreen", TRUE,
                "enable-developer-extras", FALSE, nullptr);
   slimm_youtube::GuardNavigation(view, OpenExternally);
+  slimm_youtube::DenyPermissions(view);
   g_signal_connect(view, "enter-fullscreen", G_CALLBACK(OnEnterFullscreen), nullptr);
   g_signal_connect(view, "leave-fullscreen", G_CALLBACK(OnLeaveFullscreen), nullptr);
   g_signal_connect(view, "web-process-terminated",
