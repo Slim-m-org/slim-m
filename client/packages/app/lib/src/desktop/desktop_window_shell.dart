@@ -58,6 +58,7 @@ class DesktopWindowShell {
     bool frameless = false,
     Future<void> Function() beforeExit = endShareAudioBeforeExit,
     void Function() forceExit = _exitProcess,
+    Duration quitStepTimeout = const Duration(seconds: 5),
   }) : port = port ?? WindowManagerDesktopWindowPort(),
        _positionSupported = positionSupported,
        _chromePlatform = chromePlatform,
@@ -66,7 +67,8 @@ class DesktopWindowShell {
        _active = active,
        _framelessApplied = frameless,
        _beforeExit = beforeExit,
-       _forceExit = forceExit;
+       _forceExit = forceExit,
+       _quitStepTimeout = quitStepTimeout;
 
   /// Shared by every step here, and the one port [TitleBar] drags, minimizes
   /// and maximizes through; the native listener must be registered only once.
@@ -123,6 +125,9 @@ class DesktopWindowShell {
 
   final void Function() _forceExit;
 
+  /// A quit step that never answers is given up on, so the window can still close.
+  final Duration _quitStepTimeout;
+
   Future<void>? _quitting;
 
   /// Writes any pending geometry, ends a share's audio mix, then destroys the window through [port].
@@ -152,7 +157,7 @@ class DesktopWindowShell {
 
   Future<void> _quitStep(String what, Future<void> Function() step) async {
     try {
-      await step();
+      await step().timeout(_quitStepTimeout);
     } catch (error, stack) {
       AppLog.warning(
         LogTag.platform,

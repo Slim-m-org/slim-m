@@ -284,15 +284,10 @@ class DesktopWindowController {
   Future<void> _routeClose({bool awaitTrayHost = false}) async {
     final quit = this.quit;
     if (quit != null && !keepInTray()) return quit();
+    if (awaitTrayHost && !await trayAvailable()) return _minimizeUntilTray();
     final action = resolveCloseAction(
       platform: platform,
-      trayAvailable: awaitTrayHost
-          ? await waitForTray(
-              trayAvailable,
-              timeout: trayHostWait,
-              interval: trayHostPoll,
-            )
-          : await trayAvailable(),
+      trayAvailable: await trayAvailable(),
     );
     _lastCloseAction = action;
     switch (action) {
@@ -301,5 +296,20 @@ class DesktopWindowController {
       case CloseAction.minimizeToTaskbar:
         await port.minimize();
     }
+  }
+
+  /// A login launch whose panel is not up yet: out of the way at once, and
+  /// into the tray only if the user has not brought the window back by then.
+  Future<void> _minimizeUntilTray() async {
+    _lastCloseAction = CloseAction.minimizeToTaskbar;
+    await port.minimize();
+    final found = await waitForTray(
+      trayAvailable,
+      timeout: trayHostWait,
+      interval: trayHostPoll,
+    );
+    if (!found || !port.windowQueryable || !await port.isMinimized()) return;
+    _lastCloseAction = CloseAction.hideToTray;
+    await port.hide();
   }
 }

@@ -311,9 +311,32 @@ void main() {
       await controller.requestClose(awaitTrayHost: true);
 
       expect(port.hideCalls, 1);
-      expect(port.minimizeCalls, 0);
       controller.dispose();
     });
+
+    test(
+      'a login close leaves a window the user restored while waiting',
+      () async {
+        final port = FakeDesktopWindowPort();
+        final store = await _store();
+        var probes = 0;
+        final controller = DesktopWindowController(
+          port: port,
+          store: store,
+          platform: DesktopPlatform.linux,
+          trayAvailable: () async {
+            if (++probes == 3) port.minimized = false;
+            return probes >= 3;
+          },
+          trayHostPoll: const Duration(milliseconds: 1),
+        )..start();
+
+        await controller.requestClose(awaitTrayHost: true);
+
+        expect(port.hideCalls, 0);
+        controller.dispose();
+      },
+    );
 
     test('a login close settles for the taskbar once the wait is up', () async {
       final port = FakeDesktopWindowPort();

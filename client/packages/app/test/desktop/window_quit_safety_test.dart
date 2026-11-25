@@ -75,6 +75,17 @@ void main() {
     expect(port.destroyCalls, 1);
   });
 
+  test('a step that never finishes does not keep the window open', () async {
+    final port = FakeDesktopWindowPort();
+    final shell = shellFor(
+      port,
+      beforeExit: () => Completer<void>().future,
+      quitStepTimeout: const Duration(milliseconds: 10),
+    );
+    await shell.quit(port);
+    expect(port.destroyCalls, 1);
+  });
+
   test('a window that cannot be destroyed forces the process out', () async {
     var forced = 0;
     final port = _ThrowingDestroy();

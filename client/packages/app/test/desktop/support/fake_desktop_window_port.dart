@@ -97,7 +97,11 @@ class FakeDesktopWindowPort implements DesktopWindowPort {
   }
 
   @override
-  Future<void> minimize() async => minimizeCalls++;
+  Future<void> minimize() async {
+    minimizeCalls++;
+    minimized = true;
+  }
+
   @override
   Future<void> maximize() async {
     maximizeCalls++;
