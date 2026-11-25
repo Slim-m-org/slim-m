@@ -217,6 +217,7 @@ class CanvasPaneSurface extends StatelessWidget {
             document: document,
             canManage: canManage,
             selfId: selfId,
+            boardFocus: boardFocusNode,
           ),
         // Above the menu's hit catcher, so a tile's scene takes its own taps; its header lets them through to the board.
         CanvasModuleTileLayer(document: document),
