@@ -36,12 +36,13 @@ import '../../accounts/providers/account_providers.dart';
 import '../../../routing/routes.dart';
 import 'dm_call.dart';
 import '../../channels/providers/ensure_dm_channel.dart';
-import '../../members/providers/blocks_controller.dart';
 import '../../../providers/live_events.dart';
 import '../../../providers/providers.dart';
+import 'dm_call_ring_blocks.dart';
 import 'dm_call_ring_elsewhere.dart';
 import 'dm_call_ring_reconnect.dart';
 import 'dm_call_ring_state.dart';
+import 'dm_call_ring_system_decline.dart';
 import 'voice_controller.dart';
 
 export 'dm_call_ring_state.dart';
@@ -157,6 +158,16 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
         }
       case CallKitIncomingKind.ended:
         _onCallKitEnded(event.callId);
+      case CallKitIncomingKind.declined:
+        unawaited(
+          declineFromSystem(
+            event.callId,
+            held: state.incoming,
+            client: _ref.read(apiProvider),
+            isMounted: () => mounted,
+            decline: decline,
+          ),
+        );
     }
   }
 
@@ -293,7 +304,7 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
       case api.CallRinging(:final channelId, :final ringId, :final callerId):
         final selfId = _ref.read(apiProvider).session.tokens?.userId;
         if (callerId == selfId || ringId == _answeredRingId) return;
-        if (_isBlocked(callerId)) return;
+        if (_blocks.isBlocked(callerId)) return;
         final inThatCall =
             _ref.read(voiceControllerProvider).channelId == channelId;
         if (inThatCall && !_answerIsFresh) return;
@@ -442,10 +453,8 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
     }
   }
 
-  /// Clears the incoming ring without declining it - the accept path, whose
-  /// actual "answer" is the callee's own call join a moment later (a
-  /// heartbeat is what the server treats as answering; see `voice/ring.rs`'s
-  /// own doc for why there is no separate accept route to call here).
+  /// Clears the incoming ring without declining it: the accept path, where the
+  /// join's first heartbeat is what the server treats as answering.
   void dismissIncoming() {
     if (mounted) state = state.copyWith(clearIncoming: true);
   }
@@ -502,24 +511,16 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
     return ring.callerId != selfId &&
         ring.ringId != _answeredRingId &&
         !_endedRings.containsKey(ring.ringId) &&
-        !_isBlocked(ring.callerId) &&
+        !_blocks.isBlocked(ring.callerId) &&
         !inThatCall &&
         !_answerIsFresh;
   }
 
-  bool _watchingBlocks = false;
-
-  /// Read once the signed-in shell has loaded the list; a block drops the ring at once.
-  bool _isBlocked(String userId) {
-    if (!_ref.exists(blocksProvider)) return false;
-    if (!_watchingBlocks) {
-      _watchingBlocks = true;
-      _ref.listen<BlocksState>(blocksProvider, (_, next) {
-        if (next.contains(state.incoming?.callerId)) _dropIncoming();
-      });
-    }
-    return _ref.read(blocksProvider).contains(userId);
-  }
+  late final _blocks = DmCallRingBlocks(
+    _ref,
+    incomingCaller: () => state.incoming?.callerId,
+    dropIncoming: _dropIncoming,
+  );
 
   bool _stillCalling(String channelId) {
     final voice = _ref.read(voiceControllerProvider);

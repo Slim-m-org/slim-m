@@ -119,7 +119,7 @@ Future<_Rig> _rig({
       liveEventsProvider.overrideWithValue(events.stream),
       routerProvider.overrideWithValue(router),
       callKitIncomingChannelProvider.overrideWithValue(
-        CallKitIncomingChannel(isIOS: true),
+        CallKitIncomingChannel(enabled: true),
       ),
       voiceControllerProvider.overrideWith(
         (ref) => voice = FakeVoiceController(ref, recording: true),
@@ -418,6 +418,61 @@ void main() {
       await rig.settle();
 
       expect(rig.ended, ['uuid-1']);
+    });
+  });
+
+  group('a decline from the Android notification', () {
+    test('declines the ring the app already holds', () async {
+      final rig = await _rig();
+      rig.events.add(_ringFrame);
+      await rig.settle();
+
+      await rig.nativeSends('declined', id: 'ring-1');
+      await rig.settle();
+
+      expect(rig.declined, ['dm-1']);
+      expect(rig.ring.incoming, isNull);
+    });
+
+    test('before the ring frame arrives asks the server which ring', () async {
+      final rig = await _rig(outstanding: [_outstanding('dm-1', 'ring-1')]);
+
+      await rig.nativeSends('declined', id: 'ring-1');
+      await rig.settle();
+
+      expect(rig.declined, ['dm-1']);
+    });
+
+    test(
+      'replayed from before Dart started still reaches the server',
+      () async {
+        final rig = await _rig(
+          pending: [
+            {'event': 'declined', 'id': 'ring-2'},
+          ],
+          outstanding: [
+            _outstanding('dm-1', 'ring-1'),
+            _outstanding('dm-2', 'ring-2'),
+          ],
+        );
+        await rig.settle();
+
+        expect(rig.declined, ['dm-2'], reason: 'the ring named by the decline');
+      },
+    );
+
+    test('names no ring among several: none is declined blindly', () async {
+      final rig = await _rig(
+        outstanding: [
+          _outstanding('dm-1', 'ring-1'),
+          _outstanding('dm-2', 'ring-2'),
+        ],
+      );
+
+      await rig.nativeSends('declined', id: 'unknown');
+      await rig.settle();
+
+      expect(rig.declined, isEmpty);
     });
   });
 }

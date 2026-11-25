@@ -28,7 +28,7 @@ AccountHarness _harness({required bool ringOnSecond}) {
     extraOverrides: [
       routerProvider.overrideWithValue(router),
       callKitIncomingChannelProvider.overrideWith(
-        (ref) => CallKitIncomingChannel(isIOS: true),
+        (ref) => CallKitIncomingChannel(enabled: true),
       ),
       apiProvider.overrideWith((ref) {
         final onSecond = ref.read(serverUrlProvider).host.startsWith('second');

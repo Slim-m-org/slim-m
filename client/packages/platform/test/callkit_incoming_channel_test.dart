@@ -27,7 +27,7 @@ void main() {
         null,
       ),
     );
-    final channel = CallKitIncomingChannel(isIOS: true);
+    final channel = CallKitIncomingChannel(enabled: true);
     addTearDown(channel.dispose);
 
     final pending = await channel.takePending();
@@ -38,7 +38,7 @@ void main() {
   });
 
   test('a live event reaches the stream', () async {
-    final channel = CallKitIncomingChannel(isIOS: true);
+    final channel = CallKitIncomingChannel(enabled: true);
     addTearDown(channel.dispose);
     final seen = <CallKitIncomingKind>[];
     channel.events.listen((e) => seen.add(e.kind));
@@ -55,7 +55,7 @@ void main() {
   });
 
   test('off iOS nothing is pending', () async {
-    expect(await CallKitIncomingChannel(isIOS: false).takePending(), isEmpty);
+    expect(await CallKitIncomingChannel(enabled: false).takePending(), isEmpty);
   });
 
   test('endCall names the system call to end', () async {
@@ -73,12 +73,31 @@ void main() {
         null,
       ),
     );
-    final channel = CallKitIncomingChannel(isIOS: true);
+    final channel = CallKitIncomingChannel(enabled: true);
     addTearDown(channel.dispose);
 
     await channel.endCall('uuid-1');
 
     expect(seen.single.method, 'endCall');
     expect(seen.single.arguments, {'id': 'uuid-1'});
+  });
+
+  test('a decline from the Android notification is a known event', () async {
+    final channel = CallKitIncomingChannel(enabled: true);
+    addTearDown(channel.dispose);
+    final seen = <CallKitIncomingEvent>[];
+    channel.events.listen(seen.add);
+
+    await binding.defaultBinaryMessenger.handlePlatformMessage(
+      _channelName,
+      const StandardMethodCodec().encodeMethodCall(
+        const MethodCall('onCallKitEvent', {'event': 'declined', 'id': 'r'}),
+      ),
+      (_) {},
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    expect(seen.single.kind, CallKitIncomingKind.declined);
+    expect(seen.single.callId, 'r');
   });
 }

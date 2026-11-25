@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Bridges a voice call's lifecycle to iOS CallKit.
+/// Bridges a voice call's lifecycle to iOS CallKit and Android Telecom.
 ///
 /// A call joined from this app's own UI never reaches `CXProvider` unless
 /// something tells it to: `VoipCallHandler.swift`'s reporting only ever runs
@@ -30,18 +30,24 @@ import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 const _channelName = 'top.npcserver.slimm/call_lifecycle';
 
-/// A clean no-op everywhere but iOS: CallKit does not exist elsewhere, and
-/// Android's own incoming-call surface is [CallNotifications], not this.
+/// A clean no-op everywhere but iOS and Android. On Android the native side
+/// (`CallLifecycleBridge.kt`) keeps one self-managed Telecom call in step with
+/// the room, so another call knows slim-m is busy and can end it.
 class CallLifecycleChannel {
-  CallLifecycleChannel({MethodChannel? channel, bool? isIOS})
+  CallLifecycleChannel({MethodChannel? channel, bool? isIOS, bool? isAndroid})
       : _channel = channel ?? const MethodChannel(_channelName),
-        _isIOS = isIOS ?? isIOSHost {
-    // Guarded, or a non-iOS test needs a binary messenger just to construct this.
-    if (_isIOS) _calls = MethodChannelHub.of(_channel).calls.listen(_onCall);
+        _isIOS = isIOS ?? isIOSHost,
+        _isAndroid = isAndroid ?? isAndroidHost {
+    // Guarded, or a plain test needs a binary messenger just to construct this.
+    if (_native) _calls = MethodChannelHub.of(_channel).calls.listen(_onCall);
   }
 
   final MethodChannel _channel;
   final bool _isIOS;
+  final bool _isAndroid;
+
+  /// Both platforms report the call to the system; only iOS can read an audio session.
+  bool get _native => _isIOS || _isAndroid;
   final _endCalls = StreamController<void>.broadcast();
   final _systemEvents = StreamController<String>.broadcast();
   StreamSubscription<MethodCall>? _calls;
@@ -96,7 +102,7 @@ class CallLifecycleChannel {
     required String callId,
     required String displayName,
   }) async {
-    if (!_isIOS) return;
+    if (!_native) return;
     _reportedCallId = callId;
     try {
       await _channel.invokeMethod<void>('callStarted', {
@@ -119,7 +125,7 @@ class CallLifecycleChannel {
   /// The room actually connected, following [callStarted].
   Future<void> callConnected() async {
     final callId = _reportedCallId;
-    if (!_isIOS || callId == null) return;
+    if (!_native || callId == null) return;
     try {
       await _channel.invokeMethod<void>('callConnected', {'callId': callId});
     } on PlatformException catch (error, stack) {
@@ -140,7 +146,7 @@ class CallLifecycleChannel {
   /// another account's call.
   Future<void> callEnded() async {
     final callId = _reportedCallId;
-    if (!_isIOS || callId == null) return;
+    if (!_native || callId == null) return;
     _reportedCallId = null;
     try {
       await _channel.invokeMethod<void>('callEnded', {'callId': callId});
