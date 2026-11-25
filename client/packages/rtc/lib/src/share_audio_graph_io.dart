@@ -4,22 +4,17 @@ library;
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:ffi' as ffi;
 import 'dart:io';
 
-import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
+import 'pulse_audio_io.dart' show subscribePactl;
+import 'pulse_audio_parse.dart' show newSinkInputIndex;
 import 'share_audio_graph.dart';
-
-typedef _SetEnv = int Function(ffi.Pointer<Utf8>, ffi.Pointer<Utf8>, int);
-typedef _UnsetEnv = int Function(ffi.Pointer<Utf8>);
 
 const _daemonProbe = Duration(milliseconds: 400);
 const _killGrace = Duration(seconds: 2);
-
-const _captureSourceVariable = 'SLIMM_SHARE_AUDIO_SOURCE';
 
 class PipewireShareGraph implements ShareAudioGraph {
   PipewireShareGraph({@visibleForTesting this.cli = 'pw-cli'});
@@ -120,27 +115,9 @@ class PipewireShareGraph implements ShareAudioGraph {
   }
 
   @override
-  void exportCaptureSource(String? source) {
-    final libc = ffi.DynamicLibrary.process();
-    final key = _captureSourceVariable.toNativeUtf8();
-    try {
-      if (source == null) {
-        libc.lookupFunction<ffi.Int32 Function(ffi.Pointer<Utf8>), _UnsetEnv>(
-            'unsetenv')(key);
-        return;
-      }
-      final value = source.toNativeUtf8();
-      try {
-        libc.lookupFunction<
-            ffi.Int32 Function(ffi.Pointer<Utf8>, ffi.Pointer<Utf8>, ffi.Int32),
-            _SetEnv>('setenv')(key, value, 1);
-      } finally {
-        malloc.free(value);
-      }
-    } finally {
-      malloc.free(key);
-    }
-  }
+  Stream<void> get playbackStarts => subscribePactl()
+      .where((line) => newSinkInputIndex(line) != null)
+      .map((_) {});
 
   @override
   Future<void> destroy() async {

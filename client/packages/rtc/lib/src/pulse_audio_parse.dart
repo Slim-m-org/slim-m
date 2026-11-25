@@ -54,16 +54,27 @@ List<AudioDevice> parseSinks(String json) => [
 
 /// The stream indexes this process owns among `pactl -f json list
 /// source-outputs` (or sink-inputs) output.
-List<int> ownStreamIds(String json, int processId) =>
-    [for (final stream in ownStreams(json, processId)) stream.id];
+List<int> ownStreamIds(String json, int processId, {String? binary}) => [
+      for (final stream in ownStreams(json, processId, binary: binary))
+        stream.id,
+    ];
 
 /// This process's own streams in `pactl -f json list source-outputs` (or
 /// sink-inputs) output, each with the index of the node it plays on now.
-List<({int id, int? node})> ownStreams(String json, int processId) => [
+///
+/// In a sandbox the sound server reports each client's pid as its own
+/// namespace numbers it, so two apps can share one; there [binary] names the
+/// program instead and the pid is not looked at.
+List<({int id, int? node})> ownStreams(
+  String json,
+  int processId, {
+  String? binary,
+}) =>
+    [
       for (final stream in _decode(json).whereType<Map<dynamic, dynamic>>())
         if (stream['index'] is int &&
-            (stream['properties'] as Map?)?['application.process.id'] ==
-                '$processId')
+            _isOwn(
+                (stream['properties'] as Map?) ?? const {}, processId, binary))
           (
             id: stream['index'] as int,
             node: switch (stream['source'] ?? stream['sink']) {
@@ -72,6 +83,11 @@ List<({int id, int? node})> ownStreams(String json, int processId) => [
             },
           ),
     ];
+
+bool _isOwn(Map<dynamic, dynamic> props, int processId, String? binary) =>
+    binary == null
+        ? props['application.process.id'] == '$processId'
+        : props['application.process.binary'] == binary;
 
 /// The index of the node called [name] in `pactl -f json list sources` (or
 /// sinks) output, or null when it is not there.

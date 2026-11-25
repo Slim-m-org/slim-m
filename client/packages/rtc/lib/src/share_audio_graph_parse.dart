@@ -132,3 +132,37 @@ List<String> mixChannelsFor(String? channel, {required bool onlyPort}) {
       return const [];
   }
 }
+
+/// What [mixLinksToMake] reads, as one value so it can cross to a background isolate.
+typedef MixLinkQuery = ({
+  String dump,
+  int mix,
+  int processId,
+  String? binary,
+});
+
+/// The links that still have to be made so every other app's playback feeds the mix.
+///
+/// A top-level function over plain data: the dump is large, and decoding it
+/// runs in a background isolate rather than on the one drawing the call.
+List<MixLink> mixLinksToMake(MixLinkQuery query) {
+  final snapshot = ShareGraphSnapshot.parse(query.dump);
+  final state = snapshot.mixState(query.mix);
+  final linked = {for (final link in state.links) link.out};
+  final channels = snapshot.portChannels();
+  final foreign = snapshot.foreignPlayback(
+    query.processId,
+    binary: query.binary,
+  );
+  return [
+    for (final stream in foreign)
+      for (final out in stream.outPorts)
+        if (!linked.contains(out))
+          for (final input in state.inPorts)
+            if (mixChannelsFor(
+              channels[out],
+              onlyPort: stream.outPorts.length == 1,
+            ).contains(channels[input]))
+              (out: out, input: input),
+  ];
+}

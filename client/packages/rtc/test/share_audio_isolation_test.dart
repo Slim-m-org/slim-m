@@ -46,15 +46,6 @@ void main() {
     expect(graph.links.where((l) => l.$1 ~/ 10 == 40), hasLength(2));
   });
 
-  test('the capture is pointed at the mix and released at the end', () async {
-    await isolation.begin();
-    expect(graph.exported, shareMixSource);
-    await isolation.end();
-    expect(graph.exported, isNull);
-    expect(graph.destroys, 1);
-    expect(isolation.active, isFalse);
-  });
-
   test('ending twice tears down once', () async {
     await isolation.begin();
     await isolation.end();
@@ -65,7 +56,6 @@ void main() {
   test('with no sound server to drive it changes nothing', () async {
     graph.canDrive = false;
     expect(await isolation.begin(), isFalse);
-    expect(graph.exported, 'unset');
     expect(isolation.active, isFalse);
   });
 
@@ -155,7 +145,6 @@ void main() {
       onSettled: (_) {},
     );
     expect(graph.mix, isFalse);
-    expect(graph.exported, 'unset');
   });
 
   test('a stop during start leaves no mix behind', () async {
@@ -169,7 +158,6 @@ void main() {
     await ended;
     expect(isolation.active, isFalse);
     expect(graph.mix, isFalse);
-    expect(graph.exported, 'unset');
   });
 
   test('two starts at once make one mix', () async {
@@ -189,7 +177,6 @@ void main() {
 
     expect(isolation.active, isFalse);
     expect(graph.mix, isFalse);
-    expect(graph.exported, isNull);
   });
 
   test('the previous share ending while a new one starts keeps the new mix',

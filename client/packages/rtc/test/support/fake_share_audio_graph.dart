@@ -16,7 +16,6 @@ class FakeShareAudioGraph implements ShareAudioGraph {
   bool canDrive = true;
   bool mixWorks = true;
   bool mix = false;
-  String? exported = 'unset';
   int destroys = 0;
   final links = <(int, int)>[];
   final unlinked = <(int, int)>[];
@@ -67,8 +66,11 @@ class FakeShareAudioGraph implements ShareAudioGraph {
     return links.remove((out, input));
   }
 
+  /// Announces a new playback stream, as `pactl subscribe` would.
+  final startsController = StreamController<void>.broadcast(sync: true);
+
   @override
-  void exportCaptureSource(String? source) => exported = source;
+  Stream<void> get playbackStarts => startsController.stream;
 
   @override
   Future<void> destroy() async {
