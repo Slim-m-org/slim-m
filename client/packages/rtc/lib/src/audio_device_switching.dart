@@ -36,8 +36,10 @@ class AudioDeviceSwitching {
     LiveInputSwitch? liveInput,
     LiveOutputSwitch? liveOutput,
     PulseAudio? pulse,
+    lk.PlatformType Function()? platform,
     this.log,
-  })  : _liveInput = liveInput ?? switchLiveInput,
+  })  : _platform = platform ?? lk.lkPlatform,
+        _liveInput = liveInput ?? switchLiveInput,
         _liveOutput = liveOutput ?? _switchLiveOutput,
         _pulse = pulse ?? PulseAudio();
 
@@ -58,6 +60,7 @@ class AudioDeviceSwitching {
   static bool _never() => false;
 
   final AudioDevices _devices;
+  final lk.PlatformType Function() _platform;
   final LiveInputSwitch _liveInput;
   final LiveOutputSwitch _liveOutput;
 
@@ -419,7 +422,7 @@ class AudioDeviceSwitching {
     _preferredOutputId = device?.id;
     if (remember) _chosenOutputId = device?.id;
     if (room == null || !supportsOutputSelection) return;
-    final target = device ?? await _devices.systemDefaultOutput();
+    final target = device ?? await _defaultOutput();
     if (target == null) {
       // libwebrtc knows no default here; the sound server's own one is the system default.
       final serverDefault = await _pulse.defaultNode(capture: false);
@@ -436,17 +439,32 @@ class AudioDeviceSwitching {
   }
 
   /// Opening the microphone makes the native plugin select the default
-  /// speaker again, so the pick is applied once more after every open.
+  /// speaker again, and a device change can shift the list under a stored
+  /// pick, so the pick is applied once more after each. A call that follows
+  /// the system default asks Windows for the current default instead.
   /// Server nodes are moved by [applyServerRouting] instead.
   Future<void> reapplyOutput(lk.Room? room) async {
     final id = _preferredOutputId;
-    if (room == null || id == null || isPulseDeviceId(id)) return;
+    if (room == null || isPulseDeviceId(id)) return;
     if (!supportsOutputSelection) return;
-    final device = resolveAudioDevice(await outputs(), id);
+    final device = id == null
+        ? _windowsDefaultOutput
+        : resolveAudioDevice(await outputs(), id);
     if (device != null) {
       await _liveOutput(room, _asMediaDevice(device, 'audiooutput'));
     }
   }
+
+  /// The id the Windows plugin resolves to the current default speaker, since
+  /// its list names none.
+  static const _windowsDefaultSpeaker =
+      AudioDevice(id: 'default', label: 'System default');
+
+  AudioDevice? get _windowsDefaultOutput =>
+      _platform() == lk.PlatformType.windows ? _windowsDefaultSpeaker : null;
+
+  Future<AudioDevice?> _defaultOutput() async =>
+      await _devices.systemDefaultOutput() ?? _windowsDefaultOutput;
 
   static Future<void> _switchLiveOutput(lk.Room room, lk.MediaDevice device) =>
       room.setAudioOutputDevice(device);
