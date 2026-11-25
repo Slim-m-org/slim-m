@@ -39,6 +39,9 @@ class _Rig {
   Completer<void>? sceneGate;
   Completer<void>? pressGate;
   var sceneReads = 0;
+  var presses = 0;
+  var garbled = false;
+  var noScene = false;
 
   late final container = ProviderContainer(
     overrides: [
@@ -48,11 +51,14 @@ class _Rig {
       syncControllerProvider.overrideWith(NoopSyncController.new),
       mockApiOverride((request) async {
         if (request.method == 'POST') {
+          presses++;
           await pressGate?.future;
           return _json({'ok': true, 'output': 'pressed'});
         }
         sceneReads++;
         await sceneGate?.future;
+        if (garbled) return _json({'object_id': 'o1', 'output': 5});
+        if (noScene) return http.Response('{"error":"none"}', 404);
         return _json({'object_id': 'o1', 'output': stored, 'ran_at': 1});
       }),
     ],
@@ -128,5 +134,32 @@ void main() {
     rig.pressGate!.complete();
 
     expect((await pressed).ok, isTrue);
+  });
+
+  test(
+    'a read that fails in an unexpected way shows the retry state',
+    () async {
+      final rig = await _open();
+      rig.garbled = true;
+
+      await rig.frames.ensure('o1');
+
+      expect(rig.sub.read()['o1']?.error, isNotNull);
+    },
+  );
+
+  test('a read that outlives its tiles starts nothing', () async {
+    final rig = await _open();
+    rig.noScene = true;
+    rig.sceneGate = Completer<void>();
+    final ensured = rig.frames.ensure('o1');
+    await pumpEventQueue();
+
+    rig.sub.close();
+    await pumpEventQueue();
+    rig.sceneGate!.complete();
+    await ensured;
+
+    expect(rig.presses, 0);
   });
 }

@@ -18,6 +18,7 @@ import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_data/data.dart';
+import 'package:slimm_platform/platform.dart' show CrossTab;
 import 'package:slimm_platform/testing.dart';
 import 'package:slimm_rtc/rtc.dart';
 
@@ -70,11 +71,17 @@ String sessionJson(String userId) =>
     '{"user_id":"$userId","access_token":"a-$userId","refresh_token":"r-$userId","access_expires_at":0}';
 
 class AccountHarness {
-  AccountHarness({InMemoryKeyStore? keys, this.extraOverrides = const []})
-    : keys = keys ?? InMemoryKeyStore() {
+  AccountHarness({
+    InMemoryKeyStore? keys,
+    this.extraOverrides = const [],
+    CrossTab? crossTab,
+    String Function()? newDbFile,
+  }) : keys = keys ?? InMemoryKeyStore() {
     store = AccountStore(this.keys);
     host = AccountHost(
       store: store,
+      crossTab: crossTab,
+      newDbFile: newDbFile ?? newDatabaseFile,
       createContainer: _container,
       startServices: (_) async {},
       onActivate: (runtime) => onActivate(runtime),

@@ -10,6 +10,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../downloads/download_target.dart';
 import '../../../downloads/safe_file_name.dart';
+import '../../../picker_extensions.dart';
 
 class ThemeFilePick {
   const ThemeFilePick({required this.fileName, required this.bytes});
@@ -34,7 +35,7 @@ final themeFileSaverProvider = Provider<ThemeFileSaver>((ref) => _save);
 Future<ThemeFilePick?> _pick() async {
   final files = await FilePicker.pickFiles(
     type: FileType.custom,
-    allowedExtensions: const ['json'],
+    allowedExtensions: pickerExtensions(const ['json']),
   );
   final file = files.firstOrNull;
   if (file == null) return null;

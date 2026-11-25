@@ -46,8 +46,9 @@ An explicit `Requires:` line here would have been not just redundant but worse t
 Building the same tarball locally on Fedora, where `appindicator3-0.1.pc` exists but the `ayatana-` one does not, linked the older `libappindicator3.so.1` instead - confirmed with `readelf -d`, and it is what the `rpm -qpR` proof above was actually run against, not the Ubuntu name.
 Either way rpm finds it on its own; this is recorded so a future reader does not go looking for a second explicit `Requires:` when the soname eventually appears as `libayatana-appindicator3.so.1` in a real COPR build.
 
-`xdg-desktop-portal` and `gnome-keyring` are `Recommends`, not `Requires`.
-They are services rather than libraries, each backs one feature rather than the app, and the Secret Service the client needs has several providers - KWallet and KeePassXC among them - with no virtual `Provides` shared between them to require instead.
+`xdg-desktop-portal` is a `Recommends`, not a `Requires`.
+It is a service rather than a library and backs one feature rather than the app.
+The client keeps its sign-in in a file, so the package neither requires nor recommends a keyring.
 
 The private `.so` files are kept out of rpm's dependency namespace in both directions, through `__provides_exclude_from` and `__requires_exclude`, so the package neither advertises `libwebrtc.so` to the distribution nor tries to resolve it there.
 

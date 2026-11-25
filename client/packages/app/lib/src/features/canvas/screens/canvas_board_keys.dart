@@ -149,6 +149,11 @@ class _CanvasBoardKeysState extends State<CanvasBoardKeys> {
     LogicalKeyboardKey.arrowDown,
   };
 
+  static final _stepKeys = {
+    LogicalKeyboardKey.bracketLeft,
+    LogicalKeyboardKey.bracketRight,
+  };
+
   CanvasDocument get _document => widget.document;
 
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
@@ -161,13 +166,20 @@ class _CanvasBoardKeysState extends State<CanvasBoardKeys> {
       return KeyEventResult.handled;
     }
     final keys = HardwareKeyboard.instance;
-    if (keys.isControlPressed || keys.isMetaPressed || keys.isAltPressed) {
+    // Windows reports AltGr as Control plus Alt, and square brackets need it on many layouts.
+    final altGr = keys.isControlPressed && keys.isAltPressed;
+    final other =
+        keys.isControlPressed || keys.isMetaPressed || keys.isAltPressed;
+    final key = event.logicalKey;
+    if (other && !(altGr && _stepKeys.contains(key))) {
       return KeyEventResult.ignored;
     }
     final view = _document.viewport;
-    final key = event.logicalKey;
     final once = event is KeyDownEvent;
+    final shift = keys.isShiftPressed;
     final handled = switch (key) {
+      LogicalKeyboardKey.pageDown when shift => once && _step(1),
+      LogicalKeyboardKey.pageUp when shift => once && _step(-1),
       LogicalKeyboardKey.arrowLeft => _pan(-view.width * _panStep, 0),
       LogicalKeyboardKey.arrowRight => _pan(view.width * _panStep, 0),
       LogicalKeyboardKey.arrowUp => _pan(0, -view.height * _panStep),
@@ -307,7 +319,7 @@ class _CanvasBoardKeysState extends State<CanvasBoardKeys> {
         label: 'Canvas board',
         hint:
             'Arrow keys pan, plus and minus zoom, 0 fits, square brackets '
-            'step through objects, Enter opens the selected one, the menu key opens the tool wheel'
+            'or Shift and Page Up or Down step through objects, Enter opens the selected one, the menu key opens the tool wheel'
             '${widget.onShowActivityLog == null ? '' : ', L opens the activity log'}',
         child: DecoratedBox(
           position: DecorationPosition.foreground,

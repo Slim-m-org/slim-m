@@ -20,6 +20,19 @@ class PercentileTest(unittest.TestCase):
         self.assertIsNone(jt.percentile([], 50))
 
 
+class TargetTest(unittest.TestCase):
+    def test_a_p50_inside_the_target_passes(self):
+        runs = [{"firstSamples": 764.0}, {"firstSamples": 511.0}, {"firstSamples": 541.0}]
+        self.assertIsNone(jt.p50_problem(runs))
+
+    def test_a_slow_join_fails_even_when_one_run_was_fast(self):
+        runs = [{"firstSamples": 5000.0}, {"firstSamples": 4800.0}, {"firstSamples": 400.0}]
+        self.assertIn("over the", jt.p50_problem(runs))
+
+    def test_no_runs_fail(self):
+        self.assertTrue(jt.p50_problem([]))
+
+
 class RelativeTest(unittest.TestCase):
     def test_measures_from_the_click(self):
         marks = {"click": 1000.0, "tokenEnd": 1100.0, "firstSamples": 2500.0,

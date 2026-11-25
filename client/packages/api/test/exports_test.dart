@@ -104,4 +104,29 @@ void main() {
     expect(auth, 'Bearer access-1');
     expect(download.contentLength, 3);
   });
+
+  test('a download link is asked for by kind and resolves against the server',
+      () async {
+    final bodies = <Object?>[];
+    final api = testApi((request) async {
+      expect(request.url.path, '/downloads/links');
+      bodies.add(jsonDecode(request.body));
+      return http.Response(
+        jsonEncode({'path': '/downloads/abc.def', 'expires_at': 99}),
+        200,
+      );
+    });
+    final export = await api.createExportDownloadLink('e1');
+    final attachment = await api.createAttachmentDownloadLink(
+      'a1',
+      original: true,
+    );
+    expect(bodies, [
+      {'kind': 'export', 'id': 'e1'},
+      {'kind': 'attachment', 'id': 'a1', 'original': true},
+    ]);
+    expect(export.uri.path, '/downloads/abc.def');
+    expect(export.uri.hasAuthority, isTrue);
+    expect(attachment.expiresAt, 99);
+  });
 }

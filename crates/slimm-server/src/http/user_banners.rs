@@ -70,8 +70,13 @@ pub(super) async fn delete_banner(
     parts: Parts,
     State(state): State<AppState>,
 ) -> Result<StatusCode, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
+    enforce(&state, &parts, Some(&ctx), Class::ProfileEdit)?;
     let _guard = state.media.profile_guard().await;
+    let had_banner = state
+        .store
+        .user_profile(ctx.user_id)
+        .await?
+        .is_some_and(|user| user.banner_updated_at.is_some());
     state.store.clear_banner(ctx.user_id).await?;
     if let Err(err) = state
         .media
@@ -80,7 +85,9 @@ pub(super) async fn delete_banner(
     {
         tracing::warn!(error = %err, "failed to delete a cleared banner file");
     }
-    state.hub.publish(Event::ProfileChanged(ctx.user_id));
+    if had_banner {
+        state.hub.publish(Event::ProfileChanged(ctx.user_id));
+    }
     Ok(StatusCode::NO_CONTENT)
 }
 

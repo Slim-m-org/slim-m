@@ -12,6 +12,7 @@ import 'package:slimm_api/api.dart' as api;
 
 import '../../../providers/live_events.dart';
 import '../../../providers/providers.dart';
+import '../../../sync/providers/sync_status.dart';
 
 /// The local channel row's `name` for a thread: empty, mirroring the
 /// server's own `Store::open_thread`, which inserts `''` for the identical
@@ -80,6 +81,7 @@ void dockThread(
 /// the parent again. The parent channel's own name is left to the next open.
 final threadParentProvider = FutureProvider.autoDispose
     .family<api.ThreadParent, String>((ref, channelId) async {
+      ref.watch(syncResyncProvider);
       String? parentId;
       // Subscribed before the fetch: a provider disposed during it takes no new listener.
       final changes = ref

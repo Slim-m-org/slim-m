@@ -29,7 +29,10 @@ MediaQueryData keepPortraitShell(
   return data.copyWith(size: Size(size.height, size.width));
 }
 
-/// Lets a locked phone rotate for as long as it is held, and locks it again on release.
+/// How many holds are active per channel, so the native lock lifts only at zero.
+final Expando<int> _activeHolds = Expando<int>('phoneLandscapeHolds');
+
+/// Lets a locked phone rotate while any hold is active, and locks it again when the last is released.
 ///
 /// Built where `ref` is still readable, since release also runs from `dispose`.
 class PhoneLandscapeHold {
@@ -44,6 +47,7 @@ class PhoneLandscapeHold {
   Future<void> enter() async {
     if (_held) return;
     _held = true;
+    _activeHolds[_channel] = (_activeHolds[_channel] ?? 0) + 1;
     final lockedPhone = await _channel.allowLandscape(true);
     if (!lockedPhone || !_held) return;
     _lockedPhone.state = true;
@@ -52,6 +56,9 @@ class PhoneLandscapeHold {
   void release() {
     if (!_held) return;
     _held = false;
+    final remaining = (_activeHolds[_channel] ?? 1) - 1;
+    _activeHolds[_channel] = remaining;
+    if (remaining > 0) return;
     unawaited(_channel.allowLandscape(false));
   }
 }

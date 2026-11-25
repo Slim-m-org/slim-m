@@ -39,6 +39,10 @@ abstract class AttachmentVideoSource {
   /// Whether the credentials [open] last used no longer match [apiClient]'s.
   bool isStale(api.SlimmApi apiClient);
 
+  /// Stops an [open] still fetching, so its future fails and nothing stays
+  /// buffered; a no-op where [open] fetches nothing.
+  void cancel();
+
   /// Releases anything [open] held onto: a blob URL, an in-flight request.
   void dispose();
 }

@@ -214,13 +214,15 @@ class CanvasPresenceTileOverrides extends ChangeNotifier {
   void confirm(String key) => _confirmed[key] = _raw(key);
 
   /// Puts [key] back to what the server last confirmed, after a write it
-  /// refused or never received, keeping the viewer's own [hidden].
+  /// refused or never received (a tile never saved returns to its default place), keeping the viewer's own [hidden].
   void revertToServer(String key) {
-    final server = _confirmed[key];
-    if (server == null) return;
-    _states[key] = _raw(key).copyWith(
+    final server = _confirmed[key] ?? _defaultTileState;
+    final own = _raw(key);
+    _states[key] = CanvasPresenceTileState(
       rect: server.rect,
+      personalRect: own.personalRect,
       locked: server.locked,
+      hidden: own.hidden,
       sentToBack: server.sentToBack,
     );
     notifyListeners();

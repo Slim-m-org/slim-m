@@ -114,6 +114,11 @@ class ExportSaves extends Notifier<Map<String, ExportSave>> {
     }
     final limit = target.maxBytes;
     final size = job.sizeBytes;
+    final fitsInMemory = limit == null || size == null || size <= limit;
+    if (target is LinkDownloadTarget &&
+        await _openLink(job, target, canFallBack: fitsInMemory)) {
+      return;
+    }
     if (limit != null && size != null && size > limit) {
       await target.discard();
       _failedSave(id, 'This export is too large to save on this device.');
@@ -123,6 +128,37 @@ class ExportSaves extends Notifier<Map<String, ExportSave>> {
     _runs[id] = run;
     _set(id, ExportSave(phase: ExportSavePhase.saving, total: size));
     await _run(job, run);
+  }
+
+  /// Hands the archive to the browser's own download, which has no size limit of ours.
+  ///
+  /// False when the server has no links route (an older one) and the archive is small enough to buffer instead.
+  Future<bool> _openLink(
+    api.DataExport job,
+    LinkDownloadTarget target, {
+    required bool canFallBack,
+  }) async {
+    final id = job.id;
+    _set(id, ExportSave(phase: ExportSavePhase.saving, total: job.sizeBytes));
+    try {
+      final link = await ref.read(apiProvider).createExportDownloadLink(id);
+      await target.openLink(link.uri, _filename(job));
+      _set(id, const ExportSave(phase: ExportSavePhase.done));
+      return true;
+    } on api.NotFoundException {
+      if (canFallBack) return false;
+      _failedSave(id, 'Could not save the export.');
+      return true;
+    } on Object catch (e, stack) {
+      api.reportFailure(api.LogTag.ui, 'start the export download', e, stack);
+      _failedSave(
+        id,
+        e is api.ApiException
+            ? describeApiFailure('download the export', e)
+            : 'Could not save the export.',
+      );
+      return true;
+    }
   }
 
   /// Stops a running save and removes the partial file.

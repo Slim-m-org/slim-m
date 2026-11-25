@@ -124,6 +124,26 @@ impl Supervisor {
         self.chown_volume(names).await
     }
 
+    /// Whether the connector's volume exists; a foreign volume under the name is refused.
+    pub(super) async fn volume_exists(&self, names: &Names) -> Result<bool, ApiError> {
+        match self
+            .fetch(
+                &format!("/volumes/{}", encode(&names.volume)),
+                names,
+                "volume",
+                "/Labels",
+            )
+            .await?
+        {
+            Owned::Ours(_) => Ok(true),
+            Owned::Missing => Ok(false),
+            Owned::Foreign => Err(ApiError::policy(format!(
+                "{} exists but the supervisor did not create it",
+                names.volume
+            ))),
+        }
+    }
+
     async fn chown_volume(&self, names: &Names) -> Result<(), ApiError> {
         self.remove_container(&names.chown, names, "chown").await?;
         self.create_container(

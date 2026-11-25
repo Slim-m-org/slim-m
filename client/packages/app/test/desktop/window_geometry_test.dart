@@ -75,6 +75,19 @@ void main() {
       expect(placed.y, greaterThanOrEqualTo(0));
     });
 
+    test('a size saved at 150 percent fits a lone 100 percent display', () {
+      const external = DisplayArea(x: 0, y: 0, width: 1920, height: 1080);
+      const geometry = WindowGeometry(
+        windowedSize: WindowSize(width: 2400, height: 1300),
+        position: WindowRect(x: 0, y: 0, width: 2400, height: 1300, scale: 1.5),
+      );
+
+      final placed = clampToAttachedDisplays(geometry, [external]).position!;
+
+      expect(placed.x + placed.width, lessThanOrEqualTo(1920));
+      expect(placed.y + placed.height, lessThanOrEqualTo(1080));
+    });
+
     test('a window hanging off the right edge is nudged left', () {
       final clamped = clampToAttachedDisplays(_windowed(x: 1500, y: 100), [
         _primary,

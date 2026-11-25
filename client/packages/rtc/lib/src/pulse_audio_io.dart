@@ -29,7 +29,6 @@ typedef ProcessStarter = Future<Process> Function(
     String executable, List<String> arguments);
 
 /// Runs `pactl subscribe` while listened to; [start] is a seam for tests.
-@visibleForTesting
 Stream<String> subscribePactl({ProcessStarter start = Process.start}) {
   Process? process;
   var cancelled = false;
@@ -67,9 +66,56 @@ Stream<String> subscribePactl({ProcessStarter start = Process.start}) {
   return lines.stream;
 }
 
+/// How long one `pactl` call may take before it is killed; a wedged sound server never answers.
+const pactlTimeout = Duration(seconds: 3);
+
+/// The exit code a killed or unreachable `pactl` is reported with.
+const pactlTimedOutExit = 124;
+
+/// The exit code reported when `pactl` cannot be started at all, as a shell reports a missing command.
+const pactlUnavailableExit = 127;
+
+/// Runs `pactl`, killing it and answering a non-zero exit when it outlasts [within].
+@visibleForTesting
+Future<ProcessResult> runPactlWithin(
+  List<String> args, {
+  Duration within = pactlTimeout,
+  ProcessStarter start = Process.start,
+}) async {
+  final Process process;
+  try {
+    process = await start('pactl', args);
+  } on ProcessException catch (error) {
+    AppLog.warning(LogTag.voice, 'pactl is not available: ${error.message}');
+    return ProcessResult(0, pactlUnavailableExit, '', error.message);
+  }
+  final out = process.stdout.transform(utf8.decoder).join();
+  final err = process.stderr.transform(utf8.decoder).join();
+  out.ignore();
+  err.ignore();
+  final code = await boundedBy(process.exitCode, within, () {
+    process.kill(ProcessSignal.sigkill);
+    return pactlTimedOutExit;
+  });
+  if (code == pactlTimedOutExit) {
+    AppLog.warning(LogTag.voice, 'pactl ${args.join(' ')} timed out');
+    return ProcessResult(process.pid, code, '', 'timed out');
+  }
+  return ProcessResult(process.pid, code, await out, await err);
+}
+
+/// The running program's file name, which names its own streams where the pid cannot.
+String? ownExecutableName() {
+  final name = Platform.resolvedExecutable.split('/').last;
+  return name.isEmpty ? null : name;
+}
+
+/// The program name to match streams by inside a flatpak, where pids are per sandbox; else null.
+String? sandboxedExecutableName() =>
+    File('/.flatpak-info').existsSync() ? ownExecutableName() : null;
+
 /// Shared by every [PulseAudio] in the app; see `pactl_sharing.dart`.
-final PactlRunner _runPactl =
-    sharingDeviceQueries((args) => Process.run('pactl', args));
+final PactlRunner _runPactl = sharingDeviceQueries(runPactlWithin);
 
 final PactlSubscriber _subscribePactl = sharedWhileListened(subscribePactl);
 
@@ -77,10 +123,15 @@ class PulseAudio {
   /// Whether this platform has a sound server to ask.
   static bool get supported => Platform.isLinux;
 
-  PulseAudio({PactlRunner? run, PactlSubscriber? subscribe, int? processId})
-      : _run = run ?? _runPactl,
+  PulseAudio({
+    PactlRunner? run,
+    PactlSubscriber? subscribe,
+    int? processId,
+    String? binary,
+  })  : _run = run ?? _runPactl,
         _subscribe = subscribe ?? _subscribePactl,
         _pid = processId ?? pid,
+        _binary = binary ?? (supported ? sandboxedExecutableName() : null),
         _enabled = run != null || supported;
 
   /// A sound server that has no devices and never speaks, for tests.
@@ -92,6 +143,7 @@ class PulseAudio {
   final PactlRunner _run;
   final PactlSubscriber _subscribe;
   final int _pid;
+  final String? _binary;
 
   /// Off Linux nothing is ever spawned, so a phone never tries to start a process.
   final bool _enabled;
@@ -117,7 +169,8 @@ class PulseAudio {
     try {
       final listed = await _run(['-f', 'json', 'list', 'sink-inputs']);
       return listed.exitCode == 0 &&
-          ownStreamIds(listed.stdout as String, _pid).contains(index);
+          ownStreamIds(listed.stdout as String, _pid, binary: _binary)
+              .contains(index);
     } on Object catch (error, stack) {
       AppLog.swallowed(LogTag.voice,
           'Could not tell whose playback stream started', error, stack);
@@ -175,18 +228,23 @@ class PulseAudio {
     final kind = capture ? 'source-outputs' : 'sink-inputs';
     final listed = await _run(['-f', 'json', 'list', kind]);
     if (listed.exitCode != 0) return false;
-    final streams = ownStreams(listed.stdout as String, _pid);
+    final streams = ownStreams(listed.stdout as String, _pid, binary: _binary);
     if (streams.isEmpty) return false;
     final target = await _nodeIndex(node, capture: capture);
     var moved = false;
     for (final stream in streams) {
       if (target != null && stream.node == target) continue;
-      await _run([
+      final result = await _run([
         capture ? 'move-source-output' : 'move-sink-input',
         '${stream.id}',
         node,
       ]);
-      moved = true;
+      if (result.exitCode == 0) {
+        moved = true;
+        continue;
+      }
+      AppLog.warning(LogTag.voice,
+          'pactl could not move stream ${stream.id}: ${result.stderr}');
     }
     return moved;
   }

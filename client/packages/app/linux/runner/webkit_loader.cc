@@ -87,6 +87,11 @@ const Api* Load() {
     return nullptr;
   }
   Bind(lib, "webkit_website_policies_get_type", &g_api.website_policies_get_type);
+  Bind(lib, "webkit_web_context_get_default", &g_api.web_context_get_default);
+  Bind(lib, "webkit_web_context_set_sandbox_enabled",
+       &g_api.web_context_set_sandbox_enabled);
+  Bind(lib, "webkit_download_cancel", &g_api.download_cancel);
+  Bind(lib, "webkit_permission_request_deny", &g_api.permission_request_deny);
   if (!BindAll(lib)) {
     g_warning("youtube player: %s lacks a call the player needs", kLibrary);
     return nullptr;

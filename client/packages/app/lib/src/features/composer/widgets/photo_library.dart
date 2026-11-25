@@ -28,8 +28,14 @@ enum PhotoAccess {
 
 /// One recent photo; its bytes load on demand.
 class RecentPhoto {
-  const RecentPhoto(this.id);
+  const RecentPhoto(this.id, {this.isVideo = false, this.bytes});
   final String id;
+
+  /// The original's size when the library can tell it without downloading; read for videos only.
+  final int? bytes;
+
+  /// A video shows a badge on its tile and attaches like any other file.
+  final bool isVideo;
 }
 
 abstract interface class PhotoLibrary {
@@ -41,6 +47,9 @@ abstract interface class PhotoLibrary {
 
   /// The original, read only when staged so a large one streams.
   Future<FileSource?> original(String id);
+
+  /// Deletes the cached copies [original] made.
+  Future<void> clearCache();
 
   /// Reopens the OS selection UI so a limited grant can be widened.
   Future<void> manageLimited();

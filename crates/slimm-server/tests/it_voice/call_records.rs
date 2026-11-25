@@ -14,6 +14,7 @@ use serde_json::Value;
 use slimm_server::config::Config;
 use slimm_server::db;
 use slimm_server::hub::Hub;
+use slimm_server::ids::{ChannelId, UserId};
 use slimm_server::push::PushSender;
 use slimm_server::store::Store;
 use slimm_server::sweep_stale_call_rings_at;
@@ -314,4 +315,38 @@ async fn a_caller_hanging_up_first_records_a_canceled_call() {
     assert_eq!(calls[0]["call"]["outcome"], "canceled");
     assert_eq!(calls[0]["call"]["caller_id"], alice_id);
     assert!(calls[0]["call"]["duration_ms"].is_null());
+}
+
+/// Your own call record is never unread to you, on any of your devices.
+#[tokio::test]
+async fn the_callers_own_call_record_arrives_read() {
+    let h = harness().await;
+    let (alice_token, alice_id) = register(&h.store, "alice").await;
+    let (_bob_token, bob_id) = register(&h.store, "bob").await;
+    let channel_id = open_dm(&h.app, &alice_token, &bob_id).await;
+    let mut events = h.hub.subscribe();
+
+    assert_eq!(
+        ring(&h.app, &channel_id, &alice_token).await,
+        StatusCode::OK
+    );
+    sweep_stale_call_rings_at(
+        &h.voice,
+        &h.hub,
+        &h.store,
+        &PushSender::disabled(),
+        std::time::Instant::now() + RING_TIMEOUT,
+    )
+    .await;
+
+    let id = |raw: &str| uuid::Uuid::parse_str(raw).unwrap();
+    let (alice, bob) = (UserId(id(&alice_id)), UserId(id(&bob_id)));
+    let channel = ChannelId(id(&channel_id));
+    assert_eq!(h.store.unread_count(alice, channel).await.unwrap(), 0);
+    assert_eq!(h.store.unread_count(bob, channel).await.unwrap(), 1);
+    let mut announced = false;
+    while let Ok(event) = events.try_recv() {
+        announced |= matches!(event, slimm_server::hub::Event::ReadStateChanged { user_id, .. } if user_id == alice);
+    }
+    assert!(announced, "the caller's other devices were not told");
 }

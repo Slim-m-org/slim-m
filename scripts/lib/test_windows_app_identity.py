@@ -102,11 +102,14 @@ class RunnerClaimsTheIdFirst(unittest.TestCase):
         source = strip_c_comments((RUNNER_DIR / "app_identity.cpp").read_text())
         self.assertIn("SetCurrentProcessExplicitAppUserModelID(slimm::kAppUserModelId)", source)
 
-    def test_shortcuts_are_repaired_once_com_is_up_and_before_the_window(self):
+    def test_shortcut_repair_starts_off_the_ui_thread_once_com_is_up_and_is_joined_on_exit(self):
         body = wwinmain_body()
-        self.assertIn("RepairShortcuts();", body)
-        self.assertLess(body.index("CoInitializeEx("), body.index("RepairShortcuts();"))
-        self.assertLess(body.index("RepairShortcuts();"), body.index("engine->Run()"))
+        self.assertLess(body.index("CoInitializeEx("), body.index("engine->Run()"))
+        self.assertLess(body.index("GetMessage("), body.index("FinishShortcutRepair();"))
+        window = strip_c_comments((RUNNER_DIR / "main_window.cpp").read_text())
+        self.assertIn("StartShortcutRepair();", window)
+        source = strip_c_comments((RUNNER_DIR / "app_identity.cpp").read_text())
+        self.assertIn("CreateThread(", source)
 
     def test_the_repair_covers_start_menu_desktop_and_taskbar_pins(self):
         source = strip_c_comments((RUNNER_DIR / "app_identity.cpp").read_text())

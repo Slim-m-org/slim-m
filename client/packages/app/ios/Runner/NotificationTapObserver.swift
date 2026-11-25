@@ -3,12 +3,11 @@
 // Notices which channel a tapped notification came from, without taking the
 // notification delegate away from whoever already had it.
 //
-// Something else always does have it: firebase_messaging claims
-// `UNUserNotificationCenter.delegate` during plugin registration, and its own
-// push handling runs from there. So this chains rather than replaces - every
-// callback is passed straight on to the delegate that was installed before it,
-// and this class's only addition is reading one key out of `userInfo` on the
-// way past.
+// It installs itself at launch, before plugin registration. firebase_messaging
+// then finds it in the slot, keeps it as its original delegate and forwards
+// taps to it, so this class needs no `next` of its own in the app. If `next`
+// is given, every callback is passed straight on to it; this class's only
+// addition is reading one key out of `userInfo` on the way past.
 //
 // It exists as its own `NSObject` rather than as methods on `AppDelegate`
 // because `FlutterAppDelegate` implements these callbacks while declaring them
@@ -34,7 +33,7 @@ final class NotificationTapObserver: NSObject, UNUserNotificationCenterDelegate 
   /// plugin deallocate and take its whole push path with it; a strong one is
   /// what keeps the chain intact. Both ends are app-lifetime singletons, so
   /// there is nothing here to reclaim later anyway.
-  private let next: UNUserNotificationCenterDelegate?
+  let next: UNUserNotificationCenterDelegate?
   private let onTap: (String) -> Void
 
   /// A tap on a delivered notification. The channel id is whatever the

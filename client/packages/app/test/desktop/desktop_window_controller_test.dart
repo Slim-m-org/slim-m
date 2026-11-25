@@ -296,6 +296,81 @@ void main() {
       },
     );
 
+    test('hiding for login waits for a tray host that starts late', () async {
+      final port = FakeDesktopWindowPort();
+      final store = await _store();
+      var quits = 0;
+      var probes = 0;
+      final controller = DesktopWindowController(
+        port: port,
+        store: store,
+        platform: DesktopPlatform.linux,
+        keepInTray: () => false,
+        quit: () async => quits++,
+        trayAvailable: () async => ++probes >= 3,
+        trayHostPoll: const Duration(milliseconds: 1),
+      )..start();
+
+      await controller.hideForLogin();
+
+      expect(port.hideCalls, 1);
+      expect(quits, 0);
+      controller.dispose();
+    });
+
+    test(
+      'hiding for login leaves a window the user restored while waiting',
+      () async {
+        final port = FakeDesktopWindowPort();
+        final store = await _store();
+        var quits = 0;
+        var probes = 0;
+        final controller = DesktopWindowController(
+          port: port,
+          store: store,
+          platform: DesktopPlatform.linux,
+          keepInTray: () => false,
+          quit: () async => quits++,
+          trayAvailable: () async {
+            if (++probes == 3) port.minimized = false;
+            return probes >= 3;
+          },
+          trayHostPoll: const Duration(milliseconds: 1),
+        )..start();
+
+        await controller.hideForLogin();
+
+        expect(port.hideCalls, 0);
+        expect(quits, 0);
+        controller.dispose();
+      },
+    );
+
+    test(
+      'hiding for login settles for the taskbar once the wait is up',
+      () async {
+        final port = FakeDesktopWindowPort();
+        final store = await _store();
+        var quits = 0;
+        final controller = DesktopWindowController(
+          port: port,
+          store: store,
+          platform: DesktopPlatform.linux,
+          keepInTray: () => false,
+          quit: () async => quits++,
+          trayAvailable: () async => false,
+          trayHostWait: const Duration(milliseconds: 20),
+          trayHostPoll: const Duration(milliseconds: 5),
+        )..start();
+
+        await controller.hideForLogin();
+
+        expect(port.minimizeCalls, 1);
+        expect(quits, 0);
+        controller.dispose();
+      },
+    );
+
     test('with Close to tray off, closing quits instead of hiding', () async {
       final port = FakeDesktopWindowPort();
       final store = await _store();
@@ -316,6 +391,31 @@ void main() {
       expect(port.hideCalls, 0);
       controller.dispose();
     });
+  });
+
+  group('DesktopWindowController hideForLogin', () {
+    test(
+      'with Close to tray off, a login launch hides and never quits',
+      () async {
+        final port = FakeDesktopWindowPort();
+        final store = await _store();
+        var quits = 0;
+        final controller = DesktopWindowController(
+          port: port,
+          store: store,
+          platform: DesktopPlatform.windows,
+          trayAvailable: () async => true,
+          keepInTray: () => false,
+          quit: () async => quits++,
+        )..start();
+
+        await controller.hideForLogin();
+
+        expect(quits, 0);
+        expect(port.hideCalls, 1);
+        controller.dispose();
+      },
+    );
   });
 
   group('DesktopWindowController onShow', () {

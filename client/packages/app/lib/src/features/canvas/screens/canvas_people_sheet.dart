@@ -10,12 +10,14 @@ import 'canvas_people_session.dart';
 
 Future<void> showCanvasPeopleSheet(BuildContext context) {
   final session = CanvasPeopleScope.maybeOf(context);
+  final channelId = CanvasPeopleScope.channelIdOf(context);
   return showAppSheet<void>(
     context,
     scrolls: true,
     semanticLabel: 'People here',
     builder: (sheet) => CanvasPeopleScope(
       notifier: session,
+      channelId: channelId,
       child: CanvasPeopleSheet(onDone: () => Navigator.of(sheet).pop()),
     ),
   );

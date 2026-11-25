@@ -39,7 +39,8 @@ void main() {
     expect((event! as ThreadUpdated).lastReplyAt, isNull);
   });
 
-  test('a thread.updated frame missing reply_count is ignored, not a crash',
+  test(
+      'a thread.updated frame missing reply_count asks for a resync, not a crash',
       () {
     expect(
       ServerEvent.parse(jsonEncode({
@@ -48,7 +49,7 @@ void main() {
         'parent_message_id': 'm1',
         'thread_channel_id': 't1',
       })),
-      isNull,
+      isA<ErrorEvent>(),
     );
   });
 }

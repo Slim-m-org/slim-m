@@ -102,6 +102,9 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
   VoidCallback? _confirmedJoin;
   bool _checking = false;
 
+  /// Why the transcription notice could not be checked; nothing joins until a retry reads it.
+  String? _noticeError;
+
   /// The join a press on the page asked for while in another call, waiting on the switch prompt.
   Future<void> Function()? _switchJoin;
 
@@ -138,6 +141,7 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
     _autoJoinedFor = looking || handedOff || loaded ? widget.channelId : null;
     _check++;
     _checking = false;
+    _noticeError = null;
     _elsewhere = null;
     _confirmedJoin = null;
     _switchJoin = null;
@@ -170,13 +174,21 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
     });
   }
 
-  Future<void> _joinConfirmed(Future<void> Function() join) {
+  /// Runs [join] now, after the one-time transcription notice, or after "Join here" when it would move a call open on another device.
+  /// A call that came up meanwhile, here or elsewhere, wins over the join.
+  /// A [switching] join already left the other call's decision to the switch prompt, so it only owes the notice.
+  Future<void> _joinConfirmed(
+    Future<void> Function() join, {
+    bool switching = false,
+  }) {
     final check = ++_check;
+    final channelId = widget.channelId;
     return runConfirmedJoin(
       context,
       ref,
-      channelId: widget.channelId,
+      channelId: channelId,
       isDm: widget.isDm,
+      switching: switching,
       join: join,
       host: ConfirmedJoinHost(
         dropped: () => !mounted || check != _check,
@@ -185,6 +197,14 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
           _elsewhere = elsewhere;
           _confirmedJoin = proceed;
         }),
+        noticeFailed: (message) {
+          if (message == null) {
+            if (_noticeError != null) setState(() => _noticeError = null);
+            return;
+          }
+          _autoJoinedFor = channelId;
+          setState(() => _noticeError = message);
+        },
       ),
     );
   }
@@ -220,8 +240,12 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
   void _switchNow(VoiceController controller) {
     _autoJoinedFor = widget.channelId;
     final join = _switchJoin ?? () => controller.join(widget.channelId);
-    _switchJoin = null;
-    unawaited(join());
+    unawaited(
+      _joinConfirmed(() {
+        _switchJoin = null;
+        return join();
+      }, switching: true),
+    );
   }
 
   /// Back to the page a press on its Join came from, still in the other call.
@@ -324,6 +348,7 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
         ),
         'switch' => VoiceSwitchPrompt(
           onSwitch: () => _switchNow(controller),
+          errorMessage: _noticeError,
           onCancel: _switchJoin == null ? null : _cancelSwitch,
         ),
         _ when !widget.isDm => VoiceChannelIdle(
@@ -402,11 +427,11 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
     final attemptedThis = _autoJoinedFor == channelId;
 
     // `join` never clears `channelId` on error, so an error only ever belongs here.
-    final errorMessage =
-        inThisChannel && voice.state == VoiceSessionState.failed
+    final joinError = inThisChannel && voice.state == VoiceSessionState.failed
         ? voice.error
         : null;
-    final canRetry = errorMessage == null || voice.retryable;
+    final errorMessage = _noticeError ?? joinError;
+    final canRetry = joinError == null || voice.retryable;
 
     // A rejoin in progress stays on the call stage rather than the full-screen
     // connecting spinner: the bounded auto-rejoin behind it is still trying,

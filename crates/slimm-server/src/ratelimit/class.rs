@@ -359,6 +359,13 @@ classes! {
     /// streak; a refill of one per five seconds bounds the sustained rate.
     /// See `docs/decisions/0044-rich-presence.md`.
     PresenceActivity,
+    /// A member's profile edit (`PATCH /me`, removing an avatar or banner).
+    ///
+    /// Each accepted edit is announced to every connected client, and each of
+    /// those answers with a profile fetch, so this sits well under
+    /// [`Class::Write`]. Burst sixteen covers filling in a profile and trying colour swatches in one sitting;
+    /// a refill of one per five seconds bounds the sustained fan-out.
+    ProfileEdit,
     /// A bot's watch-position tick (`POST /channels/{id}/watch-session/tick`).
     ///
     /// The bot sends one every 5 seconds per session, 0.2 a second, so this
@@ -468,6 +475,8 @@ impl Class {
             Class::Totp => (8.0, 1.0 / 10.0),
             // See this variant's own doc comment for how these were sized.
             Class::PresenceActivity => (6.0, 1.0 / 5.0),
+            // See this variant's own doc comment for how these were sized.
+            Class::ProfileEdit => (16.0, 1.0 / 5.0),
             // See this variant's own doc comment for how these were sized.
             Class::WatchTick => (4.0, 1.0 / 2.0),
             // See this variant's own doc comment for how these were sized.

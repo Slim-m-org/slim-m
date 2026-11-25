@@ -69,6 +69,11 @@ class _SpyPlugin implements FlutterLocalNotificationsPlugin {
     shownPayload = payload;
   }
 
+  final cancelledIds = <int>[];
+
+  @override
+  Future<void> cancel(int id, {String? tag}) async => cancelledIds.add(id);
+
   @override
   dynamic noSuchMethod(Invocation invocation) => Future<void>.value();
 }
@@ -464,6 +469,46 @@ void main() {
     test('off Android there is nothing to cancel', () async {
       expect(await cancelled({7}, isAndroid: false), isEmpty);
     });
+
+    test('on Windows a posted toast is taken down by its tag once read',
+        () async {
+      const channel = MethodChannel('test/windows_toasts_read');
+      final removed = <Object?>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+        removed.add((call.arguments as Map)['tag']);
+        return true;
+      });
+      addTearDown(() => TestDefaultBinaryMessengerBinding
+          .instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null));
+      final notifications = LocalNotifications(
+        plugin: _SpyPlugin(),
+        isAndroid: false,
+        isLinux: false,
+        isWindows: true,
+        windowsToasts: channel,
+      );
+      await notifications.show('hi',
+          channel: LocalAlertChannel.messages, id: 1234);
+
+      await notifications.cancelShown({1234, 5678});
+      await notifications.cancelShown({1234});
+
+      expect(removed, ['1234']);
+    });
+
+    test('on Linux a posted notification is closed once read', () async {
+      final plugin = _SpyPlugin();
+      final notifications =
+          LocalNotifications(plugin: plugin, isAndroid: false, isLinux: true);
+      await notifications.show('hi',
+          channel: LocalAlertChannel.messages, id: 1234);
+
+      await notifications.cancelShown({1234, 5678});
+
+      expect(plugin.cancelledIds, [1234]);
+    });
   });
 }
 
@@ -480,4 +525,7 @@ class _FakePermissionRequester implements AndroidPermissionRequester {
     calls++;
     return granted;
   }
+
+  @override
+  Future<bool> areNotificationsEnabled() async => granted;
 }

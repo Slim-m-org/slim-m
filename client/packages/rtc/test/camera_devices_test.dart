@@ -44,6 +44,31 @@ void main() {
       expect(deduped.single.id, '/dev/video0');
     });
 
+    test('keeps two identical cameras on different buses, numbered apart', () {
+      const devices = [
+        CameraDevice(id: 'usb-0000:00:14.0-2', label: 'Logi C960'),
+        CameraDevice(id: 'usb-0000:00:14.0-3', label: 'Logi C960'),
+      ];
+
+      final deduped = dedupeCameraDevices(devices);
+
+      expect(deduped.map((d) => d.id),
+          ['usb-0000:00:14.0-2', 'usb-0000:00:14.0-3']);
+      expect(deduped.map((d) => d.label), ['Logi C960 (1)', 'Logi C960 (2)']);
+    });
+
+    test('collapses the nodes of each of two identical cameras separately', () {
+      const devices = [
+        CameraDevice(id: 'usb-1/video0', label: 'Cam'),
+        CameraDevice(id: 'usb-1/video1', label: 'Cam'),
+        CameraDevice(id: 'usb-2/video2', label: 'Cam'),
+        CameraDevice(id: 'usb-2/video3', label: 'Cam'),
+      ];
+
+      expect(dedupeCameraDevices(devices).map((d) => d.id),
+          ['usb-1/video0', 'usb-2/video2']);
+    });
+
     test('collapses devices that share a reported groupId', () {
       const devices = [
         CameraDevice(id: 'cam-1', label: 'Front', groupId: 'group-a'),

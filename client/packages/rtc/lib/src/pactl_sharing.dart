@@ -9,7 +9,8 @@ library;
 import 'dart:async';
 import 'dart:io';
 
-import 'pulse_audio_io.dart' show PactlRunner, PactlSubscriber;
+import 'pulse_audio_io.dart'
+    show PactlRunner, PactlSubscriber, pactlTimedOutExit;
 
 /// Device queries whose answer a caller that asks while one runs can share:
 /// a device that appears meanwhile also raises a change event, which asks again.
@@ -21,15 +22,51 @@ bool _shareable(List<String> args) => switch (args) {
     };
 
 /// [run], with a shareable query that is already running answered by that run.
-PactlRunner sharingDeviceQueries(PactlRunner run) {
+///
+/// A query that outlasts [within] answers a non-zero exit and is forgotten, so a
+/// wedged sound server cannot keep every later identical query waiting on it.
+PactlRunner sharingDeviceQueries(
+  PactlRunner run, {
+  Duration within = const Duration(seconds: 4),
+}) {
   final running = <String, Future<ProcessResult>>{};
+  Future<ProcessResult> bounded(List<String> args) => boundedBy(
+        run(args),
+        within,
+        () => ProcessResult(0, pactlTimedOutExit, '', 'timed out'),
+      );
   return (args) {
-    if (!_shareable(args)) return run(args);
+    if (!_shareable(args)) return bounded(args);
     final key = args.join(' ');
-    return running[key] ??= run(args).whenComplete(() {
+    return running[key] ??= bounded(args).whenComplete(() {
       running.remove(key);
     });
   };
+}
+
+/// [pending], or [onTimeout]'s answer once [within] has passed.
+///
+/// Both the clock and the answer run in the root zone, as the process's own completion does,
+/// so a widget test's fake clock sees neither.
+Future<T> boundedBy<T>(
+  Future<T> pending,
+  Duration within,
+  T Function() onTimeout,
+) {
+  final done = Completer<T>();
+  final timer = Zone.root.createTimer(within, () {
+    if (!done.isCompleted) done.complete(onTimeout());
+  });
+  Zone.root.run(() {
+    pending.then<void>((value) {
+      timer.cancel();
+      if (!done.isCompleted) done.complete(value);
+    }, onError: (Object error, StackTrace stack) {
+      timer.cancel();
+      if (!done.isCompleted) done.completeError(error, stack);
+    });
+  });
+  return done.future;
 }
 
 /// One subscription to [source] however many listen, held while anyone does.

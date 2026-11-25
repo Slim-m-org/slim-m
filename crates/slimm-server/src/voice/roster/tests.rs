@@ -241,7 +241,11 @@ async fn a_camera_track_sets_has_video_without_screen_sharing() {
 
 #[tokio::test]
 async fn a_room_that_was_never_created_is_empty_not_an_error() {
-    let url = spawn_room_service(axum::http::StatusCode::NOT_FOUND, json!({})).await;
+    let url = spawn_room_service(
+        axum::http::StatusCode::NOT_FOUND,
+        json!({ "code": "not_found", "msg": "requested room does not exist" }),
+    )
+    .await;
     let participants = service_at(&url)
         .list_participants(ChannelId::generate())
         .await

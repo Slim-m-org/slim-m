@@ -10,6 +10,10 @@
 /// A VoIP push can launch the app, and the user can answer before Dart
 /// exists, so the native side holds events until [takePending] asks; from then
 /// on they arrive on [events]. See `ios/Runner/AppDelegate.swift`.
+///
+/// Android sends the same events from the incoming-call notification
+/// (`CallKitBridge.kt`): [CallKitIncomingKind.answered] when its Answer opens
+/// the app and [CallKitIncomingKind.declined] when its Decline is tapped.
 library;
 
 import 'dart:async';
@@ -22,13 +26,17 @@ import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 const _channelName = 'top.npcserver.slimm/callkit_incoming';
 
-enum CallKitIncomingKind { ringing, answered, ended }
+enum CallKitIncomingKind { ringing, answered, ended, declined }
 
 class CallKitIncomingEvent {
-  const CallKitIncomingEvent(this.kind, this.callId);
+  const CallKitIncomingEvent(this.kind, this.callId,
+      {this.callIdIsRingId = false});
 
   final CallKitIncomingKind kind;
   final String callId;
+
+  /// True when [callId] is the server's ring id (Android), so an event may only act on that ring.
+  final bool callIdIsRingId;
 
   static CallKitIncomingEvent? tryParse(Object? raw) {
     if (raw is! Map) return null;
@@ -37,19 +45,20 @@ class CallKitIncomingEvent {
         .firstOrNull;
     final id = raw['id'];
     if (kind == null || id is! String) return null;
-    return CallKitIncomingEvent(kind, id);
+    return CallKitIncomingEvent(kind, id,
+        callIdIsRingId: raw['ring_id'] == true);
   }
 }
 
 class CallKitIncomingChannel {
-  CallKitIncomingChannel({MethodChannel? channel, bool? isIOS})
+  CallKitIncomingChannel({MethodChannel? channel, bool? enabled})
       : _channel = channel ?? const MethodChannel(_channelName),
-        _isIOS = isIOS ?? isIOSHost {
-    if (_isIOS) _calls = MethodChannelHub.of(_channel).calls.listen(_onCall);
+        _enabled = enabled ?? (isIOSHost || isAndroidHost) {
+    if (_enabled) _calls = MethodChannelHub.of(_channel).calls.listen(_onCall);
   }
 
   final MethodChannel _channel;
-  final bool _isIOS;
+  final bool _enabled;
   final _events = StreamController<CallKitIncomingEvent>.broadcast();
   StreamSubscription<MethodCall>? _calls;
 
@@ -66,7 +75,7 @@ class CallKitIncomingChannel {
   /// Asking is also what tells the native side to switch to live delivery, so
   /// call it once, right after subscribing to [events].
   Future<List<CallKitIncomingEvent>> takePending() async {
-    if (!_isIOS) return const [];
+    if (!_enabled) return const [];
     try {
       final raw = await _channel.invokeMethod<List<Object?>>('takePending');
       return (raw ?? const <Object?>[])
@@ -87,7 +96,7 @@ class CallKitIncomingChannel {
   /// Ends the system call [callId] named, so it does not outlive the ring or
   /// the in-app call it stood for. A no-op when it is already over.
   Future<void> endCall(String callId) async {
-    if (!_isIOS) return;
+    if (!_enabled) return;
     try {
       await _channel.invokeMethod<void>('endCall', {'id': callId});
     } on PlatformException catch (error, stack) {

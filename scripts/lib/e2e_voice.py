@@ -19,6 +19,7 @@ import urllib.request
 
 import e2e_api
 import e2e_labels as L
+from e2e_voice_thresholds import tile_line
 
 
 # The window's top-left corner: hovering there opens nothing.
@@ -132,9 +133,9 @@ def join_call(a, b, room_id, channel=L.VOICE_CHANNEL):
     for c in (a, b):
         c.wait_for("2 in call")
         c.shot("in-call")
-    a.wait_for("Bob")
-    b.wait_for("Alice")
-    print("  both clients report 2 in call and list each other")
+    wait_for_tile(a, "Bob")
+    wait_for_tile(b, "Alice")
+    print("  both clients report 2 in call and show each other's tile")
 
     parts = participants_with_mics(room_id)
     assert len(parts) == 2, f"SFU has {len(parts)} participants, expected 2"
@@ -152,6 +153,17 @@ def join_call(a, b, room_id, channel=L.VOICE_CHANNEL):
             explain_silence(a, b, room_id)
             raise
     print("  and each client shows its own microphone open")
+
+
+def wait_for_tile(client, who, timeout=30):
+    """Waits for `who`'s call tile ("Bob, microphone on"), which a member row or a DM entry never reads like."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if tile_line([n["t"] for n in client.nodes()], who):
+            return
+        time.sleep(0.25)
+    client.shot(f"no-tile-{who}")
+    raise AssertionError(f"{client.name}: no call tile for {who!r}")
 
 
 def _wait_until_gone(client, label, timeout=30):
@@ -286,8 +298,9 @@ def share_screen(client, other, room_id):
 
     client.wait_for(L.SHARING_NOTICE)
     client.shot("sharing-screen")
+    other.wait_for(f"{client.name.capitalize()}'s screen")
     other.shot("peer-sharing-screen")
-    print("  the sharing client says so on screen")
+    print("  the sharing client says so on screen, and the viewer is shown the share")
 
     client.click(L.STOP_SHARING, settle=1)
     deadline = time.time() + 30

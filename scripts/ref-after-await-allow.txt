@@ -15,9 +15,7 @@ client/packages/app/lib/src/features/auth/widgets/server_identity_confirmation.d
 client/packages/app/lib/src/features/canvas/widgets/canvas_custom_colours.dart
 client/packages/app/lib/src/features/composer/widgets/composer_edit_last.dart 3
 client/packages/app/lib/src/features/members/widgets/banner_settings_row.dart
-client/packages/app/lib/src/features/members/widgets/invite_landing_section.dart
 client/packages/app/lib/src/features/members/widgets/member_handle_line.dart
-client/packages/app/lib/src/features/members/widgets/member_profile_links.dart
 client/packages/app/lib/src/features/messages/widgets/fullscreen_image_actions.dart
 client/packages/app/lib/src/features/modules/widgets/call_scene_stage.dart
 client/packages/app/lib/src/features/settings/screens/admin/bot_prefix_sheet.dart
@@ -33,8 +31,7 @@ client/packages/app/lib/src/features/settings/widgets/notification_settings_rows
 client/packages/app/lib/src/features/settings/widgets/personal_account_sections.dart
 client/packages/app/lib/src/features/settings/widgets/settings_panes.dart
 client/packages/app/lib/src/features/settings/widgets/theme_editor_page.dart 3
-client/packages/app/lib/src/features/voice/screens/voice_idle/call_transcript_section.dart
-client/packages/app/lib/src/features/voice/screens/voice_screen.dart 5
+client/packages/app/lib/src/features/voice/screens/voice_screen.dart 4
 client/packages/app/lib/src/features/voice/widgets/call_audio_start.dart
 client/packages/app/lib/src/features/voice/widgets/move_participant_popover.dart
 client/packages/app/lib/src/widgets/whats_new_gate.dart

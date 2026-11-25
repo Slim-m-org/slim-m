@@ -328,7 +328,8 @@ pub use uplink_tests::{UPLINK_HISTORY_LEN, UplinkTest};
 pub use user_notes::UserNote;
 pub use users::ProfileUpdate;
 pub use voice_call_events::{
-    CALL_HISTORY_RETENTION_DAYS, CanvasActivity, VoiceEvent, VoiceEventKind,
+    CALL_HISTORY_RETENTION_DAYS, CanvasActivity, CanvasPlacement, VoiceEvent, VoiceEventKind,
+    bucket_activity,
 };
 pub use voice_commands::VoiceCommands;
 pub use voice_sessions::{SessionScope, VOICE_SESSION_RETENTION_DAYS, VoiceSession};

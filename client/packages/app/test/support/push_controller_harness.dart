@@ -123,8 +123,15 @@ class ThrowingRefreshFcmTokenSource implements FcmTokenSource {
 class FakePermissionRequester implements AndroidPermissionRequester {
   FakePermissionRequester({required this.granted});
 
-  final bool granted;
+  bool granted;
+  int requests = 0;
 
   @override
-  Future<bool> requestNotificationsPermission() async => granted;
+  Future<bool> requestNotificationsPermission() async {
+    requests++;
+    return granted;
+  }
+
+  @override
+  Future<bool> areNotificationsEnabled() async => granted;
 }

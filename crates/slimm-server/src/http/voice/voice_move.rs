@@ -50,6 +50,11 @@ pub(super) async fn move_participant(
             return Err(ApiError::Forbidden);
         }
     }
+    if state.store.is_bot(target).await? {
+        return Err(ApiError::Conflict(
+            "bots cannot be moved, ask it to join the other call",
+        ));
+    }
     if ctx.user_id != target {
         let caller_granted = state
             .store
@@ -84,6 +89,19 @@ pub(super) async fn move_participant(
     }
     super::voice_rooms::check_join(&state, &to, target).await?;
 
+    match state.voice.remove_participant(from_id, target).await {
+        Ok(()) => {}
+        Err(VoiceError::Unavailable) => {
+            return Err(ApiError::NotConfigured(
+                "this server has no voice configured",
+            ));
+        }
+        Err(VoiceError::Internal(err)) => {
+            tracing::warn!(%err, "could not take a moved participant out of their call");
+            return Err(ApiError::Unavailable);
+        }
+    }
+
     let mover = state.store.user_profile(ctx.user_id).await?;
     let moved_by_name = mover.map(|u| u.display_name).unwrap_or_default();
     state
@@ -102,17 +120,7 @@ pub(super) async fn move_participant(
         moved_by_id: ctx.user_id,
         moved_by_name,
     });
-
-    match state.voice.remove_participant(from_id, target).await {
-        Ok(()) => Ok(StatusCode::NO_CONTENT),
-        Err(VoiceError::Unavailable) => Err(ApiError::NotConfigured(
-            "this server has no voice configured",
-        )),
-        Err(VoiceError::Internal(err)) => {
-            tracing::warn!(%err, "could not take a moved participant out of their call");
-            Err(ApiError::Unavailable)
-        }
-    }
+    Ok(StatusCode::NO_CONTENT)
 }
 
 async fn voice_channel(state: &AppState, id: ChannelId) -> Result<Channel, ApiError> {
@@ -135,4 +143,23 @@ async fn participants(state: &AppState, id: ChannelId) -> Result<Vec<UserId>, Ap
             Err(ApiError::Unavailable)
         }
     }
+}
+
+/// Writes the kick into the moderation history; kicking yourself is leaving, not moderation.
+pub(super) async fn record_kick(
+    state: &AppState,
+    actor: UserId,
+    target: UserId,
+    channel_id: ChannelId,
+) -> Result<(), ApiError> {
+    if actor == target {
+        return Ok(());
+    }
+    let channel = state.store.channel(channel_id).await?;
+    let name = channel.as_ref().map(|c| c.name.as_str());
+    state
+        .store
+        .record_voice_kick(actor, target, name.filter(|n| !n.is_empty()))
+        .await?;
+    Ok(())
 }

@@ -115,7 +115,7 @@ class PlatformImageExporter implements ImageExporter {
       return kIsWeb || path != null;
     }
     try {
-      await Gal.putImageBytes(bytes, name: filename);
+      await Gal.putImageBytes(bytes, name: galDisplayName(filename));
       return true;
     } on GalException catch (e) {
       if (e.type == GalExceptionType.accessDenied) {
@@ -124,6 +124,13 @@ class PlatformImageExporter implements ImageExporter {
       rethrow;
     }
   }
+}
+
+/// [filename] without its extension, which gal adds itself from the image bytes.
+@visibleForTesting
+String galDisplayName(String filename) {
+  final dot = filename.lastIndexOf('.');
+  return dot > 0 ? filename.substring(0, dot) : filename;
 }
 
 final imageExporterProvider = Provider<ImageExporter>(

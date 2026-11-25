@@ -18,6 +18,7 @@ use crate::store::{SessionContext, Store};
 /// unwind, the way an explicit call at the bottom of the function could not.
 pub(super) struct PresenceGuard {
     hub: Hub,
+    store: Store,
     user_id: UserId,
     device_id: DeviceId,
     kind: DeviceKind,
@@ -46,10 +47,16 @@ impl PresenceGuard {
         if first {
             hub.publish(Event::presence_changed(user_id));
         }
-        let idle_watch = tokio::spawn(watch_idle(hub.clone(), store, user_id)).abort_handle();
+        let idle_watch =
+            tokio::spawn(watch_idle(hub.clone(), store.clone(), user_id)).abort_handle();
         let connection = hub.presence().viewing().new_connection();
+        hub.presence()
+            .viewing()
+            .sockets()
+            .opened(user_id, device_id);
         Self {
             hub,
+            store,
             user_id,
             device_id,
             kind,
@@ -82,6 +89,34 @@ impl PresenceGuard {
     }
 }
 
+impl PresenceGuard {
+    /// A device whose last socket closed is no longer in front of the user, whatever it last reported.
+    fn release_device(&self) {
+        let viewing = self.hub.presence().viewing();
+        if !viewing.sockets().closed(self.user_id, self.device_id) {
+            return;
+        }
+        viewing.clear_device(self.user_id, self.device_id);
+        let Ok(runtime) = tokio::runtime::Handle::try_current() else {
+            return;
+        };
+        let (store, user_id, device_id) = (self.store.clone(), self.user_id, self.device_id);
+        let sockets = viewing.sockets().clone();
+        let closed_at = crate::store::now_ms();
+        runtime.spawn(async move {
+            if let Err(error) = store
+                .report_socket_closed_unless_reopened(&sockets, user_id, device_id, closed_at)
+                .await
+            {
+                tracing::warn!(
+                    ?error,
+                    "could not record a closed socket against its device"
+                );
+            }
+        });
+    }
+}
+
 impl Drop for PresenceGuard {
     fn drop(&mut self) {
         self.idle_watch.abort();
@@ -90,6 +125,7 @@ impl Drop for PresenceGuard {
             .viewing()
             .forget_connection(self.user_id, self.connection);
         self.hub.canvas_viewers().remove_connection(self.connection);
+        self.release_device();
         if self.hub.presence().disconnect_as(self.user_id, self.kind) {
             self.hub.publish(Event::presence_changed(self.user_id));
         }

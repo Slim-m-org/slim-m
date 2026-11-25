@@ -37,10 +37,30 @@ class CallForegroundService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
-        val entered = enterForeground(call, camera, share) ||
-            (call && share && enterForeground(call, camera, false))
-        if (!entered) stopSelf()
+        val entered = fallbackChain(call, camera, share).any { (withCamera, withShare) ->
+            enterForeground(call, withCamera, withShare)
+        }
+        if (!entered) {
+            satisfyStartContract(call)
+            stopSelf()
+        }
         return START_NOT_STICKY
+    }
+
+    /** A service started with startForegroundService must call startForeground in time, even when it is about to stop. */
+    private fun satisfyStartContract(call: Boolean) {
+        ensureChannel(this)
+        try {
+            val notification = buildNotification(call, false)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+            stopForeground(STOP_FOREGROUND_REMOVE)
+        } catch (error: RuntimeException) {
+            Log.w(TAG, "Could not satisfy the foreground start contract", error)
+        }
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
@@ -135,15 +155,39 @@ class CallForegroundService : Service() {
             return if (resId != 0) resId else context.applicationInfo.icon
         }
 
-        fun update(context: Context, call: Boolean, camera: Boolean, share: Boolean) {
+        /**
+         * The camera and share bits to try in order, each step dropping one, so a
+         * type Android refuses leaves the service on the one it already held.
+         */
+        fun fallbackChain(call: Boolean, camera: Boolean, share: Boolean): List<Pair<Boolean, Boolean>> {
+            val steps = mutableListOf(camera to share)
+            if (call && camera && share) steps.add(false to true)
+            if (camera && call) steps.add(false to share)
+            if (share && call) steps.add(camera to false)
+            if (call && (camera || share)) steps.add(false to false)
+            return steps.distinct()
+        }
+
+        /** Whether the service is now running; false means nothing could start and the caller must retry later. */
+        fun update(context: Context, call: Boolean, camera: Boolean, share: Boolean): Boolean {
             val intent = Intent(context, CallForegroundService::class.java)
                 .putExtra(EXTRA_CALL, call)
                 .putExtra(EXTRA_CAMERA, camera)
                 .putExtra(EXTRA_SHARE, share)
             if (!call && !share) {
                 context.stopService(intent)
-            } else {
+                return true
+            }
+            if (resolveType(context, call, camera, share) == 0 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                context.stopService(intent)
+                return false
+            }
+            return try {
                 ContextCompat.startForegroundService(context, intent)
+                true
+            } catch (error: RuntimeException) {
+                Log.w(TAG, "Could not start the call service", error)
+                false
             }
         }
     }

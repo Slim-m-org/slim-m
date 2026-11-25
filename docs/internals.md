@@ -160,12 +160,13 @@ Joining a channel's voice room, and seeing who else already has.
 Most of these routes are almost entirely the check in front: the token this hands back is a bearer credential the SFU trusts, so what a caller may do in a room is decided here, once, from their permissions in that channel.
 
 Eviction is the other half of that.
-A minted token cannot be revoked, so its TTL bounds how long a removed participant could walk back in; removing them from the room is what makes a kick take effect now rather than in two minutes.
+A minted token cannot be revoked, and the SFU renews the token of everyone it accepts, so removing someone from the room is what makes a kick take effect, and a join with no token minted in the last 120 s is checked again when its webhook arrives (a locked room, a module's join hook, a removed member).
+Speak and Use Canvas are grants fixed at mint, so a change while someone is in the call is pushed to the SFU with `UpdateParticipant` rather than waiting for a rejoin.
 
 The roster is read-only: `VIEW_CHANNEL` is the gate, the same bit that lets a member read a text channel's messages without also being able to send into it.
 A participant who chose to appear offline is dropped from every viewer's roster but their own, the same treatment [`crate::presence`] gives every other surface; see [`roster`]'s doc comment for why that is a deliberate call rather than an oversight.
 
-The heartbeat pair is the exception to "the check in front": `heartbeat` is gated the same way minting a token is, but `forget_heartbeat` is not gated at all beyond authentication, because forgetting a caller's own liveness marker exposes nothing about the channel it names.
+The heartbeat pair is the exception to "the check in front": `heartbeat` is gated the same way minting a token is (a first one also meets the lock and join hook unless a token was just minted or the SFU already lists the member), but `forget_heartbeat` is not gated at all beyond authentication, because forgetting a caller's own liveness marker exposes nothing about the channel it names.
 
 The heartbeat pair is also where [`Event::VoiceActivityChanged`] is published: on the first heartbeat for a `(user, channel)` pair (a join) and on a real forget (a clean hangup), each a single lock-held check-and-write against [`crate::voice::VoiceService::record_heartbeat_reporting_new`] / [`crate::voice::VoiceService::forget_heartbeat_reporting_removed`] so a routine refresh never republishes and two concurrent first heartbeats cannot both publish either.
 The third publish site, the stale-heartbeat sweep, lives in `lib.rs` rather than here.
@@ -280,17 +281,25 @@ Persistent [KeyStore] backends.
 
 iOS, Android, macOS and Windows all get the platform keychain (Keychain, Keystore, Keychain Services, and DPAPI-backed Credential Locker in turn) through flutter_secure_storage: none of those four backends depends on a background service that might not be running, so the OS itself guarantees one is always present, on a laptop exactly as on a phone.
 
-Linux is the exception, even though flutter_secure_storage also ships a Linux backend: that backend talks to a Secret Service over D-Bus (gnome-keyring, kwallet plus ksecretsservice), and plenty of real sessions - a fresh install, a window manager with no keyring agent, a container - do not run one, so calls would fail unpredictably at runtime even on a machine where the build itself succeeds.
+Linux asks the Secret Service (gnome-keyring, kwallet through ksecretsservice) when the client first needs a secret, by storing, reading and deleting a probe entry.
+When it answers, the session pair, the account index and the database key live in the keyring, and anything an earlier build left in `slimm_secrets.json` is moved over and the file removed.
+Plenty of real sessions - a fresh install, a window manager with no keyring agent, a container - run no Secret Service, so when the probe fails or takes more than ten seconds the client keeps the owner-only file instead (a 0600 file in a 0700 directory), once for that run.
+The file is weaker than a keyring: no OS-enforced encryption at rest, and it does not resist another process running as the same OS account, but it is not readable by a different account on a shared machine.
+If the move out of the file cannot finish, the file stays the store for that run and the next launch tries again.
 
-Transport-only security is the project's v1 scope (see docs/decisions/0001-owner-decisions.md); this file is the Linux key-storage tradeoff that follows from that, not itself a recorded decision: a session token and a push key are not payment credentials, so a file only this OS account can open is a proportionate, always-available choice for Linux rather than one that depends on a keyring agent nobody promised would be running.
-It is weaker than a real keychain - no OS-enforced encryption at rest, and it does not resist another process already running as this same OS account - but it is not readable by a different account on a shared machine, which is the threat this Linux build actually faces today.
+On iOS the session pair, the account index and the database key are `first_unlock_this_device`, not `WhenUnlocked`.
+A call keeps the app running with the screen locked, a token rotation in it must be saved, and a locked-phone write to a `WhenUnlocked` item is refused and drops the saved sign-in.
+The class is still `ThisDeviceOnly`, so nothing rides into iCloud or a backup.
+`MigratingKeyStore` moves an item an earlier build wrote as `WhenUnlocked` the first time it is touched: the keychain keeps one item per account whatever its accessibility, so the old item is deleted and the new one written, and a failed write puts the old one back.
 
 macOS and Windows used to sit on that same file, back when this reasoning was written for "desktop" as a whole rather than for Linux specifically.
 Both ship a real OS-backed keychain with the same always-present guarantee as the phone platforms, so there is no longer a reason to leave them on the weaker fallback; [migrateLegacyFileSecretsIfNeeded] is the one-time move for an install that already has secrets sitting in that file from before this change.
 
 The web build does use flutter_secure_storage, because its browser backend is the only storage a browser has: values are AES-GCM encrypted under a key that itself lives in `localStorage`, so this is obfuscation against a casual look, not secrecy against script running on the same origin.
 It is also refused outright outside a secure context, so a plain-http LAN server gets no persisted session at all.
-The web build exists to drive this UI automatically; it is not a distribution target, and nothing here should be read as a claim that a browser stores secrets as well as a phone does.
+The web client is served at `/app` by real deployments, so this is a shipped weakness, not a test-harness detail: one script injection on the origin yields the 30-day refresh token, not only a 15-minute access token.
+The CSP (`script-src 'self' 'wasm-unsafe-eval'`) is what makes that injection hard.
+Decision 0141 sets out the options for moving the refresh token out of script's reach and is waiting for the owner.
 
 ## Voice call generations
 
@@ -378,7 +387,7 @@ A quick restart had both clients back in about 2 s with mute state intact.
 Down for 70 s, longer than the SDK's own 44 s of retries, both clients came back through the automatic rejoin about 27 s after the SFU did, which is the 30 s tail of `VoiceAutoRejoin.defaultDelays`.
 
 An SFU token outlives its 120 s: the SFU renews the token of everyone it accepts.
-A client holding a renewed token can rejoin after losing Connect without asking the server, so the join webhook checks View and Connect for every join it reports.
+A client holding a renewed token can rejoin after losing Connect without asking the server, so the join webhook checks View and Connect for every join it reports, and the lock and a module's join hook for one with no token minted in the last 120 s.
 
 On Android the call foreground service must stay up from a drop until the rejoin settles.
 Android refuses to start it from the background, so a call that dropped and came back off screen had no microphone.

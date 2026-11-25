@@ -15,12 +15,18 @@ bool AnotherInstanceRuns();
 // already runs: it has been asked to come forward, and this one should exit.
 bool ClaimSingleInstance(const wchar_t* command_line);
 
+/// Opens the hidden window a later launch finds this copy by before Dart has
+/// made its own, so a link forwarded during startup is held, not lost. Call
+/// once this copy holds the single instance.
+void OpenLinkInbox();
+
 /// Forwards this launch's slimm:// link to the running copy, whichever version
 /// folder it runs from; false when there is no link or no copy that took it.
 bool ForwardLinkToRunningInstance();
 
 /// Takes a link ForwardLinkToRunningInstance sent, for a WM_COPYDATA, and hands
-/// it to Dart as the channel's `link` call. False when the message is not one.
+/// it to Dart as the channel's `link` call, or holds it until Dart's
+/// `takePending` call. False when the message is not one.
 bool OnForwardedLink(LPARAM lparam);
 
 // The window message a second launch broadcasts to the running copy.

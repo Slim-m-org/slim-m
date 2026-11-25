@@ -2,6 +2,8 @@
 /// What the one people panel reads: who is on the canvas, who this device follows, and the follow and summon actions.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -44,6 +46,8 @@ class CanvasPeopleSession extends ChangeNotifier {
   String? _followed;
   bool _canBringEveryone = true;
   bool _disposed = false;
+  ({String id, String name})? _followedName;
+  Timer? _graceTimer;
 
   /// Everyone with the board open, earliest first, then anyone with only a cursor on it; never this device.
   List<CanvasFollowTarget> get onCanvas => _onCanvas;
@@ -70,6 +74,21 @@ class CanvasPeopleSession extends ChangeNotifier {
     if (cursor == null) return null;
     return AppCanvasColors.cursors[cursor.colorIndex %
         AppCanvasColors.cursors.length];
+  }
+
+  /// The followed person's name as last seen, for the chip while they have no cursor.
+  String? get followedName =>
+      _followedName?.id == _followed ? _followedName?.name : null;
+
+  void rememberFollowedName(String id, String name) =>
+      _followedName = (id: id, name: name);
+
+  /// Asks the widgets to look again after [after], when a kept follow may have run out.
+  void recheckAfter(Duration after) {
+    _graceTimer?.cancel();
+    _graceTimer = Timer(after, () {
+      if (!_disposed) notifyListeners();
+    });
   }
 
   void toggleFollow(String userId) =>
@@ -126,6 +145,7 @@ class CanvasPeopleSession extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _graceTimer?.cancel();
     cursors.removeListener(_refresh);
     relay.following.removeListener(_refresh);
     viewMode?.removeListener(_refresh);

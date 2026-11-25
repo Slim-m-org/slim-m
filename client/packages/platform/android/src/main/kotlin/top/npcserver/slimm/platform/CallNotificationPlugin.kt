@@ -2,11 +2,15 @@
 package top.npcserver.slimm.platform
 
 import android.content.Context
+import android.content.Intent
 import io.flutter.embedding.engine.plugins.FlutterPlugin
+import io.flutter.embedding.engine.plugins.activity.ActivityAware
+import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
+import io.flutter.plugin.common.PluginRegistry
 
 private const val CHANNEL_NAME = "top.npcserver.slimm/calls"
 
@@ -19,11 +23,18 @@ private const val CHANNEL_NAME = "top.npcserver.slimm/calls"
  * plugin declared in `pubspec.yaml` is what Flutter's plugin loader attaches
  * to every engine it creates, that one included. See `call_notifications.dart`.
  */
-class CallNotificationPlugin : FlutterPlugin, MethodCallHandler {
+class CallNotificationPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
     private lateinit var channel: MethodChannel
     private lateinit var notifier: IncomingCallNotifier
     private lateinit var appContext: Context
     private var testLab: TestLabChannel? = null
+    private var callKit: CallKitBridge? = null
+    private var lifecycle: CallLifecycleBridge? = null
+    private var activityBinding: ActivityPluginBinding? = null
+    private val newIntents = PluginRegistry.NewIntentListener { intent ->
+        consumeAnswer(intent)
+        false
+    }
 
     /** Whether this engine's last word was that a call or share is live; see [onDetachedFromEngine]. */
     private var ownsCallService = false
@@ -34,6 +45,36 @@ class CallNotificationPlugin : FlutterPlugin, MethodCallHandler {
         appContext = binding.applicationContext
         notifier = IncomingCallNotifier(appContext)
         testLab = TestLabChannel(appContext, binding.binaryMessenger)
+        callKit = CallKitBridge(appContext, binding.binaryMessenger)
+        lifecycle = CallLifecycleBridge(appContext, binding.binaryMessenger)
+    }
+
+    override fun onAttachedToActivity(binding: ActivityPluginBinding) = attach(binding)
+
+    override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) = attach(binding)
+
+    override fun onDetachedFromActivityForConfigChanges() = detach()
+
+    override fun onDetachedFromActivity() = detach()
+
+    private fun attach(binding: ActivityPluginBinding) {
+        activityBinding = binding
+        binding.addOnNewIntentListener(newIntents)
+        consumeAnswer(binding.activity.intent)
+    }
+
+    private fun detach() {
+        val binding = activityBinding ?: return
+        binding.removeOnNewIntentListener(newIntents)
+        activityBinding = null
+    }
+
+    /** The extra is removed once read, so a recreated activity does not answer the same ring twice. */
+    private fun consumeAnswer(intent: Intent?) {
+        val callId = intent?.getStringExtra(IncomingCallNotifier.EXTRA_ANSWERED_CALL_ID) ?: return
+        intent.removeExtra(IncomingCallNotifier.EXTRA_ANSWERED_CALL_ID)
+        if (!AnswerIntentRules.mayAnswer(intent.flags)) return
+        IncomingRings.answered(appContext, callId)
     }
 
     override fun onMethodCall(call: MethodCall, result: Result) {
@@ -55,14 +96,14 @@ class CallNotificationPlugin : FlutterPlugin, MethodCallHandler {
             "updateCallService" -> {
                 val inCall = call.argument<Boolean>("call") ?: false
                 val sharing = call.argument<Boolean>("share") ?: false
-                CallForegroundService.update(
+                val started = CallForegroundService.update(
                     appContext,
                     call = inCall,
                     camera = call.argument<Boolean>("camera") ?: false,
                     share = sharing,
                 )
-                ownsCallService = inCall || sharing
-                result.success(null)
+                ownsCallService = started && (inCall || sharing)
+                result.success(started)
             }
             else -> result.notImplemented()
         }
@@ -78,6 +119,10 @@ class CallNotificationPlugin : FlutterPlugin, MethodCallHandler {
         channel.setMethodCallHandler(null)
         testLab?.dispose()
         testLab = null
+        callKit?.dispose()
+        callKit = null
+        lifecycle?.dispose()
+        lifecycle = null
         if (ownsCallService) {
             CallForegroundService.update(appContext, call = false, camera = false, share = false)
             ownsCallService = false

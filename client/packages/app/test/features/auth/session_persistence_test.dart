@@ -15,6 +15,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart';
+import 'package:slimm_app/src/providers/fresh_install.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/push/providers/push_controller.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
@@ -33,6 +34,12 @@ const _tokens = TokenPair(
 );
 
 const _serverUrl = 'http://10.0.0.100:8095';
+
+/// A host whose keychain survives an uninstall, like iOS and macOS.
+final _reinstallHost = FirstLaunchEnvironment(
+  keychainOutlivesInstall: true,
+  protectedDataAvailable: () async => true,
+);
 
 /// A key store that throws on every call, standing in for a broken storage
 /// layer (a locked file, a keychain the OS refuses to open, and so on).
@@ -267,7 +274,10 @@ void main() {
       await keyStore.put(serverUrlHandle, _serverUrl);
 
       final container = ProviderContainer(
-        overrides: [keyStoreProvider.overrideWithValue(keyStore)],
+        overrides: [
+          keyStoreProvider.overrideWithValue(keyStore),
+          firstLaunchEnvironmentProvider.overrideWithValue(_reinstallHost),
+        ],
       );
       addTearDown(container.dispose);
 
@@ -291,7 +301,10 @@ void main() {
       await keyStore.put(serverUrlHandle, _serverUrl);
 
       final container = ProviderContainer(
-        overrides: [keyStoreProvider.overrideWithValue(keyStore)],
+        overrides: [
+          keyStoreProvider.overrideWithValue(keyStore),
+          firstLaunchEnvironmentProvider.overrideWithValue(_reinstallHost),
+        ],
       );
       addTearDown(container.dispose);
 
@@ -305,7 +318,10 @@ void main() {
 
       // A later relaunch of the same install must restore it normally.
       final relaunch = ProviderContainer(
-        overrides: [keyStoreProvider.overrideWithValue(keyStore)],
+        overrides: [
+          keyStoreProvider.overrideWithValue(keyStore),
+          firstLaunchEnvironmentProvider.overrideWithValue(_reinstallHost),
+        ],
       );
       addTearDown(relaunch.dispose);
       await restoreSession(relaunch);

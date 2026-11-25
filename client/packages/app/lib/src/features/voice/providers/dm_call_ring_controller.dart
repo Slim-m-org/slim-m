@@ -36,12 +36,13 @@ import '../../accounts/providers/account_providers.dart';
 import '../../../routing/routes.dart';
 import 'dm_call.dart';
 import '../../channels/providers/ensure_dm_channel.dart';
-import '../../members/providers/blocks_controller.dart';
 import '../../../providers/live_events.dart';
 import '../../../providers/providers.dart';
+import 'dm_call_ring_blocks.dart';
 import 'dm_call_ring_elsewhere.dart';
 import 'dm_call_ring_reconnect.dart';
 import 'dm_call_ring_state.dart';
+import 'dm_call_ring_system_decline.dart';
 import 'voice_controller.dart';
 
 export 'dm_call_ring_state.dart';
@@ -147,16 +148,28 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
         }
       case CallKitIncomingKind.answered:
         _callKitCallId = event.callId;
-        final ring = state.incoming;
+        final held = state.incoming;
+        final ring = held != null && answersRing(event, held) ? held : null;
         _answeredAt = DateTime.now();
         state = state.copyWith(callKit: CallKitPhase.answered);
         if (ring != null) {
           unawaited(_answerFromCallKit(ring));
         } else {
-          unawaited(_answerFromOutstandingRing(event.callId));
+          unawaited(_answerFromOutstandingRing(event));
         }
       case CallKitIncomingKind.ended:
         _onCallKitEnded(event.callId);
+      case CallKitIncomingKind.declined:
+        unawaited(
+          declineFromSystem(
+            event.callId,
+            held: state.incoming,
+            client: _ref.read(apiProvider),
+            isMounted: () => mounted,
+            decline: decline,
+            callIdIsRingId: event.callIdIsRingId,
+          ),
+        );
     }
   }
 
@@ -182,32 +195,25 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
   /// `call.ringing` frame is long gone: ask the server which ring is still
   /// outstanding. None means it timed out or was cancelled, and the system
   /// call is ended rather than left up with nothing behind it.
-  Future<void> _answerFromOutstandingRing(String callId) async {
-    final List<api.OutstandingDmCallRing> rings;
-    try {
-      rings = await _ref.read(apiProvider).listIncomingDmCallRings();
-    } on Exception catch (error, stack) {
-      api.reportFailure(
-        api.LogTag.voice,
-        'look up the call that is ringing',
-        error,
-        stack,
-      );
-      // Unknown, not empty: the websocket frame can still answer it.
-      return;
-    }
+  Future<void> _answerFromOutstandingRing(CallKitIncomingEvent event) async {
+    final callId = event.callId;
+    final ringId = event.callIdIsRingId ? callId : null;
+    final rings = await lookUpRingingCalls(_ref.read(apiProvider));
+    // Unknown, not empty: the websocket frame can still answer it.
+    if (rings == null) return;
     final stillWaiting =
         mounted &&
         _callKitCallId == callId &&
         state.callKit == CallKitPhase.answered;
     if (!stillWaiting) return;
-    if (rings.isEmpty) {
-      if (await _handOffToAccountHoldingRing(callId)) return;
+    final target = ringForAnswer(rings, ringId);
+    if (target == null) {
+      if (await _handOffToAccountHoldingRing(callId, ringId)) return;
       state = state.copyWith(callKit: CallKitPhase.none);
       _endCallKit();
       return;
     }
-    await _answerOutstanding(rings.first);
+    await _answerOutstanding(target);
   }
 
   Future<void> _answerOutstanding(api.OutstandingDmCallRing ring) {
@@ -221,11 +227,14 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
   }
 
   /// CallKit names no account, so a ring this account does not hold may belong to another.
-  Future<bool> _handOffToAccountHoldingRing(String callId) async {
+  Future<bool> _handOffToAccountHoldingRing(
+    String callId,
+    String? ringId,
+  ) async {
     final host = _ref.read(accountHostProvider);
     final found = host == null
         ? null
-        : await findRingOnOtherAccount(host, _ref.container);
+        : await findRingOnOtherAccount(host, _ref.container, ringId: ringId);
     if (!mounted || _callKitCallId != callId) return true;
     if (host == null || found == null) return false;
     _forgetCallKit();
@@ -293,7 +302,7 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
       case api.CallRinging(:final channelId, :final ringId, :final callerId):
         final selfId = _ref.read(apiProvider).session.tokens?.userId;
         if (callerId == selfId || ringId == _answeredRingId) return;
-        if (_isBlocked(callerId)) return;
+        if (_blocks.isBlocked(callerId)) return;
         final inThatCall =
             _ref.read(voiceControllerProvider).channelId == channelId;
         if (inThatCall && !_answerIsFresh) return;
@@ -442,10 +451,8 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
     }
   }
 
-  /// Clears the incoming ring without declining it - the accept path, whose
-  /// actual "answer" is the callee's own call join a moment later (a
-  /// heartbeat is what the server treats as answering; see `voice/ring.rs`'s
-  /// own doc for why there is no separate accept route to call here).
+  /// Clears the incoming ring without declining it: the accept path, where the
+  /// join's first heartbeat is what the server treats as answering.
   void dismissIncoming() {
     if (mounted) state = state.copyWith(clearIncoming: true);
   }
@@ -502,24 +509,16 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
     return ring.callerId != selfId &&
         ring.ringId != _answeredRingId &&
         !_endedRings.containsKey(ring.ringId) &&
-        !_isBlocked(ring.callerId) &&
+        !_blocks.isBlocked(ring.callerId) &&
         !inThatCall &&
         !_answerIsFresh;
   }
 
-  bool _watchingBlocks = false;
-
-  /// Read once the signed-in shell has loaded the list; a block drops the ring at once.
-  bool _isBlocked(String userId) {
-    if (!_ref.exists(blocksProvider)) return false;
-    if (!_watchingBlocks) {
-      _watchingBlocks = true;
-      _ref.listen<BlocksState>(blocksProvider, (_, next) {
-        if (next.contains(state.incoming?.callerId)) _dropIncoming();
-      });
-    }
-    return _ref.read(blocksProvider).contains(userId);
-  }
+  late final _blocks = DmCallRingBlocks(
+    _ref,
+    incomingCaller: () => state.incoming?.callerId,
+    dropIncoming: _dropIncoming,
+  );
 
   bool _stillCalling(String channelId) {
     final voice = _ref.read(voiceControllerProvider);

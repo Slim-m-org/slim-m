@@ -83,12 +83,14 @@ It costs runner time: about 31 runner-minutes per run against 23, on a plan capp
 
 ### The web bundle budget
 
-`scripts/check-web-bundle-budget.sh` runs right after the web release build and fails when `main.dart.js`, gzipped at level 9, is over 3,000,000 bytes.
+`scripts/check-web-bundle-budget.sh` runs right after the web release build and fails when `main.dart.js`, gzipped at level 9, is over 3,200,000 bytes.
 It was 1,906,651 when the budget landed at 2,400,000 (2026-10-07), so the budget was about a quarter of headroom: normal growth fits for a while, and something like an accidentally pulled-in heavy dependency trips it.
 v121 (2026-11-02) reached 2,400,798 with no new dependency, about 97 KB of its own call, lounge and diagnostics code, and moved the budget to 2,600,000, which is the kind of raise the next paragraph describes.
 0.128.0 (2026-11-11) reached 2,620,603, up from 0.127.0's 2,585,611, again with no new dependency: its fit-to-box call stage, the shared call menus, transcripts and Steam linking.
 Its release run stopped at the web build, and the budget moved to 2,800,000 in the 0.128.1 fix.
 main reached 2,785,656 by 0.131.0, and #2423 (the batch after it) reached 2,831,818 with no new dependency: about 46 KB of its own code across the connection details, the roster check, the sign-up steps and the break-it fixes. The budget moved to 3,000,000 in that pull request.
+main was 2,992,143 at 71a652d62, and audit round 4 (#2491) reached 3,007,656 with no new dependency: about 15.5 KB of its own code spread across the round's client fixes, with no desktop or phone-only code reachable from the web entry point.
+The budget moved to 3,200,000 in that pull request.
 Raising it is a decision, made in the same pull request as the growth with the reason in its body, like the server's binary budget (30 MiB since 2026-11-16, see docs/dependencies.md).
 Run it locally after `flutter build web --release` in `client/packages/app`.
 
@@ -966,10 +968,9 @@ The flatpak manifest is no longer a skeleton; see `packaging/flatpak/README.md` 
 
 `GPG_PRIVATE_KEY` and `GPG_PASSPHRASE` are optional here too, for signing the checksums only.
 
-The job installs `libsecret-1-dev` as a system build dependency.
-`flutter_secure_storage` is a normal pub dependency of the platform package, used on iOS and Android (see `persistent_key_store.dart`), and pub has no per-target scoping that would keep its Linux plugin `flutter_secure_storage_linux` out of a Linux build's dependency graph.
-That plugin's CMake config hard-requires `libsecret-1-dev` to even configure, regardless of whether the app ever calls into it on this platform.
-Installing the one system package is simpler to maintain than splitting the platform package apart just to keep Linux out of that graph.
+The job needs no `libsecret-1-dev`.
+`flutter_secure_storage` is a pub dependency of the platform package, used on iOS and Android (see `persistent_key_store.dart`), and pub has no per-target scoping, so the workspace `pubspec.yaml` overrides `flutter_secure_storage_linux` with the empty package in `client/third_party/`.
+Linux keeps its sign-in in a file (decision 0042), and the bundle links no libsecret.
 
 ### copr
 
@@ -1016,7 +1017,7 @@ When it is empty the step is skipped with a `::notice::`.
 The upload runs after the apk is attached to the release, so a Play failure fails the job visibly without costing the release its apk.
 
 The appbundle is built with `--dart-define=SLIMM_PLAY_BUILD=true`, which compiles the sideload apk updater out of the Dart code, and Gradle sets `BuildConfig.SIDELOAD_UPDATER` false for any bundle task, which leaves the native installer channel unregistered.
-A step after the signer check fails the job before any upload when the bundle's manifest still names `REQUEST_INSTALL_PACKAGES`.
+A step after the signer check fails the job before any upload when the bundle's manifest still names `REQUEST_INSTALL_PACKAGES`, `READ_MEDIA_IMAGES`, `READ_MEDIA_VIDEO` or `READ_MEDIA_VISUAL_USER_SELECTED`.
 
 ### The flatpak remote
 

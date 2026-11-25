@@ -99,18 +99,21 @@ void main() {
   });
 
   group('createPersistentKeyStore', () {
-    test('desktop gets the owner-only file, never the keychain backend', () {
-      if (!Platform.isLinux && !Platform.isMacOS && !Platform.isWindows) {
-        return;
-      }
-      // Guards the documented desktop tradeoff: flutter_secure_storage's
-      // Linux backend needs a keyring agent that plenty of sessions lack.
-      expect(createPersistentKeyStore(), isA<FileKeyStore>());
+    test('Linux gets the keyring-or-file store', () {
+      if (!Platform.isLinux) return;
+      expect(createPersistentKeyStore(), isA<LinuxKeyStore>());
     });
 
-    test('mobile gets the platform keychain', () {
-      if (!Platform.isIOS && !Platform.isAndroid) return;
+    test('macOS, Windows and Android get the platform keychain', () {
+      if (!Platform.isMacOS && !Platform.isWindows && !Platform.isAndroid) {
+        return;
+      }
       expect(createPersistentKeyStore(), isA<SecureKeyStore>());
+    });
+
+    test('iOS gets the first-unlock store that migrates the old one', () {
+      if (!Platform.isIOS) return;
+      expect(createPersistentKeyStore(), isA<MigratingKeyStore>());
     });
   });
 }

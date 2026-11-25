@@ -20,6 +20,7 @@ import e2e_browsers
 import e2e_labels as L
 import e2e_voice_ui as ui
 from e2e_voice import join_call, sfu_participants, tracks_of
+from e2e_voice_thresholds import growing_streams
 
 NOT_BLACK_MEAN = 20.0  # live share 100-104, black 0
 MIN_SPREAD = 4.0  # live share 16-25, flat fill 0
@@ -113,11 +114,16 @@ def _area(video):
 
 def _hidden_shares_stop_decoding(c, pc, every):
     """In a text channel only the mini player's one feed may keep decoding."""
+    visible = pc.inbound_frames()
+    time.sleep(HIDDEN_WINDOW_SECONDS)
+    running = growing_streams(visible, pc.inbound_frames())
+    assert len(running) >= 2, f"only {len(running)} inbound videos were decoding before the switch"
     c.click(L.TEXT_CHANNEL, settle=8, fixed=True)
     first = pc.inbound_frames()
     time.sleep(HIDDEN_WINDOW_SECONDS)
     after = pc.inbound_frames()
-    growing = [k for k, n in after.items() if n - first.get(k, 0) > 5]
+    assert after, "the page reported no inbound videos in the text channel, so decoding could not be judged"
+    growing = growing_streams(first, after)
     print(f"  carol in a text channel: {len(growing)} of {len(after)} "
           f"inbound videos still decoding")
     assert len(growing) <= 1, f"hidden shares kept decoding: {growing}"

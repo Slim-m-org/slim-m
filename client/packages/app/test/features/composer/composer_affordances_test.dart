@@ -221,7 +221,7 @@ void main() {
       await tester.tap(find.text('Photo library'));
       await tester.pumpAndSettle();
 
-      expect(picker.lastType, FileType.image);
+      expect(picker.lastType, FileType.media);
 
       await tester.tap(moreActionsButton);
       await tester.pumpAndSettle();

@@ -32,6 +32,8 @@ http.Client _api(Set<String> occupied, {Set<String> mine = const {}}) {
   final base = voiceApi();
   return MockClient((request) async {
     final path = request.url.path;
+    final notice = noticeNotOwed(request);
+    if (notice != null) return notice;
     if (path.endsWith('/voice/roster')) {
       final channel = path.split('/')[2];
       final self = occupied.contains(channel);

@@ -11,6 +11,7 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/services.dart';
 
 import 'host_platform.dart';
@@ -95,13 +96,26 @@ class ApnsTokenChannel {
   /// land well after the device token and again later in the app's life.
   Stream<String> get onVoipToken => _voipTokens.stream;
 
+  final _tokens = StreamController<String>.broadcast();
+
+  /// Fires for every device token APNs hands native code, including one that
+  /// rotates long after [fetch] returned.
+  Stream<String> get onToken => _tokens.stream;
+
+  /// Plays the native `onToken` call, for tests.
+  @visibleForTesting
+  Future<void> debugDeliverToken(String token) =>
+      _onCall(MethodCall('onToken', token));
+
   Future<void> _onCall(MethodCall call) async {
     switch (call.method) {
       case 'onVoipToken':
         final token = call.arguments as String?;
         if (token != null) _voipTokens.add(token);
       case 'onToken':
-        _complete(call.arguments as String?);
+        final token = call.arguments as String?;
+        if (token != null) _tokens.add(token);
+        _complete(token);
       case 'onRegistrationError':
         if (_pending != null) {
           _liveError = call.arguments as String? ?? 'unknown';
@@ -128,6 +142,8 @@ class ApnsTokenChannel {
   Future<ApnsTokenResult> fetch(
       {Duration timeout = const Duration(seconds: 10)}) async {
     if (!_isIOS) return const ApnsUnsupported();
+
+    await _requestAuthorization();
 
     // Installed before the first probe so a token landing between probes is
     // not dropped. See the doc comment above.
@@ -171,6 +187,21 @@ class ApnsTokenChannel {
     }
   }
 
+  /// Shows the system notification prompt if it has not been answered yet;
+  /// native answers once the person has chosen. Callers reach it only after
+  /// sign-in, which is what gives the prompt its context.
+  Future<void> _requestAuthorization() async {
+    try {
+      await _channel.invokeMethod<void>('requestAuthorization');
+    } on MissingPluginException catch (error, stack) {
+      AppLog.swallowed(LogTag.platform,
+          'This build has no notification permission request', error, stack);
+    } on PlatformException catch (error, stack) {
+      AppLog.swallowed(LogTag.platform,
+          'Requesting notification permission failed', error, stack);
+    }
+  }
+
   /// Drops this install's device token so the next [fetch] waits for a fresh
   /// one; false when this is not iOS or the build has no such call.
   Future<bool> resetRegistration() async {
@@ -205,6 +236,57 @@ class ApnsTokenChannel {
       AppLog.swallowed(LogTag.platform,
           'This build has no stored VoIP push token', error, stack);
       return null;
+    }
+  }
+
+  /// Whether iOS lets this app show alerts: false only when the user denied
+  /// them, true while still undecided; null off iOS or when native cannot say.
+  Future<bool?> notificationsAllowed() async {
+    if (!_isIOS) return null;
+    try {
+      final status =
+          await _channel.invokeMethod<String>('getNotificationAuthorization');
+      return status == null ? null : status != 'denied';
+    } on MissingPluginException catch (error, stack) {
+      AppLog.swallowed(LogTag.platform,
+          'This build cannot read the notification permission', error, stack);
+      return null;
+    } on PlatformException catch (error, stack) {
+      AppLog.swallowed(LogTag.platform,
+          'Reading the notification permission failed', error, stack);
+      return null;
+    }
+  }
+
+  /// Runs [work] inside a native background task assertion, so iOS keeps the
+  /// process alive until it finishes instead of suspending mid-request.
+  Future<T> whileKeptAlive<T>(Future<T> Function() work) async {
+    final id = await _beginBackgroundTask();
+    try {
+      return await work();
+    } finally {
+      if (id != null) await _endBackgroundTask(id);
+    }
+  }
+
+  Future<int?> _beginBackgroundTask() async {
+    if (!_isIOS) return null;
+    try {
+      return await _channel.invokeMethod<int>('beginBackgroundTask');
+    } on MissingPluginException {
+      return null;
+    } on PlatformException {
+      return null;
+    }
+  }
+
+  Future<void> _endBackgroundTask(int id) async {
+    try {
+      await _channel.invokeMethod<void>('endBackgroundTask', id);
+    } on MissingPluginException {
+      return;
+    } on PlatformException {
+      return;
     }
   }
 

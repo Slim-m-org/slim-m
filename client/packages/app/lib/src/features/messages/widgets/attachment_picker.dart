@@ -22,12 +22,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../composer/widgets/composer_attachments.dart';
 import 'package:slimm_api/api.dart' show LogTag, reportFailure;
+import '../../../picker_extensions.dart';
 
 /// Which native picker a request should open.
 enum AttachmentSource {
   /// Photos-backed: `PHPickerViewController` on iOS, the media-only picker
   /// on Android.
   photoLibrary,
+
+  /// [photoLibrary] with videos too, for a message attachment.
+  mediaLibrary,
 
   /// The general document browser: `UIDocumentPickerViewController` on iOS,
   /// the SAF browser on Android, the one dialog every desktop platform has.
@@ -51,6 +55,13 @@ Future<PlatformFile?> _pickPhotoLibrary() => FilePicker.pickFile(
   ),
 );
 
+Future<PlatformFile?> _pickMediaLibrary() => FilePicker.pickFile(
+  type: FileType.media,
+  darwinOptions: const DarwinOptions(
+    assetRepresentationMode: DarwinAssetRepresentationMode.compatible,
+  ),
+);
+
 Future<PlatformFile?> _pickFileBrowser() => FilePicker.pickFile();
 
 /// The picture types every surface accepts as a still image.
@@ -58,7 +69,7 @@ const stillImageExtensions = ['png', 'jpg', 'jpeg', 'webp'];
 
 Future<PlatformFile?> _pickStillImageFile() => FilePicker.pickFile(
   type: FileType.custom,
-  allowedExtensions: stillImageExtensions,
+  allowedExtensions: pickerExtensions(stillImageExtensions),
 );
 
 /// The picker each [AttachmentSource] runs, injectable because `file_picker`
@@ -69,6 +80,7 @@ final attachmentPickerProvider =
     Provider.family<AttachmentPicker, AttachmentSource>(
       (ref, source) => switch (source) {
         AttachmentSource.photoLibrary => _pickPhotoLibrary,
+        AttachmentSource.mediaLibrary => _pickMediaLibrary,
         AttachmentSource.fileBrowser => _pickFileBrowser,
         AttachmentSource.stillImageFiles => _pickStillImageFile,
       },

@@ -22,6 +22,7 @@ pub(crate) fn spawn_call_sweep(store: store::Store, voice: voice::VoiceService, 
         async move {
             let stale = sweep_stale_voice_calls(&voice, &hub).await;
             crate::voice_session_sweeps::close_stale_sessions(&store, &hub, &stale).await;
+            crate::voice_session_sweeps::retry_deferred_reopens(&store, &voice).await;
         }
     });
 }
@@ -92,14 +93,20 @@ pub async fn sweep_stale_voice_calls_at(
     now: std::time::Instant,
 ) -> Vec<(crate::ids::UserId, crate::ids::ChannelId)> {
     let stale = voice.sweep_stale_calls_at(now).await;
-    for (_, channel_id) in &stale {
+    for call in &stale {
         hub.publish(hub::Event::VoiceActivityChanged {
-            channel_id: *channel_id,
+            channel_id: call.channel_id,
         });
     }
+    let wall_now_ms = crate::store::now_ms();
     futures_util::stream::iter(stale)
-        .map(|(user_id, channel_id)| async move {
-            match voice.remove_stale_participant(channel_id, user_id).await {
+        .map(|call| async move {
+            let (user_id, channel_id) = (call.user_id, call.channel_id);
+            let last_beat_ms = wall_now_ms - call.age_at(now).as_millis() as i64;
+            match voice
+                .remove_stale_participant(channel_id, user_id, last_beat_ms)
+                .await
+            {
                 Ok(true) => tracing::info!(
                     %channel_id,
                     "removed a voice participant with no recent heartbeat"

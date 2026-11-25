@@ -10,6 +10,7 @@ import 'package:flutter/services.dart';
 
 import 'clipboard_lone_web_address.dart';
 import 'composer_clipboard_image.dart';
+import 'staged_attachment_model.dart' show FileSource;
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// Whether [event] is the paste chord, Ctrl+V or Cmd+V.
@@ -41,15 +42,49 @@ bool isClipboardPasteChord(KeyEvent event) {
 /// web address does not count as text, since a browser adds its picture's own
 /// address to every "Copy image".
 /// The "Paste image" row still forces the picture.
+///
+/// With [stageFile], files on the clipboard (Windows Explorer's Copy) are
+/// attached first, the way a drop of them would be, and nothing else is read.
 Future<void> pasteClipboardImageFromKeystroke(
   Future<void> Function(Uint8List bytes, String filename) stage,
   void Function(String? message) setError, {
   bool textWins = false,
+  Future<void> Function(FileSource file)? stageFile,
 }) async {
   if (!pasteKeystrokeReadsClipboardImage) return;
+  if (stageFile != null && await _pasteClipboardFiles(stageFile, setError)) {
+    return;
+  }
   if (!await hasClipboardImage()) return;
   if (textWins && await _clipboardHoldsRealText()) return;
   await pasteClipboardImage(stage, setError);
+}
+
+/// Whether the clipboard held files, which are then staged or refused here.
+Future<bool> _pasteClipboardFiles(
+  Future<void> Function(FileSource file) stageFile,
+  void Function(String? message) setError,
+) async {
+  try {
+    final (:files, :hadFolder) = await readClipboardFiles();
+    if (files.isEmpty && !hadFolder) return false;
+    setError(
+      hadFolder ? "Folders can't be attached - paste a file instead." : null,
+    );
+    for (final file in files) {
+      await stageFile(file);
+    }
+    return true;
+  } on ClipboardImageReadException catch (e, stack) {
+    AppLog.swallowed(
+      LogTag.ui,
+      'Could not paste the clipboard files',
+      e,
+      stack,
+    );
+    setError(e.message);
+    return true;
+  }
 }
 
 Future<bool> _clipboardHoldsRealText() async {
@@ -60,7 +95,7 @@ Future<bool> _clipboardHoldsRealText() async {
 
 /// Whether the "+" sheet's own "Paste image" row is worth offering.
 ///
-/// Answers [hasClipboardImage] alone, on every platform - Android's and
+/// Answers [canPasteImageOnTap] alone, on every platform - Android's and
 /// Linux desktop's only route, and iOS's too, unconditionally.
 ///
 /// This used to also answer false once the iOS edit-menu paste swizzle
@@ -74,14 +109,15 @@ Future<bool> _clipboardHoldsRealText() async {
 /// never hidden on that signal; only proof a paste completed through the
 /// native menu would justify it, and nothing tracks that yet.
 ///
-/// Never on iOS any more: the long-press menu's own Paste takes an image there
+/// Never on native iOS any more: the long-press menu's own Paste takes an image there
 /// (`composer_context_menu.dart`, PR #327), and the owner confirmed it on a
 /// device on 2026-10-14, so the row only repeated it. Android keeps the row,
 /// because its long-press Paste is text only.
 Future<bool> composerClipboardPasteAvailable({
   required TargetPlatform platform,
-}) =>
-    platform == TargetPlatform.iOS ? Future.value(false) : hasClipboardImage();
+}) => platform == TargetPlatform.iOS && !kIsWeb
+    ? Future.value(false)
+    : canPasteImageOnTap();
 
 /// Runs "Paste image": clears [setError], reads the clipboard, then [stage]s the bytes or reports a real read failure through [setError].
 /// A clipboard with no image is a silent no-op, like a cancelled file pick.

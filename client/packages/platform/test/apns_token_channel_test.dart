@@ -44,6 +44,35 @@ void main() {
       expect(touched, isFalse);
     });
 
+    test('asks native for notification permission before reading a token',
+        () async {
+      final calls = <String>[];
+      _mock((call) async {
+        calls.add(call.method);
+        return call.method == 'getToken' ? 'abcd1234' : null;
+      });
+      addTearDown(() => _mock(null));
+
+      await ApnsTokenChannel(isIOS: true).fetch();
+
+      expect(calls.first, 'requestAuthorization');
+      expect(calls, contains('getToken'));
+    });
+
+    test('a build without the permission call still reads its token', () async {
+      _mock((call) async {
+        if (call.method == 'requestAuthorization') {
+          throw MissingPluginException();
+        }
+        return call.method == 'getToken' ? 'abcd1234' : null;
+      });
+      addTearDown(() => _mock(null));
+
+      final result = await ApnsTokenChannel(isIOS: true).fetch();
+
+      expect(result, isA<ApnsTokenReady>());
+    });
+
     test('a cached token is ApnsTokenReady', () async {
       _mock((call) async => switch (call.method) {
             'getToken' => 'abcd1234',
@@ -242,6 +271,48 @@ void main() {
       _mock((call) async => throw MissingPluginException());
       addTearDown(() => _mock(null));
       expect(await ApnsTokenChannel(isIOS: true).resetRegistration(), isFalse);
+    });
+  });
+
+  group('ApnsTokenChannel native helpers', () {
+    test('notificationsAllowed is false only for a denied status', () async {
+      var status = 'denied';
+      _mock((call) async => status);
+      addTearDown(() => _mock(null));
+      final channel = ApnsTokenChannel(isIOS: true);
+
+      expect(await channel.notificationsAllowed(), isFalse);
+      status = 'notDetermined';
+      expect(await channel.notificationsAllowed(), isTrue);
+      expect(
+          await ApnsTokenChannel(isIOS: false).notificationsAllowed(), isNull);
+    });
+
+    test('whileKeptAlive brackets the work and ends the task on failure',
+        () async {
+      final calls = <String>[];
+      _mock((call) async {
+        calls.add(call.method);
+        return call.method == 'beginBackgroundTask' ? 3 : null;
+      });
+      addTearDown(() => _mock(null));
+      final channel = ApnsTokenChannel(isIOS: true);
+
+      await expectLater(
+        channel.whileKeptAlive<void>(() async => throw StateError('x')),
+        throwsStateError,
+      );
+
+      expect(calls, ['beginBackgroundTask', 'endBackgroundTask']);
+    });
+
+    test('onToken announces a token arriving with no fetch pending', () async {
+      final channel = ApnsTokenChannel(isIOS: true);
+      final next = channel.onToken.first;
+
+      await channel.debugDeliverToken('aa');
+
+      expect(await next, 'aa');
     });
   });
 }

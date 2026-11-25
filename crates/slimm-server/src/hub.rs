@@ -51,6 +51,7 @@ mod memory_guard;
 mod moderation_seq;
 mod screen_annotation;
 mod screen_consent;
+mod voice_nudge;
 pub use created_lookups::{CreatedFacts, CreatedLookups};
 pub use event::{
     AccountNotificationScope, CanvasEvent, ConnectorRunRequest, Event, MessageEvent,
@@ -71,6 +72,12 @@ pub use screen_consent::ScreenConsent;
 /// Referenced from [`Event`]'s own doc comments, in `hub/event.rs`, as the
 /// bound a canvas frame is sized against.
 pub(crate) const CHANNEL_CAPACITY: usize = 1024;
+
+/// Backlog a bulk publisher lets a subscriber carry before it pauses.
+const PUBLISH_BACKLOG_LIMIT: usize = CHANNEL_CAPACITY / 4;
+/// How long one wait for the slowest subscriber may last before publishing resumes.
+const PUBLISH_BACKLOG_MAX_WAIT: Duration = Duration::from_secs(2);
+const PUBLISH_BACKLOG_POLL: Duration = Duration::from_millis(5);
 
 /// How many events the ephemeral channel buffers before the slowest
 /// subscriber starts losing the oldest.
@@ -114,6 +121,7 @@ pub struct Hub {
     moderation: Arc<ModerationClock>,
     handshake: handshake::Handshake,
     screen_consent: ScreenConsent,
+    voice_nudges: voice_nudge::VoiceNudges,
 }
 
 /// Default value of [`Hub::idle_poll_interval`]: how often a live connection
@@ -150,6 +158,7 @@ impl Hub {
             moderation: Arc::new(ModerationClock::new()),
             handshake: handshake::Handshake::new(),
             screen_consent: ScreenConsent::default(),
+            voice_nudges: voice_nudge::VoiceNudges::default(),
         }
     }
 
@@ -242,6 +251,28 @@ impl Hub {
     /// Events the slowest durable subscriber has not yet taken off the channel.
     pub fn durable_backlog(&self) -> usize {
         self.sender.len()
+    }
+
+    /// Whether a durable subscriber is carrying enough backlog that a bulk publisher should pause.
+    pub fn publish_backlogged(&self) -> bool {
+        self.durable_backlog() >= PUBLISH_BACKLOG_LIMIT
+    }
+
+    /// Pauses a bulk publisher while a subscriber is far behind, so a big burst cannot push one
+    /// past [`CHANNEL_CAPACITY`] and force it to resync. Returns false when the wait timed out,
+    /// meaning a subscriber has stalled.
+    pub async fn wait_for_publish_headroom(&self) -> bool {
+        if self.durable_backlog() < PUBLISH_BACKLOG_LIMIT {
+            tokio::task::yield_now().await;
+            return true;
+        }
+        let deadline = tokio::time::Instant::now() + PUBLISH_BACKLOG_MAX_WAIT;
+        while self.durable_backlog() >= PUBLISH_BACKLOG_LIMIT
+            && tokio::time::Instant::now() < deadline
+        {
+            tokio::time::sleep(PUBLISH_BACKLOG_POLL).await;
+        }
+        self.durable_backlog() < PUBLISH_BACKLOG_LIMIT
     }
 
     /// Connections and consumers currently subscribed to the durable channel.
@@ -361,3 +392,50 @@ mod connection_count_tests;
 
 #[cfg(test)]
 mod event_size_tests;
+
+#[cfg(test)]
+mod headroom_tests {
+    use super::*;
+    use crate::ids::{ChannelId, MessageId};
+
+    fn deleted(channel_id: ChannelId) -> Event {
+        Event::Message(MessageEvent::Deleted {
+            channel_id,
+            message_id: MessageId::generate(),
+            op_seq: None,
+        })
+    }
+
+    async fn slow_subscriber_lagged(paced: bool) -> bool {
+        let hub = Hub::new();
+        let mut rx = hub.subscribe();
+        let reader = tokio::spawn(async move {
+            loop {
+                match rx.recv().await {
+                    Err(broadcast::error::RecvError::Lagged(_)) => return true,
+                    Err(_) => return false,
+                    Ok(_) => tokio::time::sleep(Duration::from_millis(1)).await,
+                }
+            }
+        });
+        let channel = ChannelId::generate();
+        for _ in 0..2_500 {
+            if paced {
+                hub.wait_for_publish_headroom().await;
+            }
+            hub.publish(deleted(channel));
+        }
+        drop(hub);
+        reader.await.unwrap()
+    }
+
+    #[tokio::test]
+    async fn a_burst_overruns_a_slow_subscriber_without_pacing() {
+        assert!(slow_subscriber_lagged(false).await);
+    }
+
+    #[tokio::test]
+    async fn pacing_keeps_a_slow_subscriber_inside_the_channel() {
+        assert!(!slow_subscriber_lagged(true).await);
+    }
+}

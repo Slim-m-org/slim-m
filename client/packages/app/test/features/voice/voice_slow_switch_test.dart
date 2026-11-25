@@ -39,6 +39,8 @@ VoiceParticipant _p(String id, {bool local = false}) => VoiceParticipant(
 http.Client _gatedToken(Completer<void> gate) {
   final inner = voiceApi();
   return MockClient((request) async {
+    final notice = noticeNotOwed(request);
+    if (notice != null) return notice;
     if (request.url.path.contains('channel-b') &&
         request.url.path.endsWith('/voice/token')) {
       await gate.future;

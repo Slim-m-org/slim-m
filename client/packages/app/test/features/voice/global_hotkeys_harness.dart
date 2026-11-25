@@ -15,7 +15,7 @@ class FakeHotkeySource implements GlobalHotkeySource {
     ),
   });
 
-  final GlobalHotkeyAvailability probeResult;
+  GlobalHotkeyAvailability probeResult;
   final binds = <List<GlobalHotkeyId>>[];
   final chords = <List<HotkeyChord>>[];
   final _events = StreamController<GlobalHotkeyEvent>.broadcast();
@@ -37,6 +37,10 @@ class FakeHotkeySource implements GlobalHotkeySource {
 
   void send(GlobalHotkeyId id, GlobalHotkeyPhase phase) =>
       _events.add(GlobalHotkeyEvent(id, phase));
+
+  void block() => _events.add(const GlobalHotkeyEvent.blocked());
+
+  void unblock() => _events.add(const GlobalHotkeyEvent.unblocked());
 
   void lose() => _events.add(const GlobalHotkeyEvent.lost());
 

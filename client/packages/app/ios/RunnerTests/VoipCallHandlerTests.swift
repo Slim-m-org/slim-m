@@ -57,7 +57,7 @@ final class VoipCallHandlerTests: XCTestCase {
   private func handle(_ payload: [AnyHashable: Any], on provider: RecordingProvider) -> Bool {
     var completed = false
     var reportedBeforeCompletion = false
-    let handler = VoipCallHandler(provider: provider)
+    let handler = VoipCallHandler(provider: provider, onMain: { $0() })
     handler.handle(payload: payload) {
       reportedBeforeCompletion = !provider.reported.isEmpty
       completed = true
@@ -128,7 +128,7 @@ final class VoipCallHandlerTests: XCTestCase {
     let provider = RecordingProvider()
     var completed = false
     var reportedBeforeCompletion = false
-    VoipCallHandler(provider: provider).handlePush(of: .voIP, payload: [:]) {
+    VoipCallHandler(provider: provider, onMain: { $0() }).handlePush(of: .voIP, payload: [:]) {
       reportedBeforeCompletion = !provider.reported.isEmpty
       completed = true
     }
@@ -139,7 +139,7 @@ final class VoipCallHandlerTests: XCTestCase {
   func testAnUnexpectedPushTypeStillCompletes() {
     let provider = RecordingProvider()
     var completed = false
-    VoipCallHandler(provider: provider).handlePush(
+    VoipCallHandler(provider: provider, onMain: { $0() }).handlePush(
       of: PKPushType(rawValue: "com.example.other"), payload: [:]
     ) { completed = true }
     XCTAssertTrue(completed, "PushKit must never be left waiting on a push")
@@ -147,7 +147,7 @@ final class VoipCallHandlerTests: XCTestCase {
 
   func testAReportedCallTellsDartItIsRingingAfterTheReport() {
     let provider = RecordingProvider()
-    let handler = VoipCallHandler(provider: provider)
+    let handler = VoipCallHandler(provider: provider, onMain: { $0() })
     var seen: [CallKitCallEvent] = []
     var reportedWhenTold = false
     handler.onEvent = { event in
@@ -163,7 +163,7 @@ final class VoipCallHandlerTests: XCTestCase {
   func testARefusedCallIsNotAnnouncedAsRinging() {
     let provider = RecordingProvider()
     provider.reportError = NSError(domain: "CXErrorDomain", code: 3)
-    let handler = VoipCallHandler(provider: provider)
+    let handler = VoipCallHandler(provider: provider, onMain: { $0() })
     var seen: [CallKitCallEvent] = []
     handler.onEvent = { seen.append($0) }
     handler.handle(payload: [:]) {}
@@ -171,7 +171,7 @@ final class VoipCallHandlerTests: XCTestCase {
   }
 
   func testAnswerAndEndAreForwardedToDart() {
-    let handler = VoipCallHandler(provider: RecordingProvider())
+    let handler = VoipCallHandler(provider: RecordingProvider(), onMain: { $0() })
     var seen: [CallKitCallEvent] = []
     handler.onEvent = { seen.append($0) }
     let id = UUID()
@@ -189,7 +189,7 @@ final class VoipCallHandlerTests: XCTestCase {
 
   func testEndingAnAnsweredCallReportsItOverWithoutAnEvent() {
     let provider = RecordingProvider()
-    let handler = VoipCallHandler(provider: provider)
+    let handler = VoipCallHandler(provider: provider, onMain: { $0() })
     var seen: [CallKitCallEvent] = []
     handler.onEvent = { seen.append($0) }
     let id = UUID()
@@ -214,7 +214,7 @@ final class VoipCallHandlerTests: XCTestCase {
   func testAnUnansweredRingEndsAfterTheTimeout() {
     let provider = RecordingProvider()
     let clock = ManualRingClock()
-    let handler = VoipCallHandler(provider: provider, schedule: clock.schedule)
+    let handler = VoipCallHandler(provider: provider, onMain: { $0() }, schedule: clock.schedule)
     var seen: [CallKitCallEvent] = []
     handler.onEvent = { seen.append($0) }
 
@@ -230,7 +230,7 @@ final class VoipCallHandlerTests: XCTestCase {
     // A stale end could otherwise decline a newer ring Dart is holding.
     let provider = RecordingProvider()
     let clock = ManualRingClock()
-    let handler = VoipCallHandler(provider: provider, schedule: clock.schedule)
+    let handler = VoipCallHandler(provider: provider, onMain: { $0() }, schedule: clock.schedule)
     var seen: [CallKitCallEvent] = []
     handler.onEvent = { seen.append($0) }
 
@@ -245,7 +245,7 @@ final class VoipCallHandlerTests: XCTestCase {
   func testACallDartEndedNeverTimesOutLater() {
     let provider = RecordingProvider()
     let clock = ManualRingClock()
-    let handler = VoipCallHandler(provider: provider, schedule: clock.schedule)
+    let handler = VoipCallHandler(provider: provider, onMain: { $0() }, schedule: clock.schedule)
     var seen: [CallKitCallEvent] = []
     handler.onEvent = { seen.append($0) }
 
@@ -260,7 +260,7 @@ final class VoipCallHandlerTests: XCTestCase {
   func testAnAnsweredRingOutlivesTheTimeout() {
     let provider = RecordingProvider()
     let clock = ManualRingClock()
-    let handler = VoipCallHandler(provider: provider, schedule: clock.schedule)
+    let handler = VoipCallHandler(provider: provider, onMain: { $0() }, schedule: clock.schedule)
     var seen: [CallKitCallEvent] = []
     handler.onEvent = { seen.append($0) }
 
@@ -270,5 +270,53 @@ final class VoipCallHandlerTests: XCTestCase {
 
     XCTAssertEqual(seen, [.ringing(id), .answered(id)])
     XCTAssertTrue(provider.ended.isEmpty)
+  }
+
+  func testAProviderResetEndsEveryRingingAndAnsweredCallForDart() {
+    let provider = RecordingProvider()
+    let clock = ManualRingClock()
+    let handler = VoipCallHandler(provider: provider, onMain: { $0() }, schedule: clock.schedule)
+    var seen: [CallKitCallEvent] = []
+    handler.onEvent = { seen.append($0) }
+    let ringing = ring(handler, provider: provider)
+    let answered = ring(handler, provider: provider)
+    handler.callAnswered(answered)
+    seen.removeAll()
+
+    handler.reset()
+    clock.letTheRingWindowPass()
+
+    XCTAssertEqual(Set(seen.map { $0.wire["id"] }), [ringing.uuidString, answered.uuidString])
+    XCTAssertTrue(seen.allSatisfy { $0.wire["event"] == "ended" })
+    XCTAssertEqual(seen.count, 2, "the cancelled ring timers must not end them a second time")
+    XCTAssertNil(handler.answeredCallId)
+  }
+
+  func testTheAnsweredCallIsAvailableToAdoptUntilItEnds() {
+    let handler = VoipCallHandler(provider: RecordingProvider(), onMain: { $0() })
+    let id = UUID()
+    handler.callAnswered(id)
+    XCTAssertEqual(handler.answeredCallId, id)
+
+    handler.callEnded(id, notifyDart: false)
+
+    XCTAssertNil(handler.answeredCallId)
+  }
+
+  func testTheReportCompletionIsHoppedToMainBeforeDartIsTold() {
+    let provider = RecordingProvider()
+    var hopped: [() -> Void] = []
+    let handler = VoipCallHandler(provider: provider, onMain: { hopped.append($0) })
+    var seen: [CallKitCallEvent] = []
+    var completed = false
+    handler.onEvent = { seen.append($0) }
+
+    handler.handle(payload: [:]) { completed = true }
+
+    XCTAssertTrue(seen.isEmpty)
+    XCTAssertFalse(completed)
+    hopped.forEach { $0() }
+    XCTAssertEqual(seen.count, 1)
+    XCTAssertTrue(completed)
   }
 }

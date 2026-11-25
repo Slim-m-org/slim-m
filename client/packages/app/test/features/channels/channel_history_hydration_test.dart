@@ -11,6 +11,7 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/channels/providers/channel_history.dart';
+import 'package:slimm_app/src/features/channels/providers/open_channel_rehydrate.dart';
 import 'package:slimm_app/src/features/messages/providers/message_extras.dart';
 import 'package:slimm_app/src/features/messages/providers/message_jump.dart';
 import 'package:slimm_app/src/features/messages/providers/retention_sweep.dart';
@@ -72,6 +73,30 @@ void main() {
       1,
       reason: 'only the newest page is refetched, to correct what changed',
     );
+    await _unmount(tester);
+  });
+
+  testWidgets('a reconnect rereads every page an open channel shows', (
+    tester,
+  ) async {
+    final harness = await mountChannel(
+      tester,
+      serverSeqs: _range(1, 300),
+      seededSeqs: _range(1, 300),
+    );
+    final requestsBefore = harness.historyRequests.length;
+
+    rehydrateOpenChannels(harness.container.read);
+    await harness.container
+        .read(channelHistoryProvider('c1').notifier)
+        .hydrateTo(101);
+
+    expect(
+      harness.historyRequests.length - requestsBefore,
+      4,
+      reason: 'the newest page and the three older ones the window shows',
+    );
+    expect(harness.container.read(channelHistoryProvider('c1')).window, 200);
     await _unmount(tester);
   });
 

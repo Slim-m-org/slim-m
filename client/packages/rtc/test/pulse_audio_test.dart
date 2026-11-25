@@ -344,4 +344,42 @@ void main() {
       expect(defaultOut?.id, 'default');
     },
   );
+
+  group('HardwareAudioDevices on Windows', () {
+    HardwareAudioDevices windows({
+      String? inputId,
+      String? outputId,
+      bool listDefault = false,
+    }) =>
+        HardwareAudioDevices(
+          pulse: PulseAudio(
+            run: (_) async => throw const ProcessException('pactl', []),
+          ),
+          platform: () => lk.PlatformType.windows,
+          defaultId: ({required capture}) async => capture ? inputId : outputId,
+          listInputs: () async => [
+            if (listDefault)
+              const lk.MediaDevice('default', 'Default', 'audioinput', null),
+            const lk.MediaDevice('mic-a', 'Mic A', 'audioinput', null),
+            const lk.MediaDevice('mic-b', 'Mic B', 'audioinput', null),
+          ],
+          listOutputs: () async => [
+            const lk.MediaDevice('spk-a', 'Speaker A', 'audiooutput', null),
+            const lk.MediaDevice('spk-b', 'Speaker B', 'audiooutput', null),
+          ],
+        );
+
+    test('the system default is the device the plugin names', () async {
+      final devices = windows(inputId: 'mic-b', outputId: 'spk-a');
+
+      expect((await devices.systemDefaultInput())?.id, 'mic-b');
+      expect((await devices.systemDefaultOutput())?.id, 'spk-a');
+    });
+
+    test('is null when the plugin names nothing or an unlisted device',
+        () async {
+      expect(await windows().systemDefaultInput(), isNull);
+      expect(await windows(outputId: 'gone').systemDefaultOutput(), isNull);
+    });
+  });
 }

@@ -14,6 +14,7 @@ import e2e_netem
 import e2e_xp as xp
 import make_speech_clip as speech
 import voice_experience as ex
+from e2e_skip import Skip
 
 JOINS = int(os.environ.get("E2E_XP_JOINS", "5"))
 CUTS = os.environ.get("E2E_XP_CUTS", "3,10,30,60")
@@ -21,6 +22,11 @@ CUT_REPEATS = int(os.environ.get("E2E_XP_CUT_REPEATS", "3"))
 # The ladder rides out a cut this long without a rejoin; longer ones may rejoin by design.
 RECOVERABLE_CUT_S = 10
 WATCH_AFTER = 40
+# Measured: cold join 908 ms and warm joins 426 to 542 ms to first packet, ring 126 to 279 ms after speech starts, packets back 343 to 456 ms after a cut of 10 s or less.
+COLD_JOIN_MAX_MS = 3000
+WARM_JOIN_MAX_MS = 2000
+RING_DELAY_MAX_MS = 1000
+PACKETS_AFTER_CUT_MAX_MS = 5000
 
 
 def _write_clips(directory, kind):
@@ -110,17 +116,53 @@ def _representative_cut(rows):
     return rows[f"{max(fits)}s"][0] if fits else None
 
 
+def _join_problems(joins):
+    found = []
+    for row in joins:
+        ceiling = COLD_JOIN_MAX_MS if row.get("cold") else WARM_JOIN_MAX_MS
+        for key in ("in_call_ms", "first_packet_ms"):
+            if row.get(key) is not None and row[key] > ceiling:
+                found.append(f"{'cold' if row.get('cold') else 'warm'} join took {row[key]} ms ({key}), over {ceiling}")
+    return found
+
+
+def _cut_problems(cuts):
+    found = []
+    for length, rows in cuts.items():
+        if int(length[:-1]) > RECOVERABLE_CUT_S:
+            continue
+        for row in rows:
+            if row.get("rejoined") or not row.get("audio_tap_survived", True) or row.get("new_peer_connections"):
+                found.append(f"a {length} cut rebuilt the peer connection: {row}")
+            late = row.get("time_to_packets_ms")
+            if late is not None and late > PACKETS_AFTER_CUT_MAX_MS:
+                found.append(f"packets took {late} ms to return after a {length} cut, over {PACKETS_AFTER_CUT_MAX_MS}")
+    return found
+
+
+def _ring_problems(speaking):
+    found = []
+    for profile, row in speaking.items():
+        delay = (row.get("delay_ms") or {}).get("p95")
+        if delay is not None and delay > RING_DELAY_MAX_MS:
+            found.append(f"the speaking ring lit {delay} ms late on {profile}, over {RING_DELAY_MAX_MS}")
+    return found
+
+
 def problems(results):
-    """Why a finished run measured nothing: no audio on join, no resumed packets, or an unlit ring."""
+    """Why a finished run measured nothing or missed a bound: no audio, a slow join, a rebuilt call after a short cut, a late or unlit ring."""
     found = []
     if results["joins"] and results["joins"][0].get("first_packet_ms") is None:
         found.append(f"no audio arrived after joining: {results['joins'][0]}")
+    found += _join_problems(results["joins"])
     cut = results.get("cut")
     if cut is not None and cut.get("time_to_packets_ms") is None:
         found.append(f"no packets came back after the cut: {cut}")
+    found += _cut_problems(results.get("cuts", {}))
     clean = results["speaking"].get("clean")
     if clean is not None and not (clean["onsets"] and clean["lit"]):
         found.append(f"the speaking ring never lit for a clean call: {clean}")
+    found += _ring_problems(results["speaking"])
     return found
 
 
@@ -167,5 +209,5 @@ def a_timed_experience(server, secret, admin_api, sign_in):
 def run_if_selected(server, secret, admin_api, sign_in):
     if "voice experience" not in os.environ.get("E2E_ONLY", ""):
         print("  skipped: set E2E_ONLY='voice experience' to run it")
-        return
+        raise Skip
     a_timed_experience(server, secret, admin_api, sign_in)

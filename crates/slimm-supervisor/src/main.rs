@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! `slimm-supervisor` serves the socket; `gateway` and `chown-data` are what its own image
+//! `slimm-supervisor` serves the socket; `gateway`, `chown-data` and `measure-data` are what its own image
 //! runs inside the sandbox (decision 0134).
 
 use std::process::ExitCode;
 
-use slimm_supervisor::{api, checks, config::Config, gateway, supervisor::Supervisor};
+use slimm_supervisor::{api, checks, config::Config, gateway, measure, supervisor::Supervisor};
 
 const DATA_OWNER: u32 = 65532;
 
@@ -20,13 +20,14 @@ fn main() -> ExitCode {
             Ok(()) => ExitCode::SUCCESS,
             Err(err) => fail(&format!("chown /data: {err}")),
         },
+        "measure-data" => measure_data(),
         "gateway" => run(async {
             let config = gateway::request::GatewayConfig::from_lookup(|k| std::env::var(k).ok())?;
             gateway::run(config).await.map_err(|e| e.to_string())
         }),
         "" | "serve" => run(serve()),
         other => fail(&format!(
-            "unknown mode {other:?}; expected serve, gateway, chown-data or --version"
+            "unknown mode {other:?}; expected serve, gateway, chown-data, measure-data or --version"
         )),
     }
 }
@@ -58,6 +59,20 @@ async fn serve() -> Result<(), String> {
     api::serve(supervisor)
         .await
         .map_err(|e| format!("socket: {e}"))
+}
+
+fn measure_data() -> ExitCode {
+    let limit = std::env::args()
+        .nth(2)
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(u64::MAX);
+    match measure::allocated(std::path::Path::new("/data"), limit) {
+        Ok(found) => {
+            println!("allocated={}", found.reported(limit));
+            ExitCode::SUCCESS
+        }
+        Err(err) => fail(&format!("measure /data: {err}")),
+    }
 }
 
 fn run(fut: impl Future<Output = Result<(), String>>) -> ExitCode {

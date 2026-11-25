@@ -15,6 +15,9 @@ typedef HandoffTarget = ({WindowSize? size, bool fillsDisplay});
 /// with [hideFirst] off it resizes in place, for an embedder that holds the
 /// resize until a frame of the new size is drawn (Windows).
 ///
+/// With [deferRunState] a maximized or fullscreen window stays windowed until
+/// the port's next show, since applying either one shows a hidden window.
+///
 /// [onTarget] fires before the maximize or fullscreen await, so a call that
 /// hangs past the startup timeout still leaves the reveal its target.
 ///
@@ -27,6 +30,7 @@ Future<void> applyFinalGeometry(
   required bool positionSupported,
   required void Function(HandoffTarget target) onTarget,
   bool hideFirst = true,
+  bool deferRunState = false,
 }) async {
   if (hideFirst) await port.hide();
 
@@ -54,6 +58,7 @@ Future<void> applyFinalGeometry(
         y: position.y,
         width: geometry.windowedSize.width,
         height: geometry.windowedSize.height,
+        scale: position.scale,
       ),
     );
   } else {
@@ -61,7 +66,10 @@ Future<void> applyFinalGeometry(
     await port.center();
   }
 
-  switch (geometry.runState) {
+  final runState = deferRunState && geometry.runState != WindowRunState.windowed
+      ? _deferred(port, geometry.runState)
+      : geometry.runState;
+  switch (runState) {
     case WindowRunState.maximized:
       onTarget((size: null, fillsDisplay: true));
       await port.maximize();
@@ -71,6 +79,11 @@ Future<void> applyFinalGeometry(
     case WindowRunState.windowed:
       onTarget((size: geometry.windowedSize, fillsDisplay: false));
   }
+}
+
+WindowRunState _deferred(DesktopWindowPort port, WindowRunState state) {
+  port.deferRunState(state);
+  return WindowRunState.windowed;
 }
 
 String _describe(WindowGeometry geometry) {

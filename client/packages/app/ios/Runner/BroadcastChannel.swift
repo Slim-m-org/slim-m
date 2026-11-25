@@ -24,12 +24,38 @@ enum BroadcastChannel {
     switch call.method {
     case "isAvailable":
       result(isAvailable())
+    case "extensionSilenceMs":
+      observeHeartbeat()
+      result(extensionSilenceMs())
     case "requestStop":
       requestStop()
       result(nil)
     default:
       result(FlutterMethodNotImplemented)
     }
+  }
+
+  private static let heartbeatNotification = "top.npcserver.slimm.BroadcastHeartbeat"
+  private static var lastHeartbeat: CFAbsoluteTime?
+  private static var observingHeartbeat = false
+
+  /// Milliseconds since the extension last said it was alive, or nil if it never has.
+  private static func extensionSilenceMs() -> Int? {
+    guard let last = lastHeartbeat else { return nil }
+    return Int((CFAbsoluteTimeGetCurrent() - last) * 1000)
+  }
+
+  private static func observeHeartbeat() {
+    guard !observingHeartbeat else { return }
+    observingHeartbeat = true
+    CFNotificationCenterAddObserver(
+      CFNotificationCenterGetDarwinNotifyCenter(),
+      nil,
+      { _, _, _, _, _ in BroadcastChannel.lastHeartbeat = CFAbsoluteTimeGetCurrent() },
+      heartbeatNotification as CFString,
+      nil,
+      .deliverImmediately
+    )
   }
 
   /// The container probe is the load-bearing half. Both Info.plist keys can be

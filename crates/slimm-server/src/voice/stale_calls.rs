@@ -18,9 +18,9 @@ const ROOM_CHECK_CONCURRENCY: usize = 16;
 type ActiveMembers = HashMap<ChannelId, HashSet<UserId>>;
 
 impl VoiceService {
-    /// Every `(user, channel)` call to evict as of `now`, forgotten here for the caller to remove
-    /// at the SFU: a stale heartbeat the SFU does not vouch for, or one past [`STALE_WHILE_ACTIVE_CAP`].
-    pub async fn sweep_stale_calls_at(&self, now: Instant) -> Vec<(UserId, ChannelId)> {
+    /// Every call to evict as of `now`, forgotten here for the caller to remove at the SFU: a
+    /// stale heartbeat the SFU does not vouch for, or one past [`STALE_WHILE_ACTIVE_CAP`].
+    pub async fn sweep_stale_calls_at(&self, now: Instant) -> Vec<StaleCall> {
         let stale = self.heartbeats.stale_at(STALE_AFTER, now);
         let rooms: HashSet<ChannelId> = stale
             .iter()
@@ -32,7 +32,6 @@ impl VoiceService {
             .into_iter()
             .filter(|call| !kept_for_active_media(call, &active, now))
             .filter(|call| self.heartbeats.forget_if_unrefreshed(call))
-            .map(|call| (call.user_id, call.channel_id))
             .collect()
     }
 

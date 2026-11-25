@@ -12,7 +12,6 @@ use super::super::AppState;
 use super::super::error::ApiError;
 use super::super::extract::{AuthedLimited, Json, WRITE};
 use super::super::messages::parse_uuid;
-use crate::hub::Event;
 use crate::ids::{ChannelId, UserId};
 use crate::permissions::Permissions;
 use crate::store::SessionContext;
@@ -136,8 +135,6 @@ async fn may_report(
 fn nudge_roster(state: &AppState, ctx: &SessionContext, channel_id: ChannelId) {
     state.voice.roster_cache().invalidate(channel_id);
     if state.voice.has_heartbeat(ctx.user_id, channel_id) {
-        state
-            .hub
-            .publish(Event::VoiceActivityChanged { channel_id });
+        state.hub.nudge_voice_roster(channel_id);
     }
 }

@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use serde_json::json;
 
-use crate::response_contract::world::Contract;
+use crate::response_contract::world::{Contract, Payload};
 
 use super::{PASSWORD, text};
 
@@ -26,6 +26,23 @@ pub(crate) async fn export_calls(c: &mut Contract, root: &str) {
     c.get("listExports", "/exports", root).await;
     c.get("downloadExport", &format!("/exports/{id}/download"), root)
         .await;
+    let link = c
+        .json(
+            "createDownloadLink",
+            "POST",
+            "/downloads/links",
+            root,
+            json!({ "kind": "export", "id": id }),
+        )
+        .await;
+    c.call(
+        "redeemDownloadLink",
+        "GET",
+        &text(&link, "path"),
+        None,
+        Payload::None,
+    )
+    .await;
     c.bare("deleteExport", "DELETE", &format!("/exports/{id}"), root)
         .await;
     c.json(

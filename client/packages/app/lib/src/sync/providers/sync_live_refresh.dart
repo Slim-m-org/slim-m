@@ -27,6 +27,7 @@ void afterSyncLive(
   required bool reconnect,
   required bool Function() isCurrent,
 }) {
+  ref.read(syncResyncProvider.notifier).state++;
   refreshAccountNotificationState(ref, reconnect: reconnect);
   if (reconnect) {
     refreshRosterAfterReconnect(ref);

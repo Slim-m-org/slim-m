@@ -35,6 +35,7 @@ export 'client_emoji.dart' show SlimmApiEmoji;
 export 'client_soundboard.dart' show SlimmApiSoundboard;
 export 'client_screen_stamps.dart' show SlimmApiScreenStamps;
 export 'client_space_themes.dart' show SlimmApiSpaceThemes;
+export 'client_download_links.dart' show DownloadLink, SlimmApiDownloadLinks;
 export 'client_exports.dart' show SlimmApiExports;
 export 'client_favorites.dart' show SlimmApiFavorites;
 export 'client_gifs.dart' show SlimmApiGifs;

@@ -2,7 +2,6 @@
 //! Every mutating route the admin audit log does not record, one exact entry each with where it is
 //! recorded instead or why it is no admin change. A new route is in neither list until someone decides.
 
-const GAP: &str = "GAP: writes no audit row yet";
 const LIVEKIT: &str = "LiveKit's signed callback";
 const BOT_OWN: &str = "a bot registering its own commands, not an admin change";
 const OWN_REPORT: &str = "a member's own report";
@@ -12,6 +11,7 @@ const MOD_LOG: &str = "moderation_audit_log row";
 const MOD_DELETED: &str = "moderation_audit_log row (messages_deleted)";
 const MOD_DELETE_ONE: &str = "moderation_audit_log row (messages_deleted) for a moderator delete";
 const MOD_VOICE_MOVE: &str = "moderation_audit_log row (voice_move)";
+const MOD_VOICE_KICK: &str = "moderation_audit_log row (voice_kick)";
 const MOD_OWN_TX: &str = "moderation_audit_log row in the act's own transaction";
 const MOD_PER_MEMBER: &str = "moderation_audit_log row per member";
 const MOD_NOT_AUTHOR: &str = "moderation_audit_log row when the actor is not the author";
@@ -24,7 +24,7 @@ pub const EXEMPT_ROUTES: &[(&str, &str, &str)] = &[
     (
         "POST",
         "/channels/{channel_id}/voice/participants/{user_id}/kick",
-        GAP,
+        MOD_VOICE_KICK,
     ),
     ("POST", "/voice/webhook", LIVEKIT),
     ("PUT", "/bots/commands", BOT_OWN),
@@ -291,6 +291,7 @@ pub const EXEMPT_ROUTES: &[(&str, &str, &str)] = &[
     ("POST", "/dms/groups/{channel_id}/leave", OWN_DATA),
     ("POST", "/dms/groups/{channel_id}/members", OWN_DATA),
     ("POST", "/dms/{user_id}", OWN_DATA),
+    ("POST", "/downloads/links", OWN_DATA),
     ("POST", "/exports/member", OWN_DATA),
     ("POST", "/favorites", OWN_DATA),
     ("POST", "/favorites/{favorite_id}/select", OWN_DATA),

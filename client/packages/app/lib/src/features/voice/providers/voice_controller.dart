@@ -19,6 +19,7 @@ import '../../../audio/sound_session_release.dart';
 import '../../../push/providers/push_channel_providers.dart';
 import '../../../providers/sync_controller.dart';
 import 'call_foreground_keeper.dart';
+import 'dm_call.dart';
 import 'call_owner.dart';
 import '../../accounts/providers/account_providers.dart'
     show accountHostProvider;
@@ -30,6 +31,7 @@ import 'voice_audio_devices.dart';
 import 'voice_auto_rejoin.dart';
 import 'voice_call_clock.dart';
 import 'voice_call_heartbeat.dart';
+import 'voice_call_lifecycle_report.dart';
 import 'voice_camera_failure.dart';
 import 'voice_camera_hiding.dart';
 import 'voice_server_presence.dart';
@@ -110,6 +112,7 @@ class VoiceController extends StateNotifier<VoiceState> {
       session: _session,
       access: access,
       callLifecycle: _callLifecycle,
+      isDirectCall: (id) => isDirectCall(_ref, id),
       foreground: _foreground,
       heartbeat: _heartbeat,
       autoRejoin: _autoRejoin,
@@ -126,6 +129,13 @@ class VoiceController extends StateNotifier<VoiceState> {
     _endCallRequests = _callLifecycle.endCallRequests.listen((_) {
       if (state.channelId != null) unawaited(leave());
     });
+    _muteBridge = CallMuteBridge(
+      _callLifecycle,
+      inCall: () => state.channelId != null,
+      microphoneEnabled: () => state.microphoneEnabled,
+      toggleMicrophone: toggleMicrophone,
+    );
+    addListener((s) => _muteBridge.reflect(s.microphoneEnabled));
     _session.audioSessionReader = _callLifecycle.audioSessionLine;
     _callSystemEvents = _callLifecycle.systemEvents.listen(
       _session.noteCallSystemEvent,
@@ -143,6 +153,7 @@ class VoiceController extends StateNotifier<VoiceState> {
     _transportRestarts = _session.transportRestarts.listen(
       (_) => _sync.onTransportRestarted(),
     );
+    _publishPermission = _sfu.watchPublishPermission();
     _shareSourceLost = _session.screenShareSourceLost.listen(
       (_) => share.reportShareSourceLost(),
     );
@@ -208,10 +219,12 @@ class VoiceController extends StateNotifier<VoiceState> {
   final CallActivityTracker _activity;
   late final StreamSubscription<VoiceSessionState> _states;
   late final StreamSubscription<void> _transportRestarts;
+  late final StreamSubscription<bool> _publishPermission;
   late final StreamSubscription<List<VoiceParticipant>> _participants;
   late final StreamSubscription<String> _shareSourceLost;
   late final StreamSubscription<CameraJoinOpen> _cameraJoinOpens;
   late final StreamSubscription<void> _endCallRequests;
+  late final CallMuteBridge _muteBridge;
   late final StreamSubscription<String> _callSystemEvents;
 
   /// Bumped by every [join] and [leave], so a stale call's continuation can tell it was superseded.
@@ -249,6 +262,7 @@ class VoiceController extends StateNotifier<VoiceState> {
 
   /// [join] for a move somebody else made: it never opens a microphone that is closed in this call.
   Future<void> joinMoved(String channelId) {
+    _sync.cancelHeldRemoval();
     _keepMicNextJoin = true;
     return join(channelId);
   }
@@ -307,7 +321,10 @@ class VoiceController extends StateNotifier<VoiceState> {
     }
     // Before the token round trip, so a muted join that fails there is retried muted.
     if (muted) state = _joinMuted.showMuted(state);
-    if (callStarts) await _ref.read(callStartYieldsProvider).callStarting();
+    if (callStarts) {
+      await leaveOtherAccountCalls(_ref);
+      await _ref.read(callStartYieldsProvider).callStarting();
+    }
     // Awaited before the connect, so no ring is still sounding when the call takes the audio session.
     await _ref.read(soundSessionReleaseProvider)();
     if (superseded()) return;
@@ -515,12 +532,15 @@ class VoiceController extends StateNotifier<VoiceState> {
     input.stopWatchingSpaceNoiseSuppression();
     _autoRejoin.reset();
     _reconnectDisplay.dispose();
+    _sync.cancelHeldRemoval();
     unawaited(_states.cancel());
     unawaited(_transportRestarts.cancel());
+    unawaited(_publishPermission.cancel());
     unawaited(_participants.cancel());
     unawaited(_shareSourceLost.cancel());
     unawaited(_cameraJoinOpens.cancel());
     unawaited(_endCallRequests.cancel());
+    _muteBridge.dispose();
     unawaited(_callSystemEvents.cancel());
     unawaited(_session.dispose());
     _callLifecycle.dispose();

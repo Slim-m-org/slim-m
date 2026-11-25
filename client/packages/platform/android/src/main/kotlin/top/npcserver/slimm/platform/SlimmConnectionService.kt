@@ -27,15 +27,36 @@ class SlimmConnectionService : ConnectionService() {
         val extras = request.extras
         val callId = extras?.getString(SlimmConnection.EXTRA_CALL_ID).orEmpty()
         val callerName = extras?.getString(SlimmConnection.EXTRA_CALLER_NAME).orEmpty()
+        SlimmConnection.registry.remove(callId)?.endReplaced()
         val connection = SlimmConnection(applicationContext, callId, callerName)
         connection.setRinging()
         SlimmConnection.registry[callId] = connection
         return connection
     }
 
-    override fun onCreateIncomingConnectionFailed(
+    override fun onCreateOutgoingConnection(
         connectionManagerPhoneAccount: PhoneAccountHandle,
         request: ConnectionRequest,
+    ): Connection {
+        val callId = SlimmOngoingConnection.callIdOf(request.address).orEmpty()
+        val displayName = request.extras?.getString(SlimmConnection.EXTRA_CALLER_NAME).orEmpty()
+        val connection = SlimmOngoingConnection(callId, displayName)
+        ActiveCall.connectionCreated(connection)
+        return connection
+    }
+
+    override fun onCreateOutgoingConnectionFailed(
+        connectionManagerPhoneAccount: PhoneAccountHandle?,
+        request: ConnectionRequest?,
+    ) {
+        // Telecom refused the call; the app's own call carries on without a Telecom entry.
+        ActiveCall.end(SlimmOngoingConnection.callIdOf(request?.address))
+    }
+
+    /** Telecom passes null here, so a non-null parameter crashes the process on a refused call. */
+    override fun onCreateIncomingConnectionFailed(
+        connectionManagerPhoneAccount: PhoneAccountHandle?,
+        request: ConnectionRequest?,
     ) {
         // Telecom refused the call (no free slot, the account not yet
         // enabled by the user, ...); the notification IncomingCallNotifier

@@ -47,6 +47,31 @@ class PluginsWaitForTheWindow(unittest.TestCase):
         self.assertNotIn("FlutterViewController", main)
         self.assertLess(main.index("ServeMainWindowReady("), main.index("->Run()"))
 
+    def test_a_login_launch_never_shows_from_the_deadline(self):
+        window = strip_c_comments((RUNNER_DIR / "main_window.cpp").read_text())
+        timer = window[window.index("wparam == kRevealTimer"):]
+        timer = timer[: timer.index("return 0;")]
+        self.assertRegex(timer, r"if \(LaunchedAtLogin\(\)\) \{\s*ReleaseFirstShowHeld\(\);")
+        hold = window[window.index("void HoldFirstShow("):]
+        hold = hold[: hold.index("\n}")]
+        self.assertIn("if (LaunchedAtLogin()) ReleaseFirstShowHeld();", hold)
+
+    def test_login_detection_matches_a_whole_argument(self):
+        window = strip_c_comments((RUNNER_DIR / "main_window.cpp").read_text())
+        login = window[window.index("bool LaunchedAtLogin("):]
+        login = login[: login.index("\n}")]
+        self.assertIn("CommandLineToArgvW", login)
+        self.assertIn("wcscmp(args[i], kLoginArgument)", login)
+        self.assertNotIn("wcsstr", login)
+
+    def test_the_taskbar_badge_follows_the_taskbar_and_display_changes(self):
+        badge = strip_c_comments((RUNNER_DIR / "taskbar_attention_channel.cpp").read_text())
+        self.assertIn("DrawBadge(count, TaskbarDpi(window_))", badge)
+        self.assertIn("Shell_TrayWnd", badge)
+        window = strip_c_comments((RUNNER_DIR / "main_window.cpp").read_text())
+        for message in ("WM_DISPLAYCHANGE", "WM_SETTINGCHANGE"):
+            self.assertRegex(window, message + r"[^;]*\)\s*\{\s*OnTaskbarButtonCreated")
+
     def test_plugins_follow_the_main_view(self):
         window = strip_c_comments((RUNNER_DIR / "main_window.cpp").read_text())
         self.assertLess(window.index("GetViewById("), window.index("RegisterPlugins("))

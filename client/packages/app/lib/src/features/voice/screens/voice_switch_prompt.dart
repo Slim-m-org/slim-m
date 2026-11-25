@@ -14,9 +14,17 @@ import '../widgets/confirmed_join.dart';
 /// asks first rather than silently moving them, the one place a voice
 /// channel arrival still needs an explicit decision.
 class VoiceSwitchPrompt extends StatelessWidget {
-  const VoiceSwitchPrompt({super.key, required this.onSwitch, this.onCancel});
+  const VoiceSwitchPrompt({
+    super.key,
+    required this.onSwitch,
+    this.onCancel,
+    this.errorMessage,
+  });
 
   final VoidCallback onSwitch;
+
+  /// Why the switch did not go ahead; shown with a retry of [onSwitch].
+  final String? errorMessage;
 
   /// Offers Cancel, for a switch asked from a page that stays useful without it.
   final VoidCallback? onCancel;
@@ -29,6 +37,7 @@ class VoiceSwitchPrompt extends StatelessWidget {
     onConfirm: onSwitch,
     cancelLabel: onCancel == null ? null : 'Cancel',
     onCancel: onCancel,
+    errorMessage: errorMessage,
   );
 }
 
@@ -67,6 +76,7 @@ class _VoicePrompt extends StatelessWidget {
     required this.onConfirm,
     this.cancelLabel,
     this.onCancel,
+    this.errorMessage,
   });
 
   final String title;
@@ -75,6 +85,7 @@ class _VoicePrompt extends StatelessWidget {
   final VoidCallback onConfirm;
   final String? cancelLabel;
   final VoidCallback? onCancel;
+  final String? errorMessage;
 
   @override
   Widget build(BuildContext context) {
@@ -111,6 +122,10 @@ class _VoicePrompt extends StatelessWidget {
                 style: AppText.caption.copyWith(color: tokens.textSecondary),
               ),
               const SizedBox(height: AppSpacing.s16),
+              if (errorMessage != null) ...[
+                AppErrorState(message: errorMessage!, onRetry: onConfirm),
+                const SizedBox(height: AppSpacing.s16),
+              ],
               FilledButton(
                 onPressed: onConfirm,
                 style: FilledButton.styleFrom(

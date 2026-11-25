@@ -17,6 +17,7 @@ add_executable(${BINARY_NAME} WIN32
   "now_playing_channel.cpp"
   "popout_window_proc.cpp"
   "screen_overlay_channel.cpp"
+  "session_lock_channel.cpp"
   "single_instance.cpp"
   "taskbar_attention_channel.cpp"
   "utils.cpp"

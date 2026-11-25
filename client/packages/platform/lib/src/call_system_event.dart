@@ -48,12 +48,16 @@ String _callKit(Map<Object?, Object?> event) {
     'connected' => 'connected report',
     'end' => 'end request',
     'endAction' => 'end action',
+    'muteAction' => 'mute action',
+    'mute' => 'mute request',
+    'reset' => 'provider reset',
     final other => '$other',
   };
   final result = switch (event['result']) {
     'failed' => 'failed (${_error(event)})',
     'skipped' => 'skipped, a call is already reported',
     'noCall' => 'skipped, no call is reported',
+    'adopted' => 'took over the answered call',
     'system' => 'from the system call screen',
     final other => '$other',
   };

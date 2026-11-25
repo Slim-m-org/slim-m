@@ -56,6 +56,9 @@ class _FakeLibrary implements PhotoLibrary {
       MemoryFile('$id.png', _png).source;
 
   @override
+  Future<void> clearCache() async {}
+
+  @override
   Future<void> manageLimited() async => manageCalls += 1;
 }
 
@@ -164,7 +167,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(picker.calls, 1);
-    expect(picker.lastType, FileType.image);
+    expect(picker.lastType, FileType.media);
   });
 
   testWidgets('denied access says so inline and offers the system picker', (
@@ -180,7 +183,7 @@ void main() {
     await tester.tap(find.text('Browse photos'));
     await tester.pumpAndSettle();
 
-    expect(picker.lastType, FileType.image);
+    expect(picker.lastType, FileType.media);
   });
 
   testWidgets('a plugin that throws lands on the inline fallback', (
@@ -197,7 +200,7 @@ void main() {
 
     await tester.tap(find.text('Browse photos'));
     await tester.pumpAndSettle();
-    expect(picker.lastType, FileType.image);
+    expect(picker.lastType, FileType.media);
   });
 
   testWidgets('limited access labels the strip and can widen the grant', (
@@ -257,7 +260,7 @@ void main() {
     await _openStrip(tester);
 
     expect(find.byType(ComposerPhotoStrip), findsNothing);
-    expect(picker.lastType, FileType.image);
+    expect(picker.lastType, FileType.media);
   });
 
   testWidgets('at expanded width the strip draws nothing', (tester) async {

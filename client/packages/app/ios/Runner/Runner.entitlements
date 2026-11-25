@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>aps-environment</key>
-	<string>production</string>
+	<string>$(APS_ENVIRONMENT)</string>
 	<!-- The broadcast upload extension is a separate process; this shared
 	     container is the only place the two can meet. flutter_webrtc opens
 	     the capture socket in it, the extension connects to it. Must match

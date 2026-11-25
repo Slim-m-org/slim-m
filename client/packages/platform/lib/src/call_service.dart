@@ -58,17 +58,24 @@ class CallService {
   void forgetLast() => _last = const CallServiceState();
 
   /// Moves the service to [state], starting or stopping it as needed; a
-  /// repeat of the last state sends nothing.
+  /// repeat of the last state sends nothing, and a start that failed is retried.
   Future<void> update(CallServiceState state) async {
     if (!_isAndroid || state == _last) return;
+    final previous = _last;
     _last = state;
+    void retryNext() {
+      if (_last == state) _last = previous;
+    }
+
     try {
-      await _channel.invokeMethod<void>('updateCallService', {
+      final started = await _channel.invokeMethod<bool>('updateCallService', {
         'call': state.call,
         'camera': state.camera,
         'share': state.share,
       });
+      if (started == false) retryNext();
     } on PlatformException catch (error, stack) {
+      retryNext();
       AppLog.swallowed(LogTag.voice,
           'Could not update the call foreground service', error, stack);
     } on MissingPluginException catch (error, stack) {

@@ -19,11 +19,12 @@
 //!   lets you publish, `USE_CANVAS` is what lets you send data. Someone with
 //!   listen-only rights gets a token that cannot publish, so the SFU enforces
 //!   it too rather than trusting the client to hide a button.
-//! - **The TTL is short.** A LiveKit token is a bearer credential the server
-//!   cannot revoke once handed out, so a kicked participant is removed through
-//!   the room service ([`VoiceService::remove_participant`]) and their token
-//!   expires quickly enough that re-joining means asking again, and being
-//!   re-checked.
+//! - **The TTL is short, but the SFU renews what it accepts.** A LiveKit token is a
+//!   bearer credential the server cannot revoke once handed out, so a kicked participant is
+//!   removed through the room service ([`VoiceService::remove_participant`]). The SFU gives every
+//!   connection it accepts a renewed token, so a join with no mint in the last
+//!   [`TOKEN_TTL_SECS`] is re-checked when its webhook arrives, and grants that change mid-call
+//!   are pushed to the SFU ([`VoiceService::set_participant_grants`]).
 //!
 //! A kick or a timeout is a deliberate eviction; a terminated app is not, and
 //! nothing tells this service about it directly, since a killed process runs
@@ -46,6 +47,7 @@ mod heartbeat;
 mod in_call;
 mod live_state;
 mod notice_windows;
+mod recent_joins;
 mod ring;
 mod room_admin;
 mod room_lifecycle;
@@ -54,12 +56,13 @@ mod stale_calls;
 mod token;
 mod watch_viewing;
 mod webhook;
-pub use asked_calls::AskedCalls;
+pub use asked_calls::{AskedCalls, Grants};
 pub(crate) use call_record::{push_if_heard, record_finished_call};
 use heartbeat::{CallHeartbeats, IN_CALL_WITHIN};
 pub use in_call::Listing;
 pub use live_state::RoomLiveState;
 pub use notice_windows::{NOTICE_WINDOW_MS, NoticeWindows};
+pub use recent_joins::RecentJoins;
 pub use ring::{CallRingOutcome, CallRings, Canceled, Declined, RING_TIMEOUT, StaleRing};
 pub use roster::{RoomParticipant, RosterCache};
 use token::{Claims, VideoGrant, http_url_for, unix_secs};
@@ -68,15 +71,11 @@ pub use webhook::{WebhookError, WebhookEvent, channel_for_room, is_screen_share_
 
 /// How long a join token is good for.
 ///
-/// Short on purpose: this is a bearer credential, so the window in which a
-/// participant removed from a room could walk back in with the same token is
-/// exactly this long. Long enough to cover a slow join and a reconnect,
-/// nowhere near long enough to be worth saving.
+/// Short on purpose: this is a bearer credential. Long enough to cover a slow join and a
+/// reconnect, and also the window inside which a join counts as the one its mint was for.
 const TOKEN_TTL_SECS: u64 = 120;
 
-/// The SFU accepts this token without asking us, so the TTL is the only thing
-/// bounding how long a removed participant could rejoin with one they already
-/// hold. Enforced at compile time so raising it is a deliberate act.
+/// Enforced at compile time so raising the lifetime is a deliberate act.
 const _: () = assert!(TOKEN_TTL_SECS <= 300);
 
 /// How long the server's own room-admin token is good for. Only ever used for
@@ -157,6 +156,8 @@ pub struct VoiceService {
     notice_windows: NoticeWindows,
     /// Ephemeral like its siblings; see `voice::asked_calls`'s own doc.
     asked_calls: AskedCalls,
+    /// Ephemeral like its siblings; see `voice::recent_joins`'s own doc.
+    recent_joins: RecentJoins,
 }
 
 struct Enabled {
@@ -183,6 +184,7 @@ impl VoiceService {
             watch_viewing: watch_viewing::WatchViewing::default(),
             notice_windows: NoticeWindows::default(),
             asked_calls: AskedCalls::default(),
+            recent_joins: RecentJoins::default(),
         }
     }
 
@@ -239,6 +241,11 @@ impl VoiceService {
     /// The call each member last asked a token for.
     pub fn asked_calls(&self) -> &AskedCalls {
         &self.asked_calls
+    }
+
+    /// When join tokens were last minted per channel.
+    pub fn recent_joins(&self) -> &RecentJoins {
+        &self.recent_joins
     }
 
     /// Who on each call plays the watch party's title themselves.
@@ -343,6 +350,7 @@ impl VoiceService {
             },
         )?;
 
+        self.recent_joins.record(channel_id, crate::store::now_ms());
         Ok(RoomToken {
             url: enabled.url.clone(),
             room,

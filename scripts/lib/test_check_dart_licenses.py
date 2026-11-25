@@ -91,3 +91,18 @@ class ClassifyTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class VendoredPathTest(unittest.TestCase):
+    def setUp(self):
+        self.module = _load_module()
+
+    def test_a_path_package_inside_the_repo_is_vendored(self):
+        root = Path(__file__).resolve().parents[2]
+        entry = self.module.Locked("p", "1.0.0", "path", "", "third_party/flutter_secure_storage_linux")
+        self.assertTrue(self.module._vendored(entry, root))
+
+    def test_a_path_package_outside_the_repo_is_not(self):
+        root = Path(__file__).resolve().parents[2]
+        entry = self.module.Locked("p", "1.0.0", "path", "", "../../../elsewhere")
+        self.assertFalse(self.module._vendored(entry, root))

@@ -15,6 +15,7 @@ use super::Store;
 pub(in crate::store) struct DerivedKeys {
     module_caller: OnceCell<[u8; 32]>,
     link_preview_image: OnceCell<[u8; 32]>,
+    download_link: OnceCell<[u8; 32]>,
 }
 
 impl Store {
@@ -60,6 +61,15 @@ impl Store {
             .get_or_try_init(|| {
                 crate::identity::derived_key(&self.pool, b"slim-link-preview-image-v1")
             })
+            .await
+            .copied()
+    }
+
+    /// The secret short-lived download links are signed with; see `http::download_links`.
+    pub async fn download_link_key(&self) -> anyhow::Result<[u8; 32]> {
+        self.derived_keys
+            .download_link
+            .get_or_try_init(|| crate::identity::derived_key(&self.pool, b"slim-download-link-v1"))
             .await
             .copied()
     }

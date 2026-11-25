@@ -20,6 +20,7 @@ class _Portal extends DBusObject {
   final registered = <String>{};
   final bound = <List<String>>[];
   var sessions = 0;
+  var answerBinds = true;
   String? lastSession;
 
   @override
@@ -60,6 +61,9 @@ class _Portal extends DBusObject {
           (entry as DBusStruct).children.first.asString(),
       ]);
     }
+    if (call.name == 'BindShortcuts' && !answerBinds) {
+      return DBusMethodSuccessResponse([DBusObjectPath(request)]);
+    }
     unawaited(
       client!.emitSignal(
         path: DBusObjectPath(request),
@@ -91,14 +95,15 @@ Future<void> _hostPortal(SendPort reply) async {
   final dir = Directory.systemTemp.createTempSync('slimm-portal-bus-');
   final server = DBusServer();
   final address = await server.listenAddress(DBusAddress.unix(dir: dir));
-  final bus = DBusClient(address);
+  var bus = DBusClient(address);
   await bus.requestName('org.freedesktop.portal.Desktop');
-  final portal = _Portal();
+  var portal = _Portal();
   await bus.registerObject(portal);
   final commands = ReceivePort();
   reply.send((address.value, commands.sendPort));
   await for (final command in commands) {
     if (command case ('press', final String id)) {
+      if (portal.lastSession == null) continue;
       await bus.emitSignal(
         path: DBusObjectPath('/org/freedesktop/portal/desktop'),
         interface: 'org.freedesktop.portal.GlobalShortcuts',
@@ -110,6 +115,19 @@ Future<void> _hostPortal(SendPort reply) async {
           DBusDict.stringVariant({}),
         ],
       );
+      continue;
+    }
+    if (command == 'silence-binds') {
+      portal.answerBinds = false;
+      continue;
+    }
+    if (command == 'restart') {
+      final methods = portal.methods;
+      await bus.close();
+      bus = DBusClient(address);
+      await bus.requestName('org.freedesktop.portal.Desktop');
+      portal = _Portal()..methods.addAll(methods);
+      await bus.registerObject(portal);
       continue;
     }
     reply.send((portal.methods, portal.bound));
@@ -161,8 +179,10 @@ Future<
       PortalGlobalHotkeySource,
       Future<_Seen> Function(),
       void Function(GlobalHotkeyId),
+      void Function(String),
     )> _withPortal({
   DBusClient Function(DBusAddress address) client = DBusClient.new,
+  Duration approvalTimeout = const Duration(seconds: 2),
 }) async {
   final replies = ReceivePort();
   final isolate = await Isolate.spawn(_hostPortal, replies.sendPort);
@@ -171,7 +191,7 @@ Future<
   final (address, commands) = inbox.current as (String, SendPort);
   final source = PortalGlobalHotkeySource(
     clientFactory: () => client(DBusAddress(address)),
-    approvalTimeout: const Duration(seconds: 2),
+    approvalTimeout: approvalTimeout,
   );
   Future<_Seen> stop() async {
     await source.dispose();
@@ -184,7 +204,7 @@ Future<
 
   void press(GlobalHotkeyId id) => commands.send(('press', id.name));
 
-  return (source, stop, press);
+  return (source, stop, press, commands.send);
 }
 
 GlobalHotkeyBinding _binding(GlobalHotkeyId id, LogicalKeyboardKey key) =>
@@ -201,7 +221,7 @@ final _talk = _binding(GlobalHotkeyId.pushToTalk, LogicalKeyboardKey.keyV);
 void main() {
   test('an answer read in the same batch as the name lookup is not lost',
       () async {
-    final (source, stop, _) = await _withPortal(client: _BusyClient.new);
+    final (source, stop, _, _) = await _withPortal(client: _BusyClient.new);
     final result = await source.bind([_mute]);
     final (methods, _) = await stop();
     expect(methods, ['Register', 'CreateSession', 'BindShortcuts', 'Close']);
@@ -209,7 +229,7 @@ void main() {
   });
 
   test('a changed set of shortcuts is bound in a fresh session', () async {
-    final (source, stop, _) = await _withPortal();
+    final (source, stop, _, _) = await _withPortal();
     await source.bind([_talk]);
     await source.bind([_talk, _mute, _deafen]);
     await source.bind([_talk, _mute, _deafen]);
@@ -232,7 +252,7 @@ void main() {
   });
 
   test('a rebind while a shortcut is held releases it', () async {
-    final (source, stop, press) = await _withPortal();
+    final (source, stop, press, _) = await _withPortal();
     final events = <GlobalHotkeyEvent>[];
     final subscription = source.events.listen(events.add);
     await source.bind([_talk]);
@@ -240,7 +260,8 @@ void main() {
     for (var i = 0; i < 100 && events.isEmpty; i++) {
       await Future<void>.delayed(const Duration(milliseconds: 20));
     }
-    expect(events.map((e) => e.phase), [GlobalHotkeyPhase.pressed]);
+    expect(events.map((e) => e.phase), contains(GlobalHotkeyPhase.pressed));
+    expect(events.map((e) => e.phase), isNot(contains(GlobalHotkeyPhase.lost)));
 
     await source.bind([_talk, _mute]);
     await Future<void>.delayed(Duration.zero);
@@ -253,5 +274,39 @@ void main() {
         (GlobalHotkeyId.pushToTalk, GlobalHotkeyPhase.released),
       ],
     );
+  });
+
+  test('a bind nobody answers closes its session instead of leaking it',
+      () async {
+    final (source, stop, _, send) =
+        await _withPortal(approvalTimeout: const Duration(milliseconds: 300));
+    await source.bind([_talk]);
+    send('silence-binds');
+    final result = await source.bind([_talk, _mute]);
+    final (methods, _) = await stop();
+    expect(result.available, isFalse);
+    expect(result.message, portalUnansweredMessage);
+    expect(methods.where((m) => m == 'Close'), hasLength(2));
+  });
+
+  test('a restarted portal is bound again without the app asking', () async {
+    final (source, stop, press, send) = await _withPortal();
+    final events = <GlobalHotkeyEvent>[];
+    final subscription = source.events.listen(events.add);
+    await source.bind([_talk]);
+    send('restart');
+    for (var i = 0; i < 100 && events.isEmpty; i++) {
+      press(GlobalHotkeyId.pushToTalk);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    }
+    await subscription.cancel();
+    final (methods, bound) = await stop();
+    expect(
+      methods.where((m) => m == 'Register' || m == 'CreateSession'),
+      ['Register', 'CreateSession', 'Register', 'CreateSession'],
+    );
+    expect(bound.last, ['pushToTalk']);
+    expect(events.map((e) => e.phase), contains(GlobalHotkeyPhase.pressed));
+    expect(events.map((e) => e.phase), isNot(contains(GlobalHotkeyPhase.lost)));
   });
 }

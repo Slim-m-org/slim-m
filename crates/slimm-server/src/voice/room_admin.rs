@@ -9,7 +9,7 @@ use sha2::Sha256;
 use super::token::{Claims, VideoGrant, unix_secs};
 use super::{
     ADMIN_TOKEN_TTL_SECS, ANNOUNCE_ATTRIBUTE, DEAFENED_ATTRIBUTE, DEAFENED_ATTRIBUTE_ON, Enabled,
-    VoiceError, VoiceService, room_for_channel,
+    Grants, VoiceError, VoiceService, room_for_channel,
 };
 use crate::ids::{ChannelId, UserId};
 
@@ -32,17 +32,34 @@ impl VoiceService {
     }
 
     /// [`Self::remove_participant`] for the stale-heartbeat sweep, which already forgot the
-    /// heartbeat: one on record again is a rejoin since, which stays. Returns whether it removed.
+    /// heartbeat: one on record again, or a connection the SFU says joined after the last beat
+    /// (`last_beat_ms`, unix time), is a rejoin since, which stays. Returns whether it removed.
     pub async fn remove_stale_participant(
         &self,
         channel_id: ChannelId,
         user_id: UserId,
+        last_beat_ms: i64,
     ) -> Result<bool, VoiceError> {
-        if self.heartbeats.contains(user_id, channel_id) {
+        if self.heartbeats.contains(user_id, channel_id)
+            || self.joined_after(channel_id, user_id, last_beat_ms).await
+        {
             return Ok(false);
         }
         self.remove_from_room(channel_id, user_id).await?;
         Ok(true)
+    }
+
+    /// Whether the SFU lists `user_id` as having joined `channel_id` after `at_ms`; an SFU that
+    /// cannot say counts as no, so a stale call is still removed.
+    async fn joined_after(&self, channel_id: ChannelId, user_id: UserId, at_ms: i64) -> bool {
+        let Ok(listed) = self.list_participants(channel_id).await else {
+            return false;
+        };
+        listed
+            .iter()
+            .filter(|p| p.user_id == user_id)
+            .filter_map(|p| p.joined_at_ms)
+            .any(|joined| joined > at_ms)
     }
 
     async fn remove_from_room(
@@ -96,6 +113,40 @@ impl VoiceService {
         Ok(())
     }
 
+    /// Sets what `user_id` may publish in `channel_id`'s room right now: audio from Speak, data
+    /// from Use Canvas. LiveKit applies it at once and stops tracks the member may no longer publish.
+    pub async fn set_participant_grants(
+        &self,
+        channel_id: ChannelId,
+        user_id: UserId,
+        grants: Grants,
+    ) -> Result<(), VoiceError> {
+        let Some(enabled) = self.inner.as_ref() else {
+            return Err(VoiceError::Unavailable);
+        };
+        let room = room_for_channel(channel_id);
+        let sent = self
+            .room_service_call(
+                enabled,
+                "UpdateParticipant",
+                &room,
+                serde_json::json!({
+                    "room": room,
+                    "identity": user_id.to_string(),
+                    "permission": {
+                        "canSubscribe": true,
+                        "canPublish": grants.publish,
+                        "canPublishData": grants.publish_data,
+                    },
+                }),
+            )
+            .await?;
+        if sent.is_some() {
+            self.asked_calls.set_grants(user_id, channel_id, grants);
+        }
+        Ok(())
+    }
+
     /// Makes the SFU tell everyone in the call about `user_id` now rather than on its next batch.
     ///
     /// LiveKit holds a participant who has published nothing (someone who joined muted) for up to
@@ -124,7 +175,7 @@ impl VoiceService {
         Ok(())
     }
 
-    /// One authenticated room-service call with the regular room-admin token. `Ok(None)` is a 404:
+    /// One authenticated room-service call with the regular room-admin token. `Ok(None)` is a Twirp `not_found`:
     /// the room, or the participant in it, is already gone, which every caller treats as the state
     /// it asked for.
     pub(super) async fn room_service_call(
@@ -173,7 +224,13 @@ impl VoiceService {
             .map_err(|e| VoiceError::Internal(e.into()))?;
         let status = response.status();
         if status == reqwest::StatusCode::NOT_FOUND {
-            return Ok(None);
+            return if is_twirp_not_found(&response.text().await.unwrap_or_default()) {
+                Ok(None)
+            } else {
+                Err(VoiceError::Internal(anyhow::anyhow!(
+                    "livekit room service answered 404 to {method} without a not_found error, check SLIMM_LIVEKIT_SERVICE_URL"
+                )))
+            };
         }
         if !status.is_success() {
             return Err(VoiceError::Internal(anyhow::anyhow!(
@@ -252,4 +309,10 @@ impl VoiceService {
 
         Ok(format!("{signing_input}.{signature}"))
     }
+}
+
+/// Whether a 404 body is LiveKit's own `not_found` answer, not a proxy's or router's plain 404.
+fn is_twirp_not_found(body: &str) -> bool {
+    serde_json::from_str::<serde_json::Value>(body)
+        .is_ok_and(|v| v.get("code").and_then(serde_json::Value::as_str) == Some("not_found"))
 }

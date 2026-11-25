@@ -6,6 +6,7 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_api/api.dart' show ApiException;
 import 'package:slimm_rtc/rtc.dart';
 
 import '../providers/voice_elsewhere.dart';
@@ -34,6 +35,7 @@ class ConfirmedJoinHost {
     required this.dropped,
     required this.checking,
     required this.askJoinHere,
+    this.noticeFailed,
   });
 
   /// True once the ask is stale or its screen is gone, which ends the join wherever it stands.
@@ -44,10 +46,14 @@ class ConfirmedJoinHost {
 
   /// The call is open on another device, in [elsewhere]; [proceed] moves it here.
   final void Function(String elsewhere, VoidCallback proceed) askJoinHere;
+
+  /// Shows why the transcription notice could not be checked, or clears it with null; without it, that failure is rethrown.
+  final ValueChanged<String?>? noticeFailed;
 }
 
 /// Runs [join] now, after the one-time transcription notice, or after "Join here" when it would move a call open on another device.
 /// A call that came up meanwhile, here or elsewhere, wins over the join.
+/// A [switching] join already left the other call's decision to the switch prompt, so it only owes the notice.
 Future<void> runConfirmedJoin(
   BuildContext context,
   WidgetRef ref, {
@@ -55,9 +61,20 @@ Future<void> runConfirmedJoin(
   required bool isDm,
   required Future<void> Function() join,
   required ConfirmedJoinHost host,
+  bool switching = false,
 }) async {
-  if (!isDm && !await confirmTranscriptionNotice(context, ref)) return;
+  host.noticeFailed?.call(null);
+  try {
+    if (!isDm && !await confirmTranscriptionNotice(context, ref)) return;
+  } on ApiException {
+    final noticeFailed = host.noticeFailed;
+    if (noticeFailed == null) rethrow;
+    if (host.dropped()) return;
+    noticeFailed('Could not check the transcription notice.');
+    return;
+  }
   if (host.dropped()) return;
+  if (switching) return join();
   host.checking(true);
   final String? elsewhere;
   try {
@@ -65,6 +82,7 @@ Future<void> runConfirmedJoin(
   } finally {
     if (!host.dropped()) host.checking(false);
   }
+  if (!context.mounted) return;
   final voice = ref.read(voiceFlagsProvider);
   if (host.dropped() || voice.inCallStageFor(channelId)) return;
   if (callBusyElsewhere(voice, channelId)) return;

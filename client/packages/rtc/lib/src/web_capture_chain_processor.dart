@@ -4,6 +4,8 @@
 /// processed one. Free of browser types so a VM test can drive it.
 library;
 
+import 'dart:async';
+
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import 'package:livekit_client/livekit_client.dart' as lk;
 
@@ -14,6 +16,7 @@ class WebCaptureProcessor
     required this.name,
     required this.attach,
     required this.detach,
+    this.chainFailures,
   });
 
   @override
@@ -26,7 +29,12 @@ class WebCaptureProcessor
   /// Releases the chain from [processed], the output [attach] gave.
   final Future<void> Function(rtc.MediaStreamTrack processed) detach;
 
+  /// Fires when the chain dies after it attached, as when its worklet throws; the processed track is silent from then on.
+  final Stream<void>? chainFailures;
+
   rtc.MediaStreamTrack? _processed;
+  rtc.MediaStreamTrack? _raw;
+  StreamSubscription<void>? _failures;
   lk.Room? _room;
 
   @override
@@ -34,8 +42,11 @@ class WebCaptureProcessor
 
   @override
   Future<void> init(lk.AudioProcessorOptions options) async {
+    await _failures?.cancel();
+    _raw = options.track;
     final processed = await attach(options.track);
     _processed = identical(processed, options.track) ? null : processed;
+    _failures = chainFailures?.listen((_) => unawaited(_fallBackToRaw()));
     await _sendProcessed();
   }
 
@@ -44,9 +55,21 @@ class WebCaptureProcessor
 
   @override
   Future<void> destroy() async {
+    await _failures?.cancel();
+    _failures = null;
     final processed = _processed;
     _processed = null;
     if (processed == null) return;
+    await detach(processed);
+    await processed.stop();
+  }
+
+  Future<void> _fallBackToRaw() async {
+    final processed = _processed;
+    final raw = _raw;
+    if (processed == null || raw == null) return;
+    _processed = null;
+    await _replaceSenderTrack(raw);
     await detach(processed);
     await processed.stop();
   }
@@ -61,15 +84,19 @@ class WebCaptureProcessor
   /// the processor again, so a restarted track would go out unprocessed.
   Future<void> _sendProcessed() async {
     final processed = _processed;
+    if (processed != null) await _replaceSenderTrack(processed);
+  }
+
+  Future<void> _replaceSenderTrack(rtc.MediaStreamTrack next) async {
     final room = _room;
-    if (processed == null || room == null) return;
+    if (room == null) return;
     for (final publication
         in room.localParticipant?.audioTrackPublications ?? const []) {
       final track = publication.track;
       if (track == null || !identical(track.processor, this)) continue;
       final sender = track.sender;
-      if (sender != null && sender.track?.id != processed.id) {
-        await sender.replaceTrack(processed);
+      if (sender != null && sender.track?.id != next.id) {
+        await sender.replaceTrack(next);
       }
     }
   }

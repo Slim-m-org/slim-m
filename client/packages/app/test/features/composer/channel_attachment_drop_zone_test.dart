@@ -8,6 +8,7 @@
 /// event to exercise.
 library;
 
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:desktop_drop/desktop_drop.dart';
@@ -24,7 +25,10 @@ class _FakeTarget {
 
   ComposerAttachmentDropTarget get value => ComposerAttachmentDropTarget(
     stage: (bytes, filename) async => staged.add(filename),
-    stageFile: (file) async => staged.add(file.name),
+    stageFile: (file) async {
+      await file.length();
+      staged.add(file.name);
+    },
     setError: (message) => lastError = message,
   );
 }
@@ -109,6 +113,51 @@ void main() {
       final b = DropItemFile.fromData(Uint8List.fromList([2]), path: 'b.png');
       await handleComposerDrop([a, b], fake.value);
       expect(fake.staged, ['a.png', 'b.png']);
+    });
+
+    group('as the Linux plugin delivers them', () {
+      late Directory dir;
+      setUp(() {
+        dir = Directory.systemTemp.createTempSync('slimm-drop');
+        addTearDown(() => dir.deleteSync(recursive: true));
+      });
+
+      test('a folder arriving as a plain file item is refused', () async {
+        final fake = _FakeTarget();
+        final ok = DropItemFile.fromData(
+          Uint8List.fromList([1]),
+          path: 'ok.png',
+        );
+        await handleComposerDrop([DropItemFile(dir.path), ok], fake.value);
+        expect(fake.staged, ['ok.png']);
+        expect(fake.lastError, contains('Folders'));
+      });
+
+      test('a dropped web address is refused, not thrown', () async {
+        final fake = _FakeTarget();
+        final ok = DropItemFile.fromData(
+          Uint8List.fromList([1]),
+          path: 'ok.png',
+        );
+        await handleComposerDrop([
+          DropItemFile('https://example.com/a.png'),
+          ok,
+        ], fake.value);
+        expect(fake.staged, ['ok.png']);
+        expect(fake.lastError, isNotNull);
+      });
+
+      test('an item that fails to stage does not stop the rest', () async {
+        final fake = _FakeTarget();
+        final ok = DropItemFile.fromData(
+          Uint8List.fromList([1]),
+          path: 'ok.png',
+        );
+        final gone = DropItemFile('${dir.path}/missing.png');
+        await handleComposerDrop([gone, ok], fake.value);
+        expect(fake.staged, ['ok.png']);
+        expect(fake.lastError, isNotNull);
+      });
     });
   });
 }

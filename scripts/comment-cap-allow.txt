@@ -8,7 +8,7 @@
 .github/workflows/client-ios-ci.yml 11
 .github/workflows/client-macos-ci.yml 3
 .github/workflows/compose-smoke.yml 16
-.github/workflows/flatpak-ci.yml 5
+.github/workflows/flatpak-ci.yml 4
 .github/workflows/hygiene.yml 3
 .github/workflows/main-builds.yml 7
 .github/workflows/push-relay-contract.yml 6
@@ -34,7 +34,7 @@ client/packages/app/lib/src/features/channels/providers/pins_controller.dart 1
 client/packages/app/lib/src/push/providers/push_controller.dart 4
 client/packages/app/lib/src/features/voice/providers/voice_controller.dart 2
 client/packages/app/lib/src/routing/modal_page.dart 3
-client/packages/app/lib/src/routing/router.dart 5
+client/packages/app/lib/src/routing/router.dart 4
 client/packages/app/lib/src/features/settings/screens/admin/invite_role_grant_picker.dart 1
 client/packages/app/lib/src/features/channels/screens/channel_screen.dart 3
 client/packages/app/lib/src/screens/home_shell.dart 2
@@ -52,7 +52,7 @@ client/packages/app/lib/src/features/channels/widgets/channel_rail_sections.dart
 client/packages/app/lib/src/features/palette/widgets/command_palette.dart 1
 client/packages/app/lib/src/features/palette/widgets/command_palette_items.dart 1
 client/packages/app/lib/src/features/composer/widgets/composer.dart 1
-client/packages/app/lib/src/features/composer/widgets/composer_field.dart 4
+client/packages/app/lib/src/features/composer/widgets/composer_field.dart 3
 client/packages/app/lib/src/features/messages/widgets/fullscreen_image_viewer.dart 2
 client/packages/app/lib/src/features/settings/widgets/join_policy_row.dart 1
 client/packages/app/lib/src/features/members/widgets/member_pane.dart 1
@@ -136,7 +136,6 @@ client/packages/platform/lib/src/apns_token_channel.dart 2
 client/packages/platform/lib/src/persistent_key_store.dart 1
 client/packages/platform/test/apns_token_channel_test.dart 3
 client/packages/platform/test/device_push_keys_test.dart 1
-client/packages/platform/test/host_platform_test.dart 1
 client/packages/platform/test/local_notifications_test.dart 1
 client/packages/platform/test/persistent_key_store_test.dart 3
 client/packages/platform/test/platform_test.dart 4
@@ -221,14 +220,14 @@ crates/slimm-server/tests/it_infra/safety.rs 3
 crates/slimm-server/tests/it_infra/token_sweep.rs 1
 crates/slimm-server/tests/it_realtime/typing.rs 6
 docker-compose.voice.yml 8
-docker-compose.yml 13
+docker-compose.yml 12
 scripts/check-dart-licenses.py 1
 scripts/check-ios-nse-wired.sh 7
 scripts/lib/e2e_api.py 1
 scripts/lib/e2e_fixtures.py 1
 scripts/lib/e2e_js.py 2
 scripts/lib/e2e_messaging.py 1
-scripts/lib/e2e_run.py 2
+scripts/lib/e2e_run.py 1
 scripts/lib/e2e_seed.py 1
 scripts/lib/e2e_settings.py 2
 scripts/lib/e2e_sweep.py 1
@@ -238,7 +237,6 @@ scripts/lib/e2e_voice.py 3
 client/packages/app/android/app/build.gradle.kts 6
 client/packages/app/android/build.gradle.kts 1
 client/packages/app/android/settings.gradle.kts 1
-client/packages/app/ios/BroadcastExtension/Atomic.swift 1
 client/packages/app/ios/BroadcastExtension/DarwinNotificationCenter.swift 1
 client/packages/app/ios/BroadcastExtension/SampleHandler.swift 1
 client/packages/app/ios/BroadcastExtension/SampleUploader.swift 1
@@ -258,7 +256,7 @@ client/packages/app/ios/Runner/VoiceCallReporter.swift 1
 client/packages/app/ios/Runner/VoipCallHandler.swift 2
 client/packages/app/ios/RunnerTests/NotificationSoundTests.swift 2
 client/packages/app/ios/RunnerTests/VoipCallHandlerTests.swift 2
-client/packages/app/linux/runner/clipboard_image_channel.cc 5
+client/packages/app/linux/runner/clipboard_image_channel.cc 3
 client/packages/app/linux/runner/clipboard_image_channel.h 1
 client/packages/app/linux/runner/linux_idle_channel.h 1
 client/packages/app/linux/runner/linux_second_instance_channel.h 1
@@ -280,7 +278,6 @@ client/packages/app/windows/runner/screen_overlay_win.h 4
 client/packages/app/windows/runner/single_instance.h 3
 client/packages/app/windows/runner/utils.cpp 2
 client/packages/app/windows/runner/utils.h 3
-client/packages/platform/android/src/main/kotlin/top/npcserver/slimm/platform/IncomingCallNotifier.kt 1
 client/packages/platform/android/src/main/kotlin/top/npcserver/slimm/platform/SlimmConnection.kt 1
 client/packages/platform/android/src/main/kotlin/top/npcserver/slimm/platform/SlimmConnectionService.kt 1
 e2e/playwright.config.ts 1

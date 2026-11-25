@@ -9808,9 +9808,9 @@ paths:
         Requires MOVE_MEMBERS and VIEW_CHANNEL in both the source and the
         destination channel. The person must be on the source call and allowed
         to view and join the destination, which must be a voice channel that is
-        not full. Sends the moved account a `voice.moved` frame, takes them out
-        of the source room, and records a `voice_move` entry in the moderation
-        history.
+        not full, and cannot be a bot. Takes them out of the source room, and
+        only once that succeeds sends the moved account a `voice.moved` frame
+        and records a `voice_move` entry in the moderation history.
         Moving somebody else is gated like a voice kick: their permissions in the source call must be within the caller's there. Role ladder: the target's highest role must also sit strictly below the caller's own, and nobody but the Space owner acts on the owner; refused as a 403 with `code` `role_hierarchy`.
       requestBody:
         required: true
@@ -9834,8 +9834,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "409":
           description: >
-            The person is not on the source call, cannot join the destination,
-            or the destination is full.
+            The person is not on the source call, is a bot, cannot join the
+            destination, or the destination is full.
           content:
             application/json:
               schema:
@@ -14545,6 +14545,101 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /downloads/links:
+    post:
+      operationId: createDownloadLink
+      tags: [exports]
+      summary: A one-minute link that saves a file or export natively.
+      description: >
+        A browser cannot stream a bearer-authenticated response to disk, so a
+        large file would have to sit in memory first. This mints a signed,
+        server-relative link to the same bytes, valid for 60 seconds, that the
+        browser opens as an ordinary download. The caller must be able to read
+        the attachment or download the export right now, or this answers 404;
+        redeeming the link checks again.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DownloadLinkRequest"
+      responses:
+        "200":
+          description: The link.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DownloadLink"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /downloads/{token}:
+    parameters:
+      - name: token
+        in: path
+        required: true
+        description: The token segment of the `path` of a link from `createDownloadLink`.
+        schema:
+          type: string
+    get:
+      operationId: redeemDownloadLink
+      tags: [exports]
+      summary: Download what a link names, as a file.
+      description: >
+        Needs no bearer token; the link is the credential. Answers the same
+        bytes as `getAttachment` or `downloadExport`, honours a single
+        `Range`, and always sends `Content-Disposition: attachment`. A link
+        that is expired, altered or no longer permitted answers 404.
+      security: []
+      parameters:
+        - name: Range
+          in: header
+          required: false
+          description: An optional single `bytes=` byte range (RFC 9110).
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The file bytes.
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+            application/x-tar:
+              schema:
+                type: string
+                format: binary
+        "206":
+          description: The requested byte range.
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+            application/x-tar:
+              schema:
+                type: string
+                format: binary
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "416":
+          description: The range is outside the file.
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
 components:
   securitySchemes:
     bearerAuth:
@@ -18448,6 +18543,7 @@ components:
             - nickname_set
             - nickname_clear
             - voice_move
+            - voice_kick
             - owner_handoff
             - owner_timeout_ended
             - message_pin_changed
@@ -18459,7 +18555,8 @@ components:
             they became the owner. `message_pin_changed` and
             `message_preview_removed` are a moderator's act on another
             member's message, which is the subject; `webhook_rename`'s
-            reason is the new label.
+            reason is the new label. `voice_kick`'s reason is the name of the
+            channel whose call the subject was disconnected from.
         reason:
           type: [string, "null"]
         until:
@@ -21358,6 +21455,30 @@ components:
             Whether this field may sit beside its neighbors rather than
             taking the embed's full width - Discord's own field shape.
 
+    DownloadLinkRequest:
+      type: object
+      required: [kind, id]
+      properties:
+        kind:
+          type: string
+          enum: [attachment, export]
+        id:
+          type: string
+          description: The attachment's content id, or the export's UUID.
+        original:
+          type: boolean
+          description: For an attachment, the file as uploaded rather than the compressed copy.
+    DownloadLink:
+      type: object
+      required: [path, expires_at]
+      properties:
+        path:
+          type: string
+          description: Server-relative, to open in the browser as it is.
+        expires_at:
+          type: integer
+          format: int64
+          description: Unix milliseconds after which the link answers 404.
     DataExport:
       type: object
       required: [id, kind, status, processed, total, created_at]

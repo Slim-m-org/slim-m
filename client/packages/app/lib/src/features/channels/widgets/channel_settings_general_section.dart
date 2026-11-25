@@ -21,6 +21,7 @@ import '../../../providers/toasts.dart';
 import '../../settings/widgets/settings_field.dart';
 import '../../settings/widgets/settings_section_header.dart';
 import '../providers/channel_actions.dart';
+import '../providers/channel_by_id_provider.dart';
 
 /// Matches the server's own ceiling (`CHANNEL_TOPIC_MAX_CHARS` in
 /// `crates/slimm-server/src/http/channels.rs`), so the counter here never
@@ -60,6 +61,21 @@ class _ChannelGeneralSectionState extends ConsumerState<ChannelGeneralSection> {
     _name.dispose();
     _topic.dispose();
     super.dispose();
+  }
+
+  /// Follows an edit made elsewhere in each field that is not being edited here.
+  void _followStored(Channel? stored) {
+    if (stored == null) return;
+    final name = stored.name;
+    final topic = stored.topic ?? '';
+    final followName = name != _savedName && _name.text.trim() == _savedName;
+    final followTopic =
+        topic != _savedTopic && _topic.text.trim() == _savedTopic;
+    if (!followName && !followTopic) return;
+    setState(() {
+      if (followName) _name.text = _savedName = name;
+      if (followTopic) _topic.text = _savedTopic = topic;
+    });
   }
 
   bool get _dirty =>
@@ -104,6 +120,10 @@ class _ChannelGeneralSectionState extends ConsumerState<ChannelGeneralSection> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(
+      channelByIdProvider(widget.channel.id),
+      (_, next) => _followStored(next.valueOrNull),
+    );
     return SettingsSectionCard(
       title: 'General',
       children: [

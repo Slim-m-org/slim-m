@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+import AVFoundation
 import CallKit
 import XCTest
 
@@ -9,6 +10,7 @@ import XCTest
 private final class RecordingController: CallRequesting {
   var started: [CXStartCallAction] = []
   var ended: [CXEndCallAction] = []
+  var muted: [CXSetMutedCallAction] = []
   var startError: Error?
   var endError: Error?
 
@@ -21,6 +23,11 @@ private final class RecordingController: CallRequesting {
     ended.append(action)
     completion(endError)
   }
+
+  func requestMute(_ action: CXSetMutedCallAction, completion: @escaping (Error?) -> Void) {
+    muted.append(action)
+    completion(nil)
+  }
 }
 
 /// A stand-in for `CXProvider` that records what it was told to report.
@@ -28,6 +35,11 @@ private final class RecordingProvider: OutgoingCallReporting {
   var startedConnecting: [(uuid: UUID, date: Date?)] = []
   var connected: [(uuid: UUID, date: Date?)] = []
   var ended: [(uuid: UUID, reason: CXCallEndedReason)] = []
+  var updated: [(uuid: UUID, update: CXCallUpdate)] = []
+
+  func reportCall(with uuid: UUID, updated update: CXCallUpdate) {
+    updated.append((uuid, update))
+  }
 
   func reportOutgoingCall(with uuid: UUID, startedConnectingAt date: Date?) {
     startedConnecting.append((uuid, date))
@@ -45,6 +57,19 @@ private final class RecordingProvider: OutgoingCallReporting {
 /// Stands in for a CallKit-delivered action. A test cannot use a real one:
 /// `fulfill()` is a no-op on an action no `CXTransaction` ever carried, so
 /// `isComplete` would stay false however correct the code is.
+private final class RecordingMuteAction: MuteActionFulfilling {
+  let callUUID: UUID
+  let isMuted: Bool
+  private(set) var fulfilled = 0
+
+  init(callUUID: UUID, isMuted: Bool) {
+    self.callUUID = callUUID
+    self.isMuted = isMuted
+  }
+
+  func fulfill() { fulfilled += 1 }
+}
+
 private final class RecordingAction: CallActionFulfilling {
   let callUUID: UUID
   private(set) var fulfilled = 0
@@ -61,7 +86,7 @@ final class OutgoingCallLifecycleTests: XCTestCase {
   func testCallStartedRequestsAStartActionForTheGivenId() {
     let controller = RecordingController()
     let provider = RecordingProvider()
-    let lifecycle = OutgoingCallLifecycle(controller: controller, provider: provider)
+    let lifecycle = OutgoingCallLifecycle(controller: controller, provider: provider, onMain: { $0() })
     let id = UUID()
 
     lifecycle.callStarted(id: id, displayName: "Voice call")
@@ -75,7 +100,7 @@ final class OutgoingCallLifecycleTests: XCTestCase {
   func testARepeatCallStartedForTheActiveCallIsANoOp() {
     let controller = RecordingController()
     let provider = RecordingProvider()
-    let lifecycle = OutgoingCallLifecycle(controller: controller, provider: provider)
+    let lifecycle = OutgoingCallLifecycle(controller: controller, provider: provider, onMain: { $0() })
     let id = UUID()
 
     lifecycle.callStarted(id: id, displayName: "First")
@@ -86,7 +111,7 @@ final class OutgoingCallLifecycleTests: XCTestCase {
 
   func testACallStartedForAnotherCallReplacesTheActiveOne() {
     let controller = RecordingController()
-    let lifecycle = OutgoingCallLifecycle(controller: controller, provider: RecordingProvider())
+    let lifecycle = OutgoingCallLifecycle(controller: controller, provider: RecordingProvider(), onMain: { $0() })
     let first = UUID()
     let second = UUID()
 
@@ -100,7 +125,7 @@ final class OutgoingCallLifecycleTests: XCTestCase {
 
   func testALateEndForAReplacedCallIsIgnored() {
     let controller = RecordingController()
-    let lifecycle = OutgoingCallLifecycle(controller: controller, provider: RecordingProvider())
+    let lifecycle = OutgoingCallLifecycle(controller: controller, provider: RecordingProvider(), onMain: { $0() })
     let first = UUID()
     let second = UUID()
     lifecycle.callStarted(id: first, displayName: "First")
@@ -116,7 +141,7 @@ final class OutgoingCallLifecycleTests: XCTestCase {
     let controller = RecordingController()
     controller.startError = NSError(domain: "CXErrorDomain", code: 3)
     let provider = RecordingProvider()
-    let lifecycle = OutgoingCallLifecycle(controller: controller, provider: provider)
+    let lifecycle = OutgoingCallLifecycle(controller: controller, provider: provider, onMain: { $0() })
 
     lifecycle.callStarted(id: UUID(), displayName: "Voice call")
 
@@ -126,7 +151,7 @@ final class OutgoingCallLifecycleTests: XCTestCase {
   func testACallKitRefusalToStartIsReportedWithItsCode() {
     let controller = RecordingController()
     controller.startError = NSError(domain: "CXErrorDomain", code: 6)
-    let lifecycle = OutgoingCallLifecycle(controller: controller, provider: RecordingProvider())
+    let lifecycle = OutgoingCallLifecycle(controller: controller, provider: RecordingProvider(), onMain: { $0() })
     var events: [[String: Any]] = []
     lifecycle.onEvent = { events.append($0) }
 
@@ -139,7 +164,7 @@ final class OutgoingCallLifecycleTests: XCTestCase {
   }
 
   func testAStartSkippedForACallStillReportedIsReported() {
-    let lifecycle = OutgoingCallLifecycle(controller: RecordingController(), provider: RecordingProvider())
+    let lifecycle = OutgoingCallLifecycle(controller: RecordingController(), provider: RecordingProvider(), onMain: { $0() })
     var results: [String] = []
     lifecycle.onEvent = { results.append($0["result"] as? String ?? "") }
 
@@ -153,7 +178,7 @@ final class OutgoingCallLifecycleTests: XCTestCase {
   func testHandleStartActionReportsStartedConnectingAndFulfills() {
     let controller = RecordingController()
     let provider = RecordingProvider()
-    let lifecycle = OutgoingCallLifecycle(controller: controller, provider: provider)
+    let lifecycle = OutgoingCallLifecycle(controller: controller, provider: provider, onMain: { $0() })
     let id = UUID()
     let action = RecordingAction(callUUID: id)
 
@@ -169,7 +194,7 @@ final class OutgoingCallLifecycleTests: XCTestCase {
   func testCallConnectedReportsTheActiveCallConnected() {
     let controller = RecordingController()
     let provider = RecordingProvider()
-    let lifecycle = OutgoingCallLifecycle(controller: controller, provider: provider)
+    let lifecycle = OutgoingCallLifecycle(controller: controller, provider: provider, onMain: { $0() })
     let id = UUID()
 
     lifecycle.callStarted(id: id, displayName: "Voice call")
@@ -182,7 +207,7 @@ final class OutgoingCallLifecycleTests: XCTestCase {
   func testCallConnectedWithNothingActiveReportsNothing() {
     let controller = RecordingController()
     let provider = RecordingProvider()
-    let lifecycle = OutgoingCallLifecycle(controller: controller, provider: provider)
+    let lifecycle = OutgoingCallLifecycle(controller: controller, provider: provider, onMain: { $0() })
 
     lifecycle.callConnected()
 
@@ -192,7 +217,7 @@ final class OutgoingCallLifecycleTests: XCTestCase {
   func testCallEndedRequestsAnEndActionRatherThanReportingARemoteEnd() {
     let controller = RecordingController()
     let provider = RecordingProvider()
-    let lifecycle = OutgoingCallLifecycle(controller: controller, provider: provider)
+    let lifecycle = OutgoingCallLifecycle(controller: controller, provider: provider, onMain: { $0() })
     let id = UUID()
 
     lifecycle.callStarted(id: id, displayName: "Voice call")
@@ -206,7 +231,7 @@ final class OutgoingCallLifecycleTests: XCTestCase {
   func testTheEndActionForALocalHangupIsFulfilledWithoutEchoingToDart() {
     let controller = RecordingController()
     let provider = RecordingProvider()
-    let lifecycle = OutgoingCallLifecycle(controller: controller, provider: provider)
+    let lifecycle = OutgoingCallLifecycle(controller: controller, provider: provider, onMain: { $0() })
     let id = UUID()
     lifecycle.callStarted(id: id, displayName: "Voice call")
     var hungUp = false
@@ -224,7 +249,7 @@ final class OutgoingCallLifecycleTests: XCTestCase {
     let controller = RecordingController()
     controller.endError = NSError(domain: "CXErrorDomainRequestTransaction", code: 1)
     let provider = RecordingProvider()
-    let lifecycle = OutgoingCallLifecycle(controller: controller, provider: provider)
+    let lifecycle = OutgoingCallLifecycle(controller: controller, provider: provider, onMain: { $0() })
     let id = UUID()
 
     lifecycle.callStarted(id: id, displayName: "Voice call")
@@ -233,10 +258,23 @@ final class OutgoingCallLifecycleTests: XCTestCase {
     XCTAssertEqual(provider.ended.map(\.uuid), [id])
   }
 
+  func testARefusedEndRequestHandsTheAudioSessionBack() {
+    let controller = RecordingController()
+    controller.endError = NSError(domain: "CXErrorDomainRequestTransaction", code: 1)
+    let gate = RecordingGate()
+    let lifecycle = OutgoingCallLifecycle(controller: controller, provider: RecordingProvider(), onMain: { $0() })
+    lifecycle.audio = CallAudioHandOff(gate: gate, schedule: { _, _ in })
+
+    lifecycle.callStarted(id: UUID(), displayName: "Voice call")
+    lifecycle.callEnded()
+
+    XCTAssertEqual(gate.log.suffix(2), ["enabled true", "manual false"])
+  }
+
   func testCallEndedWithNothingActiveIsSafe() {
     let controller = RecordingController()
     let provider = RecordingProvider()
-    let lifecycle = OutgoingCallLifecycle(controller: controller, provider: provider)
+    let lifecycle = OutgoingCallLifecycle(controller: controller, provider: provider, onMain: { $0() })
 
     lifecycle.callEnded()
 
@@ -246,7 +284,7 @@ final class OutgoingCallLifecycleTests: XCTestCase {
   func testHandleEndActionClearsTheActiveCallCallsOnHangUpAndFulfills() {
     let controller = RecordingController()
     let provider = RecordingProvider()
-    let lifecycle = OutgoingCallLifecycle(controller: controller, provider: provider)
+    let lifecycle = OutgoingCallLifecycle(controller: controller, provider: provider, onMain: { $0() })
     let id = UUID()
     lifecycle.callStarted(id: id, displayName: "Voice call")
 
@@ -258,6 +296,223 @@ final class OutgoingCallLifecycleTests: XCTestCase {
     XCTAssertTrue(hungUp, "the system call UI ending the call must tell Dart to leave the room")
     XCTAssertNil(lifecycle.activeCallId)
     XCTAssertEqual(action.fulfilled, 1)
+  }
+}
+
+/// One provider and one call per room, plus the system's mute, hold and reset.
+final class OutgoingCallLifecycleSystemTests: XCTestCase {
+  private func make(answered: UUID? = nil) -> (OutgoingCallLifecycle, RecordingController, RecordingProvider) {
+    let controller = RecordingController()
+    let provider = RecordingProvider()
+    let lifecycle = OutgoingCallLifecycle(controller: controller, provider: provider, onMain: { $0() })
+    lifecycle.answeredCallId = { answered }
+    return (lifecycle, controller, provider)
+  }
+
+  func testAJoinAfterAnAnsweredRingAdoptsTheAnsweredCall() {
+    let answered = UUID()
+    let (lifecycle, controller, provider) = make(answered: answered)
+
+    lifecycle.callStarted(id: UUID(), displayName: "Voice call")
+
+    XCTAssertTrue(controller.started.isEmpty, "a second call would sit beside the answered one")
+    XCTAssertEqual(lifecycle.activeCallId, answered)
+    XCTAssertTrue(lifecycle.isAdopted(answered))
+    lifecycle.callConnected()
+    XCTAssertTrue(provider.connected.isEmpty, "an answered call is already connected to CallKit")
+  }
+
+  func testEndingAnAdoptedCallEndsTheAnsweredCall() {
+    let answered = UUID()
+    let channel = UUID()
+    let (lifecycle, controller, _) = make(answered: answered)
+    lifecycle.callStarted(id: channel, displayName: "Voice call")
+
+    lifecycle.callEnded(callId: channel)
+
+    XCTAssertEqual(controller.ended.map(\.callUUID), [answered])
+  }
+
+  func testARepeatStartForTheAdoptedRoomIsSkipped() {
+    let channel = UUID()
+    let (lifecycle, controller, _) = make(answered: UUID())
+    lifecycle.callStarted(id: channel, displayName: "Voice call")
+    lifecycle.callStarted(id: channel, displayName: "Voice call")
+
+    XCTAssertTrue(controller.ended.isEmpty)
+  }
+
+  func testAStartDeclaresHoldingAndGroupingUnsupported() {
+    let (lifecycle, _, provider) = make()
+    let id = UUID()
+
+    lifecycle.handleStartAction(RecordingAction(callUUID: id))
+
+    XCTAssertEqual(provider.updated.first?.uuid, id)
+    XCTAssertEqual(provider.updated.first?.update.supportsHolding, false)
+    XCTAssertEqual(provider.updated.first?.update.supportsGrouping, false)
+    XCTAssertEqual(provider.updated.first?.update.supportsDTMF, false)
+  }
+
+  func testASystemMuteReachesDartAndIsFulfilled() {
+    let (lifecycle, _, _) = make()
+    lifecycle.callStarted(id: UUID(), displayName: "Voice call")
+    var requests: [Bool] = []
+    lifecycle.onMuteRequest = { requests.append($0) }
+    let action = RecordingMuteAction(callUUID: lifecycle.activeCallId!, isMuted: true)
+
+    lifecycle.handleMuteAction(action)
+
+    XCTAssertEqual(requests, [true])
+    XCTAssertEqual(action.fulfilled, 1)
+  }
+
+  func testAMuteTheAppAskedForIsNotSentBackToDart() {
+    let (lifecycle, controller, _) = make()
+    lifecycle.callStarted(id: UUID(), displayName: "Voice call")
+    var requests: [Bool] = []
+    lifecycle.onMuteRequest = { requests.append($0) }
+
+    lifecycle.muteChanged(true)
+    lifecycle.handleMuteAction(RecordingMuteAction(callUUID: lifecycle.activeCallId!, isMuted: true))
+
+    XCTAssertEqual(controller.muted.map(\.isMuted), [true])
+    XCTAssertTrue(requests.isEmpty)
+  }
+
+  func testAMuteWithNoCallRequestsNothing() {
+    let (lifecycle, controller, _) = make()
+    lifecycle.muteChanged(true)
+    XCTAssertTrue(controller.muted.isEmpty)
+  }
+
+  func testAProviderResetLeavesTheRoom() {
+    let (lifecycle, _, _) = make()
+    lifecycle.callStarted(id: UUID(), displayName: "Voice call")
+    var hungUp = 0
+    lifecycle.onHangUp = { hungUp += 1 }
+
+    lifecycle.reset()
+
+    XCTAssertEqual(hungUp, 1, "CallKit forgot the call, so the room must not stay joined")
+    XCTAssertNil(lifecycle.activeCallId)
+  }
+
+  func testAProviderResetWithNoCallLeavesNothing() {
+    let (lifecycle, _, _) = make()
+    var hungUp = 0
+    lifecycle.onHangUp = { hungUp += 1 }
+    lifecycle.reset()
+    XCTAssertEqual(hungUp, 0)
+  }
+
+  func testACallEndedWhileItsEndIsPendingIsNotAdoptedByTheNextJoin() {
+    let answered = UUID()
+    let (lifecycle, controller, _) = make(answered: answered)
+    lifecycle.callStarted(id: UUID(), displayName: "Voice call")
+    lifecycle.callEnded()
+    let next = UUID()
+
+    lifecycle.callStarted(id: next, displayName: "Voice call")
+
+    XCTAssertEqual(controller.started.map(\.callUUID), [next], "the ending call cannot carry the new one")
+    XCTAssertEqual(lifecycle.activeCallId, next)
+  }
+
+  func testACompletionOffTheMainQueueIsHoppedBeforeItTouchesState() {
+    let controller = RecordingController()
+    controller.startError = NSError(domain: "CXErrorDomain", code: 3)
+    var hopped: [() -> Void] = []
+    let lifecycle = OutgoingCallLifecycle(
+      controller: controller, provider: RecordingProvider(), onMain: { hopped.append($0) })
+
+    lifecycle.callStarted(id: UUID(), displayName: "Voice call")
+
+    XCTAssertNotNil(lifecycle.activeCallId, "nothing may change before the hop to main runs")
+    hopped.forEach { $0() }
+    XCTAssertNil(lifecycle.activeCallId)
+  }
+}
+
+private final class RecordingGate: CallAudioGating {
+  var log: [String] = []
+  func setManualAudio(_ on: Bool) { log.append("manual \(on)") }
+  func setAudioEnabled(_ on: Bool) { log.append("enabled \(on)") }
+  func sessionActivated(_ session: AVAudioSession) { log.append("activated") }
+  func sessionDeactivated(_ session: AVAudioSession) { log.append("deactivated") }
+}
+
+/// The audio unit waits for CallKit's activation, and WebRTC manages the session alone with no call.
+final class CallAudioHandOffTests: XCTestCase {
+  private func make() -> (CallAudioHandOff, RecordingGate, () -> Void) {
+    let gate = RecordingGate()
+    var timers: [DispatchWorkItem] = []
+    let handOff = CallAudioHandOff(gate: gate, schedule: { _, work in timers.append(work) })
+    return (handOff, gate, { timers.filter { !$0.isCancelled }.forEach { $0.perform() } })
+  }
+
+  func testAudioIsHeldBackUntilCallKitActivatesTheSession() {
+    let (handOff, gate, _) = make()
+    handOff.begin(UUID())
+    XCTAssertEqual(gate.log, ["manual true", "enabled false"])
+
+    handOff.didActivate(AVAudioSession.sharedInstance())
+    XCTAssertEqual(gate.log.suffix(2), ["activated", "enabled true"])
+  }
+
+  func testTheLastCallEndingHandsTheSessionBackToWebRTC() {
+    let (handOff, gate, _) = make()
+    let id = UUID()
+    handOff.begin(id)
+    gate.log = []
+
+    handOff.end(id)
+
+    XCTAssertEqual(gate.log, ["enabled true", "manual false"])
+  }
+
+  func testAnotherCallStillUpKeepsTheGate() {
+    let (handOff, gate, _) = make()
+    let first = UUID()
+    handOff.begin(first)
+    handOff.begin(UUID())
+    gate.log = []
+
+    handOff.end(first)
+
+    XCTAssertTrue(gate.log.isEmpty)
+  }
+
+  func testAMissingActivationDoesNotLeaveTheCallSilent() {
+    let (handOff, gate, fire) = make()
+    handOff.begin(UUID())
+    gate.log = []
+
+    fire()
+
+    XCTAssertEqual(gate.log, ["enabled true"])
+  }
+
+  func testAnActivationCancelsTheFallback() {
+    let (handOff, gate, fire) = make()
+    handOff.begin(UUID())
+    handOff.didActivate(AVAudioSession.sharedInstance())
+    gate.log = []
+
+    fire()
+
+    XCTAssertTrue(gate.log.isEmpty)
+  }
+
+  func testADeactivationHoldsAudioAgainWhileACallIsUp() {
+    let (handOff, gate, _) = make()
+    handOff.begin(UUID())
+    handOff.didActivate(AVAudioSession.sharedInstance())
+    gate.log = []
+
+    handOff.didDeactivate(AVAudioSession.sharedInstance())
+
+    XCTAssertEqual(gate.log, ["enabled false", "deactivated"])
   }
 }
 

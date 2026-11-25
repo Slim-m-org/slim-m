@@ -124,6 +124,26 @@ void main() {
     },
   );
 
+  test('a watched profile follows the role refresh of its member', () async {
+    final server = _Server();
+    final rig = _rig(server);
+    rig.container.listen(userProfileProvider('ada'), (_, _) {});
+    await rig.container.read(userProfileProvider('ada').future);
+
+    server
+      ..colours['r-new'] = 7
+      ..held['ada'] = ['r-new', 'r-mods'];
+    rig.events.add(const MemberRoleChanged(userId: 'ada', roleId: 'r-new'));
+    await _settle();
+    await _settle();
+    await _settle();
+
+    expect(
+      rig.container.read(userProfileProvider('ada')).valueOrNull?.roleColors,
+      [7, 1],
+    );
+  });
+
   test('a role edit re-asks for exactly the members holding it', () async {
     final server = _Server();
     final rig = _rig(server);

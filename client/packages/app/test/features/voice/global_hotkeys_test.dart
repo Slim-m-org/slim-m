@@ -32,10 +32,10 @@ void main() {
   );
   tearDown(harness.dispose);
 
-  Future<({VoiceController voice, FakeHotkeySource source})> connect(
-    WidgetTester tester, {
-    FakeHotkeySource? source,
-  }) async {
+  Future<
+    ({VoiceController voice, FakeHotkeySource source, FakeSession session})
+  >
+  connect(WidgetTester tester, {FakeHotkeySource? source}) async {
     final hotkeys = source ?? FakeHotkeySource();
     final session = FakeSession();
     final controller = harness.controllerWith(
@@ -58,7 +58,7 @@ void main() {
     await controller.toggleMicrophone();
     await tester.pumpAndSettle();
     expect(controller.state.microphoneEnabled, isFalse);
-    return (voice: controller, source: hotkeys);
+    return (voice: controller, source: hotkeys, session: session);
   }
 
   Future<void> global(
@@ -252,6 +252,91 @@ void main() {
       GlobalHotkeyId.toggleDeafen,
       GlobalHotkeyId.markCall,
     ]);
+    await c.voice.leave();
+  });
+
+  testWidgets('starting and ending a call leaves the registered set alone', (
+    tester,
+  ) async {
+    final c = await connect(tester);
+    final bound = c.source.binds.length;
+    expect(c.source.binds.last, hasLength(4));
+    await c.voice.leave();
+    await tester.pump();
+    await tester.pump();
+    expect(c.source.binds.length, bound);
+  });
+
+  testWidgets('a call shortcut outside a call does nothing', (tester) async {
+    final c = await connect(tester);
+    await c.voice.leave();
+    await tester.pump();
+    await tester.pump();
+    await global(
+      tester,
+      c.source,
+      GlobalHotkeyId.toggleDeafen,
+      GlobalHotkeyPhase.pressed,
+    );
+    expect(c.voice.state.deafened, isFalse);
+  });
+
+  testWidgets('reaching a call again retries a lost bind', (tester) async {
+    final source = FakeHotkeySource();
+    final c = await connect(tester, source: source);
+    source.probeResult = const GlobalHotkeyAvailability.unavailable('no');
+    source.lose();
+    await tester.pump();
+    await tester.pump();
+    expect(harness.container.read(globalHotkeysProvider)!.available, isFalse);
+    final before = source.binds.length;
+    source.probeResult = const GlobalHotkeyAvailability.available('ok');
+    c.session.emitState(VoiceSessionState.connecting);
+    await tester.pump();
+    await tester.pump();
+    expect(source.binds.length, before);
+    c.session.emitState(VoiceSessionState.connected);
+    await tester.pump();
+    await tester.pump();
+    expect(source.binds.length, greaterThan(before));
+    expect(harness.container.read(globalHotkeysProvider)!.available, isTrue);
+    await c.voice.leave();
+  });
+
+  testWidgets('an elevated window in front is said so, then cleared', (
+    tester,
+  ) async {
+    final c = await connect(tester);
+    c.source.block();
+    await tester.pump();
+    await tester.pump();
+    final blocked = harness.container.read(globalHotkeysProvider)!;
+    expect(blocked.available, isFalse);
+    expect(blocked.message, elevatedFocusMessage);
+
+    c.source.unblock();
+    await tester.pump();
+    await tester.pump();
+    expect(harness.container.read(globalHotkeysProvider)!.available, isTrue);
+    await c.voice.leave();
+  });
+
+  testWidgets('a lost capture forgets the elevated block', (tester) async {
+    final source = FakeHotkeySource();
+    final c = await connect(tester, source: source);
+    source.block();
+    await tester.pump();
+    await tester.pump();
+    source.lose();
+    await tester.pump();
+    await tester.pump();
+    source.probeResult = const GlobalHotkeyAvailability.available('ok');
+    c.session.emitState(VoiceSessionState.connecting);
+    c.session.emitState(VoiceSessionState.connected);
+    await tester.pump();
+    await tester.pump();
+    final state = harness.container.read(globalHotkeysProvider)!;
+    expect(state.available, isTrue);
     await c.voice.leave();
   });
 
