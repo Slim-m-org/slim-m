@@ -90,6 +90,7 @@ class GlobalHotkeysController extends StateNotifier<GlobalHotkeyAvailability?> {
   bool _binding = false;
   bool _probedAvailable = false;
   bool _blocked = false;
+  bool _callShortcutsArmed = false;
   GlobalHotkeyAvailability? _result;
 
   /// The native binding set is shared, so only the container that owns the call (else the one on screen) binds it.
@@ -122,15 +123,16 @@ class GlobalHotkeysController extends StateNotifier<GlobalHotkeyAvailability?> {
         : result;
   }
 
-  /// Everything the person has switched on, bound once so a call starting or ending never changes the set.
+  /// Call shortcuts are grabbed from the first call on and then kept, so later calls never change the registered set.
   List<GlobalHotkeyBinding> _wanted() {
+    _callShortcutsArmed = _callShortcutsArmed || _inCall;
     final settings = _ref.read(voiceSettingsControllerProvider);
     GlobalHotkeyBinding? call(
       GlobalHotkeyId id,
       AppAction action,
       String description,
     ) {
-      final chord = chordFor(action);
+      final chord = _callShortcutsArmed ? chordFor(action) : null;
       if (chord == null) return null;
       return GlobalHotkeyBinding(
         id: id,
