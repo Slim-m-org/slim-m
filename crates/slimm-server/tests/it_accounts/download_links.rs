@@ -172,3 +172,44 @@ async fn password_hash() -> String {
         .await
         .unwrap()
 }
+
+async fn open_unread(w: &World, path: &str) -> axum::response::Response {
+    w.router
+        .clone()
+        .oneshot(
+            axum::http::Request::builder()
+                .uri(path)
+                .body(axum::body::Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap()
+}
+
+#[tokio::test]
+async fn open_link_downloads_count_against_the_members_slot_cap() {
+    let (store, _guard) = support::new_store("slimm-link-slots").await;
+    let w = world(store.clone());
+    let (alice, _) = account(&store, "alice").await;
+    let attachment = upload_png(&w, &alice).await;
+    let (status, path) = link(
+        &w,
+        &alice,
+        json!({ "kind": "attachment", "id": attachment }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+
+    let mut held = Vec::new();
+    for _ in 0..64 {
+        let response = open_unread(&w, &path).await;
+        assert_eq!(response.status(), StatusCode::OK);
+        held.push(response);
+    }
+    let refused = open_unread(&w, &path).await;
+    assert_eq!(refused.status(), StatusCode::TOO_MANY_REQUESTS);
+
+    drop(held.pop());
+    let freed = open_unread(&w, &path).await;
+    assert_eq!(freed.status(), StatusCode::OK);
+}

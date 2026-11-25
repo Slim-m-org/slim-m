@@ -31,7 +31,7 @@ client/packages/app/lib/src/features/settings/widgets/notification_settings_rows
 client/packages/app/lib/src/features/settings/widgets/personal_account_sections.dart
 client/packages/app/lib/src/features/settings/widgets/settings_panes.dart
 client/packages/app/lib/src/features/settings/widgets/theme_editor_page.dart 3
-client/packages/app/lib/src/features/voice/screens/voice_screen.dart  4
+client/packages/app/lib/src/features/voice/screens/voice_screen.dart 4
 client/packages/app/lib/src/features/voice/widgets/call_audio_start.dart
 client/packages/app/lib/src/features/voice/widgets/move_participant_popover.dart
 client/packages/app/lib/src/widgets/whats_new_gate.dart

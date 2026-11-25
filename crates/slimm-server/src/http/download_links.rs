@@ -138,6 +138,8 @@ async fn redeem(
     if !session_is_live {
         return Err(ApiError::NotFound("download link expired"));
     }
+    let slot =
+        super::download_slots::take(&state.limiter, &super::extract::user_limit_key(user_id))?;
     let mut response = match claims.target {
         Target::Attachment { id, original } => {
             let params = FetchParams::whole(original);
@@ -146,7 +148,7 @@ async fn redeem(
         Target::Export { id } => data_exports::serve_for(&state, user_id, &id, &headers).await?,
     };
     force_attachment(&mut response);
-    Ok(response)
+    Ok(super::download_slots::hold_until_sent(slot, response))
 }
 
 /// A browser renders an inline type instead of saving it, which is not what a download link is for.

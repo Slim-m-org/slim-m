@@ -268,6 +268,8 @@ fn its_own_fields(private: &Private, template: &str, (channel, message): (&str, 
     } else if template == "/channels/order" {
         let group = json!({"category_id": private.category, "channel_ids": [channel]});
         json!({"order": null, "channel_ids": null, "categories": [group]})
+    } else if template == "/downloads/links" {
+        json!({"kind": "attachment", "id": "09".repeat(32)})
     } else if template == "/reports" {
         json!({"channel_id": null, "author_id": null})
     } else if template.ends_with("/ephemeral-messages") {
@@ -285,8 +287,6 @@ const UNREAD_BODIES: &[(&str, &str)] = &[
     ("POST", "/space/themes"),
     ("POST", "/space/dock/packages/install"),
     ("POST", "/space/dock/packages/preview"),
-    // A closed `kind` of attachment or export, which the generic body cannot spell.
-    ("POST", "/downloads/links"),
 ];
 
 /// Whether a refusal is the body or query failing to parse, before the route read any id in it.

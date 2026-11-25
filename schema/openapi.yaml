@@ -14483,7 +14483,7 @@ paths:
       - name: token
         in: path
         required: true
-        description: The `path` of a link from `createDownloadLink`.
+        description: The token segment of the `path` of a link from `createDownloadLink`.
         schema:
           type: string
     get:
