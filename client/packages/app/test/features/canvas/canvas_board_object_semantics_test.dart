@@ -2,9 +2,13 @@
 /// [CanvasBoardObjectSemantics]: a crowd of drawings must not push notes and images out of a screen reader's reach.
 library;
 
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_board_object_semantics.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_object_locks.dart';
+import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 CanvasStrokeInput _object(
@@ -68,4 +72,45 @@ void main() {
       handle.dispose();
     },
   );
+
+  testWidgets('a locked object says so and its badge adds no node', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    final document = CanvasDocument()..setViewport(const Size(800, 600));
+    addTearDown(document.dispose);
+    document
+      ..applyPlaced(
+        _object('note', 1, kind: CanvasObjectKind.note, text: 'budget'),
+      )
+      ..refresh();
+    final locks = CanvasObjectLocks(
+      channelId: 'c1',
+      client: testApi((request) async => http.Response('{}', 200)),
+    );
+    addTearDown(locks.dispose);
+    locks.ids.value = {'note'};
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTheme(Brightness.light, AppTokens.light),
+        home: CanvasObjectLocksScope(
+          locks: locks,
+          child: Stack(
+            children: [
+              CanvasBoardObjectSemantics(
+                document: document,
+                onOpenActions: (_) {},
+              ),
+              CanvasObjectLockBadges(document: document, locks: locks),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    expect(find.bySemanticsLabel('Note: budget, locked'), findsOneWidget);
+    expect(find.bySemanticsLabel('Locked in place'), findsNothing);
+    handle.dispose();
+  });
 }
