@@ -38,6 +38,8 @@ VoiceParticipant _person(
   isScreenSharing: false,
 );
 
+BuildContext? scopeContext;
+
 Future<void> _pump(
   WidgetTester tester,
   List<VoiceParticipant> participants, {
@@ -73,12 +75,17 @@ Future<void> _pump(
         home: Scaffold(
           body: CanvasPeopleScope(
             channelId: viewedChannel,
-            child: const Align(
-              alignment: Alignment.topLeft,
-              child: Padding(
-                padding: EdgeInsets.all(12),
-                child: CanvasPeopleCluster(),
-              ),
+            child: Builder(
+              builder: (context) {
+                scopeContext = context;
+                return const Align(
+                  alignment: Alignment.topLeft,
+                  child: Padding(
+                    padding: EdgeInsets.all(12),
+                    child: CanvasPeopleCluster(),
+                  ),
+                );
+              },
             ),
           ),
         ),

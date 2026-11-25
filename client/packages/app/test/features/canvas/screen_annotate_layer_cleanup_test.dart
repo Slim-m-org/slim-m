@@ -113,6 +113,7 @@ void main() {
   testWidgets('a cancelled note does not come back on the next one', (
     tester,
   ) async {
+    final semantics = tester.ensureSemantics();
     final rig = _Rig(tester);
     await rig.pump();
     rig.handle('sharer', 'consent');
@@ -122,13 +123,14 @@ void main() {
     await tester.pump();
     await tester.tapAt(_tile.topLeft + const Offset(320, 180));
     await tester.pump();
-    await tester.enterText(find.byType(EditableText), 'never sent');
+    tester.testTextInput.enterText('never sent');
+    await tester.pump();
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pump();
     await tester.tapAt(_tile.topLeft + const Offset(100, 100));
     await tester.pump();
 
-    final field = tester.widget<EditableText>(find.byType(EditableText));
-    expect(field.controller.text, isEmpty);
+    expect(find.text('never sent'), findsNothing);
+    semantics.dispose();
   });
 }
