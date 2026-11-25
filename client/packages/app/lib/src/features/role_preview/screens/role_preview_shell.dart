@@ -87,11 +87,19 @@ class _Loaded extends ConsumerWidget {
     );
     final compact = MediaQuery.sizeOf(context).width < kCompactWidth;
     if (compact) {
-      if (open == null) return rail;
-      return RolePreviewSummary(
-        roleName: session.roleName,
-        channel: open,
-        onBack: controller.close,
+      return PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, _) {
+          if (didPop) return;
+          open == null ? controller.exit() : controller.close();
+        },
+        child: open == null
+            ? rail
+            : RolePreviewSummary(
+                roleName: session.roleName,
+                channel: open,
+                onBack: controller.close,
+              ),
       );
     }
     return Row(
