@@ -6,6 +6,9 @@ class _PurgeEntry extends _UndoEntry {
   _PurgeEntry(this.objects);
 
   final List<api.CanvasObject> objects;
+
+  /// Ids of rows an earlier, half-failed undo already placed, so a retry does not place them twice.
+  final List<String> placedIds = [];
 }
 
 /// Re-applies an undone delete by deleting the objects the undo placed again.
@@ -53,10 +56,9 @@ extension CanvasOpsControllerPurge on CanvasOpsController {
   }
 
   /// Places the deleted rows again as new objects, which is all an undo of a delete can do.
-  Future<_RedoEntry?> _undoPurge(List<api.CanvasObject> objects) async {
-    final placedIds = <String>[];
+  Future<_RedoEntry?> _undoPurge(_PurgeEntry entry) async {
     try {
-      for (final object in objects) {
+      for (final object in [...entry.objects]) {
         final id = newCanvasObjectId();
         final placed = await _sendOp(
           (_) => client.placeCanvasObject(
@@ -70,7 +72,8 @@ extension CanvasOpsControllerPurge on CanvasOpsController {
             props: object.props,
           ),
         );
-        placedIds.add(id);
+        entry.objects.remove(object);
+        entry.placedIds.add(id);
         final input = canvasStrokeInputFrom(placed);
         if (input == null) continue;
         document
@@ -82,7 +85,7 @@ extension CanvasOpsControllerPurge on CanvasOpsController {
       onError('That could not be undone.');
       return null;
     }
-    return _RedoPurge(placedIds);
+    return _RedoPurge(entry.placedIds);
   }
 
   Future<_UndoEntry?> _redoPurge(List<String> ids) async {

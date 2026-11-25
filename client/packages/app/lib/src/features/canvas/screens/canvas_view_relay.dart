@@ -17,6 +17,9 @@ const Duration viewRepeatInterval = Duration(seconds: 5);
 /// How long a summon waits for an answer before it lapses without a word.
 const Duration summonRequestTimeout = Duration(seconds: 30);
 
+/// How long a followed person gone from the board is still followed after their last view frame.
+const Duration followIdleGrace = Duration(seconds: 30);
+
 /// Someone asking this device to jump to [view].
 typedef SummonRequest = ({String userId, Rect view});
 
@@ -29,6 +32,7 @@ class CanvasViewRelay {
     required this.selfId,
     this.canSend,
     this.focusedTile,
+    this.clock = DateTime.now,
   });
 
   /// The shared area, which is every member's view until they move.
@@ -47,6 +51,8 @@ class CanvasViewRelay {
   /// The call tile this device has full screen, or null.
   final String? Function()? focusedTile;
 
+  final DateTime Function() clock;
+
   /// Whom this device follows, or null.
   final ValueNotifier<String?> following = ValueNotifier<String?>(null);
 
@@ -59,6 +65,7 @@ class CanvasViewRelay {
 
   final Map<String, Rect> _views = {};
   final Map<String, String?> _tiles = {};
+  final Map<String, DateTime> _heardAt = {};
   Timer? _summonExpiry;
   bool _disposed = false;
   Rect? _pending;
@@ -69,6 +76,12 @@ class CanvasViewRelay {
 
   /// The last view heard from [userId]; the whole board if none was.
   Rect viewOf(String userId) => _views[userId] ?? board;
+
+  /// How long ago the last view frame from [userId] arrived, or null if none did.
+  Duration? sinceHeard(String userId) {
+    final at = _heardAt[userId];
+    return at == null ? null : clock().difference(at);
+  }
 
   /// Call whenever this device's visible part of the board may have changed.
   void reportLocal(Rect view) {
@@ -132,6 +145,7 @@ class CanvasViewRelay {
     if (userId == selfId() || isBlocked(userId)) return;
     _views[userId] = view;
     _tiles[userId] = tile;
+    _heardAt[userId] = clock();
     if (following.value == userId) {
       showView(view);
       followedTile.value = tile;
@@ -177,6 +191,7 @@ class CanvasViewRelay {
   void forget(String userId) {
     _views.remove(userId);
     _tiles.remove(userId);
+    _heardAt.remove(userId);
     if (summonRequest.value?.userId == userId) declineSummon();
     if (following.value == userId) stopFollowing();
   }

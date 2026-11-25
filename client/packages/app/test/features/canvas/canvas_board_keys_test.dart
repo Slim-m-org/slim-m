@@ -52,6 +52,37 @@ void main() {
     expect(document.selectedObjectId.value, first);
   });
 
+  testWidgets('Shift and Page Down step without the bracket keys', (
+    tester,
+  ) async {
+    await _pump(tester);
+    final document = surfaceDocument(tester);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
+    final first = document.selectedObjectId.value;
+    await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
+    final second = document.selectedObjectId.value;
+    await tester.sendKeyEvent(LogicalKeyboardKey.pageUp);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+
+    expect([first, second], ['a', 'b']);
+    expect(document.selectedObjectId.value, first);
+  });
+
+  testWidgets('a bracket typed with AltGr still steps', (tester) async {
+    await _pump(tester);
+    final document = surfaceDocument(tester);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.altRight);
+    await tester.sendKeyEvent(LogicalKeyboardKey.bracketRight);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.altRight);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+
+    expect(document.selectedObjectId.value, 'a');
+  });
+
   testWidgets('] walks notes bottom to top, then the drawings, and wraps', (
     tester,
   ) async {

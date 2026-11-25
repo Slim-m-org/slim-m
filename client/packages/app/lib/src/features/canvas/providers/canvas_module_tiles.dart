@@ -129,7 +129,7 @@ class CanvasTileFrames
         channelId: channelId,
         objectId: objectId,
       );
-      if (_liveFrames[objectId] != liveBefore) return;
+      if (_disposed || _liveFrames[objectId] != liveBefore) return;
       if (stored != null) {
         _set(objectId, CanvasTileFrame.shown(stored.output));
         return;
@@ -147,6 +147,12 @@ class CanvasTileFrames
         objectId,
         CanvasTileFrame.failed(describeApiFailure('show this tile', e)),
       );
+    } on Object catch (e, stack) {
+      api.reportFailure(api.LogTag.ui, 'show a module tile', e, stack);
+      _set(
+        objectId,
+        const CanvasTileFrame.failed('This tile could not be shown.'),
+      );
     }
   }
 
@@ -158,7 +164,9 @@ class CanvasTileFrames
         channelId: channelId,
         objectId: objectId,
       );
-      if (stored == null || _liveFrames[objectId] != liveBefore) return;
+      if (_disposed || stored == null || _liveFrames[objectId] != liveBefore) {
+        return;
+      }
       _set(objectId, CanvasTileFrame.shown(stored.output));
     } on api.ApiException catch (e, stack) {
       api.AppLog.swallowed(
@@ -181,6 +189,7 @@ class CanvasTileFrames
       input: input,
     );
     final output = result.output;
+    if (_disposed) return result;
     if (result.ok && output != null && state[objectId]?.output == null) {
       _set(objectId, CanvasTileFrame.shown(output));
     }

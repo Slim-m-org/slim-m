@@ -11,6 +11,7 @@ import 'package:slimm_design_system/design_system.dart' show AppSizes;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import 'canvas_edge_label.dart';
+import 'canvas_object_locks.dart';
 
 /// More nodes than this in view is a wall of noise; the board's own label still counts them all.
 const int _maxNodes = 40;
@@ -57,17 +58,34 @@ class _CanvasBoardObjectSemanticsState
   Widget build(BuildContext context) {
     if (!_semantics) return const SizedBox.shrink();
     final document = widget.document;
+    final locks = CanvasObjectLocksScope.maybeOf(context);
     return Positioned.fill(
       child: ListenableBuilder(
-        listenable: document,
+        listenable: Listenable.merge([document, ?locks?.ids]),
         builder: (context, _) {
           final camera = document.camera;
           final selected = document.selectedObjectId.value;
+          final visible = document.visibleIdsInReadingOrder();
+          final shown = visible.take(_maxNodes).toList();
+          final hiddenLocks = locks == null
+              ? 0
+              : visible.skip(_maxNodes).where(locks.isLocked).length;
           return Stack(
             children: [
-              for (final id in document.visibleIdsInReadingOrder(
-                limit: _maxNodes,
-              ))
+              if (hiddenLocks > 0)
+                Positioned(
+                  left: 0,
+                  top: 0,
+                  width: 1,
+                  height: 1,
+                  child: Semantics(
+                    container: true,
+                    label: hiddenLocks == 1
+                        ? '1 more locked object in view'
+                        : '$hiddenLocks more locked objects in view',
+                  ),
+                ),
+              for (final id in shown)
                 if (id != selected)
                   if (document.objectBounds(id) case final bounds?)
                     Positioned.fromRect(
@@ -81,7 +99,9 @@ class _CanvasBoardObjectSemanticsState
                       ),
                       child: Semantics(
                         container: true,
-                        label: _labelFor(document, id),
+                        label: locks?.isLocked(id) == true
+                            ? '${_labelFor(document, id)}, locked'
+                            : _labelFor(document, id),
                         onTap: () => document.selectedObjectId.value = id,
                         onLongPress: () => widget.onOpenActions(id),
                         child: const SizedBox.expand(),

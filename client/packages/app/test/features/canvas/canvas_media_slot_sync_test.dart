@@ -179,6 +179,30 @@ void main() {
     expect(overrides.stateFor('camera:alice').rect, isNull);
   });
 
+  test('a refused first move of a never-saved tile goes back to its default '
+      'place', () async {
+    final overrides = CanvasPresenceTileOverrides();
+    addTearDown(overrides.dispose);
+    final client = _apiWith(
+      (request) async => http.Response(
+        jsonEncode({'error': 'locked'}),
+        403,
+        headers: {'content-type': 'application/json'},
+      ),
+    );
+    final sync = CanvasMediaSlotSync(
+      channelId: 'c1',
+      client: client,
+      overrides: overrides,
+    );
+    const dropped = Rect.fromLTWH(400, 300, 360, 203);
+
+    overrides.setRect('camera:alice', dropped);
+    await sync.commit('camera:alice', dropped);
+
+    expect(overrides.stateFor('camera:alice').rect, isNull);
+  });
+
   test('commit error explains locked tile on 409 conflict', () async {
     final overrides = CanvasPresenceTileOverrides();
     addTearDown(overrides.dispose);

@@ -112,7 +112,7 @@ extension CanvasOpsControllerEdit on CanvasOpsController {
     String errorMessage,
   ) async {
     final before = document.noteStyleOf(objectId);
-    if (before == null) return null;
+    if (before == null) return _gone();
     document
       ..setNoteStyle(objectId, style)
       ..refresh();
@@ -137,7 +137,7 @@ extension CanvasOpsControllerEdit on CanvasOpsController {
           ..refresh();
       }
       _settleUnknownOutcome(error);
-      onError(errorMessage);
+      _reportHistoryFailure(error, errorMessage);
       return null;
     }
     await _regrowNote(objectId, document.noteTextOf(objectId) ?? '');
@@ -176,7 +176,7 @@ extension CanvasOpsControllerEdit on CanvasOpsController {
     String errorMessage,
   ) async {
     final before = document.noteTextOf(objectId);
-    if (before == null) return null;
+    if (before == null) return _gone();
     document.setNoteText(objectId, text);
     document.refresh();
     final props = _noteProps(objectId);
@@ -198,7 +198,7 @@ extension CanvasOpsControllerEdit on CanvasOpsController {
         document.refresh();
       }
       _settleUnknownOutcome(error);
-      onError(errorMessage);
+      _reportHistoryFailure(error, errorMessage);
       return null;
     }
     await _regrowNote(objectId, text);
@@ -312,7 +312,7 @@ extension CanvasOpsControllerTextEdit on CanvasOpsController {
     String errorMessage,
   ) async {
     final before = _textPropsOf(objectId);
-    if (before == null) return null;
+    if (before == null) return _gone();
     _applyTextProps(objectId, next);
     try {
       await _sendObjectOp(
@@ -328,7 +328,7 @@ extension CanvasOpsControllerTextEdit on CanvasOpsController {
     } on api.ApiException catch (error) {
       if (_textPropsOf(objectId) == next) _applyTextProps(objectId, before);
       _settleUnknownOutcome(error);
-      onError(errorMessage);
+      _reportHistoryFailure(error, errorMessage);
       return null;
     }
     await _refitText(objectId, next);
@@ -436,7 +436,7 @@ extension CanvasOpsControllerEdges on CanvasOpsController {
   ) async {
     final edges = document.edges;
     final held = edges.liveEdge(objectId)?.spec.toProps();
-    if (held == null) return null;
+    if (held == null) return _gone();
     final inverse = {for (final key in change.keys) key: held[key]};
     if (!edges.applyEdited(objectId, change)) return const {};
     try {
@@ -453,7 +453,7 @@ extension CanvasOpsControllerEdges on CanvasOpsController {
     } on api.ApiException catch (error) {
       edges.applyEdited(objectId, inverse);
       _settleUnknownOutcome(error);
-      onError(errorMessage);
+      _reportHistoryFailure(error, errorMessage);
       return null;
     }
     return inverse;

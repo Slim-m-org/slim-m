@@ -196,7 +196,10 @@ class CanvasQuickPlacement {
     required void Function(String message) onError,
   }) async {
     // A second tap while one is still being saved would place a second copy.
-    if (_inFlight) return null;
+    if (_inFlight) {
+      onError('Still saving the last item.');
+      return null;
+    }
     _inFlight = true;
     final box = document.placeOnBoard(
       Rect.fromCenter(center: world, width: w, height: h),
