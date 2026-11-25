@@ -19,7 +19,10 @@ The owner's brief: a phone sends a raw 40 MB photo and it is stored at a reasona
 - Metadata: keep all, remove location (default), remove all.
   Orientation is always baked into the pixels, so the stored EXIF orientation is 1.
   Remove location rebuilds the EXIF block without GPS, thumbnail, maker note and embedded XMP/IPTC; remove all writes none.
-  The metadata mode only applies while compression is on: stripping rewrites the file, and applying it with the switch off would change what an upgrade stores.
+  The metadata mode applies with compression on or off, so the control is always shown: location is private whether or not a photo is shrunk.
+  With compression off, or when a photo is not worth re-encoding, a JPEG, PNG, WebP or HEIC is rewritten at container level with no decode, and the original is stored as sent only when the mode is keep all.
+  A file with nothing to remove is stored byte for byte.
+  A kept original (below) goes through the same removal, so the download carries no position either.
 - Keep original stores the upload beside the copy as `<id>.orig`, served only at `GET /attachments/{id}?original=true` as a download.
   The quota and the storage screen count both files.
 
@@ -126,6 +129,10 @@ The default upload limit is 1 GiB (`SLIMM_ATTACHMENT_MAX_BYTES`), so a 40 MB pho
 - JPEG encode is `jpeg-encoder`, scaled JPEG decode is `jpeg-decoder`, resize is `fast_image_resize`, all pure Rust.
 - `oxipng` brings `libdeflater`, a small C library compiled by the `cc` crate.
   `docker build -f docker/server.Dockerfile` builds it on the Alpine musl builder without changes.
+- HEIC location is removed in place (`heic_strip.rs`): the EXIF item is rebuilt without GPS and zero-padded to its old length, and an XMP item is blanked with spaces, so the file keeps its length and every `iloc` offset stays true.
+  Only single-extent items stored in the file body are handled, which is every file seen from phones; a file that does not parse is stored as sent, the same as a JPEG that does not parse.
+  A TIFF has its GPS block, XMP and IPTC data blanked in place the same way, in both removal modes; the rest of its tags stay.
+  Not covered: AVIF, which is not sniffed as a photo and so never touched, and BMP, which carries no metadata.
 - Not preserved on re-encode: HDR gain maps and multi-picture data (Ultra HDR), and the EXIF thumbnail.
   Keep original retains them.
 
