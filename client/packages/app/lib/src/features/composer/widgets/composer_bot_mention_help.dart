@@ -51,13 +51,11 @@ class ComposerBotMentionHelp extends StatelessWidget {
                     ),
                   ),
                 ),
-                InkWell(
-                  onTap: onDismiss,
-                  child: Icon(
-                    AppIcons.dismiss,
-                    size: AppSizes.icon16,
-                    color: tokens.textSecondary,
-                  ),
+                AppIconButton(
+                  icon: AppIcons.dismiss,
+                  semanticLabel: 'Dismiss bot help',
+                  tooltip: 'Dismiss',
+                  onPressed: onDismiss,
                 ),
               ],
             ),

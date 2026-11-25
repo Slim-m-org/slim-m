@@ -29,17 +29,21 @@ bool usesSoftKeyboard(BuildContext context) =>
       _ => false,
     };
 
+enum _EnterSource { key, action }
+
+const _sameKeyPress = Duration(milliseconds: 250);
+
 /// The composer's text entry: the placeholder, the field, and the one way a
 /// return key reaches [onSend] on each platform.
 ///
-/// On a soft keyboard the field asks the engine for a send action, because a
-/// raw Enter key event only exists on hardware keyboards. On desktop the
-/// action stays null, which leaves the engine inserting newlines and lets
-/// [CallbackShortcuts] own plain Enter, so Shift+Enter still falls through.
+/// On a soft-keyboard platform the field asks the engine for a send action,
+/// because a soft keyboard's return key is never a key event; inside an open
+/// code fence that action types a newline instead. On desktop the action stays
+/// null, which leaves the engine inserting newlines.
 ///
-/// Exactly one of those is live at a time. An iPad with a hardware keyboard
-/// is a soft-keyboard platform holding a real Enter key, so both would fire
-/// for one press, and the send would go out twice.
+/// [CallbackShortcuts] binds Enter on every platform, since a phone or tablet
+/// can have a hardware keyboard attached. One press that arrives both ways is
+/// sent once.
 class ComposerField extends StatefulWidget {
   const ComposerField({
     super.key,
@@ -88,6 +92,8 @@ class _ComposerFieldState extends State<ComposerField> {
   final ClipboardImageStatusNotifier _clipboardImageStatus =
       ClipboardImageStatusNotifier();
 
+  ({_EnterSource source, DateTime at})? _lastEnter;
+
   @override
   void initState() {
     super.initState();
@@ -110,19 +116,38 @@ class _ComposerFieldState extends State<ComposerField> {
   /// connection if the callback focuses the field again.
   void _submit() {
     widget.focusNode.requestFocus();
-    unawaited(widget.onSend());
+    if (_echoesKeyPress(_EnterSource.action)) return;
+    _sendOrNewlineInFence();
   }
 
   /// Enter confirms an IME candidate while a composition is open, so it must
   /// not also send the half-composed text.
   void _sendUnlessComposing() {
+    if (widget.controller.value.composing.isValid) return;
+    if (_echoesKeyPress(_EnterSource.key)) return;
+    _sendOrNewlineInFence();
+  }
+
+  void _sendOrNewlineInFence() {
     final value = widget.controller.value;
-    if (value.composing.isValid) return;
     if (caretInOpenFence(value)) {
       widget.controller.value = newlineInFence(value);
       return;
     }
     unawaited(widget.onSend());
+  }
+
+  /// One physical Enter press can reach the field as a key event and as the
+  /// engine's send action (an iPad or an Android tablet with a keyboard), so
+  /// the second arrival within a moment of the first is the same press.
+  bool _echoesKeyPress(_EnterSource source) {
+    final now = DateTime.now();
+    final echo =
+        _lastEnter != null &&
+        _lastEnter!.source != source &&
+        now.difference(_lastEnter!.at) < _sameKeyPress;
+    _lastEnter = (source: source, at: now);
+    return echo;
   }
 
   /// The row's icon buttons are a fixed square (see [AppIconButton]'s own
@@ -140,29 +165,24 @@ class _ComposerFieldState extends State<ComposerField> {
 
     return CallbackShortcuts(
       bindings: {
-        if (!soft)
-          for (final key in const [
-            LogicalKeyboardKey.enter,
-            LogicalKeyboardKey.numpadEnter,
-          ])
-            SingleActivator(key): _sendUnlessComposing,
-        // Shift+Enter is a hardware-only combination, hence gated the same
-        // as plain Enter above; it used to fall through to the field's own
-        // newline untouched, which a list continuation now has to pre-empt.
-        if (!soft)
-          const SingleActivator(LogicalKeyboardKey.enter, shift: true): () =>
-              widget.controller.value = applyListAwareEnter(
-                widget.controller.value,
-              ),
+        for (final key in const [
+          LogicalKeyboardKey.enter,
+          LogicalKeyboardKey.numpadEnter,
+        ])
+          SingleActivator(key): _sendUnlessComposing,
+        // A list continuation has to pre-empt the field's own newline.
+        const SingleActivator(LogicalKeyboardKey.enter, shift: true): () =>
+            widget.controller.value = applyListAwareEnter(
+              widget.controller.value,
+            ),
         // Sends even from inside an open code block, where Enter types a newline.
-        if (!soft)
-          for (final modifier in const [(true, false), (false, true)])
-            SingleActivator(
-              LogicalKeyboardKey.enter,
-              control: modifier.$1,
-              meta: modifier.$2,
-            ): () =>
-                unawaited(widget.onSend()),
+        for (final modifier in const [(true, false), (false, true)])
+          SingleActivator(
+            LogicalKeyboardKey.enter,
+            control: modifier.$1,
+            meta: modifier.$2,
+          ): () =>
+              unawaited(widget.onSend()),
         ...emphasisShortcuts(widget.controller),
       },
       child: ConstrainedBox(
