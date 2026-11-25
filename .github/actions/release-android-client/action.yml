@@ -71,7 +71,7 @@ runs:
       shell: "bash -e {0}"
       working-directory: client/packages/app
       run: |
-        for permission in REQUEST_INSTALL_PACKAGES READ_MEDIA_IMAGES READ_MEDIA_VISUAL_USER_SELECTED; do
+        for permission in REQUEST_INSTALL_PACKAGES READ_MEDIA_IMAGES READ_MEDIA_VIDEO READ_MEDIA_VISUAL_USER_SELECTED; do
           if unzip -p build/app/outputs/bundle/release/app-release.aab base/manifest/AndroidManifest.xml \
               | grep -a -q "$permission"; then
             echo "::error::the appbundle still requests $permission"

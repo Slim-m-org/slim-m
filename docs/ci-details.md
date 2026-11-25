@@ -1016,7 +1016,7 @@ When it is empty the step is skipped with a `::notice::`.
 The upload runs after the apk is attached to the release, so a Play failure fails the job visibly without costing the release its apk.
 
 The appbundle is built with `--dart-define=SLIMM_PLAY_BUILD=true`, which compiles the sideload apk updater out of the Dart code, and Gradle sets `BuildConfig.SIDELOAD_UPDATER` false for any bundle task, which leaves the native installer channel unregistered.
-A step after the signer check fails the job before any upload when the bundle's manifest still names `REQUEST_INSTALL_PACKAGES`, `READ_MEDIA_IMAGES` or `READ_MEDIA_VISUAL_USER_SELECTED`.
+A step after the signer check fails the job before any upload when the bundle's manifest still names `REQUEST_INSTALL_PACKAGES`, `READ_MEDIA_IMAGES`, `READ_MEDIA_VIDEO` or `READ_MEDIA_VISUAL_USER_SELECTED`.
 
 ### The flatpak remote
 
