@@ -65,11 +65,27 @@ class _CanvasBoardObjectSemanticsState
         builder: (context, _) {
           final camera = document.camera;
           final selected = document.selectedObjectId.value;
+          final visible = document.visibleIdsInReadingOrder();
+          final shown = visible.take(_maxNodes).toList();
+          final hiddenLocks = locks == null
+              ? 0
+              : visible.skip(_maxNodes).where(locks.isLocked).length;
           return Stack(
             children: [
-              for (final id in document.visibleIdsInReadingOrder(
-                limit: _maxNodes,
-              ))
+              if (hiddenLocks > 0)
+                Positioned(
+                  left: 0,
+                  top: 0,
+                  width: 1,
+                  height: 1,
+                  child: Semantics(
+                    container: true,
+                    label: hiddenLocks == 1
+                        ? '1 more locked object in view'
+                        : '$hiddenLocks more locked objects in view',
+                  ),
+                ),
+              for (final id in shown)
                 if (id != selected)
                   if (document.objectBounds(id) case final bounds?)
                     Positioned.fromRect(

@@ -126,7 +126,10 @@ extension CanvasOpsControllerGroup on CanvasOpsController {
     steps
       ..clear()
       ..addAll(remaining);
-    if (remaining.isEmpty && undone.isEmpty) return const _NoUndo();
+    if (remaining.isEmpty && undone.isEmpty) {
+      _entryGone = true;
+      return null;
+    }
     return remaining.isEmpty ? _MoveGroupEntry(undone) : null;
   }
 }

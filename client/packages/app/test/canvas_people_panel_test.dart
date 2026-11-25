@@ -186,6 +186,31 @@ void main() {
     expect(rig.relay.following.value, isNull);
   });
 
+  testWidgets('the kept follow ends 30 seconds after their last frame', (
+    tester,
+  ) async {
+    final rig = _Rig(tester)..cursor('amy', 1);
+    await rig.pump();
+    rig.relay.follow('amy');
+    await tester.pump();
+    rig.relay.applyRemote(
+      'amy',
+      const Rect.fromLTWH(0, 0, 500, 500),
+      summon: false,
+    );
+    rig.now = rig.now.add(const Duration(seconds: 10));
+    rig.cursors.remove('amy');
+    await tester.pump();
+    await tester.pump();
+    expect(rig.relay.following.value, 'amy');
+
+    rig.now = rig.now.add(const Duration(seconds: 21));
+    await tester.pump(const Duration(seconds: 21));
+    await tester.pump();
+
+    expect(rig.relay.following.value, isNull);
+  });
+
   testWidgets('Bring everyone to me asks first', (tester) async {
     final rig = _Rig(tester)..cursor('amy', 1);
     await rig.pump();

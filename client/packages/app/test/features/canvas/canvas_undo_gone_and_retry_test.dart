@@ -110,10 +110,12 @@ void main() {
     'retrying a half-failed undo of a delete places each row once',
     () async {
       var places = 0;
+      var deletes = 0;
       var failNext = false;
       final errors = <String>[];
       final client = testApi((request) async {
         if (request.method == 'DELETE') {
+          deletes++;
           final id = request.url.pathSegments.last;
           return _json(
             _row(
@@ -155,6 +157,51 @@ void main() {
       await ops.undo();
 
       expect(places, 3, reason: 'two rows, then the one that failed');
+
+      await ops.redo();
+
+      expect(deletes, 6, reason: 'redo deletes every row the undo placed');
     },
   );
+
+  test('undo and redo move past an entry whose note is missing here', () async {
+    final errors = <String>[];
+    final edits = <String>[];
+    final client = testApi((request) async {
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      edits.add(body['object_id'] as String);
+      return acceptedOp(n: edits.length, kind: body['kind'], affected: 1);
+    });
+    final document = CanvasDocument()..setViewport(const Size(800, 600));
+    final ops = CanvasOpsController(
+      channelId: 'c1',
+      client: client,
+      document: document,
+      commits: plainCommitQueue(client),
+      onError: errors.add,
+    );
+    document
+      ..applyPlaced(_note('m', 'm0'))
+      ..applyPlaced(_note('n', 'n0'))
+      ..refresh();
+    await ops.editNote('m', 'm1');
+    await ops.editNote('n', 'n1');
+    document
+      ..removeObject('n')
+      ..refresh();
+
+    await ops.undo();
+
+    expect(document.noteTextOf('m'), 'm0');
+    expect(errors, isEmpty);
+
+    document
+      ..removeObject('m')
+      ..refresh();
+    edits.clear();
+    await ops.redo();
+
+    expect(edits, isEmpty);
+    expect(errors, ['Nothing left to redo is still on the board.']);
+  });
 }

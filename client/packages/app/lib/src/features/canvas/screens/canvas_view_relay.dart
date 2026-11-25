@@ -77,10 +77,10 @@ class CanvasViewRelay {
   /// The last view heard from [userId]; the whole board if none was.
   Rect viewOf(String userId) => _views[userId] ?? board;
 
-  /// Whether a view frame from [userId] arrived within [within].
-  bool heardWithin(String userId, Duration within) {
+  /// How long ago the last view frame from [userId] arrived, or null if none did.
+  Duration? sinceHeard(String userId) {
     final at = _heardAt[userId];
-    return at != null && clock().difference(at) <= within;
+    return at == null ? null : clock().difference(at);
   }
 
   /// Call whenever this device's visible part of the board may have changed.

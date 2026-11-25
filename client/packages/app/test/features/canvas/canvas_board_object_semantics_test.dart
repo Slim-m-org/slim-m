@@ -113,4 +113,41 @@ void main() {
     expect(find.bySemanticsLabel('Locked in place'), findsNothing);
     handle.dispose();
   });
+
+  testWidgets('locked objects past the node cap are still announced', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    final document = CanvasDocument()..setViewport(const Size(800, 600));
+    addTearDown(document.dispose);
+    for (var i = 0; i < 45; i++) {
+      document.applyPlaced(_object('ink$i', i));
+    }
+    document.refresh();
+    final locks = CanvasObjectLocks(
+      channelId: 'c1',
+      client: testApi((request) async => http.Response('{}', 200)),
+    );
+    addTearDown(locks.dispose);
+    locks.ids.value = {'ink44'};
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CanvasObjectLocksScope(
+          locks: locks,
+          child: Stack(
+            children: [
+              CanvasBoardObjectSemantics(
+                document: document,
+                onOpenActions: (_) {},
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    expect(find.bySemanticsLabel('1 more locked object in view'), findsOne);
+    handle.dispose();
+  });
 }

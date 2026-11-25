@@ -166,6 +166,12 @@ class CanvasOpsController {
   /// Set when a history step found its object deleted elsewhere, so the entry is dropped rather than retried.
   bool _entryGone = false;
 
+  /// A history step whose object is missing here, with nothing to send, drops its entry.
+  Null _gone() {
+    if (_historyBusy) _entryGone = true;
+    return null;
+  }
+
   /// A history step on an object the server no longer has is skipped quietly; any other failure is reported.
   void _reportHistoryFailure(api.ApiException error, String message) {
     if (_historyBusy && error is api.NotFoundException) {
@@ -330,6 +336,7 @@ class CanvasOpsController {
   Future<void> redo() async {
     if (_historyBusy || _redoStack.isEmpty) return;
     _historyBusy = true;
+    var dropped = 0;
     try {
       while (_redoStack.isNotEmpty && !_disposed) {
         final entry = _redoStack.last;
@@ -337,10 +344,14 @@ class CanvasOpsController {
         final undoEntry = await _redoStep(entry);
         if (undoEntry == null && !_entryGone) return;
         _redoStack.remove(entry);
-        if (undoEntry == null) continue;
+        if (undoEntry == null) {
+          dropped++;
+          continue;
+        }
         if (undoEntry is! _NoUndo) _pushUndo(undoEntry, keepRedo: true);
         return;
       }
+      if (dropped > 0) onError('Nothing left to redo is still on the board.');
     } finally {
       _historyBusy = false;
     }

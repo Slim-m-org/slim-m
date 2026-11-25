@@ -102,8 +102,9 @@ _Following? _resolveFollowing(
   }
   if (followed == null && id != null && held != null) {
     // Their cursor goes with a pointer off the board or a lost window focus, while their view keeps arriving.
-    if (session.relay.heardWithin(id, followIdleGrace)) {
-      session.recheckAfter(followIdleGrace);
+    final quiet = session.relay.sinceHeard(id);
+    if (quiet != null && quiet < followIdleGrace) {
+      session.recheckAfter(followIdleGrace - quiet);
       return (name: held, color: session.followedColor ?? tokens.accentFill);
     }
   }
