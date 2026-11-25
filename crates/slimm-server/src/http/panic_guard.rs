@@ -8,6 +8,8 @@
 //! keeps the old abort-and-restart behavior. See decision 0059.
 
 use std::any::Any;
+use std::cell::Cell;
+use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use axum::extract::Request;
 use axum::middleware::Next;
@@ -18,6 +20,10 @@ use super::error::ApiError;
 
 tokio::task_local! {
     static IN_REQUEST: ();
+}
+
+thread_local! {
+    static CONTAINED: Cell<bool> = const { Cell::new(false) };
 }
 
 type PanicResponse = fn(Box<dyn Any + Send + 'static>) -> Response;
@@ -47,9 +53,36 @@ fn internal_error(_panic: Box<dyn Any + Send + 'static>) -> Response {
     ApiError::Internal.into_response()
 }
 
+/// A blocking job that panicked; the panic was caught and the process keeps running.
+#[derive(Debug)]
+pub struct Panicked;
+
+/// Runs `work` on the blocking pool, catching a panic in it, which the process-ending hook
+/// lets through. For jobs a handler awaits and can fall back from, such as image decoding.
+pub async fn spawn_blocking_contained<T, F>(work: F) -> Result<T, Panicked>
+where
+    F: FnOnce() -> T + Send + 'static,
+    T: Send + 'static,
+{
+    let joined = tokio::task::spawn_blocking(move || {
+        CONTAINED.set(true);
+        let outcome = catch_unwind(AssertUnwindSafe(work));
+        CONTAINED.set(false);
+        outcome
+    })
+    .await;
+    match joined {
+        Ok(Ok(value)) => Ok(value),
+        _ => {
+            tracing::error!("a contained blocking job panicked");
+            Err(Panicked)
+        }
+    }
+}
+
 /// Whether a panic raised right now should end the process.
 pub fn panic_ends_process() -> bool {
-    IN_REQUEST.try_with(|_| ()).is_err()
+    !CONTAINED.get() && IN_REQUEST.try_with(|_| ()).is_err()
 }
 
 /// Keeps the default report, then aborts unless the panic is on a request task.

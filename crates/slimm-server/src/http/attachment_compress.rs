@@ -10,6 +10,7 @@ use uuid::Uuid;
 
 use super::AppState;
 use super::error::ApiError;
+use super::panic_guard;
 use super::storage_room::reserve_room;
 use crate::ids::UserId;
 use crate::media::compress::{self, Compressed, Policy};
@@ -155,7 +156,7 @@ async fn compress_upload(
     }
     let _slot = slot;
     let policy = policy.clone();
-    tokio::task::spawn_blocking(move || {
+    panic_guard::spawn_blocking_contained(move || {
         let compressed =
             compress::compress(candidate, &bytes, &policy, &compress::DEFAULT_SETTINGS)?;
         let original_bytes = keep_original
@@ -168,7 +169,7 @@ async fn compress_upload(
     })
     .await
     .unwrap_or_else(|err| {
-        tracing::error!(error = %err, "photo compression panicked; storing the upload as sent");
+        tracing::error!(error = ?err, "photo compression panicked; storing the upload as sent");
         None
     })
 }
@@ -193,10 +194,10 @@ async fn strip_only(
         return None;
     };
     let bytes = read_upload(path).await?;
-    tokio::task::spawn_blocking(move || compress::strip_only(kind, &bytes, metadata))
+    panic_guard::spawn_blocking_contained(move || compress::strip_only(kind, &bytes, metadata))
         .await
         .unwrap_or_else(|err| {
-            tracing::error!(error = %err, "removing an upload's metadata panicked; storing it as sent");
+            tracing::error!(error = ?err, "removing an upload's metadata panicked; storing it as sent");
             None
         })
 }
