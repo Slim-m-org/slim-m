@@ -36,6 +36,25 @@ CallMoment _moment(CallMomentKind kind, int at, [String? who]) =>
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
+  testWidgets(
+    'a call that ended leaves out Open canvas when the canvas is off',
+    (tester) async {
+      Future<void> pump({required VoidCallback? open}) => tester.pumpWidget(
+        _app(
+          CallMomentsView(
+            moments: [_moment(CallMomentKind.ended, 4)],
+            canvasObjectCount: 3,
+            onOpenCanvas: open,
+          ),
+        ),
+      );
+      await pump(open: () {});
+      expect(find.text('Open canvas'), findsOneWidget);
+      await pump(open: null);
+      expect(find.text('Open canvas'), findsNothing);
+    },
+  );
+
   group('the moments list', () {
     Future<void> pump(WidgetTester tester, {int canvasObjects = 0}) async {
       await tester.pumpWidget(

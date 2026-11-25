@@ -41,6 +41,8 @@ Future<void> upsertChannels(
           roomOwnerId: Value(channel.roomOwnerId),
           roomLobbyId: Value(channel.roomLobbyId),
           roomLocked: Value(channel.roomLocked),
+          canvasEnabled: Value(channel.canvasEnabled),
+          voiceEnabled: Value(channel.voiceEnabled),
         ),
         onConflict: DoUpdate(
           (_) => ChannelsCompanion.custom(
@@ -62,6 +64,8 @@ Future<void> upsertChannels(
             roomOwnerId: Variable(channel.roomOwnerId),
             roomLobbyId: Variable(channel.roomLobbyId),
             roomLocked: Variable(channel.roomLocked),
+            canvasEnabled: Variable(channel.canvasEnabled),
+            voiceEnabled: Variable(channel.voiceEnabled),
           ),
         ),
       );

@@ -7,6 +7,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:slimm_data/data.dart' show Channel;
+import '../../../channels/widgets/channel_kind_icon.dart' show ChannelGlyphKind;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../channels/providers/dms.dart' show dmChannelKind;
@@ -45,9 +46,7 @@ class ChannelPickerSheet extends StatelessWidget {
               // A DM carries no overwrites or webhooks; it is a person, not a channel.
               for (final c in channels.where((c) => c.kind != dmChannelKind))
                 AppListRow(
-                  leading: Icon(
-                    c.kind == 'voice' ? AppIcons.voice : AppIcons.hash,
-                  ),
+                  leading: Icon(ChannelGlyphKind.of(c.kind).icon),
                   label: c.name,
                   onTap: () => Navigator.of(context).pop(c),
                 ),

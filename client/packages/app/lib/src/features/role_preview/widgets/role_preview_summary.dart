@@ -11,24 +11,20 @@ import '../../../permissions.dart';
 import '../../../widgets/permission_row.dart';
 import '../../channels/widgets/channel_kind_icon.dart';
 
-const _textBits = [
-  Perm.viewChannel,
-  Perm.sendMessages,
-  Perm.attachFiles,
-  Perm.addReactions,
-  Perm.mentionEveryone,
-  Perm.manageMessages,
-];
-
-const _voiceBits = [
-  Perm.viewChannel,
-  Perm.connect,
-  Perm.speak,
-  Perm.useSoundboard,
-  Perm.useCanvas,
-  Perm.sendMessages,
-  Perm.moveMembers,
-];
+/// The permission bits worth showing for [channel]: call bits only where a call runs, canvas bits only where a board exists.
+List<int> rolePreviewBits(api.RolePreviewChannel channel) {
+  final board = channel.isCanvasChannel;
+  final textLike = !channel.isVoice && !board;
+  return [
+    Perm.viewChannel,
+    if (channel.hostsCall) ...[Perm.connect, Perm.speak, Perm.useSoundboard],
+    if (channel.hasCanvas) Perm.useCanvas,
+    Perm.sendMessages,
+    if (textLike || board) ...[Perm.attachFiles, Perm.addReactions],
+    if (textLike) ...[Perm.mentionEveryone, Perm.manageMessages],
+    if (channel.hostsCall) Perm.moveMembers,
+  ];
+}
 
 class RolePreviewSummary extends StatelessWidget {
   const RolePreviewSummary({
@@ -49,7 +45,7 @@ class RolePreviewSummary extends StatelessWidget {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final compact = MediaQuery.sizeOf(context).width < kCompactWidth;
     final gutter = compact ? AppSizes.paneGutterCompact : AppSizes.paneGutter;
-    final bits = channel.isVoice ? _voiceBits : _textBits;
+    final bits = rolePreviewBits(channel);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -69,7 +65,7 @@ class RolePreviewSummary extends StatelessWidget {
                   onPressed: onBack,
                 ),
               ChannelKindIcon(
-                isVoice: channel.isVoice,
+                glyph: ChannelGlyphKind.of(channel.kind),
                 restricted: channel.restricted,
                 color: tokens.textSecondary,
                 size: AppSizes.icon20,

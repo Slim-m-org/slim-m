@@ -36,7 +36,7 @@ class CallDetailsSections extends ConsumerWidget {
   /// Now, in epoch milliseconds: where a call still going ends for now.
   final int now;
   final bool compact;
-  final VoidCallback onOpenCanvas;
+  final VoidCallback? onOpenCanvas;
 
   /// Sections above the calls, spaced the same way.
   final List<Widget> lead;
@@ -236,7 +236,7 @@ class _Moments extends StatelessWidget {
   final int now;
   final bool compact;
   final int canvasObjectCount;
-  final VoidCallback onOpenCanvas;
+  final VoidCallback? onOpenCanvas;
 
   @override
   Widget build(BuildContext context) {

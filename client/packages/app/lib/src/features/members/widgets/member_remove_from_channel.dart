@@ -7,6 +7,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_data/data.dart' show ChannelKinds;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../permissions.dart';
@@ -124,7 +125,7 @@ class MemberRemoveFromChannelItem extends ConsumerWidget {
             client,
             channelId: channelId,
             memberId: profile.id,
-            isVoice: channel.kind == 'voice',
+            isVoice: channel.hostsCall,
           ),
         );
         if (!ok) return;

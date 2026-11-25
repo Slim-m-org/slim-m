@@ -13,13 +13,13 @@ import 'group_avatar_stack.dart';
 import '../../members/widgets/user_avatar.dart';
 
 /// A DM is a person, so it shows their avatar and presence like every other
-/// surface naming one; the personal space keeps its notebook, and a text or
-/// voice channel its own icon.
+/// surface naming one; the personal space keeps its notebook, and a text,
+/// voice or canvas channel its own icon.
 class ChannelTitleGlyph extends StatelessWidget {
   const ChannelTitleGlyph({
     super.key,
     required this.name,
-    required this.isVoice,
+    required this.glyph,
     required this.restricted,
     required this.isDm,
     required this.isPersonalSpace,
@@ -28,7 +28,7 @@ class ChannelTitleGlyph extends StatelessWidget {
   });
 
   final String name;
-  final bool isVoice;
+  final ChannelGlyphKind glyph;
   final bool restricted;
   final bool isDm;
   final bool isPersonalSpace;
@@ -67,7 +67,7 @@ class ChannelTitleGlyph extends StatelessWidget {
       );
     }
     return ChannelKindIcon(
-      isVoice: isVoice,
+      glyph: glyph,
       restricted: restricted,
       color: tokens.textSecondary,
     );

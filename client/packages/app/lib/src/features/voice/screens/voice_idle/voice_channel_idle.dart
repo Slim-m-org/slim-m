@@ -48,7 +48,7 @@ class VoiceChannelIdle extends ConsumerWidget {
 
   /// Repeats a failed join in the mic mode it used; null retries with [onJoin].
   final VoidCallback? onRetry;
-  final VoidCallback onOpenCanvas;
+  final VoidCallback? onOpenCanvas;
   final String? errorMessage;
   final bool canRetry;
 

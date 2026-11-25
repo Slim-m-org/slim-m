@@ -25,8 +25,7 @@ bool hasRoomFor(api.Channel channel, int present) =>
 /// The voice channels [fromChannelId] can be moved to, in rail order.
 List<api.Channel> moveTargets(List<api.Channel> all, String fromChannelId) => [
   for (final c in all)
-    if (c.isVoice &&
-        !c.isThread &&
+    if (c.hostsCall &&
         c.id != fromChannelId &&
         (c.permissions ?? 0).hasPermission(Perm.moveMembers))
       c,

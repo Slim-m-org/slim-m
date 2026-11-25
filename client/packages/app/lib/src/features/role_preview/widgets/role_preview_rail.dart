@@ -89,7 +89,7 @@ class RolePreviewRail extends StatelessWidget {
             label: channel.name,
             selected: selected,
             leading: ChannelKindIcon(
-              isVoice: channel.isVoice,
+              glyph: ChannelGlyphKind.of(channel.kind),
               restricted: channel.restricted,
               color: selected ? tokens.accent : tokens.textSecondary,
             ),

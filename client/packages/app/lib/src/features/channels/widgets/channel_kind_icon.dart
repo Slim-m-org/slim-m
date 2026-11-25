@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The hash/voice glyph a channel row or header leads with, with a lock badge
+/// The hash, voice or canvas glyph a channel row or header leads with, with a lock badge
 /// cut into its corner when `@everyone` cannot view the channel, so a private
 /// voice channel still reads as voice. Shared across the rail rows and both
 /// channel headers so the tooltip and accessible label are written once.
@@ -8,16 +8,35 @@ library;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+/// Which glyph a channel leads with; an unknown wire kind reads as text.
+enum ChannelGlyphKind {
+  text,
+  voice,
+  canvas;
+
+  IconData get icon => switch (this) {
+    voice => AppIcons.voice,
+    canvas => AppIcons.canvas,
+    text => AppIcons.hash,
+  };
+
+  static ChannelGlyphKind of(String kind) => switch (kind) {
+    'voice' => voice,
+    'canvas' => canvas,
+    _ => text,
+  };
+}
+
 class ChannelKindIcon extends StatelessWidget {
   const ChannelKindIcon({
     super.key,
-    required this.isVoice,
+    required this.glyph,
     required this.restricted,
     required this.color,
     this.size = AppSizes.icon16,
   });
 
-  final bool isVoice;
+  final ChannelGlyphKind glyph;
 
   /// See `Channel.restricted`'s own doc comment (slimm_api). False for an
   /// ordinary channel and for a server too old to say either way.
@@ -27,17 +46,18 @@ class ChannelKindIcon extends StatelessWidget {
 
   static const _label = "Restricted channel: not visible to everyone";
   static const voiceLabel = 'Private voice channel';
+  static const canvasLabel = 'Private canvas channel';
 
   @override
   Widget build(BuildContext context) {
-    final kind = Icon(
-      isVoice ? AppIcons.voice : AppIcons.hash,
-      size: size,
-      color: color,
-    );
+    final kind = Icon(glyph.icon, size: size, color: color);
     if (!restricted) return kind;
     final badge = (size * 0.56).roundToDouble();
-    final label = isVoice ? voiceLabel : _label;
+    final label = switch (glyph) {
+      ChannelGlyphKind.voice => voiceLabel,
+      ChannelGlyphKind.canvas => canvasLabel,
+      ChannelGlyphKind.text => _label,
+    };
     return Tooltip(
       message: label,
       child: Semantics(

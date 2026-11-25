@@ -83,7 +83,7 @@ List<Widget> channelRowMenuItems(
   final lead = [
     if (channel.kind == 'voice' && !isLobby) ...[
       _openChatItem(context, channel, close),
-      _openCanvasItem(context, channel, close),
+      if (channel.hasCanvas) _openCanvasItem(context, channel, close),
       _viewDetailsItem(context, channel, close),
     ],
     ?markRead,

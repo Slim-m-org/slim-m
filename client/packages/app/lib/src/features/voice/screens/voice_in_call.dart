@@ -6,6 +6,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../../widgets/dock_height_reporter.dart';
+import '../../canvas/providers/canvas_entry.dart' show channelHasCanvasProvider;
 import '../../canvas/widgets/canvas_open_button.dart'
     show callDockOmitsCanvasToggle;
 import '../../members/providers/member_presence.dart' show membersProvider;
@@ -94,7 +95,7 @@ class _InCallState extends ConsumerState<VoiceInCall> {
             builder: (context, ref, _) => LoungeBackdrop(
               channelId: channelId,
               participants: ref.watch(voiceParticipantsProvider),
-              canvas: !isDm,
+              canvas: !isDm && ref.watch(channelHasCanvasProvider(channelId)),
             ),
           ),
         ),

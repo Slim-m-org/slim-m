@@ -7,6 +7,7 @@ import 'dart:math';
 
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/canvas/screens/canvas_forbidden_message.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_load_retry.dart';
 
@@ -60,6 +61,27 @@ void main() {
     expect(find.text(canvasUnavailableMessage), findsOneWidget);
     expect(fixture.viewportGets, reads, reason: 'no retry after a 404');
   });
+
+  testWidgets(
+    'a closed board shows the unavailable message and never retries',
+    (tester) async {
+      final fixture = CanvasPaneFixture(
+        viewportStatus: 403,
+        viewportCode: api.ForbiddenException.canvasOffCode,
+      );
+      final container = fixture.container();
+      addTearDown(container.dispose);
+      addTearDown(fixture.events.close);
+      await pumpCanvasPane(tester, container);
+      await tester.pump(const Duration(seconds: 1));
+      final reads = fixture.viewportGets;
+
+      await tester.pump(const Duration(minutes: 5));
+
+      expect(find.text(canvasUnavailableMessage), findsOneWidget);
+      expect(fixture.viewportGets, reads, reason: 'no retry after canvas_off');
+    },
+  );
 }
 
 class _NoJitter implements Random {

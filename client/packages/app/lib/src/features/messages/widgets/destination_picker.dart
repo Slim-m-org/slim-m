@@ -275,7 +275,7 @@ class _DestinationBody extends StatelessWidget {
       );
     }
     return ChannelKindIcon(
-      isVoice: target.isVoice,
+      glyph: ChannelGlyphKind.of(target.kind),
       restricted: target.restricted,
       color: tokens.textSecondary,
       size: AppSizes.icon20,

@@ -93,6 +93,12 @@ Future<_Wired> _pump(
         kind: 'voice',
         createdAt: 0,
       ),
+      const api.Channel(
+        id: 'c-board',
+        name: 'board',
+        kind: 'canvas',
+        createdAt: 0,
+      ),
     ]);
   });
   final container = ProviderContainer(
@@ -231,7 +237,7 @@ void main() {
 
   group('channels', () {
     const widget = NotificationScheduleAllowedChannels(
-      allowedChannelIds: ['c-general', 'c-lounge', 'c-gone'],
+      allowedChannelIds: ['c-general', 'c-lounge', 'c-board', 'c-gone'],
     );
 
     testWidgets('subscribes to the store once, not per build', (tester) async {
@@ -264,6 +270,7 @@ void main() {
       expect(find.text('lounge'), findsOneWidget);
       expect(find.text('Former channel'), findsOneWidget);
       expect(find.byIcon(AppIcons.voice), findsOneWidget);
+      expect(find.byIcon(AppIcons.canvas), findsOneWidget);
       await _unmount(tester);
     });
 

@@ -70,6 +70,14 @@ Future<void> _seed(SlimmDatabase db) async {
       createdAt: 2,
       restricted: true,
     ),
+    api.Channel(
+      id: 'ch4',
+      name: 'mod-board',
+      kind: 'canvas',
+      createdAt: 3,
+      canvasEnabled: true,
+      voiceEnabled: false,
+    ),
   ]);
 }
 
@@ -145,11 +153,12 @@ void main() {
 
     final glyphs = tester
         .widgetList<ChannelKindIcon>(find.byType(ChannelKindIcon))
-        .map((g) => (g.isVoice, g.restricted))
+        .map((g) => (g.glyph, g.restricted))
         .toList();
-    expect(glyphs, contains((false, true)));
-    expect(glyphs, contains((false, false)));
-    expect(glyphs, contains((true, true)));
+    expect(glyphs, contains((ChannelGlyphKind.text, true)));
+    expect(glyphs, contains((ChannelGlyphKind.text, false)));
+    expect(glyphs, contains((ChannelGlyphKind.voice, true)));
+    expect(glyphs, contains((ChannelGlyphKind.canvas, false)));
     expect(inPalette('Moderation'), findsOneWidget);
     expect(inPalette('CHANNELS'), findsOneWidget);
 

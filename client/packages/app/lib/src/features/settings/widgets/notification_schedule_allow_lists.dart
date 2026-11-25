@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'admin/overwrite_target_picker_sheets.dart';
 import 'package:slimm_data/data.dart' show Channel;
+import '../../channels/widgets/channel_kind_icon.dart' show ChannelGlyphKind;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../members/providers/member_presence.dart' show membersProvider;
@@ -165,7 +166,7 @@ class _NotificationScheduleAllowedChannelsState
             for (final id in widget.allowedChannelIds)
               AppListRow(
                 leading: Icon(
-                  byId[id]?.kind == 'voice' ? AppIcons.voice : AppIcons.hash,
+                  ChannelGlyphKind.of(byId[id]?.kind ?? 'text').icon,
                 ),
                 label: byId[id]?.name ?? 'Former channel',
                 trailing: AppIconButton(

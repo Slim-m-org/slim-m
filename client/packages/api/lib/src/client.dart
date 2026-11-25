@@ -241,6 +241,8 @@ class SlimmApi {
     bool restricted = false,
     bool joinMuted = false,
     bool createsRooms = false,
+    bool? voiceEnabled,
+    bool? canvasEnabled,
     NotificationPreference defaultNotification =
         NotificationPreference.everything,
     String? id,
@@ -256,6 +258,8 @@ class SlimmApi {
         if (restricted) 'restricted': true,
         if (joinMuted) 'join_muted': true,
         if (createsRooms) 'creates_rooms': true,
+        if (voiceEnabled != null) 'voice_enabled': voiceEnabled,
+        if (canvasEnabled != null) 'canvas_enabled': canvasEnabled,
         if (defaultNotification != NotificationPreference.everything)
           'default_notification': defaultNotification.wire,
       },

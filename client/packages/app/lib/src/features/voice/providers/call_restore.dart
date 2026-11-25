@@ -11,6 +11,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
+import 'package:slimm_data/data.dart' show ChannelKinds;
 import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
 
 import '../../../providers/providers.dart';
@@ -240,13 +241,13 @@ final callRestoreWatchProvider = Provider<void>((ref) {
   ref.onDispose(() => refresh?.cancel());
 });
 
-/// The voice channel a restored call can rejoin, by name; null when it is gone or is not a voice channel.
+/// The voice channel a restored call can rejoin, by name; null when it is gone or no longer hosts a call.
 final restorableChannelProvider =
     Provider<Future<String?> Function(String channelId)>(
       (ref) => (channelId) async {
         final store = await ref.read(storeProvider.future);
         final row = await store.channelRow(channelId);
-        return row != null && row.kind == 'voice' ? row.name : null;
+        return row != null && row.hostsCall ? row.name : null;
       },
     );
 
