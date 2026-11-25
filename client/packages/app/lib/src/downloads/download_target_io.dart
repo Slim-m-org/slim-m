@@ -19,7 +19,10 @@ Future<DownloadTarget?> openPlatformDownloadTarget(String filename) async {
   if (!(Platform.isLinux || Platform.isWindows || Platform.isMacOS)) {
     return MemoryDownloadTarget(filename);
   }
-  final downloads = await getDownloadsDirectory();
+  final downloads = await usableDownloadsDirectory(
+    sandboxed: inFlatpakSandbox(),
+    lookup: getDownloadsDirectory,
+  );
   if (downloads != null) {
     final chosen = await freeDownloadFile(downloads, filename);
     try {
@@ -29,13 +32,41 @@ Future<DownloadTarget?> openPlatformDownloadTarget(String filename) async {
       rethrow;
     }
   }
-  // No Downloads folder: ask, and give the picker an empty list, which makes it claim the path.
+  // No reachable Downloads folder (a sandbox, or one that cannot be written): ask, and give the picker an empty list, which makes it claim the path.
   final saved = await FilePicker.saveFile(
     fileName: filename,
     bytes: Uint8List(0),
   );
   if (saved == null) return null;
   return FileDownloadTarget.open(File.fromUri(saved));
+}
+
+/// Whether this process runs inside a flatpak sandbox, where the host's Downloads folder is not ours.
+bool inFlatpakSandbox({
+  Map<String, String>? environment,
+  bool Function(String path)? exists,
+}) =>
+    (environment ?? Platform.environment).containsKey('FLATPAK_ID') ||
+    (exists ?? (path) => File(path).existsSync())('/.flatpak-info');
+
+/// The Downloads folder from [lookup] when it exists and takes a file, else null so the portal picker runs.
+Future<Directory?> usableDownloadsDirectory({
+  required bool sandboxed,
+  required Future<Directory?> Function() lookup,
+}) async {
+  if (sandboxed) return null;
+  final directory = await lookup();
+  if (directory == null || !await directory.exists()) return null;
+  try {
+    final probe = File(
+      '${directory.path}${Platform.pathSeparator}.slimm-write-probe-$pid',
+    );
+    await probe.writeAsBytes(const [], flush: true);
+    await probe.delete();
+    return directory;
+  } on FileSystemException {
+    return null;
+  }
 }
 
 /// Names handed out and not yet written: held in memory so a quit leaves nothing under the real name.

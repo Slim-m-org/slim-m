@@ -7,16 +7,19 @@
 library;
 
 import 'dart:async';
+import 'dart:io';
 
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_api/api.dart' show LogTag, reportFailure;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../permissions.dart';
 import '../providers/channel_permissions.dart';
 import '../../composer/providers/composer_attachment_drop.dart';
 import '../../../widgets/app_drop_zone.dart';
+import '../../../widgets/dropped_item_kind.dart';
 import '../../composer/widgets/composer_attachments.dart';
 import '../../share/widgets/channel_share_handoff.dart';
 
@@ -46,19 +49,30 @@ Future<void> handleComposerDrop(
   if (target == null) return;
   target.setError(null);
   for (final file in files) {
-    if (file is DropItemDirectory) {
+    if (isDroppedFolder(file)) {
       target.setError("Folders can't be attached - drop a file instead.");
       continue;
     }
-    await target.stageFile(
-      FileSource(
-        name: file.name,
-        length: file.length,
-        readAll: file.readAsBytes,
-        openRead: file.openRead,
-        openReadAt: (offset) => file.openRead(offset),
-      ),
-    );
+    if (isDroppedAddress(file)) {
+      target.setError(
+        "Only files can be attached - save it first, then drop it.",
+      );
+      continue;
+    }
+    try {
+      await target.stageFile(
+        FileSource(
+          name: file.name,
+          length: file.length,
+          readAll: file.readAsBytes,
+          openRead: file.openRead,
+          openReadAt: (offset) => file.openRead(offset),
+        ),
+      );
+    } on FileSystemException catch (error, stack) {
+      reportFailure(LogTag.media, 'stage a dropped file', error, stack);
+      target.setError("Couldn't read ${file.name} - drop another file.");
+    }
   }
 }
 
