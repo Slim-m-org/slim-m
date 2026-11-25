@@ -291,7 +291,9 @@ void WatchForeground() {
 void StopWatchingForeground() {
   if (g_foreground_hook != nullptr) UnhookWinEvent(g_foreground_hook);
   g_foreground_hook = nullptr;
+  if (!g_blocked) return;
   g_blocked = false;
+  NotifyBlocked(false);
 }
 
 bool EndsInputSession(WPARAM reason) {

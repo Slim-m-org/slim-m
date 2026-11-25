@@ -321,6 +321,25 @@ void main() {
     await c.voice.leave();
   });
 
+  testWidgets('a lost capture forgets the elevated block', (tester) async {
+    final source = FakeHotkeySource();
+    final c = await connect(tester, source: source);
+    source.block();
+    await tester.pump();
+    await tester.pump();
+    source.lose();
+    await tester.pump();
+    await tester.pump();
+    source.probeResult = const GlobalHotkeyAvailability.available('ok');
+    c.session.emitState(VoiceSessionState.connecting);
+    c.session.emitState(VoiceSessionState.connected);
+    await tester.pump();
+    await tester.pump();
+    final state = harness.container.read(globalHotkeysProvider)!;
+    expect(state.available, isTrue);
+    await c.voice.leave();
+  });
+
   testWidgets('the global deafen shortcut toggles deafen once per press', (
     tester,
   ) async {

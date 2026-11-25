@@ -206,6 +206,7 @@ class GlobalHotkeysController extends StateNotifier<GlobalHotkeyAvailability?> {
     if (event.phase == GlobalHotkeyPhase.lost) {
       gate.release(HoldSource.global);
       _bound = '';
+      _blocked = false;
       _publish(const GlobalHotkeyAvailability.unavailable(captureLostMessage));
       return;
     }
