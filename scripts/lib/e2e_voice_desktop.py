@@ -22,6 +22,7 @@ import voice_corpus
 import voice_noise
 import voice_quality_dsp as dsp
 from e2e_skip import Skip
+from e2e_voice_thresholds import arm_problems
 
 SECONDS = int(os.environ.get("E2E_DESKTOP_SECONDS", "60"))
 WARMUP = 12
@@ -262,4 +263,6 @@ def run_if_selected(server, secret, admin_api, sign_in):
     if "voice desktop" not in os.environ.get("E2E_ONLY", ""):
         print("  skipped: set E2E_ONLY='voice desktop' to run it")
         raise Skip
-    a_noisy_desktop(server, secret, admin_api, sign_in)
+    results = a_noisy_desktop(server, secret, admin_api, sign_in)
+    found = [f"{voice}: {p}" for voice, arms in results.items() for p in arm_problems(arms)]
+    assert not found, "; ".join(found)

@@ -16,6 +16,7 @@ import desktop_audio as da
 import e2e_labels as L
 import e2e_voice_desktop as vd
 import e2e_xp as xp
+from e2e_voice_thresholds import encode_problems
 from private_pulse import private_server
 from e2e_skip import Skip
 
@@ -117,7 +118,8 @@ def an_encode_matches_what_was_asked(server, secret, admin_api):
             results.append(result)
     with open(os.path.join(directory, "encode-readback.json"), "w") as fh:
         json.dump(results, fh, indent=1)
-    assert all(r["layers"] for r in results), "a case printed no sender stats"
+    found = [p for case, r in zip(cases, results) for p in encode_problems(case, r)]
+    assert not found, "; ".join(found)
     return results
 
 

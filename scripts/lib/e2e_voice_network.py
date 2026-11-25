@@ -39,7 +39,7 @@ def _timeline(a, b, room_id, seconds):
 
 
 def _stay_offline_until_evicted(room_id):
-    """Seconds spent offline: until the SFU drops alice, then a moment past it.
+    """Seconds offline and whether the SFU dropped alice: waits for the drop, then a moment past it.
 
     The drop has to outlast the SFU's own patience for the case to be the one
     that matters, a seat already given away, so it waits on that rather than
@@ -47,12 +47,11 @@ def _stay_offline_until_evicted(room_id):
     most it will wait.
     """
     began = time.time()
-    while time.time() - began < DROP_SECONDS:
-        if len(sfu_participants(room_id)) < 2:
-            time.sleep(EVICTED_GRACE)
-            break
-        time.sleep(0.25)
-    return time.time() - began
+    evicted = False
+    while time.time() - began < DROP_SECONDS and not evicted:
+        evicted = len(sfu_participants(room_id)) < 2
+        time.sleep(EVICTED_GRACE if evicted else 0.25)
+    return time.time() - began, evicted
 
 
 def rejoins_after_a_network_drop(a, b, room_id, channel=L.VOICE_CHANNEL):
@@ -64,8 +63,9 @@ def rejoins_after_a_network_drop(a, b, room_id, channel=L.VOICE_CHANNEL):
     join_call(a, b, room_id, channel)
     try:
         a.go_offline()
-        held = _stay_offline_until_evicted(room_id)
-        print(f"  alice was offline for {held:.0f}s, until the SFU let her go")
+        held, evicted = _stay_offline_until_evicted(room_id)
+        print(f"  alice was offline for {held:.0f}s, evicted by the SFU: {evicted}")
+        assert evicted, f"the SFU still held alice after {held:.0f}s offline, so the rejoin case was never reached"
         a.go_online()
         print("  alice is back online, waiting for the call to recover")
         ok = _timeline(a, b, room_id, RECOVERY_SECONDS)
