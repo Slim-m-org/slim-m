@@ -52,4 +52,40 @@ void main() {
       completes,
     );
   });
+
+  test('a start the platform refuses is retried by the same state', () async {
+    var accept = false;
+    var sent = 0;
+    _mock((call) async {
+      sent++;
+      return accept;
+    });
+    final service = CallService(isAndroid: true);
+
+    await service.update(const CallServiceState(call: true));
+    await service.update(const CallServiceState(call: true));
+    expect(sent, 2);
+
+    accept = true;
+    await service.update(const CallServiceState(call: true));
+    await service.update(const CallServiceState(call: true));
+    expect(sent, 3);
+  });
+
+  test('a thrown native start is retried by the same state', () async {
+    var fail = true;
+    var sent = 0;
+    _mock((call) async {
+      sent++;
+      if (fail) throw PlatformException(code: 'start_failed');
+      return true;
+    });
+    final service = CallService(isAndroid: true);
+
+    await service.update(const CallServiceState(call: true));
+    fail = false;
+    await service.update(const CallServiceState(call: true));
+    await service.update(const CallServiceState(call: true));
+    expect(sent, 2);
+  });
 }
