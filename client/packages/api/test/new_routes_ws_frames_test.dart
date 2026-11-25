@@ -166,7 +166,8 @@ void main() {
       );
     });
 
-    test('a known type with the wrong shape is ignored, not a crash', () {
+    test('a known type with the wrong shape asks for a resync, not a crash',
+        () {
       // message.pinned missing pinned_at entirely.
       expect(
         ServerEvent.parse(jsonEncode({
@@ -174,7 +175,7 @@ void main() {
           'channel_id': 'c',
           'message_id': 'm',
         })),
-        isNull,
+        isA<ErrorEvent>(),
       );
     });
   });

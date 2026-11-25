@@ -14,6 +14,7 @@ import 'package:slimm_api/api.dart' as api;
 import '../../../api_failure.dart';
 import '../../../providers/live_events.dart';
 import '../../../providers/providers.dart';
+import '../../../sync/providers/sync_status.dart';
 import 'dms.dart';
 
 /// Most people a group holds, the creator included.
@@ -133,6 +134,7 @@ Future<void> deleteGroupDm(
 /// caller is no longer in it. Re-read when the roster or name changes.
 final groupDmProvider = FutureProvider.autoDispose
     .family<api.DmConversation?, String>((ref, channelId) async {
+      ref.watch(syncResyncProvider);
       final sub = ref.read(liveEventsProvider).listen((event) {
         if (event is api.DmChanged && event.channelId == channelId) {
           ref.invalidateSelf();

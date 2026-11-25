@@ -251,9 +251,11 @@ class ChannelRefresher {
   void _startTrailing() {
     final waiting = _trailing;
     final request = _trailingRequest;
+    // A newer run is in flight: it may have listed before the change, so it picks the request up when it ends.
+    if (waiting != null && request != null && _inFlight != null) return;
     _trailing = null;
     _trailingRequest = null;
-    if (waiting == null || request == null || _inFlight != null) {
+    if (waiting == null || request == null) {
       waiting?.complete();
       return;
     }

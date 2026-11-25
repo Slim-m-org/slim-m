@@ -85,11 +85,13 @@ void main() {
     ]);
   });
 
-  test('dm.changed decodes the channel id and ignores a frame without one', () {
+  test('dm.changed decodes the channel id and resyncs on a frame without one',
+      () {
     final event = ServerEvent.parse(
       jsonEncode({'type': 'dm.changed', 'channel_id': 'g1'}),
     );
     expect((event! as DmChanged).channelId, 'g1');
-    expect(ServerEvent.parse(jsonEncode({'type': 'dm.changed'})), isNull);
+    expect(ServerEvent.parse(jsonEncode({'type': 'dm.changed'})),
+        isA<ErrorEvent>());
   });
 }

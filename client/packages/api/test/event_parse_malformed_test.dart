@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A known frame type with a body that does not parse is ignored, like an
-/// unknown type, instead of throwing out of the socket's data callback.
+/// A known durable frame type with a body that does not parse asks for a
+/// resync instead of throwing out of the socket's data callback; a malformed
+/// ephemeral frame is ignored, like an unknown type.
 library;
 
 import 'dart:convert';
@@ -26,12 +27,29 @@ void main() {
       'message_id': 'm',
       'op_seq': 1.5,
     },
+    'poll.voted without its options': {
+      'type': 'poll.voted',
+      'channel_id': 'c',
+      'message_id': 'm',
+    },
   };
 
   malformed.forEach((name, frame) {
-    test('$name is ignored', () {
-      expect(ServerEvent.parse(jsonEncode(frame)), isNull);
+    test('$name asks for a resync', () {
+      final event = ServerEvent.parse(jsonEncode(frame));
+      expect(event, isA<ErrorEvent>());
+      expect((event! as ErrorEvent).needsResync, isTrue);
     });
+  });
+
+  test('a malformed ephemeral frame is ignored', () {
+    final frame = {'type': 'typing.started', 'channel_id': 1};
+    expect(ServerEvent.parse(jsonEncode(frame)), isNull);
+  });
+
+  test('an unknown frame type is ignored', () {
+    final frame = {'type': 'message.from_the_future', 'x': 1};
+    expect(ServerEvent.parse(jsonEncode(frame)), isNull);
   });
 
   test('a well-formed frame still parses', () {

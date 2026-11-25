@@ -41,8 +41,9 @@ import '../../../providers/rate_limit_retry.dart';
 ///
 /// Re-resolves when its id is evicted (a [api.ProfileChanged] frame, or the
 /// reconnect [BatchProfilesController.clear]), so a mounted avatar sees the
-/// new picture. Listens for the held-to-evicted edge only: watching the
-/// whole key would also re-run when the fetch itself lands.
+/// new picture, and when a held profile is replaced in place (a role refresh).
+/// Listens for those two edges only: watching the whole key would also re-run
+/// when the fetch itself lands.
 final userProfileProvider = FutureProvider.autoDispose
     .family<api.UserProfile?, String>((ref, userId) {
       ref.listen(
@@ -51,6 +52,14 @@ final userProfileProvider = FutureProvider.autoDispose
           if (held == true && !now) ref.invalidateSelf();
         },
       );
+      ref.listen(batchProfilesControllerProvider.select((m) => m[userId]), (
+        held,
+        now,
+      ) {
+        if (held != null && now != null && !identical(held, now)) {
+          ref.invalidateSelf();
+        }
+      });
       return ref.read(batchProfilesControllerProvider.notifier).profile(userId);
     });
 
