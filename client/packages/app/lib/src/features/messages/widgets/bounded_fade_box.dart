@@ -31,8 +31,8 @@ class BoundedFadeBox extends SingleChildRenderObjectWidget {
   );
 
   @override
-  void updateRenderObject(BuildContext context, _RenderBoundedFade render) {
-    render
+  void updateRenderObject(BuildContext context, RenderObject renderObject) {
+    (renderObject as _RenderBoundedFade)
       ..maxHeight = maxHeight
       ..fadeColor = fadeColor
       ..fadeHeight = fadeHeight;

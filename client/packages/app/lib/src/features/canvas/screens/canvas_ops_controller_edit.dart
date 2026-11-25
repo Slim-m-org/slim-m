@@ -350,7 +350,7 @@ extension CanvasOpsControllerTextEdit on CanvasOpsController {
   Future<void> _refitText(String objectId, CanvasTextProps props) async {
     final bounds = document.objectBounds(objectId);
     if (bounds == null) return;
-    final fitted = textBoxFor(props, width: bounds.w).height;
+    final fitted = textBoxFor(props, width: bounds.w, spans: textSpans).height;
     if ((fitted - bounds.h).abs() < 0.5) return;
     final to = document.boxOnBoard(
       objectId,

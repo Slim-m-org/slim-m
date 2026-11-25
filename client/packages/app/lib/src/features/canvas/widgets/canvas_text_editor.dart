@@ -36,6 +36,7 @@ class CanvasTextEditor extends ConsumerStatefulWidget {
     required this.onEscape,
     this.objectId,
     this.anchor = Offset.zero,
+    this.spans,
   });
 
   final CanvasDocument document;
@@ -46,6 +47,9 @@ class CanvasTextEditor extends ConsumerStatefulWidget {
   /// Where a new box goes, in world coordinates; ignored when [objectId] is set.
   final Offset anchor;
   final CanvasTextProps initial;
+
+  /// How the board draws the text, so the box grows to what will be seen.
+  final NoteSpanBuilder? spans;
   final ValueChanged<CanvasTextProps> onSave;
 
   /// An edit that ended with nothing to keep; the tool stays as it was.
@@ -133,7 +137,7 @@ class _CanvasTextEditorState extends ConsumerState<CanvasTextEditor> {
     final x = bounds?.x ?? widget.anchor.dx;
     final y = bounds?.y ?? widget.anchor.dy;
     final width = bounds?.w ?? defaultTextBoxWidth;
-    final needed = textBoxFor(_props, width: width).height;
+    final needed = textBoxFor(_props, width: width, spans: widget.spans).height;
     return Rect.fromLTWH(x, y, width, math.max(bounds?.h ?? 0, needed));
   }
 

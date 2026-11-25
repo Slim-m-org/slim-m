@@ -12,7 +12,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/canvas/providers/canvas_note_emoji_images.dart';
 import 'package:slimm_app/src/features/canvas/widgets/canvas_note_blocks.dart';
+import 'package:slimm_app/src/features/canvas/providers/canvas_text_props.dart';
 import 'package:slimm_app/src/features/canvas/widgets/canvas_note_spans.dart';
+import 'package:slimm_app/src/features/canvas/widgets/canvas_text_content.dart';
 import 'package:slimm_app/src/features/canvas/widgets/canvas_text_spans.dart';
 import 'package:slimm_app/src/features/emoji/providers/emoji_catalog_provider.dart';
 import 'package:slimm_app/src/features/emoji/widgets/custom_emoji_image.dart';
@@ -21,7 +23,8 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../support/async_wait.dart';
 import 'canvas_pane_harness.dart';
-import 'canvas_text_pane_support.dart' show textBoxJson;
+import 'canvas_text_pane_support.dart'
+    show commit, editor, field, fingerTapTwice, placeWithTool, textBoxJson;
 
 final _png = Uint8List.fromList(
   base64Decode(
@@ -254,6 +257,49 @@ void main() {
         tester.element(find.byWidgetPredicate((w) => w is CanvasSurface)),
       );
       expect(scope.read(canvasNoteEmojiImagesProvider), contains('e-blobby'));
+    });
+
+    group('a text box typed with several emoji', () {
+      final text = List.filled(12, ':blobby:').join(' ');
+      final shortcodes = textBoxFor(
+        CanvasTextProps(text: text, size: 'medium', colorKey: 'ink'),
+      ).height;
+
+      testWidgets('is sized to the emoji, not the shortcodes', (tester) async {
+        await _pane(tester, object: textBoxJson('box'));
+        await placeWithTool(tester, const Offset(150, 150));
+        await tester.enterText(field, text);
+        await pumpFrames(tester, frames: 5);
+
+        final rect = find.byKey(const ValueKey('canvas-text-editor-rect'));
+        expect(editor, findsOneWidget);
+        expect(tester.getSize(rect).height, lessThan(shortcodes));
+      });
+
+      testWidgets('an edit refits it to the height of its emoji lines', (
+        tester,
+      ) async {
+        await _pane(tester, object: textBoxJson('box'));
+        await fingerTapTwice(tester, const Offset(415, 20));
+        await tester.enterText(field, text);
+        await pumpFrames(tester, frames: 5);
+        await commit(tester);
+
+        final fitted = surfaceDocument(tester).objectBounds('box')!.h;
+        expect(fitted, greaterThan(34));
+        expect(fitted, lessThan(shortcodes));
+      });
+
+      testWidgets('is placed at the height of its emoji lines', (tester) async {
+        final fixture = await _pane(tester, object: textBoxJson('box'));
+        await placeWithTool(tester, const Offset(150, 150));
+        await tester.enterText(field, text);
+        await pumpFrames(tester, frames: 5);
+        await commit(tester);
+
+        final placed = fixture.posted.firstWhere((p) => p['kind'] == 'text');
+        expect(placed['h'] as num, lessThan(shortcodes));
+      });
     });
   });
 }
