@@ -12,7 +12,8 @@ use crate::voice::{VoiceError, VoiceService};
 pub const ROOM_GRACE_MS: i64 = 60_000;
 
 /// Deletes `channel_id` when it is a room, LiveKit reports nobody in its call
-/// and no join token was minted within the join grace. Never deletes on doubt: an SFU that cannot answer keeps the room.
+/// and no join token was minted within the join grace. Never deletes on doubt:
+/// an SFU that cannot answer keeps the room.
 pub async fn remove_if_empty(
     store: &Store,
     voice: &VoiceService,
