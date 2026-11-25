@@ -303,7 +303,7 @@ services:
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=64m
     # Opt-in (COMPOSE_PROFILES=web); pinned by the same SLIMM_VERSION as the server, routed from your proxy: deploy/README.md.
-    image: ghcr.io/slim-m-org/slim-m-web:${SLIMM_VERSION:-latest}
+    image: ghcr.io/slim-m-org/slim-m-web:${SLIMM_VERSION:?set SLIMM_VERSION in .env to the release you run, for example 0.117.0}
     profiles:
       - web
     restart: unless-stopped
