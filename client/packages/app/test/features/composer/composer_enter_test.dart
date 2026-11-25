@@ -74,6 +74,32 @@ void main() {
       expect(sends.count, 1);
     });
 
+    testWidgets(
+      '${platform.name}: a key then the action for one press send once',
+      (tester) async {
+        await typeOn(tester, platform, 'hello');
+
+        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+        await tester.testTextInput.receiveAction(TextInputAction.send);
+        await tester.pump();
+
+        expect(sends.count, 1);
+      },
+    );
+
+    testWidgets(
+      '${platform.name}: the action then a key for one press send once',
+      (tester) async {
+        await typeOn(tester, platform, 'hello');
+
+        await tester.testTextInput.receiveAction(TextInputAction.send);
+        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+        await tester.pump();
+
+        expect(sends.count, 1);
+      },
+    );
+
     testWidgets('${platform.name}: Ctrl+Enter sends from inside a fence', (
       tester,
     ) async {

@@ -33,16 +33,16 @@ void main() {
               children: [
                 Expanded(
                   child: ComposerAutofocus(
-                    channelId: 'c1',
+                    channelId: 't1',
                     focusOnMount: false,
-                    child: TextField(focusNode: channelNode),
+                    child: TextField(focusNode: threadNode),
                   ),
                 ),
                 Expanded(
                   child: ComposerAutofocus(
-                    channelId: 't1',
+                    channelId: 'c1',
                     focusOnMount: false,
-                    child: TextField(focusNode: threadNode),
+                    child: TextField(focusNode: channelNode),
                   ),
                 ),
               ],
@@ -52,10 +52,13 @@ void main() {
       ),
     );
 
+    var channelGainedFocus = false;
+    channelNode.addListener(() => channelGainedFocus |= channelNode.hasFocus);
+
     container.read(threadComposerFocusRequestProvider.notifier).state++;
     await tester.pump();
 
     expect(threadNode.hasFocus, isTrue);
-    expect(channelNode.hasFocus, isFalse);
+    expect(channelGainedFocus, isFalse);
   });
 }
