@@ -50,6 +50,30 @@ String? hitTestTopmost(
       accepts: accepts,
     );
 
+/// The ids of live objects near [world], topmost last, found through the spatial index so the rest of the board is never visited.
+/// "Near" is the cull window around the point padded by [reach] world units, so it over-reports slightly and callers still test their own geometry.
+List<String> objectIdsNear(
+  CanvasDocument document,
+  Offset world,
+  double reach, {
+  CullResult? scratch,
+}) {
+  final out = scratch ?? CullResult();
+  final pad = _reach(document) + reach;
+  document.scene.queryRect(
+    world.dx - pad,
+    world.dy - pad,
+    world.dx + pad,
+    world.dy + pad,
+    out,
+  );
+  final slots = [
+    for (final slot in out.slots)
+      if (document.strokeIfAlive(slot) != null) slot,
+  ]..sort(document.comparePaintOrder);
+  return [for (final slot in slots) document.strokeAt(slot).id];
+}
+
 String? _topmost(
   CanvasDocument document,
   Offset world, {

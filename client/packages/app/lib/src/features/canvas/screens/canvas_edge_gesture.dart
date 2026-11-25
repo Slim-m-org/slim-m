@@ -154,12 +154,20 @@ class CanvasEdgeGesture {
     return holds ? held : _objectAt(world) ?? _dotReachAt(world);
   }
 
+  final _reachScratch = CullResult();
+
   /// The object whose dot is nearest [world], among those with a dot in reach, so a dot is found from outside the object.
   String? _dotReachAt(Offset world) {
     final zoom = document.camera.zoom;
     String? nearest;
     var nearestDistance = double.infinity;
-    for (final id in document.visibleIdsInReadingOrder()) {
+    final reach = (touch() ? sideDotTouchReachPx : sideDotReachPx) / zoom;
+    for (final id in objectIdsNear(
+      document,
+      world,
+      reach,
+      scratch: _reachScratch,
+    )) {
       if (!_attachable.contains(document.kindOf(id))) continue;
       final box = _edges.boxOf(id);
       if (box == null ||
