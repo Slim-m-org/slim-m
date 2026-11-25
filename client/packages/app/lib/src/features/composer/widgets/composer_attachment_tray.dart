@@ -14,7 +14,10 @@ import 'staged_attachment_tile.dart';
 /// Why a send would be refused by what is staged, or null when nothing
 /// staged is in the way. The failed case wins: retrying is the one step
 /// that is the sender's to take.
-String? attachmentSendBlockReason(AttachmentStagingController attachments) {
+String? attachmentSendBlockReason(
+  AttachmentStagingController attachments, {
+  bool onPhone = false,
+}) {
   final failed = attachments.failedCount;
   if (failed > 0) {
     return failed == 1
@@ -23,9 +26,12 @@ String? attachmentSendBlockReason(AttachmentStagingController attachments) {
   }
   final uploading = attachments.uploadingCount;
   if (uploading > 0) {
-    return uploading == 1
+    final wait = uploading == 1
         ? 'Send waits for the upload to finish.'
         : 'Send waits for $uploading uploads to finish.';
+    return onPhone && attachments.hasLargeUpload
+        ? '$wait Keep slim-m open until then.'
+        : wait;
   }
   return null;
 }
@@ -88,7 +94,12 @@ class _ComposerAttachmentTrayState extends State<ComposerAttachmentTray> {
     final staging = widget.attachments;
     final items = staging.items;
     _followNewest(items.length);
-    final reason = attachmentSendBlockReason(staging);
+    final platform = Theme.of(context).platform;
+    final reason = attachmentSendBlockReason(
+      staging,
+      onPhone:
+          platform == TargetPlatform.android || platform == TargetPlatform.iOS,
+    );
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.s8),
       child: Column(

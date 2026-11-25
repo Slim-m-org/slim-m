@@ -9,7 +9,6 @@
 library;
 
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -17,6 +16,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'photo_library.dart';
+import 'photo_strip_tiles.dart';
 import 'staged_attachment_model.dart';
 import 'package:slimm_api/api.dart' show LogTag, reportFailure;
 
@@ -72,9 +72,6 @@ class ComposerPhotoStripSlot extends ConsumerWidget {
 /// How many recent photos each page of the grid loads.
 const int _pageSize = 60;
 
-/// The widest a tile gets, so a phone shows three columns and a narrow one two.
-const double _maxTileExtent = 140;
-
 /// How far, or how fast, a downward drag must go to close the panel.
 const double _closeDistance = 80;
 const double _closeVelocity = 700;
@@ -103,6 +100,9 @@ class _ComposerPhotoStripState extends ConsumerState<ComposerPhotoStrip>
   PhotoAccess? _access;
   List<RecentPhoto> _photos = const [];
   bool _readFailed = false;
+
+  /// Photos whose original is being read; a repeat tap on one is ignored.
+  final Set<String> _fetching = {};
 
   /// How many photos have been asked for; grows a page at a time near the end.
   int _requested = _pageSize;
@@ -203,7 +203,7 @@ class _ComposerPhotoStripState extends ConsumerState<ComposerPhotoStrip>
       final velocity = n.dragDetails?.primaryVelocity ?? 0;
       _afterLayout(() => _dragEnd(velocity));
     }
-    if (n.metrics.extentAfter < _maxTileExtent * 3) {
+    if (n.metrics.extentAfter < photoStripMaxTileExtent * 3) {
       _afterLayout(() => unawaited(_loadMore()));
     }
     return false;
@@ -227,8 +227,22 @@ class _ComposerPhotoStripState extends ConsumerState<ComposerPhotoStrip>
   }
 
   Future<void> _attach(RecentPhoto photo) async {
-    final original = await ref.read(photoLibraryProvider)?.original(photo.id);
+    if (!_fetching.add(photo.id)) return;
+    setState(() {});
+    final FileSource? original;
+    try {
+      original = await ref.read(photoLibraryProvider)?.original(photo.id);
+    } on Object catch (error, stack) {
+      reportFailure(LogTag.ui, 'read a library photo', error, stack);
+      if (!mounted) return;
+      setState(() {
+        _fetching.remove(photo.id);
+        _readFailed = true;
+      });
+      return;
+    }
     if (!mounted) return;
+    setState(() => _fetching.remove(photo.id));
     if (original == null) {
       setState(() => _readFailed = true);
       return;
@@ -273,7 +287,7 @@ class _ComposerPhotoStripState extends ConsumerState<ComposerPhotoStrip>
                       vertical: AppSpacing.s8,
                     ),
                     child: Center(
-                      child: _GrabHandle(color: tokens.borderStrong),
+                      child: PhotoStripGrabHandle(color: tokens.borderStrong),
                     ),
                   ),
                 ),
@@ -353,119 +367,19 @@ class _ComposerPhotoStripState extends ConsumerState<ComposerPhotoStrip>
       padding: const EdgeInsets.all(AppSpacing.s8),
       physics: const ClampingScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: _maxTileExtent,
+        maxCrossAxisExtent: photoStripMaxTileExtent,
         mainAxisSpacing: AppSpacing.s4,
         crossAxisSpacing: AppSpacing.s4,
       ),
       itemCount: _photos.length + 1,
       itemBuilder: (context, i) => i == 0
-          ? _AllPhotosTile(onTap: widget.onBrowse)
-          : _PhotoTile(
+          ? AllPhotosTile(onTap: widget.onBrowse)
+          : PhotoStripTile(
               key: ValueKey(_photos[i - 1].id),
               photo: _photos[i - 1],
+              busy: _fetching.contains(_photos[i - 1].id),
               onTap: () => _attach(_photos[i - 1]),
             ),
     ),
   );
-}
-
-/// The sheet-style handle that says the panel can be swiped down.
-class _GrabHandle extends StatelessWidget {
-  const _GrabHandle({required this.color});
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    width: 32,
-    height: 4,
-    decoration: BoxDecoration(
-      color: color,
-      borderRadius: BorderRadius.circular(2),
-    ),
-  );
-}
-
-class _PhotoTile extends ConsumerStatefulWidget {
-  const _PhotoTile({super.key, required this.photo, required this.onTap});
-  final RecentPhoto photo;
-  final VoidCallback onTap;
-
-  @override
-  ConsumerState<_PhotoTile> createState() => _PhotoTileState();
-}
-
-class _PhotoTileState extends ConsumerState<_PhotoTile> {
-  late final Future<Uint8List?>? _thumb = ref
-      .read(photoLibraryProvider)
-      ?.thumbnail(widget.photo.id, (_maxTileExtent * 2).round());
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    return Semantics(
-      button: true,
-      label: 'Attach photo',
-      child: GestureDetector(
-        onTap: () {
-          AppHaptics.selection();
-          widget.onTap();
-        },
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(AppRadii.control),
-          child: SizedBox.expand(
-            child: FutureBuilder<Uint8List?>(
-              future: _thumb,
-              builder: (context, snap) => snap.data == null
-                  ? ColoredBox(color: tokens.surfaceRaised)
-                  : Image.memory(snap.data!, fit: BoxFit.cover),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _AllPhotosTile extends StatelessWidget {
-  const _AllPhotosTile({required this.onTap});
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    return Semantics(
-      button: true,
-      label: 'All photos',
-      child: GestureDetector(
-        onTap: () {
-          AppHaptics.selection();
-          onTap();
-        },
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: tokens.surfaceRaised,
-            border: Border.all(color: tokens.borderSubtle),
-            borderRadius: BorderRadius.circular(AppRadii.control),
-          ),
-          child: SizedBox.expand(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  AppIcons.image,
-                  size: AppSizes.icon24,
-                  color: tokens.textSecondary,
-                ),
-                const SizedBox(height: AppSpacing.s4),
-                Text(
-                  'All photos',
-                  style: AppText.caption.copyWith(color: tokens.textSecondary),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }

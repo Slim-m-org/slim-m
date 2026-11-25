@@ -36,6 +36,22 @@ void main() {
     expect(picker.lastType, FileType.image);
   });
 
+  test('the media library route asks the plugin for FileType.media', () async {
+    final picker = usePicker(null);
+
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    await container.read(
+      attachmentPickerProvider(AttachmentSource.mediaLibrary),
+    )();
+
+    expect(
+      picker.lastType,
+      FileType.media,
+      reason: 'a camera roll video must be reachable from the composer',
+    );
+  });
+
   test(
     'the file browser route asks the plugin for the default FileType.any',
     () async {
