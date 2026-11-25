@@ -18,6 +18,9 @@ The app keeps its data (sign-in, local databases, settings and caches) under `%A
 An interactive uninstall asks whether to remove it too, with No as the default; a silent uninstall always keeps it, so reinstalling picks up where you left off.
 Firewall rules Windows created when you allowed slim-m on a network stay, because removing them needs administrator rights; Windows Defender Firewall lists them as `slimm_app.exe`.
 
+The bundle carries the Visual C++ runtime (`vcruntime140.dll`, `vcruntime140_1.dll`, `msvcp140.dll`) beside `slimm_app.exe`, so a clean Windows without the redistributable starts it.
+The shortcut repair (the AppUserModelID on the Start menu, desktop and taskbar shortcuts) runs on a background thread after the window is up, and only once per installed version.
+
 The zip is the second choice.
 Extract it anywhere and double-click `install.cmd`.
 That copies the app to `%LOCALAPPDATA%\slim-m\app-<version>\`, puts the `slim-m.exe` launcher beside it, and adds a Start menu shortcut.

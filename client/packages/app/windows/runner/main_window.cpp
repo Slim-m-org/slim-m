@@ -22,6 +22,7 @@
 #include "now_playing_channel.h"
 #include "popout_window_proc.h"
 #include "screen_overlay_channel.h"
+#include "app_identity.h"
 #include "single_instance.h"
 #include "taskbar_attention_channel.h"
 #include "windows_toasts_channel.h"
@@ -160,6 +161,7 @@ bool AdoptMainWindow() {
   RegisterTaskbarAttentionChannel(messenger, g_window);
   RegisterWindowsToastsChannel(messenger);
   RegisterYoutubePlayerChannel(g_engine, content);
+  StartShortcutRepair();
   return true;
 }
 

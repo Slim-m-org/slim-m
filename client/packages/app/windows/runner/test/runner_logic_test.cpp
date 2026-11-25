@@ -8,6 +8,7 @@
 #include "../bounded_retry.h"
 #include "../hotkey_modifiers.h"
 #include "../link_handoff.h"
+#include "../startup_handoff.h"
 #include "../youtube_player_geometry.h"
 
 namespace {
@@ -259,7 +260,37 @@ void OnlyWebLinksReachTheBrowser() {
 
 }  // namespace
 
+void TestPendingLinks() {
+  slimm::PendingLinks pending;
+  std::vector<std::string> delivered;
+  auto deliver = [&](std::string link) { delivered.push_back(link); };
+  CHECK(pending.Offer("slimm://a", deliver));
+  CHECK(pending.Offer("slimm://b", deliver));
+  CHECK(delivered.empty());
+  const std::vector<std::string> held = pending.StartListening();
+  CHECK((held == std::vector<std::string>{"slimm://a", "slimm://b"}));
+  CHECK(pending.Offer("slimm://c", deliver));
+  CHECK((delivered == std::vector<std::string>{"slimm://c"}));
+  CHECK(pending.StartListening().empty());
+
+  slimm::PendingLinks flooded;
+  for (std::size_t i = 0; i < slimm::PendingLinks::kLimit; ++i) {
+    CHECK(flooded.Offer("slimm://x", deliver));
+  }
+  CHECK(!flooded.Offer("slimm://x", deliver));
+}
+
+void TestShortcutRepairDue() {
+  CHECK(slimm::ShortcutRepairDue("0.136.0", ""));
+  CHECK(slimm::ShortcutRepairDue("0.136.0", "0.135.0"));
+  CHECK(!slimm::ShortcutRepairDue("0.136.0", "0.136.0"));
+  CHECK(slimm::ShortcutRepairDue("", ""));
+  CHECK(slimm::TrimLineEnding("0.136.0\r\n") == "0.136.0");
+}
+
 int main() {
+  TestPendingLinks();
+  TestShortcutRepairDue();
   ATogglesShiftIsExact();
   AToggleNeedsEveryModifierItNames();
   AnExtraCtrlAltOrMetaBlocksABareKey();

@@ -4,7 +4,8 @@ library;
 
 import 'dart:async';
 
-import 'package:flutter/services.dart' show MethodCall, MethodChannel;
+import 'package:flutter/services.dart'
+    show MethodCall, MethodChannel, MissingPluginException;
 
 /// Receives the runners' `focus` call: the Linux GtkApplication re-entering
 /// `activate`, or the Windows runner's named mutex. The Windows runner also
@@ -32,7 +33,8 @@ class SecondInstanceChannel {
   /// Best-effort: the process-level dedup this exists for already happened
   /// natively, in `my_application.cc`'s own early return, before this ran.
   void register(Future<void> Function() bringForward) {
-    const MethodChannel(_name).setMethodCallHandler((MethodCall call) async {
+    const channel = MethodChannel(_name);
+    channel.setMethodCallHandler((MethodCall call) async {
       switch (call.method) {
         case 'link':
           final uri = Uri.tryParse('${call.arguments ?? ''}');
@@ -42,5 +44,19 @@ class SecondInstanceChannel {
           await bringForward();
       }
     });
+    unawaited(_takePending(channel));
+  }
+
+  // The Windows runner holds links forwarded before the handler above existed.
+  Future<void> _takePending(MethodChannel channel) async {
+    try {
+      final held = await channel.invokeListMethod<String>('takePending');
+      for (final link in held ?? const <String>[]) {
+        final uri = Uri.tryParse(link);
+        if (uri != null && uri.scheme == 'slimm') _links.add(uri);
+      }
+    } on MissingPluginException {
+      // Linux and the older Windows runners have no queue to ask.
+    }
   }
 }
