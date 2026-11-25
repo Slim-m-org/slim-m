@@ -110,7 +110,14 @@ void _setNativePasteActive(bool active) {
   unawaited(
     _clipboardImageChannel
         .invokeMethod<void>('setImagePasteActive', active)
-        .catchError((Object _) {}),
+        .catchError((Object error, StackTrace stack) {
+          AppLog.swallowed(
+            LogTag.media,
+            'Could not tell the platform whether image paste is active',
+            error,
+            stack,
+          );
+        }),
   );
 }
 
