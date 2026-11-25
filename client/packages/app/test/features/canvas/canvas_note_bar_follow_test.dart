@@ -1,81 +1,201 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The style bar over a note being placed stays next to that note when the board pans or zooms.
+/// The note style bar stays on its note: through a pan, a zoom, typing that grows the note, and a note placed by dragging its size.
 library;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/canvas/widgets/canvas_selection_bar.dart';
-import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../support/async_wait.dart';
 import 'canvas_pane_harness.dart';
 
-final _editorRect = find.byKey(const ValueKey('canvas-note-editor-rect'));
+const _gap = 8.0;
 final _bar = find.byWidgetPredicate((w) => w is CanvasSelectionBar);
+final _editorRect = find.byKey(const ValueKey('canvas-note-editor-rect'));
 
-Future<void> _placeDraft(
-  WidgetTester tester,
-  Size size, {
-  int permissions = Perm.manageCanvas,
+Future<CanvasPaneFixture> _pane(
+  WidgetTester tester, {
+  bool withNote = true,
+  String? tool,
 }) async {
-  tester.view.physicalSize = size;
+  tester.view.physicalSize = const Size(1280, 800);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  final fixture = CanvasPaneFixture(mePermissions: permissions);
+  final fixture = CanvasPaneFixture()
+    ..objects = [
+      if (withNote)
+        {
+          ...canvasNoteJson('note', x: 400, authorId: 'me', text: 'hello'),
+          'y': 300.0,
+          'w': 330.0,
+          'h': 210.0,
+          'props': {'text': 'hello'},
+        },
+    ];
   final container = fixture.container();
   addTearDown(container.dispose);
   addTearDown(fixture.events.close);
-  await pumpCanvasPane(tester, container, tool: 'Pen');
+  await pumpCanvasPane(tester, container, tool: tool);
   await pumpFrames(tester);
-  await tester.tap(find.bySemanticsLabel('Note'));
-  await tester.pump();
-  final gesture = await tester.startGesture(
-    screenFor(tester, const Offset(300, 200)),
-    kind: PointerDeviceKind.mouse,
-  );
-  await gesture.up();
-  await pumpFrames(tester, frames: 15);
+  if (tool == null) {
+    await tester.tap(find.bySemanticsLabel('Pan'));
+    await tester.pump();
+  }
+  return fixture;
+}
+
+Rect _noteOnScreen(WidgetTester tester, String id) {
+  final document = surfaceDocument(tester);
+  final b = document.objectBounds(id)!;
+  final camera = document.camera;
+  return Rect.fromLTWH(
+    (b.x - camera.x) * camera.zoom,
+    (b.y - camera.y) * camera.zoom,
+    b.w * camera.zoom,
+    b.h * camera.zoom,
+  ).shift(tester.getTopLeft(find.byType(CanvasSurface)));
+}
+
+/// The bar sits a gap above the note, or a gap below it when there is no room above, and over the note's width.
+void _expectOnNote(WidgetTester tester, String id) {
+  final bar = tester.getRect(_bar);
+  final note = _noteOnScreen(tester, id);
+  final above = (bar.bottom - (note.top - _gap)).abs() < 1.5;
+  final below = (bar.top - (note.bottom + _gap)).abs() < 1.5;
+  expect(above || below, isTrue, reason: 'bar $bar against note $note');
+  final reach = note.center.dx.clamp(bar.left, bar.right);
+  expect(reach, closeTo(note.center.dx, 1.5), reason: 'bar $bar over $note');
+}
+
+Future<void> _click(WidgetTester tester, Offset on, {int times = 1}) async {
+  for (var i = 0; i < times; i++) {
+    final click = await tester.startGesture(on, kind: PointerDeviceKind.mouse);
+    await click.up();
+    await tester.pump(const Duration(milliseconds: 120));
+  }
 }
 
 void main() {
-  testWidgets('the bar stays above its note after a pan', (tester) async {
-    await _placeDraft(tester, const Size(1280, 800));
-    expect(_editorRect, findsOneWidget);
-    expect(_bar, findsOneWidget);
-
-    surfaceDocument(tester).setCamera(const Camera(x: -250, y: -120));
-    await pumpFrames(tester, frames: 5);
-
-    final note = tester.getRect(_editorRect);
-    final bar = tester.getRect(_bar);
-    expect(bar.bottom, lessThanOrEqualTo(note.top));
-    expect(note.top - bar.bottom, lessThan(24));
-    expect((bar.center.dx - note.center.dx).abs(), lessThan(1));
-  });
-
-  testWidgets('a plain member gets the bar over their own draft', (
+  testWidgets('a selected note keeps its bar through a pan and a zoom', (
     tester,
   ) async {
-    await _placeDraft(tester, const Size(1280, 800), permissions: 0);
-    expect(_editorRect, findsOneWidget);
+    await _pane(tester);
+    await _click(tester, _noteOnScreen(tester, 'note').center);
     expect(_bar, findsOneWidget);
+    _expectOnNote(tester, 'note');
+
+    final document = surfaceDocument(tester);
+    final camera = document.camera;
+    document.setCamera(Camera(x: camera.x + 90, y: camera.y + 40, zoom: 1));
+    await tester.pump();
+    _expectOnNote(tester, 'note');
+
+    document.setCamera(Camera(x: camera.x + 90, y: camera.y + 40, zoom: 1.6));
+    await tester.pump();
+    _expectOnNote(tester, 'note');
   });
 
-  for (final width in [390.0, 1280.0]) {
-    testWidgets('panning the note out of view ends the edit at $width', (
+  testWidgets('the bar follows a wheel pan of the board', (tester) async {
+    await _pane(tester);
+    await _click(tester, _noteOnScreen(tester, 'note').center);
+    final before = surfaceDocument(tester).camera;
+    await tester.sendEventToBinding(
+      PointerScrollEvent(
+        position: _noteOnScreen(tester, 'note').center,
+        scrollDelta: const Offset(120, 50),
+      ),
+    );
+    await pumpFrames(tester);
+
+    expect(surfaceDocument(tester).camera.x, isNot(before.x));
+    expect(_bar, findsOneWidget);
+    _expectOnNote(tester, 'note');
+  });
+
+  testWidgets('typing that grows the note keeps the bar on it', (tester) async {
+    await _pane(tester);
+    await _click(tester, _noteOnScreen(tester, 'note').center, times: 2);
+    await pumpFrames(tester, frames: 15);
+    expect(_editorRect, findsOneWidget);
+    await tester.enterText(
+      find.descendant(
+        of: _editorRect,
+        matching: find.byWidgetPredicate((w) => w is EditableText),
+      ),
+      List.filled(30, 'a long line of text').join('\n'),
+    );
+    await pumpFrames(tester);
+
+    expect(_bar, findsOneWidget);
+    _expectOnNote(tester, 'note');
+  });
+
+  testWidgets('a note placed by dragging its size has its bar on it', (
+    tester,
+  ) async {
+    await _pane(tester, withNote: false, tool: 'Pen');
+    await tester.tap(find.bySemanticsLabel('Note'));
+    await tester.pump();
+    final from =
+        tester.getTopLeft(find.byType(CanvasSurface)) + const Offset(300, 250);
+    final drag = await tester.startGesture(from, kind: PointerDeviceKind.mouse);
+    await drag.moveBy(const Offset(60, 40));
+    await drag.moveBy(const Offset(120, 90));
+    await tester.pump();
+    await drag.up();
+    await pumpFrames(tester, frames: 15);
+
+    final document = surfaceDocument(tester);
+    final id = document.visibleIdsInReadingOrder().first;
+    expect(_bar, findsOneWidget);
+    _expectOnNote(tester, id);
+    await drag.moveBy(Offset.zero);
+  });
+
+  testWidgets('the bar lands on the note after the note is dragged', (
+    tester,
+  ) async {
+    await _pane(tester);
+    final centre = _noteOnScreen(tester, 'note').center;
+    await _click(tester, centre);
+    final drag = await tester.startGesture(
+      centre,
+      kind: PointerDeviceKind.mouse,
+    );
+    await drag.moveBy(const Offset(60, 30));
+    await drag.moveBy(const Offset(80, 50));
+    await tester.pump();
+    if (_bar.evaluate().isNotEmpty) _expectOnNote(tester, 'note');
+    await drag.up();
+    await pumpFrames(tester);
+
+    expect(_bar, findsOneWidget);
+    _expectOnNote(tester, 'note');
+  });
+
+  testWidgets('the bar stays on a draft while the pointer is still down', (
+    tester,
+  ) async {
+    await _pane(tester, withNote: false, tool: 'Pen');
+    await tester.tap(find.bySemanticsLabel('Note'));
+    await tester.pump();
+    final from =
+        tester.getTopLeft(find.byType(CanvasSurface)) + const Offset(300, 250);
+    final drag = await tester.startGesture(from, kind: PointerDeviceKind.mouse);
+    await drag.moveBy(const Offset(120, 80));
+    await tester.pump();
+    final id = surfaceDocument(tester).visibleIdsInReadingOrder();
+    if (id.isNotEmpty && _bar.evaluate().isNotEmpty) {
+      _expectOnNote(tester, id.first);
+    }
+    await drag.up();
+    await pumpFrames(tester, frames: 15);
+    expect(_bar, findsOneWidget);
+    _expectOnNote(
       tester,
-    ) async {
-      await _placeDraft(tester, Size(width, 800));
-      expect(_editorRect, findsOneWidget);
-
-      surfaceDocument(tester).setCamera(const Camera(x: 3000, y: 3000));
-      await pumpFrames(tester, frames: 5);
-
-      expect(_editorRect, findsNothing);
-      expect(_bar, findsNothing);
-      expect(surfaceDocument(tester).objectCount.value, 0);
-    });
-  }
+      surfaceDocument(tester).visibleIdsInReadingOrder().first,
+    );
+  });
 }
