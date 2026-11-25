@@ -122,4 +122,50 @@ void main() {
 
     expect((await store().getAll()).length, 20);
   });
+
+  test(
+    'an unreadable main file is an error, never a rollback',
+    () async {
+      final s = store();
+      await s.setValue('String', noiseKey, 'old');
+      await s.setValue('String', noiseKey, 'new');
+      final main = prefsFile(dir);
+      Process.runSync('chmod', ['000', main.path]);
+      addTearDown(() => Process.runSync('chmod', ['644', main.path]));
+
+      expect(await s.setValue('Bool', otherKey, true), isFalse);
+      await expectLater(s.getAll(), throwsA(isA<FileSystemException>()));
+
+      Process.runSync('chmod', ['644', main.path]);
+      expect(await store().getAll(), {noiseKey: 'new'});
+      expect(reads, isEmpty);
+    },
+    skip:
+        Platform.isWindows ||
+        Process.runSync('id', ['-u']).stdout.toString().trim() == '0',
+  );
+
+  test('queued changes share one write', () async {
+    final s = store();
+    await s.setValue('String', noiseKey, 'before');
+    await Future.wait([
+      for (var i = 0; i < 10; i++) s.setValue('Int', 'flutter.k$i', i),
+    ]);
+
+    final backup = File('${prefsFile(dir).path}.bak').readAsStringSync();
+    expect(backup, isNot(contains('flutter.k')));
+    expect((await store().getAll()).length, 11);
+  });
+
+  test('a failed write leaves no temp file behind', () async {
+    final s = store();
+    await s.setValue('String', noiseKey, 'kept');
+    final backup = Directory('${prefsFile(dir).path}.bak')..createSync();
+    File('${backup.path}/block').writeAsStringSync('x');
+
+    expect(await s.setValue('Bool', otherKey, true), isFalse);
+
+    final temps = dir.listSync().where((e) => e.path.contains('.tmp.'));
+    expect(temps, isEmpty);
+  });
 }

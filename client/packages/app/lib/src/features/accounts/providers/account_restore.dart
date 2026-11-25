@@ -10,8 +10,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_platform/platform.dart';
 
+import '../../../providers/fresh_install.dart';
 import '../../../providers/providers.dart';
-import '../../../providers/background_key_store.dart';
 import 'account_host.dart';
 import 'account_store.dart';
 
@@ -20,17 +20,17 @@ import 'account_store.dart';
 ///
 /// Guarded like [restoreSession]: a broken store must reach sign-in, not crash launch.
 Future<bool> wipeKeychainOnFreshInstall(ProviderContainer container) async {
-  final keyStore = container.read(keyStoreProvider);
   try {
     await migrateLegacyFileSecretsIfNeeded();
     final prefs = await container.read(preferencesProvider.future);
-    if (prefs.getBool(hasLaunchedBeforeKey) == true) return false;
-    await keyStore.clear();
-    final pushKeys = container.read(pushKeyStoreProvider);
-    if (!identical(pushKeys, keyStore)) await pushKeys.clear();
-    final backgroundKeys = container.read(backgroundKeyStoreProvider);
-    if (!identical(backgroundKeys, keyStore)) await backgroundKeys.clear();
-    await prefs.setBool(hasLaunchedBeforeKey, true);
+    final outcome = await settleFirstLaunch(
+      prefs: prefs,
+      flagKey: hasLaunchedBeforeKey,
+      stores: leftoverSecretStores(container),
+      probe: const [accountIndexHandle, serverUrlHandle, sessionTokenHandle],
+      environment: container.read(firstLaunchEnvironmentProvider),
+    );
+    if (outcome != FirstLaunchOutcome.wiped) return false;
     container.read(isFreshInstallProvider.notifier).state = true;
     return true;
   } catch (error, stack) {
