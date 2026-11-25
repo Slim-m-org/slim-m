@@ -39,6 +39,26 @@ void main() {
     await teardownPreviewShell(tester, container, db);
   });
 
+  testWidgets('system back steps from a summary to the rail, then exits', (
+    tester,
+  ) async {
+    final (:container, :db) = await pumpPreviewShell(tester, width: 390);
+    await enterPreview(tester, container);
+    await tester.tap(find.text('cs-chat'));
+    await pumpFrames(tester);
+    expect(find.text('What cs can do here'), findsOneWidget);
+
+    await tester.binding.handlePopRoute();
+    await pumpFrames(tester);
+    expect(find.text('What cs can do here'), findsNothing);
+    expect(container.read(rolePreviewProvider), isNotNull);
+
+    await tester.binding.handlePopRoute();
+    await pumpFrames(tester);
+    expect(container.read(rolePreviewProvider), isNull);
+    await teardownPreviewShell(tester, container, db);
+  });
+
   testWidgets(
     'a refused preview shows the reason with a retry, and Exit still leaves',
     (tester) async {
