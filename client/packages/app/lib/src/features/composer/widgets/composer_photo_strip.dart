@@ -243,8 +243,9 @@ class _ComposerPhotoStripState extends ConsumerState<ComposerPhotoStrip>
 
   Future<void> _readAndAttach(RecentPhoto photo) async {
     final tooBig = oversizeNote(photo.bytes, await _uploadLimit());
+    if (!mounted) return;
     if (tooBig != null) {
-      if (mounted) setState(() => _problem = tooBig);
+      setState(() => _problem = tooBig);
       return;
     }
     final FileSource? original;

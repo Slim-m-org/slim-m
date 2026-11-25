@@ -225,6 +225,7 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
     } finally {
       if (!dropped()) setState(() => _checking = false);
     }
+    if (!mounted) return;
     final voice = ref.read(voiceFlagsProvider);
     if (dropped() || voice.inCallStageFor(channelId)) return;
     if (_busyElsewhere(voice, channelId)) return;

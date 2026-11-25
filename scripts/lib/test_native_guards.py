@@ -114,8 +114,10 @@ class ClipboardReads(unittest.TestCase):
 class RingTimer(unittest.TestCase):
     def test_every_way_a_call_ends_cancels_its_timeout(self):
         source = swift("Runner/VoipCallHandler.swift")
+        self.assertIn("cancelRingTimer(", body_of(source, "private func forget("))
         for signature in ("func callAnswered(", "func callEnded(", "func endCall("):
-            self.assertIn("cancelRingTimer(", body_of(source, signature), signature)
+            body = body_of(source, signature)
+            self.assertTrue("cancelRingTimer(" in body or "forget(" in body, signature)
 
 
 if __name__ == "__main__":
