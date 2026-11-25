@@ -15,10 +15,12 @@ import '../../messages/providers/message_search.dart' show ProviderReader;
 import 'channel_history.dart';
 import 'mounted_channels.dart';
 
-/// Refetches each open channel's newest page; run once a reconnect is live.
+/// Refetches every page each open channel shows; run once a reconnect is live.
 void rehydrateOpenChannels(ProviderReader read) {
   for (final id in read(mountedChannelsProvider).openChannelIds) {
-    unawaited(read(channelHistoryProvider(id).notifier).hydrate());
+    unawaited(
+      read(channelHistoryProvider(id).notifier).hydrate(refetchAll: true),
+    );
   }
 }
 
