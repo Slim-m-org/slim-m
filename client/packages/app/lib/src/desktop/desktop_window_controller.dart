@@ -118,8 +118,21 @@ class DesktopWindowController {
 
   /// Writes a pending debounced move or resize now, for a quit that would
   /// otherwise drop it with the process.
+  ///
+  /// A write already in flight is awaited first and then repeated, since it may
+  /// have read the bounds before the last move or resize.
   Future<void> flush() async {
-    if (_debounceTimer?.isActive ?? false) await _writeNow();
+    final inFlight = _writing;
+    final pending = _debounceTimer?.isActive ?? false;
+    if (inFlight == null && !pending) return;
+    if (inFlight != null) {
+      try {
+        await inFlight;
+      } catch (_) {
+        // The repeat below reports a persistent failure to the caller.
+      }
+    }
+    await _writeNow();
   }
 
   void start() {
@@ -205,8 +218,18 @@ class DesktopWindowController {
     _debounceTimer = Timer(debounce, _writeNow);
   }
 
-  Future<void> _writeNow() async {
+  Future<void>? _writing;
+
+  Future<void> _writeNow() {
     _debounceTimer?.cancel();
+    final write = _persist();
+    _writing = write;
+    return write.whenComplete(() {
+      if (identical(_writing, write)) _writing = null;
+    });
+  }
+
+  Future<void> _persist() async {
     if (!_geometryPersistenceEnabled) {
       _skippedWhileDisabled = true;
       return;

@@ -25,13 +25,16 @@ void main() {
         .setMockMethodCallHandler(_channel, null);
   });
 
-  Future<FakeDesktopWindowPort> leftClick({required bool windows}) async {
+  Future<FakeDesktopWindowPort> leftClick({
+    required bool windows,
+    bool minimized = false,
+  }) async {
     final harness = VoiceHarness();
     harness.controllerWith(FakeSession(), voiceApi());
     addTearDown(harness.dispose);
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(_channel, (call) async => true);
-    final port = FakeDesktopWindowPort();
+    final port = FakeDesktopWindowPort()..minimized = minimized;
     final controller = DesktopTrayController(
       port: port,
       container: harness.container,
@@ -45,12 +48,17 @@ void main() {
   }
 
   test(
-    'a left-click on the Windows tray icon shows, restores and focuses',
+    'a left-click on the Windows tray icon restores a minimized window',
     () async {
-      final port = await leftClick(windows: true);
+      final port = await leftClick(windows: true, minimized: true);
       expect((port.showCalls, port.restoreCalls, port.focusCalls), (1, 1, 1));
     },
   );
+
+  test('a left-click leaves a maximized window maximized', () async {
+    final port = await leftClick(windows: true);
+    expect((port.showCalls, port.restoreCalls, port.focusCalls), (1, 0, 1));
+  });
 
   test('a left-click elsewhere leaves the window alone', () async {
     final port = await leftClick(windows: false);

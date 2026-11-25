@@ -22,13 +22,31 @@ struct _MyApplication {
   // Non-null once activation has run once; see my_application_activate.
   GtkWindow* window;
   FlBinaryMessenger* messenger;
+  guint first_frame_watchdog;
 };
+
+// Seconds the window may stay hidden waiting for Flutter's first frame.
+static const guint kFirstFrameTimeoutSeconds = 15;
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
 
 // Called when first Flutter frame received.
 static void first_frame_cb(MyApplication* self, FlView* view) {
+  if (self->first_frame_watchdog != 0) {
+    g_source_remove(self->first_frame_watchdog);
+    self->first_frame_watchdog = 0;
+  }
   gtk_widget_show(gtk_widget_get_toplevel(GTK_WIDGET(view)));
+}
+
+// A startup that never paints must not leave an invisible primary swallowing every relaunch.
+static gboolean first_frame_watchdog_cb(gpointer user_data) {
+  MyApplication* self = MY_APPLICATION(user_data);
+  self->first_frame_watchdog = 0;
+  g_warning("No first frame after %u s; showing the window anyway",
+            kFirstFrameTimeoutSeconds);
+  gtk_widget_show(GTK_WIDGET(self->window));
+  return G_SOURCE_REMOVE;
 }
 
 // Implements GApplication::activate.
@@ -107,6 +125,8 @@ static void my_application_activate(GApplication* application) {
   g_signal_connect_swapped(view, "first-frame", G_CALLBACK(first_frame_cb),
                            self);
   gtk_widget_realize(GTK_WIDGET(view));
+  self->first_frame_watchdog = g_timeout_add_seconds(
+      kFirstFrameTimeoutSeconds, first_frame_watchdog_cb, self);
 
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
 
@@ -149,10 +169,9 @@ static gboolean my_application_local_command_line(GApplication* application,
 
   g_autoptr(GError) error = nullptr;
   if (!g_application_register(application, nullptr, &error)) {
-    // No session bus reachable: activate locally rather than refuse to start.
+    // Startup never ran on this path, so activating would build a window on an uninitialised GTK.
     g_warning("Failed to register application: %s", error->message);
-    my_application_activate(application);
-    *exit_status = 0;
+    *exit_status = 1;
     return TRUE;
   }
 
@@ -184,6 +203,10 @@ static void my_application_shutdown(GApplication* application) {
 // Implements GObject::dispose.
 static void my_application_dispose(GObject* object) {
   MyApplication* self = MY_APPLICATION(object);
+  if (self->first_frame_watchdog != 0) {
+    g_source_remove(self->first_frame_watchdog);
+    self->first_frame_watchdog = 0;
+  }
   g_clear_pointer(&self->dart_entrypoint_arguments, g_strfreev);
   G_OBJECT_CLASS(my_application_parent_class)->dispose(object);
 }

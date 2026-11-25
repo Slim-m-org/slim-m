@@ -10,6 +10,7 @@
 library;
 
 import 'dart:async';
+import 'dart:io' show exit;
 
 import 'package:flutter/scheduler.dart' show SchedulerBinding;
 import 'package:flutter/widgets.dart' show Color;
@@ -42,6 +43,8 @@ import 'package:slimm_rtc/rtc.dart' show endShareAudioBeforeExit;
 
 export 'window_view_size.dart';
 
+void _exitProcess() => exit(0);
+
 /// The window shell for one process, built in `main.dart` before `runApp` and
 /// handed to every account's container through [desktopWindowShellProvider].
 class DesktopWindowShell {
@@ -54,6 +57,7 @@ class DesktopWindowShell {
     bool active = false,
     bool frameless = false,
     Future<void> Function() beforeExit = endShareAudioBeforeExit,
+    void Function() forceExit = _exitProcess,
   }) : port = port ?? WindowManagerDesktopWindowPort(),
        _positionSupported = positionSupported,
        _chromePlatform = chromePlatform,
@@ -61,7 +65,8 @@ class DesktopWindowShell {
        _secondInstances = secondInstances ?? SecondInstanceChannel(),
        _active = active,
        _framelessApplied = frameless,
-       _beforeExit = beforeExit;
+       _beforeExit = beforeExit,
+       _forceExit = forceExit;
 
   /// Shared by every step here, and the one port [TitleBar] drags, minimizes
   /// and maximizes through; the native listener must be registered only once.
@@ -116,21 +121,46 @@ class DesktopWindowShell {
   /// What must not outlive this process: the Linux share audio mix, which would pause the media players feeding it.
   final Future<void> Function() _beforeExit;
 
+  final void Function() _forceExit;
+
+  Future<void>? _quitting;
+
   /// Writes any pending geometry, ends a share's audio mix, then destroys the window through [port].
-  Future<void> quit(DesktopWindowPort port) async {
-    await _forgetCall();
-    await _beforeExit();
-    try {
+  ///
+  /// Single-flight: a second trigger gets the quit already running. Every step is
+  /// isolated so one failure cannot keep the window open; the process exits regardless.
+  Future<void> quit(DesktopWindowPort port) => _quitting ??= _quit(port);
+
+  Future<void> _quit(DesktopWindowPort port) async {
+    await _quitStep('forget the call', _forgetCall);
+    await _quitStep('end the share audio', _beforeExit);
+    await _quitStep('save the window position', () async {
       await _controller?.flush();
+    });
+    try {
+      await port.destroy();
     } catch (error, stack) {
       AppLog.warning(
         LogTag.platform,
-        'Could not save the window position on quit',
+        'Could not close the window on quit',
+        error: error,
+        stack: stack,
+      );
+      _forceExit();
+    }
+  }
+
+  Future<void> _quitStep(String what, Future<void> Function() step) async {
+    try {
+      await step();
+    } catch (error, stack) {
+      AppLog.warning(
+        LogTag.platform,
+        'Could not $what on quit',
         error: error,
         stack: stack,
       );
     }
-    await port.destroy();
   }
 
   /// Starts a fresh copy through [port] once a share's audio mix has ended, as [quit] does.
