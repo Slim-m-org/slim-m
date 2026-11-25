@@ -44,6 +44,7 @@ class CallLifecycleChannel {
   final bool _isIOS;
   final _endCalls = StreamController<void>.broadcast();
   final _systemEvents = StreamController<String>.broadcast();
+  final _muteRequests = StreamController<bool>.broadcast();
   StreamSubscription<MethodCall>? _calls;
   String? _reportedCallId;
 
@@ -58,10 +59,17 @@ class CallLifecycleChannel {
   /// diagnostics; see [describeCallSystemEvent]. Only records, never acts.
   Stream<String> get systemEvents => _systemEvents.stream;
 
+  /// The system call UI, AirPods or CarPlay asked to mute (true) or unmute (false) the call.
+  Stream<bool> get muteRequests => _muteRequests.stream;
+
   void _onCall(MethodCall call) {
     switch (call.method) {
       case 'endCall':
         if (!_endCalls.isClosed) _endCalls.add(null);
+      case 'muteRequest':
+        final args = call.arguments;
+        final muted = args is Map ? args['muted'] : null;
+        if (muted is bool && !_muteRequests.isClosed) _muteRequests.add(muted);
       case 'callEvent':
         final args = call.arguments;
         final line = args is Map ? describeCallSystemEvent(args) : null;
@@ -135,6 +143,20 @@ class CallLifecycleChannel {
     }
   }
 
+  /// The app muted or unmuted the microphone, so the system call UI agrees.
+  Future<void> callMuted({required bool muted}) async {
+    if (!_isIOS || _reportedCallId == null) return;
+    try {
+      await _channel.invokeMethod<void>('callMuted', {'muted': muted});
+    } on PlatformException catch (error, stack) {
+      AppLog.swallowed(LogTag.voice,
+          'The system call screen could not show the mute state', error, stack);
+    } on MissingPluginException catch (error, stack) {
+      AppLog.swallowed(LogTag.voice,
+          'Could not tell the system the call was muted', error, stack);
+    }
+  }
+
   /// The call this instance reported ended, from this side. Sends nothing
   /// when it reported none, and names the call so a stale end cannot close
   /// another account's call.
@@ -161,5 +183,6 @@ class CallLifecycleChannel {
     unawaited(_calls?.cancel());
     unawaited(_endCalls.close());
     unawaited(_systemEvents.close());
+    unawaited(_muteRequests.close());
   }
 }

@@ -75,6 +75,8 @@ const Map<String, String> _allowlist = {
   'GET /exports/{}/download': 'streams the archive through '
       'SlimmApi._openDownload with no body deadline, the same as '
       'openAttachmentDownload, so there is no _send call to match',
+  'GET /downloads/{}': 'opened by the browser itself from the link '
+      'createDownloadLink minted, so the client never calls it',
   'GET /space/banner': 'reads raw bytes through SlimmApi._fetchBytes, the '
       'same as GET /attachments/{}',
   'GET /invites/{}/banner': 'an unauthenticated picture read as raw bytes '

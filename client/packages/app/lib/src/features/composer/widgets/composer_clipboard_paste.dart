@@ -60,7 +60,7 @@ Future<bool> _clipboardHoldsRealText() async {
 
 /// Whether the "+" sheet's own "Paste image" row is worth offering.
 ///
-/// Answers [hasClipboardImage] alone, on every platform - Android's and
+/// Answers [canPasteImageOnTap] alone, on every platform - Android's and
 /// Linux desktop's only route, and iOS's too, unconditionally.
 ///
 /// This used to also answer false once the iOS edit-menu paste swizzle
@@ -74,14 +74,15 @@ Future<bool> _clipboardHoldsRealText() async {
 /// never hidden on that signal; only proof a paste completed through the
 /// native menu would justify it, and nothing tracks that yet.
 ///
-/// Never on iOS any more: the long-press menu's own Paste takes an image there
+/// Never on native iOS any more: the long-press menu's own Paste takes an image there
 /// (`composer_context_menu.dart`, PR #327), and the owner confirmed it on a
 /// device on 2026-10-14, so the row only repeated it. Android keeps the row,
 /// because its long-press Paste is text only.
 Future<bool> composerClipboardPasteAvailable({
   required TargetPlatform platform,
-}) =>
-    platform == TargetPlatform.iOS ? Future.value(false) : hasClipboardImage();
+}) => platform == TargetPlatform.iOS && !kIsWeb
+    ? Future.value(false)
+    : canPasteImageOnTap();
 
 /// Runs "Paste image": clears [setError], reads the clipboard, then [stage]s the bytes or reports a real read failure through [setError].
 /// A clipboard with no image is a silent no-op, like a cancelled file pick.

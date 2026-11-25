@@ -39,6 +39,9 @@
 /// mocking the channel stands in for the platform side on every target.
 library;
 
+import 'dart:async';
+
+import 'package:desktop_drop/desktop_drop.dart' show DropItem;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
@@ -68,6 +71,9 @@ const MethodChannel _clipboardImageChannel = MethodChannel(
 /// typedef for why a real race made that check necessary.
 typedef PastedImageHandler = void Function(Uint8List bytes, String filename);
 
+/// Every pasted file, as on web; nothing here ever delivers one.
+typedef PastedFilesHandler = void Function(List<DropItem> files);
+
 /// Newest last, as on web: a caller that stops hands the paste back to the one it started over.
 final _handlers = <PastedImageHandler>[];
 
@@ -81,12 +87,38 @@ void startClipboardImagePaste(PastedImageHandler onImage) {
     ..removeWhere((h) => h == onImage)
     ..add(onImage);
   _clipboardImageChannel.setMethodCallHandler(_handlePastedImageCall);
+  _setNativePasteActive(true);
 }
+
+/// Only the browser hands over pasted files, so this does nothing here.
+void startClipboardFilePaste(
+  PastedImageHandler onImage,
+  PastedFilesHandler onFiles,
+) {}
 
 /// Stops [onImage]'s turn without touching any other caller's registration.
 void stopClipboardImagePaste(PastedImageHandler onImage) {
   _handlers.removeWhere((h) => h == onImage);
-  if (_handlers.isEmpty) _clipboardImageChannel.setMethodCallHandler(null);
+  if (_handlers.isEmpty) {
+    _clipboardImageChannel.setMethodCallHandler(null);
+    _setNativePasteActive(false);
+  }
+}
+
+/// Tells the iOS swizzle whether an image paste has an owner, so every other field keeps the stock paste.
+void _setNativePasteActive(bool active) {
+  unawaited(
+    _clipboardImageChannel
+        .invokeMethod<void>('setImagePasteActive', active)
+        .catchError((Object error, StackTrace stack) {
+          AppLog.swallowed(
+            LogTag.media,
+            'Could not tell the platform whether image paste is active',
+            error,
+            stack,
+          );
+        }),
+  );
 }
 
 Future<void> _handlePastedImageCall(MethodCall call) async {
@@ -96,6 +128,9 @@ Future<void> _handlePastedImageCall(MethodCall call) async {
     _handlers.last(bytes, 'pasted-image.png');
   }
 }
+
+/// Whether a tapped "Paste image" is worth offering: here, whenever the clipboard holds an image.
+Future<bool> canPasteImageOnTap() => hasClipboardImage();
 
 /// Thrown by [readClipboardImage] when the clipboard holds an image but the
 /// platform could not read it - on Android, most often a `content://` URI

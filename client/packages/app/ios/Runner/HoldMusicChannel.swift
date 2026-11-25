@@ -68,6 +68,7 @@ final class HoldMusicPlayer {
   /// Frame of the file the current schedule started from, for the position readout.
   private var startFrame: AVAudioFramePosition = 0
   private var observer: NSObjectProtocol?
+  private var interruptionObserver: NSObjectProtocol?
 
   struct NoCallSession: Error {}
 
@@ -88,6 +89,9 @@ final class HoldMusicPlayer {
     observer = NotificationCenter.default.addObserver(
       forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main
     ) { [weak self] _ in self?.restartPlayback() }
+    interruptionObserver = NotificationCenter.default.addObserver(
+      forName: AVAudioSession.interruptionNotification, object: nil, queue: .main
+    ) { [weak self] note in self?.interruptionChanged(note.userInfo ?? [:]) }
     schedule(from: 0)
     paused = false
     node.play()
@@ -98,6 +102,8 @@ final class HoldMusicPlayer {
     generation += 1
     if let observer { NotificationCenter.default.removeObserver(observer) }
     observer = nil
+    if let interruptionObserver { NotificationCenter.default.removeObserver(interruptionObserver) }
+    interruptionObserver = nil
     node.stop()
     if engine.isRunning { engine.stop() }
     engine.detach(node)
@@ -157,6 +163,14 @@ final class HoldMusicPlayer {
     node.scheduleFile(file, at: nil) { [weak self] in
       DispatchQueue.main.async { self?.queueLoop(generation: mine) }
     }
+  }
+
+  /// An interruption stops the engine without a configuration change, so its end is when playback resumes.
+  func interruptionChanged(_ info: [AnyHashable: Any]) {
+    guard let raw = info[AVAudioSessionInterruptionTypeKey] as? UInt,
+      AVAudioSession.InterruptionType(rawValue: raw) == .ended
+    else { return }
+    restartPlayback()
   }
 
   /// A route change stops the engine; carry on from the top of the file, but never `play()` a stopped

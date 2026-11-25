@@ -80,7 +80,12 @@ class VoiceSessionSync {
       _holdRemoval();
       return;
     }
-    reportCallLifecycle(callLifecycle, s, channelId: _current.channelId);
+    reportCallLifecycle(
+      callLifecycle,
+      s,
+      channelId: _current.channelId,
+      microphoneEnabled: _current.microphoneEnabled,
+    );
     if (s == VoiceSessionState.failed && dropped != null) {
       heartbeat.stop();
       input.stopWatchingSpaceNoiseSuppression();

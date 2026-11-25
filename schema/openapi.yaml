@@ -14440,6 +14440,99 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /downloads/links:
+    post:
+      operationId: createDownloadLink
+      tags: [exports]
+      summary: A one-minute link that saves a file or export natively.
+      description: >
+        A browser cannot stream a bearer-authenticated response to disk, so a
+        large file would have to sit in memory first. This mints a signed,
+        server-relative link to the same bytes, valid for 60 seconds, that the
+        browser opens as an ordinary download. The caller must be able to read
+        the attachment or download the export right now, or this answers 404;
+        redeeming the link checks again.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DownloadLinkRequest"
+      responses:
+        "200":
+          description: The link.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DownloadLink"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /downloads/{token}:
+    parameters:
+      - name: token
+        in: path
+        required: true
+        description: The `path` of a link from `createDownloadLink`.
+        schema:
+          type: string
+    get:
+      operationId: redeemDownloadLink
+      tags: [exports]
+      summary: Download what a link names, as a file.
+      description: >
+        Needs no bearer token; the link is the credential. Answers the same
+        bytes as `getAttachment` or `downloadExport`, honours a single
+        `Range`, and always sends `Content-Disposition: attachment`. A link
+        that is expired, altered or no longer permitted answers 404.
+      security: []
+      parameters:
+        - name: Range
+          in: header
+          required: false
+          description: An optional single `bytes=` byte range (RFC 9110).
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The file bytes.
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+            application/x-tar:
+              schema:
+                type: string
+                format: binary
+        "206":
+          description: The requested byte range.
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+            application/x-tar:
+              schema:
+                type: string
+                format: binary
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "416":
+          description: The range is outside the file.
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
 components:
   securitySchemes:
     bearerAuth:
@@ -21174,6 +21267,30 @@ components:
             Whether this field may sit beside its neighbors rather than
             taking the embed's full width - Discord's own field shape.
 
+    DownloadLinkRequest:
+      type: object
+      required: [kind, id]
+      properties:
+        kind:
+          type: string
+          enum: [attachment, export]
+        id:
+          type: string
+          description: The attachment's content id, or the export's UUID.
+        original:
+          type: boolean
+          description: For an attachment, the file as uploaded rather than the compressed copy.
+    DownloadLink:
+      type: object
+      required: [path, expires_at]
+      properties:
+        path:
+          type: string
+          description: Server-relative, to open in the browser as it is.
+        expires_at:
+          type: integer
+          format: int64
+          description: Unix milliseconds after which the link answers 404.
     DataExport:
       type: object
       required: [id, kind, status, processed, total, created_at]

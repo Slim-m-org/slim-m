@@ -23,6 +23,7 @@ import '../../../providers/server_info.dart';
 import '../../../format.dart';
 import '../../../widgets/transfer_meter.dart';
 import 'staged_attachment_model.dart';
+import 'unload_guard.dart';
 import '../providers/composer_actions.dart';
 
 export 'staged_attachment_model.dart';
@@ -284,8 +285,15 @@ class AttachmentStagingController extends ChangeNotifier {
   }
 
   @override
+  void notifyListeners() {
+    guardUnload(this, active: _items.isNotEmpty);
+    super.notifyListeners();
+  }
+
+  @override
   void dispose() {
     _items.forEach(_stopIfUploading);
+    guardUnload(this, active: false);
     super.dispose();
   }
 

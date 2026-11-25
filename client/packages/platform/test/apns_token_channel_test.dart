@@ -44,6 +44,35 @@ void main() {
       expect(touched, isFalse);
     });
 
+    test('asks native for notification permission before reading a token',
+        () async {
+      final calls = <String>[];
+      _mock((call) async {
+        calls.add(call.method);
+        return call.method == 'getToken' ? 'abcd1234' : null;
+      });
+      addTearDown(() => _mock(null));
+
+      await ApnsTokenChannel(isIOS: true).fetch();
+
+      expect(calls.first, 'requestAuthorization');
+      expect(calls, contains('getToken'));
+    });
+
+    test('a build without the permission call still reads its token', () async {
+      _mock((call) async {
+        if (call.method == 'requestAuthorization') {
+          throw MissingPluginException();
+        }
+        return call.method == 'getToken' ? 'abcd1234' : null;
+      });
+      addTearDown(() => _mock(null));
+
+      final result = await ApnsTokenChannel(isIOS: true).fetch();
+
+      expect(result, isA<ApnsTokenReady>());
+    });
+
     test('a cached token is ApnsTokenReady', () async {
       _mock((call) async => switch (call.method) {
             'getToken' => 'abcd1234',

@@ -9,6 +9,7 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
@@ -16,6 +17,7 @@ import 'package:slimm_platform/platform.dart';
 
 import '../desktop/desktop_window_port.dart';
 import '../desktop/desktop_window_shell.dart';
+import 'browser_window_events.dart';
 
 /// Whether this build runs on a phone, where an embedder that has not yet
 /// reported a state means a background launch rather than a window waiting to
@@ -206,12 +208,19 @@ class AppLifecycleNotifier extends StateNotifier<AppLifecycleState>
   }
 }
 
+/// Where window focus comes from: the browser's own events on web, the shell's port elsewhere.
+final lifecycleWindowEventsProvider = Provider<Stream<DesktopWindowEventKind>>(
+  (ref) => kIsWeb
+      ? browserWindowEvents()
+      : ref.read(desktopWindowShellProvider).port.events,
+);
+
 final appLifecycleProvider =
     StateNotifierProvider<AppLifecycleNotifier, AppLifecycleState>((ref) {
       final port = ref.read(desktopWindowShellProvider).port;
       return AppLifecycleNotifier(
         mobile: ref.watch(mobileLifecycleHostProvider),
-        windowEvents: port.events,
+        windowEvents: ref.read(lifecycleWindowEventsProvider),
         inTray: () => port.hiddenByApp,
         suspended: () => port.suspendedByCompositor,
         stillMinimized: port.isMinimized,

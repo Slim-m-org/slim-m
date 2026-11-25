@@ -12,6 +12,7 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:desktop_drop/desktop_drop.dart' show DropItemFile;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -20,6 +21,16 @@ import 'package:slimm_design_system/design_system.dart';
 import 'composer_harness.dart';
 
 final _bytes = Uint8List.fromList([1, 2, 3, 4]);
+
+/// A pasted file that keeps its name, which an in-memory `XFile` drops off the web.
+class _Pasted extends DropItemFile {
+  _Pasted(this._name) : super.fromData(_bytes, length: 4);
+
+  final String _name;
+
+  @override
+  String get name => _name;
+}
 
 void main() {
   late TextEditingController controller;
@@ -71,6 +82,32 @@ void main() {
     await tester.pumpAndSettle();
     expect(sends.count, 1);
     expect(sends.ids, ['a1']);
+  });
+
+  testWidgets('pasted files of any type stage under their own names', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      composerHarness(
+        controller: controller,
+        sends: sends,
+        platform: TargetPlatform.linux,
+        clipboardPaste: clipboardPaste,
+      ),
+    );
+    await tester.tap(find.byWidgetPredicate((w) => w is TextField));
+    await tester.pump();
+
+    clipboardPaste.pasteFiles([_Pasted('report.pdf'), _Pasted('bundle.zip')]);
+    for (var i = 0; i < 50 && find.text('bundle.zip').evaluate().isEmpty; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
+      await tester.pump();
+    }
+
+    expect(find.text('report.pdf'), findsOneWidget);
+    expect(find.text('bundle.zip'), findsOneWidget);
   });
 
   testWidgets('the paste seam disarms once the field loses focus', (
