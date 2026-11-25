@@ -179,6 +179,7 @@ async fn serve(
     // A client that sends `active` frames reports real use; its keepalives then prove nothing.
     let mut reports_activity = reported_active.is_some();
     let mut canvas_watch = canvas_watch::CanvasWatch::default();
+    let watch_env = canvas_watch::WatchEnv::new(&state, &ctx, presence_guard.connection());
     let mut annotation_relay = signals_screen_annotation::AnnotationRelay::default();
     let mut budget = FrameBudget::new(Instant::now());
     let liveness = state.hub.liveness_deadline();
@@ -204,6 +205,7 @@ async fn serve(
                                 state.hub.presence().touch(ctx.user_id);
                             }
                             Ok(ClientFrame::Ping) => {
+                                canvas_watch.retry(&watch_env, &mut cache).await;
                                 if !reports_activity {
                                     state.hub.presence().touch(ctx.user_id);
                                 }
@@ -216,14 +218,7 @@ async fn serve(
                                 presence_guard.set_viewing(&channel_ids, active);
                             }
                             Ok(ClientFrame::CanvasWatch { channel_ids }) => {
-                                let env = canvas_watch::WatchEnv {
-                                    store: &state.store,
-                                    hub: &state.hub,
-                                    limiter: &state.limiter,
-                                    ctx: &ctx,
-                                    connection: presence_guard.connection(),
-                                };
-                                canvas_watch.declare(&env, &mut cache, &channel_ids).await;
+                                canvas_watch.declare(&watch_env, &mut cache, &channel_ids).await;
                             }
                             Ok(ClientFrame::Typing { channel_id }) => {
                                 signals::handle_typing(
@@ -332,38 +327,14 @@ async fn serve(
                                 )
                                 .await;
                             }
-                            Ok(ClientFrame::CanvasScreenAnnotation {
-                                channel_id,
-                                target_user_id,
-                                kind,
-                                annotation_id,
-                                points,
-                                color,
-                                text: note,
-                                ended,
-                                allowed,
-                                aspect,
-                                stamps,
-                            }) => {
+                            Ok(ClientFrame::CanvasScreenAnnotation(frame)) => {
                                 let frame_bytes = text.as_str().len();
                                 signals_screen_annotation::handle_canvas_screen_annotation(
                                     &state,
                                     &ctx,
                                     &mut cache,
                                     &mut annotation_relay,
-                                    signals_screen_annotation::ScreenAnnotationFrame {
-                                        channel_id,
-                                        target_user_id,
-                                        kind,
-                                        annotation_id,
-                                        points,
-                                        color,
-                                        text: note,
-                                        ended,
-                                        allowed,
-                                        aspect,
-                                        stamps,
-                                    },
+                                    frame,
                                     frame_bytes,
                                 )
                                 .await;

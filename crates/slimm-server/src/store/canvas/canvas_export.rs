@@ -7,7 +7,7 @@ use super::canvas_export_copy::{attach_edges, copy_objects, copy_side_rows, plan
 use super::canvas_ops_apply::current_canvas_seq;
 use super::canvas_ops_write::{ClearScope, SubmitOpError, SubmittedOp};
 use super::{PlaceError, Store, now_ms};
-use crate::ids::{CanvasOpId, ChannelCategoryId, ChannelId, UserId};
+use crate::ids::{CanvasObjectId, CanvasOpId, ChannelCategoryId, ChannelId, UserId};
 use crate::store::channels::channel_create::{
     ChannelDefaults, CreateChannelError, NewChannel, fetch_channel_by_id, insert_channel_in_tx,
 };
@@ -39,6 +39,8 @@ pub struct CanvasExport {
     pub skipped: i64,
     pub cleared: i64,
     pub spared: i64,
+    /// Skipped objects that stayed on the source because they could not be copied; 0 without a clear.
+    pub left: i64,
     /// The clear that emptied the source, when this call made one that removed anything.
     pub clear_op: Option<SubmittedOp>,
 }
@@ -179,18 +181,23 @@ impl Store {
         attach_edges(&mut tx, request.id, &edges).await?;
         copy_side_rows(&mut tx, request.id).await?;
         let clear_op = match request.clear_source {
-            true => Some(clear_source(self, &mut tx, &request).await?),
+            true => Some(clear_source(self, &mut tx, &request, &plan.dropped).await?),
             false => None,
         };
-        let (cleared, spared) = clear_op
-            .as_ref()
-            .map_or((0, 0), |op| (op.affected, op.spared_ids.len() as i64));
+        let left = match request.clear_source {
+            true => plan.dropped.len() as i64,
+            false => 0,
+        };
+        let (cleared, spared) = clear_op.as_ref().map_or((0, 0), |op| {
+            (op.affected, op.spared_ids.len() as i64 - left)
+        });
         let copied = plan.order.len() as i64;
+        let skipped = plan.dropped.len() as i64;
         record_export(
             &mut tx,
             &request,
             clear_op.as_ref(),
-            [copied, plan.skipped, cleared, spared],
+            [copied, skipped, cleared, spared],
             now,
         )
         .await?;
@@ -199,9 +206,10 @@ impl Store {
             channel,
             fresh: true,
             copied,
-            skipped: plan.skipped,
+            skipped,
             cleared,
             spared,
+            left,
             clear_op: clear_op.filter(|op| op.affected > 0),
         })
     }
@@ -263,6 +271,7 @@ async fn replay_of(
         skipped: row.skipped,
         cleared: row.cleared,
         spared: row.spared,
+        left: if row.clear_source { row.skipped } else { 0 },
         clear_op: None,
     }))
 }
@@ -298,11 +307,12 @@ async fn copy_audience(
     Ok(())
 }
 
-/// Clears everything the copy took, and the locked objects stay unless nothing else was left to clear.
+/// Clears everything the copy took; locked objects and the ones it could not copy stay.
 async fn clear_source(
     store: &Store,
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     request: &ExportRequest<'_>,
+    left: &[CanvasObjectId],
 ) -> Result<SubmittedOp, ExportError> {
     let before_seq = current_canvas_seq(tx, request.source_id).await?;
     let now = store.now_ms_unique(tx).await?;
@@ -315,6 +325,7 @@ async fn clear_source(
             before_seq,
             scope: &ClearScope::default(),
             spare_locks: true,
+            keep: left,
             now,
         },
     )

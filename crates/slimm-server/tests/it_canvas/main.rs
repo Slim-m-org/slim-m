@@ -14,6 +14,7 @@ mod canvas_export;
 mod canvas_export_access;
 mod canvas_export_edges;
 mod canvas_export_flow;
+mod canvas_export_left;
 mod canvas_export_measure;
 mod canvas_fuzz;
 mod canvas_gate_cost;

@@ -19,8 +19,16 @@ pub fn spawn_canvas_viewer_flush(hub: Hub) {
 
 /// One flush pass: publishes each pair whose shown state moved since the last pass.
 pub fn flush_canvas_viewers(hub: &Hub) {
+    flush_canvas_viewers_at(hub, crate::store::now_ms());
+}
+
+/// [`flush_canvas_viewers`] with an explicit clock, so a test can move time without sleeping.
+pub fn flush_canvas_viewers_at(hub: &Hub, now_ms: i64) {
     let presence = hub.presence();
-    for change in hub.canvas_viewers().flush(|user| presence.visibility(user)) {
+    for change in hub
+        .canvas_viewers()
+        .flush_at(|user| presence.visibility(user), now_ms)
+    {
         hub.publish(Event::Canvas(CanvasEvent::ViewerChanged {
             channel_id: change.channel_id,
             user_id: change.user_id,

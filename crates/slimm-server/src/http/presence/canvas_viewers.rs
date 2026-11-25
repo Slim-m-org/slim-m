@@ -7,9 +7,10 @@ use serde::Serialize;
 
 use crate::http::AppState;
 use crate::http::error::ApiError;
-use crate::ids::UserId;
+use crate::ids::{ChannelId, UserId};
 use crate::permissions::Permissions;
-use crate::presence::canvas_viewers::{since, viewer_shown};
+use crate::presence::canvas_viewers::viewer_shown;
+use crate::store::now_ms;
 
 #[derive(Serialize)]
 pub(super) struct ViewerDto {
@@ -40,21 +41,26 @@ pub(super) async fn snapshot(
         return Ok(CanvasViewersDto { channels });
     }
     let presence = state.hub.presence();
+    let now = now_ms();
     let viewable = state
         .store
         .channels_where(caller, Permissions::VIEW_CHANNEL)
         .await?;
-    for channel in viewable
+    let mut boards: Vec<ChannelId> = viewable
         .into_iter()
         .filter(|c| c.canvas_open() && busy.contains(&c.id))
-    {
+        .map(|c| c.id)
+        .collect();
+    let dms = state.store.dm_channel_ids_for_user(caller).await?;
+    boards.extend(dms.into_iter().filter(|id| busy.contains(id)));
+    for channel_id in boards {
         let mut shown: Vec<(UserId, i64)> = registry
-            .entries(channel.id)
+            .entries(channel_id)
             .into_iter()
             .filter(|(user, entry)| {
                 *user == caller || viewer_shown(entry, presence.visibility(*user))
             })
-            .filter_map(|(user, entry)| Some((user, since(&entry)?)))
+            .map(|(user, _)| (user, registry.shown_since(user, channel_id).unwrap_or(now)))
             .collect();
         let others: Vec<UserId> = shown
             .iter()
@@ -63,7 +69,7 @@ pub(super) async fn snapshot(
             .collect();
         let kept: HashSet<UserId> = state
             .store
-            .viewers_among(channel.id, &others)
+            .viewers_among(channel_id, &others)
             .await?
             .into_iter()
             .chain(std::iter::once(caller))
@@ -74,7 +80,7 @@ pub(super) async fn snapshot(
             continue;
         }
         channels.push(BoardViewersDto {
-            channel_id: channel.id.to_string(),
+            channel_id: channel_id.to_string(),
             viewers: shown
                 .into_iter()
                 .map(|(user, at)| ViewerDto {

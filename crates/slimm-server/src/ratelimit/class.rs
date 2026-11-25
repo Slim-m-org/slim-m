@@ -408,7 +408,7 @@ classes! {
     CanvasWatch,
     /// Exporting a board into a new canvas channel, charged per account (decision 0139).
     ///
-    /// One export copies up to a few thousand objects under the writer lock, so five at once and
+    /// One export copies up to 20,000 objects under the writer lock, so five at once and
     /// then five an hour is far above anyone organising a workspace and well below a loop.
     CanvasExport,
 }

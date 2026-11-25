@@ -293,7 +293,7 @@ async fn create(
 /// they can neither change it nor read its name and topic back. Judged on the
 /// row as it was before a delete, so a retry still succeeds. A direct message
 /// is never managed here, by a party or by an administrator: it answers 404 too.
-async fn require_manager_who_sees(
+pub(in crate::http) async fn require_manager_who_sees(
     state: &AppState,
     user_id: UserId,
     channel_id: ChannelId,
@@ -399,9 +399,6 @@ async fn update(
             .await?
             .ok_or(ApiError::NotFound("channel not found"))?
     };
-    if req.canvas_enabled == Some(false) {
-        state.hub.canvas_viewers().close_channel(channel_id);
-    }
     if req.voice_enabled == Some(false) {
         end_voice_room(&state, channel_id).await;
     }
@@ -409,6 +406,10 @@ async fn update(
     state
         .hub
         .publish(Event::ChannelUpdated(Arc::new(channel.clone()), restricted));
+    // After the publish, so clients already know the board is shut when its roster is dropped.
+    if req.canvas_enabled == Some(false) {
+        state.hub.canvas_viewers().close_channel(channel_id);
+    }
     Ok(Json(ChannelDto::with_restricted(channel, restricted)))
 }
 

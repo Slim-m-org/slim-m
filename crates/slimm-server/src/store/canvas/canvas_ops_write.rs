@@ -314,6 +314,7 @@ impl Store {
                     before_seq,
                     scope: &scope,
                     spare_locks: true,
+                    keep: &[],
                     now,
                 };
                 let submitted = clear_in_tx(&mut tx, params).await?;

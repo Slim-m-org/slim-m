@@ -149,7 +149,10 @@ async fn set_visibility(
     }
     // Refresh the cache before announcing, so the fan-out reads the new choice.
     state.hub.presence().set_visibility(ctx.user_id, visibility);
-    state.hub.canvas_viewers().mark_user_dirty(ctx.user_id);
+    state
+        .hub
+        .canvas_viewers()
+        .mark_user_dirty(ctx.user_id, crate::store::now_ms());
     state.hub.publish(Event::visibility_switched(ctx.user_id));
 
     Ok(Json(VisibilityDto {

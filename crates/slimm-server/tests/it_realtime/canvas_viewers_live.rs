@@ -20,22 +20,22 @@ use support::app::call_as;
 use support::canvas::BoardChannels;
 use support::ws::{Client, connect, read_frame, serve, settle, user_ticket, wait_for_frame};
 
-struct World {
-    hub: Hub,
-    limiter: RateLimiter,
-    router: Router,
-    store: Store,
-    board: ChannelId,
-    alice: Client,
-    bob: Client,
-    alice_id: UserId,
-    bob_id: UserId,
-    alice_token: String,
-    bob_token: String,
-    _guard: support::TestDbGuard,
+pub(crate) struct World {
+    pub(crate) hub: Hub,
+    pub(crate) limiter: RateLimiter,
+    pub(crate) router: Router,
+    pub(crate) store: Store,
+    pub(crate) board: ChannelId,
+    pub(crate) alice: Client,
+    pub(crate) bob: Client,
+    pub(crate) alice_id: UserId,
+    pub(crate) bob_id: UserId,
+    pub(crate) alice_token: String,
+    pub(crate) bob_token: String,
+    pub(crate) _guard: support::TestDbGuard,
 }
 
-async fn world() -> World {
+pub(crate) async fn world() -> World {
     let (store, guard) = support::new_store("slimm-canvas-viewers-live").await;
     let (alice_token, alice_ticket, alice_id) = user_ticket(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
@@ -69,7 +69,7 @@ async fn world() -> World {
     }
 }
 
-async fn watch(ws: &mut Client, channels: &[ChannelId]) {
+pub(crate) async fn watch(ws: &mut Client, channels: &[ChannelId]) {
     let ids: Vec<String> = channels.iter().map(ToString::to_string).collect();
     let frame = json!({ "type": "canvas.watch", "channel_ids": ids });
     ws.send(WsMessage::Text(frame.to_string())).await.unwrap();
@@ -99,7 +99,7 @@ fn viewer_frames(frames: &[Value]) -> Vec<&Value> {
         .collect()
 }
 
-async fn flushed(w: &mut World) -> Vec<Value> {
+pub(crate) async fn flushed(w: &mut World) -> Vec<Value> {
     slimm_server::flush_canvas_viewers(&w.hub);
     drain(&mut w.bob).await
 }
@@ -228,7 +228,7 @@ async fn hidden_sends_a_leave_visible_again_a_join_and_hidden_from_the_start_not
     assert!(viewer_frames(&flushed(&mut w).await).is_empty());
 }
 
-async fn set_visibility(w: &World, token: &str, visibility: &str) {
+pub(crate) async fn set_visibility(w: &World, token: &str, visibility: &str) {
     let (status, _) = call_as(
         &w.router,
         "PATCH",
@@ -406,6 +406,22 @@ async fn past_the_declaration_budget_removals_apply_and_additions_wait_for_the_n
         w.hub.canvas_viewers().entries(w.board).len(),
         1,
         "the next accepted declaration adds it"
+    );
+}
+
+#[tokio::test]
+async fn a_refused_addition_registers_on_a_later_ping_once_the_budget_allows_it() {
+    let mut w = world().await;
+    exhaust(&w).await;
+    watch(&mut w.alice, &[w.board]).await;
+    assert!(w.hub.canvas_viewers().entries(w.board).is_empty());
+
+    tokio::time::sleep(Duration::from_millis(700)).await;
+    settle(&mut w.alice).await;
+    assert_eq!(
+        w.hub.canvas_viewers().entries(w.board).len(),
+        1,
+        "the declaration was kept and applied without a new one"
     );
 }
 
