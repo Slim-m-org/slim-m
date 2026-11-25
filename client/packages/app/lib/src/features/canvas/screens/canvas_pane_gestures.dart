@@ -235,6 +235,10 @@ extension _CanvasPaneGestures on _CanvasPaneState {
   NoteSpanStyle _noteSpanStyle(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final members = ref.watch(membersProvider).valueOrNull ?? const [];
+    ref.watch(canvasNoteEmojiImagesProvider);
+    final emojiRevision = ref
+        .read(canvasNoteEmojiImagesProvider.notifier)
+        .revision;
     return NoteSpanStyle(
       knownUsernames: {for (final m in members) m.username.toLowerCase()},
       mentionInk: tokens.accent,
@@ -243,7 +247,7 @@ extension _CanvasPaneGestures on _CanvasPaneState {
       mentionNames: ref.watch(mentionNamesProvider),
       customEmoji: ref.watch(customEmojiIndexProvider),
       emojiImage: ref.read(canvasNoteEmojiImagesProvider.notifier).imageOf,
-      emojiRevision: ref.watch(canvasNoteEmojiImagesProvider).length,
+      emojiRevision: emojiRevision,
     );
   }
 
