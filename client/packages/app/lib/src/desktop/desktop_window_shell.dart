@@ -168,6 +168,15 @@ class DesktopWindowShell {
   Future<void> requestClose() =>
       _controller?.requestClose() ?? Future<void>.value();
 
+  /// The close a login launch performs, which waits a bounded time for the
+  /// tray host to come up before settling for the taskbar.
+  Future<void> requestLoginClose() =>
+      _controller?.requestClose(awaitTrayHost: true) ?? Future<void>.value();
+
+  /// Whether the runner keeps a login launch's window hidden from the start.
+  bool get loginLaunchStartsHidden =>
+      currentDesktopPlatform() == DesktopPlatform.windows;
+
   /// Puts the window into small splash mode before it is ever shown, so
   /// nothing visibly jumps; the saved geometry waits for [prepareHandoff].
   ///
@@ -267,10 +276,14 @@ class DesktopWindowShell {
     ProviderContainer container, {
     Duration splashFloor = Duration.zero,
     Duration fadeOut = Duration.zero,
+    bool startHidden = false,
   }) async {
     if (currentDesktopPlatform() == null) return;
-    await awaitSplashMapped(floor: splashFloor, probe: _splashMappedProbe);
-    if (fadeOut > Duration.zero) {
+    // A window that never appeared has no splash to wait on or dissolve.
+    if (!startHidden) {
+      await awaitSplashMapped(floor: splashFloor, probe: _splashMappedProbe);
+    }
+    if (fadeOut > Duration.zero && !startHidden) {
       container.read(startupLeavingProvider.notifier).state = true;
       await Future<void>.delayed(fadeOut);
     }
@@ -318,8 +331,11 @@ class DesktopWindowShell {
   /// [_setupTimeout] (decision 0012's 2026-08-28 addendum has the measurement).
   /// One stale splash frame may show for a vsync tick, but at the right size.
   /// The bound only keeps a stalled host from hanging this method.
-  Future<void> revealAfterHandoff() async {
-    if (currentDesktopPlatform() == null) return;
+  ///
+  /// [startHidden] leaves the window hidden, for a login launch that goes
+  /// straight to the tray.
+  Future<void> revealAfterHandoff({bool startHidden = false}) async {
+    if (currentDesktopPlatform() == null || startHidden) return;
     await _reveal();
   }
 

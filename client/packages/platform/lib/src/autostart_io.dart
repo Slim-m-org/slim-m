@@ -49,9 +49,11 @@ class XdgAutostart implements Autostart {
   final File entry;
   final String executable;
 
-  /// Honours XDG_CONFIG_HOME, as the session's autostart reader does.
+  /// Honours XDG_CONFIG_HOME unless it is empty or relative, which the spec treats as unset.
   static File entryFor(Map<String, String> env) {
-    final config = env['XDG_CONFIG_HOME'] ?? '${env['HOME'] ?? ''}/.config';
+    final configured = env['XDG_CONFIG_HOME'];
+    final usable = configured != null && configured.startsWith('/');
+    final config = usable ? configured : '${env['HOME'] ?? ''}/.config';
     return File('$config/autostart/$linuxAppId.desktop');
   }
 
@@ -65,7 +67,8 @@ class XdgAutostart implements Autostart {
         'TryExec=$executable\n'
         'Exec=$quoted $autostartArgument\n'
         'Icon=$linuxAppId\n'
-        'X-GNOME-Autostart-enabled=true\n';
+        'X-GNOME-Autostart-enabled=true\n'
+        'X-KDE-autostart-after=panel\n';
   }
 
   @override
@@ -183,6 +186,10 @@ class WindowsRunKeyAutostart implements Autostart {
   static const key = r'HKCU\Software\Microsoft\Windows\CurrentVersion\Run';
   static const valueName = _appName;
 
+  /// Where Task Manager's Startup apps toggle records that a Run value is off.
+  static const approvedKey =
+      r'HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run';
+
   /// The `reg` arguments that register or remove the login launch.
   static List<String> argumentsFor(bool on, String executable) => on
       ? [
@@ -208,14 +215,30 @@ class WindowsRunKeyAutostart implements Autostart {
     return match?.group(1);
   }
 
+  /// Whether `reg query` output for the StartupApproved value is a disabled
+  /// flag: its first byte is odd (0x03) once Task Manager turned the entry off.
+  static bool approvedDisabled(String queryOutput) {
+    final match =
+        RegExp(r'REG_BINARY\s+([0-9A-Fa-f]{2})').firstMatch(queryOutput);
+    if (match == null) return false;
+    return int.parse(match.group(1)!, radix: 16).isOdd;
+  }
+
+  Future<bool> _disabledInTaskManager() async {
+    final approved = await run('reg', ['query', approvedKey, '/v', valueName]);
+    return approved.exitCode == 0 && approvedDisabled('${approved.stdout}');
+  }
+
   @override
-  Future<bool> isEnabled() async =>
-      (await run('reg', ['query', key, '/v', valueName])).exitCode == 0;
+  Future<bool> isEnabled() async {
+    final result = await run('reg', ['query', key, '/v', valueName]);
+    return result.exitCode == 0 && !await _disabledInTaskManager();
+  }
 
   @override
   Future<void> repair() async {
     final result = await run('reg', ['query', key, '/v', valueName]);
-    if (result.exitCode != 0) return;
+    if (result.exitCode != 0 || await _disabledInTaskManager()) return;
     if (registeredCommand('${result.stdout}') != commandFor(executable)) {
       await setEnabled(true);
     }
@@ -228,6 +251,8 @@ class WindowsRunKeyAutostart implements Autostart {
       throw ProcessException('reg', argumentsFor(on, executable),
           '${result.stderr}', result.exitCode);
     }
+    // Absent is fine: a value Task Manager never touched has no flag to clear.
+    if (on) await run('reg', ['delete', approvedKey, '/v', valueName, '/f']);
   }
 }
 

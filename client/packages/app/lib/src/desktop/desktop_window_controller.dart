@@ -12,6 +12,7 @@ import 'close_behavior.dart';
 import 'desktop_window_port.dart';
 import 'display_server.dart';
 import 'window_geometry.dart';
+import 'tray/tray_availability.dart';
 import 'window_geometry_store.dart';
 
 /// How long to wait after the last resize/move event before writing, on the
@@ -41,6 +42,8 @@ class DesktopWindowController {
     this.keepInTray = _always,
     this.quit,
     this.debounce = desktopGeometryDebounce,
+    this.trayHostWait = const Duration(seconds: 20),
+    this.trayHostPoll = const Duration(milliseconds: 500),
     bool geometryPersistenceEnabled = false,
     bool Function()? positionSupported,
   }) : _geometryPersistenceEnabled = geometryPersistenceEnabled,
@@ -69,6 +72,10 @@ class DesktopWindowController {
 
   /// The "Close to tray" setting; off routes a close to [quit] instead.
   final bool Function() keepInTray;
+
+  /// How long, and how often, a login launch looks for a tray host.
+  final Duration trayHostWait;
+  final Duration trayHostPoll;
 
   /// Ends the app the way the tray's Quit does.
   final Future<void> Function()? quit;
@@ -157,9 +164,12 @@ class DesktopWindowController {
   /// directly would skip the tray-availability fallback entirely, hiding
   /// the window with nothing to bring it back on a Linux desktop with no
   /// tray host registered.
-  Future<void> requestClose() async {
+  ///
+  /// [awaitTrayHost] retries a missing tray host for [trayHostWait] first, for
+  /// a login launch that can run before the desktop's panel has started.
+  Future<void> requestClose({bool awaitTrayHost = false}) async {
     await _writeNow();
-    await _routeClose();
+    await _routeClose(awaitTrayHost: awaitTrayHost);
   }
 
   bool _holdingMinimum = false;
@@ -242,12 +252,18 @@ class DesktopWindowController {
     );
   }
 
-  Future<void> _routeClose() async {
+  Future<void> _routeClose({bool awaitTrayHost = false}) async {
     final quit = this.quit;
     if (quit != null && !keepInTray()) return quit();
     final action = resolveCloseAction(
       platform: platform,
-      trayAvailable: await trayAvailable(),
+      trayAvailable: awaitTrayHost
+          ? await waitForTray(
+              trayAvailable,
+              timeout: trayHostWait,
+              interval: trayHostPoll,
+            )
+          : await trayAvailable(),
     );
     _lastCloseAction = action;
     switch (action) {
