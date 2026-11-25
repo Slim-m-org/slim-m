@@ -35,12 +35,16 @@ class SlimmConnection(
 
     /**
      * Telecom answered the ring itself (a paired headset's answer button, say). The app is
-     * opened with the answered extra, so the same path the notification's Answer takes joins it.
+     * told it was answered, and opened with the answered extra when the system allows it.
      */
     override fun onAnswer() {
         setActive()
-        end(DisconnectCause.LOCAL)
-        context.startActivity(IncomingCallNotifier.answerIntent(context, callId))
+        IncomingRings.answered(context, callId)
+        try {
+            context.startActivity(IncomingCallNotifier.answerIntent(context, callId))
+        } catch (_: RuntimeException) {
+            // Background activity starts can be refused; the answer already reached Dart through the event above.
+        }
     }
 
     /** The notification's Decline, or Telecom driving a reject, both converge here and tell Dart. */

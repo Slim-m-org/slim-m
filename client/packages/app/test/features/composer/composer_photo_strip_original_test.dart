@@ -11,7 +11,9 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/composer/widgets/composer_photo_strip.dart';
+import 'package:slimm_app/src/providers/server_info.dart';
 import 'package:slimm_app/src/features/composer/widgets/photo_library.dart';
 import 'package:slimm_app/src/features/composer/widgets/staged_attachment_model.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -27,14 +29,15 @@ class _Library implements PhotoLibrary {
 
   final Future<FileSource?> Function(String id) _original;
   final opened = <String>[];
+  int? videoBytes;
 
   @override
   Future<PhotoAccess> requestAccess() async => PhotoAccess.full;
 
   @override
-  Future<List<RecentPhoto>> recent(int count) async => const [
-    RecentPhoto('p0'),
-    RecentPhoto('v1', isVideo: true),
+  Future<List<RecentPhoto>> recent(int count) async => [
+    const RecentPhoto('p0'),
+    RecentPhoto('v1', isVideo: true, bytes: videoBytes),
   ];
 
   @override
@@ -60,18 +63,33 @@ void main() {
 
   setUp(() => attached = []);
 
-  Future<void> pump(WidgetTester tester, PhotoLibrary library) async {
+  Future<void> pump(
+    WidgetTester tester,
+    PhotoLibrary library, {
+    Future<void> Function(FileSource file)? onAttach,
+    int? limit,
+  }) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [photoLibraryProvider.overrideWithValue(library)],
+        overrides: [
+          photoLibraryProvider.overrideWithValue(library),
+          serverInfoProvider.overrideWith(
+            (ref) async => api.Version.fromJson({
+              'name': 'slim-m',
+              'version': '0.130.0',
+              'protocol': 1,
+              if (limit != null) 'max_attachment_bytes': limit,
+            }),
+          ),
+        ],
         child: MaterialApp(
           theme: buildTheme(Brightness.light, AppTokens.light),
           home: Scaffold(
             body: ComposerPhotoStrip(
-              onAttach: (file) async => attached.add(file),
+              onAttach: onAttach ?? (file) async => attached.add(file),
               onBrowse: () {},
               onClose: () {},
             ),
@@ -155,4 +173,52 @@ void main() {
     expect(library.opened, ['v1']);
     expect(attached.single.name, 'v1.mp4');
   });
+
+  testWidgets(
+    'a tap while the composer is still staging the file attaches once',
+    (tester) async {
+      final staging = Completer<void>();
+      final library = _Library(
+        (id) async => MemoryFile('$id.png', _png).source,
+      );
+      await pump(
+        tester,
+        library,
+        onAttach: (file) {
+          attached.add(file);
+          return staging.future;
+        },
+      );
+
+      await tester.tap(find.bySemanticsLabel('Attach photo'));
+      await tester.pump();
+      await tester.pump();
+      expect(spinner, findsOneWidget, reason: 'busy until staging is done');
+      await tester.tap(find.bySemanticsLabel('Attach photo'));
+      await tester.pump();
+
+      expect(attached, hasLength(1));
+
+      staging.complete();
+      await tester.pump();
+      expect(spinner, findsNothing);
+    },
+  );
+
+  testWidgets(
+    'a video over the server limit is refused without downloading it',
+    (tester) async {
+      final library = _Library((id) async => MemoryFile('$id.mp4', _png).source)
+        ..videoBytes = 3 * 1024 * 1024;
+      await pump(tester, library, limit: 1024 * 1024);
+
+      await tester.tap(find.bySemanticsLabel('Attach video'));
+      await tester.pump();
+      await tester.pump();
+
+      expect(library.opened, isEmpty);
+      expect(attached, isEmpty);
+      expect(find.textContaining('over this server'), findsOneWidget);
+    },
+  );
 }

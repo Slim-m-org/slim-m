@@ -101,6 +101,7 @@ class CallLifecycleChannel {
   Future<void> callStarted({
     required String callId,
     required String displayName,
+    bool direct = false,
   }) async {
     if (!_native) return;
     _reportedCallId = callId;
@@ -108,6 +109,7 @@ class CallLifecycleChannel {
       await _channel.invokeMethod<void>('callStarted', {
         'callId': callId,
         'displayName': displayName,
+        'direct': direct,
       });
     } on PlatformException catch (error, stack) {
       AppLog.swallowed(

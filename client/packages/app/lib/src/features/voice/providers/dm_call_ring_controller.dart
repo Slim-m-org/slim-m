@@ -148,13 +148,14 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
         }
       case CallKitIncomingKind.answered:
         _callKitCallId = event.callId;
-        final ring = state.incoming;
+        final held = state.incoming;
+        final ring = held != null && answersRing(event, held) ? held : null;
         _answeredAt = DateTime.now();
         state = state.copyWith(callKit: CallKitPhase.answered);
         if (ring != null) {
           unawaited(_answerFromCallKit(ring));
         } else {
-          unawaited(_answerFromOutstandingRing(event.callId));
+          unawaited(_answerFromOutstandingRing(event));
         }
       case CallKitIncomingKind.ended:
         _onCallKitEnded(event.callId);
@@ -166,6 +167,7 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
             client: _ref.read(apiProvider),
             isMounted: () => mounted,
             decline: decline,
+            callIdIsRingId: event.callIdIsRingId,
           ),
         );
     }
@@ -193,32 +195,25 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
   /// `call.ringing` frame is long gone: ask the server which ring is still
   /// outstanding. None means it timed out or was cancelled, and the system
   /// call is ended rather than left up with nothing behind it.
-  Future<void> _answerFromOutstandingRing(String callId) async {
-    final List<api.OutstandingDmCallRing> rings;
-    try {
-      rings = await _ref.read(apiProvider).listIncomingDmCallRings();
-    } on Exception catch (error, stack) {
-      api.reportFailure(
-        api.LogTag.voice,
-        'look up the call that is ringing',
-        error,
-        stack,
-      );
-      // Unknown, not empty: the websocket frame can still answer it.
-      return;
-    }
+  Future<void> _answerFromOutstandingRing(CallKitIncomingEvent event) async {
+    final callId = event.callId;
+    final ringId = event.callIdIsRingId ? callId : null;
+    final rings = await lookUpRingingCalls(_ref.read(apiProvider));
+    // Unknown, not empty: the websocket frame can still answer it.
+    if (rings == null) return;
     final stillWaiting =
         mounted &&
         _callKitCallId == callId &&
         state.callKit == CallKitPhase.answered;
     if (!stillWaiting) return;
-    if (rings.isEmpty) {
-      if (await _handOffToAccountHoldingRing(callId)) return;
+    final target = ringForAnswer(rings, ringId);
+    if (target == null) {
+      if (await _handOffToAccountHoldingRing(callId, ringId)) return;
       state = state.copyWith(callKit: CallKitPhase.none);
       _endCallKit();
       return;
     }
-    await _answerOutstanding(rings.first);
+    await _answerOutstanding(target);
   }
 
   Future<void> _answerOutstanding(api.OutstandingDmCallRing ring) {
@@ -232,11 +227,14 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
   }
 
   /// CallKit names no account, so a ring this account does not hold may belong to another.
-  Future<bool> _handOffToAccountHoldingRing(String callId) async {
+  Future<bool> _handOffToAccountHoldingRing(
+    String callId,
+    String? ringId,
+  ) async {
     final host = _ref.read(accountHostProvider);
     final found = host == null
         ? null
-        : await findRingOnOtherAccount(host, _ref.container);
+        : await findRingOnOtherAccount(host, _ref.container, ringId: ringId);
     if (!mounted || _callKitCallId != callId) return true;
     if (host == null || found == null) return false;
     _forgetCallKit();

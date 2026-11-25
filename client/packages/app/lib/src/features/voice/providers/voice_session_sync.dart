@@ -24,6 +24,7 @@ class VoiceSessionSync {
     required this.session,
     required this.access,
     required this.callLifecycle,
+    required this.isDirectCall,
     required this.foreground,
     required this.heartbeat,
     required this.autoRejoin,
@@ -41,6 +42,9 @@ class VoiceSessionSync {
   final VoiceSession session;
   final VoiceStateAccess access;
   final CallLifecycleChannel callLifecycle;
+
+  /// Whether the call on this channel is a DM call, the only kind the system call list hears about on Android.
+  final bool Function(String channelId) isDirectCall;
   final CallForegroundKeeper foreground;
   final VoiceCallHeartbeat heartbeat;
   final VoiceAutoRejoin autoRejoin;
@@ -58,7 +62,13 @@ class VoiceSessionSync {
 
   /// Applies one session state change to the call state, starting or stopping what depends on a live call.
   void onSessionState(VoiceSessionState s) {
-    reportCallLifecycle(callLifecycle, s, channelId: _current.channelId);
+    final channelId = _current.channelId;
+    reportCallLifecycle(
+      callLifecycle,
+      s,
+      channelId: channelId,
+      direct: channelId != null && isDirectCall(channelId),
+    );
     final dropped = _classifiedDisconnect();
     if (s == VoiceSessionState.failed && dropped != null) {
       heartbeat.stop();

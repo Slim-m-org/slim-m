@@ -17,6 +17,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import 'package:slimm_app/src/features/voice/providers/dm_call.dart';
+
 import 'voice_controller_harness.dart';
 
 const _channelName = 'top.npcserver.slimm/call_lifecycle';
@@ -64,7 +66,26 @@ void main() {
     expect(calls.first.arguments, {
       'callId': 'channel-1',
       'displayName': 'Voice call',
+      'direct': false,
     });
+  });
+
+  test('only a DM call is reported as direct', () async {
+    final (:lifecycle, :calls) = iosLifecycle();
+    final session = FakeSession();
+    final controller = harness.controllerWith(
+      session,
+      voiceApi(),
+      callLifecycle: lifecycle,
+    );
+    harness.container.read(dmCallOpenProvider.notifier).state = 'dm-1';
+
+    unawaited(controller.join('dm-1'));
+    await Future<void>.delayed(Duration.zero);
+    session.emitState(VoiceSessionState.connecting);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(calls.first.arguments, containsPair('direct', true));
   });
 
   test('leaving a connected call reports it ended', () async {

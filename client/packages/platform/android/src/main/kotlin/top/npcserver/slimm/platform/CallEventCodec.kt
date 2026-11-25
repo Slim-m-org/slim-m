@@ -2,8 +2,9 @@
 package top.npcserver.slimm.platform
 
 /** What the notification or Telecom did to a ring, told to Dart as `onCallKitEvent`. */
-data class CallEvent(val kind: String, val id: String) {
-    fun toMap(): Map<String, String> = mapOf("event" to kind, "id" to id)
+data class CallEvent(val kind: String, val id: String, val atMs: Long = 0L) {
+    /** [id] is the server's ring id here, so Dart may only act on that ring. */
+    fun toMap(): Map<String, Any> = mapOf("event" to kind, "id" to id, "ring_id" to true)
 
     companion object {
         const val ANSWERED = "answered"
@@ -17,13 +18,13 @@ object CallEventCodec {
     private const val ROW = '\n'
 
     fun encode(events: List<CallEvent>): String =
-        events.joinToString(ROW.toString()) { "${it.kind}$FIELD${clean(it.id)}" }
+        events.joinToString(ROW.toString()) { "${it.kind}$FIELD${clean(it.id)}$FIELD${it.atMs}" }
 
     fun decode(raw: String?): List<CallEvent> =
         raw.orEmpty().split(ROW).mapNotNull { row ->
             val parts = row.split(FIELD)
-            if (parts.size == 2 && parts[0].isNotEmpty() && parts[1].isNotEmpty()) {
-                CallEvent(parts[0], parts[1])
+            if (parts.size == 3 && parts[0].isNotEmpty() && parts[1].isNotEmpty()) {
+                CallEvent(parts[0], parts[1], parts[2].toLongOrNull() ?: 0L)
             } else {
                 null
             }
@@ -31,6 +32,10 @@ object CallEventCodec {
 
     /** The newest [limit] events: an app that never opens must not grow this without bound. */
     fun capped(events: List<CallEvent>, limit: Int): List<CallEvent> = events.takeLast(limit)
+
+    /** Events no older than [maxAgeMs]: a held answer or decline from an earlier ring must not act on a later one. */
+    fun fresh(events: List<CallEvent>, nowMs: Long, maxAgeMs: Long): List<CallEvent> =
+        events.filter { it.atMs in (nowMs - maxAgeMs)..nowMs }
 
     private fun clean(id: String): String = id.replace(FIELD, ' ').replace(ROW, ' ')
 }

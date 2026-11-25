@@ -15,7 +15,9 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../providers/server_info.dart';
 import 'photo_library.dart';
+import 'photo_size_note.dart';
 import 'photo_strip_tiles.dart';
 import 'staged_attachment_model.dart';
 import 'package:slimm_api/api.dart' show LogTag, reportFailure;
@@ -69,6 +71,8 @@ class ComposerPhotoStripSlot extends ConsumerWidget {
   }
 }
 
+const _readFailure = 'Could not read that photo.';
+
 /// How many recent photos each page of the grid loads.
 const int _pageSize = 60;
 
@@ -99,7 +103,7 @@ class _ComposerPhotoStripState extends ConsumerState<ComposerPhotoStrip>
     with SingleTickerProviderStateMixin {
   PhotoAccess? _access;
   List<RecentPhoto> _photos = const [];
-  bool _readFailed = false;
+  String? _problem;
 
   /// Photos whose original is being read; a repeat tap on one is ignored.
   final Set<String> _fetching = {};
@@ -229,26 +233,53 @@ class _ComposerPhotoStripState extends ConsumerState<ComposerPhotoStrip>
   Future<void> _attach(RecentPhoto photo) async {
     if (!_fetching.add(photo.id)) return;
     setState(() {});
+    try {
+      await _readAndAttach(photo);
+    } finally {
+      _fetching.remove(photo.id);
+      if (mounted) setState(() {});
+    }
+  }
+
+  Future<void> _readAndAttach(RecentPhoto photo) async {
+    final tooBig = oversizeNote(photo.bytes, await _uploadLimit());
+    if (tooBig != null) {
+      if (mounted) setState(() => _problem = tooBig);
+      return;
+    }
     final FileSource? original;
     try {
       original = await ref.read(photoLibraryProvider)?.original(photo.id);
     } on Object catch (error, stack) {
       reportFailure(LogTag.ui, 'read a library photo', error, stack);
-      if (!mounted) return;
-      setState(() {
-        _fetching.remove(photo.id);
-        _readFailed = true;
-      });
+      if (mounted) setState(() => _problem = _readFailure);
       return;
     }
     if (!mounted) return;
-    setState(() => _fetching.remove(photo.id));
     if (original == null) {
-      setState(() => _readFailed = true);
+      setState(() => _problem = _readFailure);
       return;
     }
-    setState(() => _readFailed = false);
+    setState(() => _problem = null);
     await widget.onAttach(original);
+  }
+
+  /// The server's per-file ceiling, or null when it cannot be learned quickly.
+  Future<int?> _uploadLimit() async {
+    try {
+      final version = await ref
+          .read(serverInfoProvider.future)
+          .timeout(const Duration(seconds: 3));
+      return version.maxAttachmentBytes;
+    } on Object catch (error, stack) {
+      reportFailure(
+        LogTag.media,
+        "read the server's attachment limit",
+        error,
+        stack,
+      );
+      return null;
+    }
   }
 
   @override
@@ -293,14 +324,14 @@ class _ComposerPhotoStripState extends ConsumerState<ComposerPhotoStrip>
                 ),
               ),
               if (access == PhotoAccess.limited) _limitedNote(tokens),
-              if (_readFailed)
+              if (_problem != null)
                 Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppSpacing.s8,
                   ),
                   child: AppErrorState(
-                    message: 'Could not read that photo.',
-                    onDismiss: () => setState(() => _readFailed = false),
+                    message: _problem!,
+                    onDismiss: () => setState(() => _problem = null),
                   ),
                 ),
               Expanded(

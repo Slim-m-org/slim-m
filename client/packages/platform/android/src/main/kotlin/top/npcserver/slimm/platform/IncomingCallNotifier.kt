@@ -65,11 +65,7 @@ class IncomingCallNotifier(private val context: Context) {
             .setStyle(NotificationCompat.CallStyle.forIncomingCall(person, declineIntent, answerIntent))
 
         if (NotificationManagerCompat.from(context).canUseFullScreenIntent()) {
-            // Full-screen intents must launch an Activity directly - Telecom
-            // is not consulted here, unlike the CallStyle action buttons
-            // above, since a locked screen has no user tap to route through
-            // CallActionReceiver in the first place.
-            builder.setFullScreenIntent(openApp, true)
+            builder.setFullScreenIntent(ringScreenPendingIntent(notificationId, callId, callerName), true)
         }
 
         try {
@@ -176,6 +172,19 @@ class IncomingCallNotifier(private val context: Context) {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
+    /** The one surface allowed over the lock screen: a ring screen, never the app itself. */
+    private fun ringScreenPendingIntent(
+        notificationId: Int,
+        callId: String,
+        callerName: String,
+    ): PendingIntent =
+        PendingIntent.getActivity(
+            context,
+            notificationId xor RING_SCREEN_REQUEST_SALT,
+            IncomingCallActivity.intent(context, callId, callerName),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+
     private fun openAppPendingIntent(requestCode: Int): PendingIntent =
         PendingIntent.getActivity(
             context,
@@ -200,6 +209,7 @@ class IncomingCallNotifier(private val context: Context) {
 
         private const val RING_TIMEOUT_MS = IncomingRings.RING_TIMEOUT_MS
         private const val ANSWER_REQUEST_SALT = 0x414E53
+        private const val RING_SCREEN_REQUEST_SALT = 0x52494E
         const val EXTRA_ANSWERED_CALL_ID = "top.npcserver.slimm.extra.ANSWERED_CALL_ID"
         private const val PHONE_ACCOUNT_ID = "slimm_calls"
 

@@ -28,8 +28,11 @@ enum PhotoAccess {
 
 /// One recent photo; its bytes load on demand.
 class RecentPhoto {
-  const RecentPhoto(this.id, {this.isVideo = false});
+  const RecentPhoto(this.id, {this.isVideo = false, this.bytes});
   final String id;
+
+  /// The original's size when the library can tell it without downloading; read for videos only.
+  final int? bytes;
 
   /// A video shows a badge on its tile and attaches like any other file.
   final bool isVideo;

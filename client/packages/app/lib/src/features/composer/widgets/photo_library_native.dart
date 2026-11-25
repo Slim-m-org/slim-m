@@ -55,10 +55,30 @@ class _PluginPhotoLibrary implements PhotoLibrary {
     for (final asset in assets) {
       _assets[asset.id] = asset;
     }
-    return [
-      for (final asset in assets)
-        RecentPhoto(asset.id, isVideo: asset.type == AssetType.video),
-    ];
+    return Future.wait([for (final asset in assets) _photoOf(asset)]);
+  }
+
+  Future<RecentPhoto> _photoOf(AssetEntity asset) async {
+    final isVideo = asset.type == AssetType.video;
+    return RecentPhoto(
+      asset.id,
+      isVideo: isVideo,
+      bytes: isVideo ? await _sizeOf(asset) : null,
+    );
+  }
+
+  Future<int?> _sizeOf(AssetEntity asset) async {
+    try {
+      return await asset.fileSize;
+    } on Object catch (error, stack) {
+      api.reportFailure(
+        api.LogTag.media,
+        'read a library video size',
+        error,
+        stack,
+      );
+      return null;
+    }
   }
 
   @override

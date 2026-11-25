@@ -3,6 +3,10 @@
 /// audio, and a denial still joins.
 library;
 
+import 'dart:async';
+
+import 'package:fake_async/fake_async.dart';
+import 'package:flutter/widgets.dart' show AppLifecycleState;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/voice/providers/bluetooth_permission_provider.dart';
 import 'package:slimm_platform/platform.dart';
@@ -49,5 +53,54 @@ void main() {
         expect(controller.state.error, isNull);
       },
     );
+  }
+
+  group('askBluetoothBeforeJoin', () {
+    test('does not wait on a dialog that never answers', () {
+      fakeAsync((async) {
+        var done = false;
+        askBluetoothBeforeJoin(_HungBluetooth()).then((_) => done = true);
+        async.elapse(bluetoothAskLimit);
+        expect(done, isTrue);
+      });
+    });
+
+    test('does not ask while the app is in the background', () async {
+      final bluetooth = _HungBluetooth();
+      await askBluetoothBeforeJoin(
+        bluetooth,
+        lifecycle: AppLifecycleState.paused,
+      );
+      expect(bluetooth.asked, 0);
+    });
+
+    test('asks while the app is in front', () async {
+      final bluetooth = _CountingBluetooth();
+      await askBluetoothBeforeJoin(
+        bluetooth,
+        lifecycle: AppLifecycleState.resumed,
+      );
+      expect(bluetooth.asked, 1);
+    });
+  });
+}
+
+class _HungBluetooth extends BluetoothPermissionChannel {
+  int asked = 0;
+
+  @override
+  Future<bool> request() {
+    asked++;
+    return Completer<bool>().future;
+  }
+}
+
+class _CountingBluetooth extends BluetoothPermissionChannel {
+  int asked = 0;
+
+  @override
+  Future<bool> request() async {
+    asked++;
+    return true;
   }
 }

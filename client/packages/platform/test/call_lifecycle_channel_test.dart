@@ -56,6 +56,7 @@ void main() {
       expect(calls.single.arguments, {
         'callId': 'channel-1',
         'displayName': 'Voice call',
+        'direct': false,
       });
     });
 

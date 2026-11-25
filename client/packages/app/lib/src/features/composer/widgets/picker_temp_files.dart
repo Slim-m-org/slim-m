@@ -20,9 +20,12 @@ bool get _copiesPicks =>
 /// A resumable upload re-opens its file for as long as it is uploading or
 /// can be retried, so a copy is never removed while a holder says so.
 class PickerTempFiles {
-  PickerTempFiles(this._clear);
+  PickerTempFiles(this._clear, {this.clearsMidSession = true});
 
   final Future<void> Function() _clear;
+
+  /// False where the plugin's clear takes the whole temp folder, which other features write to.
+  final bool clearsMidSession;
   final Set<Object> _holders = {};
 
   /// Records whether [owner] still reads a picked file; a release clears when nobody else reads.
@@ -32,7 +35,7 @@ class PickerTempFiles {
       return;
     }
     _holders.remove(owner);
-    _clearWhenIdle();
+    if (clearsMidSession) _clearWhenIdle();
   }
 
   /// Clears now unless something is still reading, for launch and for refused picks.
@@ -46,11 +49,15 @@ class PickerTempFiles {
   }
 }
 
+/// Only Android's clear is limited to the picker's own folder; iOS's empties the shared temp folder.
+bool clearsPicksMidSession(TargetPlatform platform) =>
+    platform != TargetPlatform.iOS;
+
 /// One per account session, wired to the plugins' own clear calls on a phone.
 final pickerTempFilesProvider = Provider<PickerTempFiles>(
   (ref) => PickerTempFiles(() async {
     if (!_copiesPicks) return;
     await FilePicker.clearTemporaryFiles();
     await ref.read(photoLibraryProvider)?.clearCache();
-  }),
+  }, clearsMidSession: clearsPicksMidSession(defaultTargetPlatform)),
 );

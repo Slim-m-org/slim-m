@@ -6,6 +6,7 @@ library;
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show TargetPlatform;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/composer/widgets/composer_attachment_tray.dart';
@@ -145,5 +146,26 @@ void main() {
       attachmentSendBlockReason(controller, onPhone: true),
       'Send waits for the upload to finish.',
     );
+  });
+
+  test(
+    'where the clear empties the shared temp folder, only launch clears',
+    () async {
+      final launchOnly = PickerTempFiles(
+        () async => clears += 1,
+        clearsMidSession: false,
+      );
+      launchOnly.update('a', reading: true);
+      launchOnly.update('a', reading: false);
+      expect(clears, 0);
+
+      launchOnly.clearWhenIdle();
+      expect(clears, 1);
+    },
+  );
+
+  test('iOS leaves the shared temp folder alone mid-session', () {
+    expect(clearsPicksMidSession(TargetPlatform.iOS), isFalse);
+    expect(clearsPicksMidSession(TargetPlatform.android), isTrue);
   });
 }

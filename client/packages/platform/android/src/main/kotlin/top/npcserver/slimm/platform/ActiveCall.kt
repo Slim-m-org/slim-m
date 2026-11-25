@@ -17,6 +17,12 @@ object ActiveCall {
     private var connected = false
     private var connection: SlimmOngoingConnection? = null
 
+    /**
+     * Only a DM call is a phone-like call. A space voice channel left in the system call list would
+     * take over audio routing and hold or drop a cellular call the user is on.
+     */
+    fun reportsToTelecom(direct: Boolean?): Boolean = direct == true
+
     fun start(context: Context, id: String, displayName: String) {
         end(id = null)
         callId = id

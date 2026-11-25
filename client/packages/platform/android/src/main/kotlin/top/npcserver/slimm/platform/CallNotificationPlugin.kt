@@ -60,14 +60,12 @@ class CallNotificationPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
     private fun attach(binding: ActivityPluginBinding) {
         activityBinding = binding
         binding.addOnNewIntentListener(newIntents)
-        IncomingRings.activityAttached(binding.activity)
         consumeAnswer(binding.activity.intent)
     }
 
     private fun detach() {
         val binding = activityBinding ?: return
         binding.removeOnNewIntentListener(newIntents)
-        IncomingRings.activityDetached(binding.activity)
         activityBinding = null
     }
 
@@ -75,6 +73,7 @@ class CallNotificationPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
     private fun consumeAnswer(intent: Intent?) {
         val callId = intent?.getStringExtra(IncomingCallNotifier.EXTRA_ANSWERED_CALL_ID) ?: return
         intent.removeExtra(IncomingCallNotifier.EXTRA_ANSWERED_CALL_ID)
+        if (!AnswerIntentRules.mayAnswer(intent.flags)) return
         IncomingRings.answered(appContext, callId)
     }
 

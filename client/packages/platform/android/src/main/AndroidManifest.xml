@@ -14,6 +14,16 @@
     <application
         android:allowBackup="false"
         android:usesCleartextTraffic="false">
+        <!-- The only thing drawn over the lock screen for a ring; the app's own activity never is. -->
+        <activity
+            android:name=".IncomingCallActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTask"
+            android:showWhenLocked="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Material.NoActionBar"
+            android:turnScreenOn="true"/>
         <receiver
             android:name=".CallActionReceiver"
             android:exported="false">

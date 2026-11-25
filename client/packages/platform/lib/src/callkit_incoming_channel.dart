@@ -29,10 +29,14 @@ const _channelName = 'top.npcserver.slimm/callkit_incoming';
 enum CallKitIncomingKind { ringing, answered, ended, declined }
 
 class CallKitIncomingEvent {
-  const CallKitIncomingEvent(this.kind, this.callId);
+  const CallKitIncomingEvent(this.kind, this.callId,
+      {this.callIdIsRingId = false});
 
   final CallKitIncomingKind kind;
   final String callId;
+
+  /// True when [callId] is the server's ring id (Android), so an event may only act on that ring.
+  final bool callIdIsRingId;
 
   static CallKitIncomingEvent? tryParse(Object? raw) {
     if (raw is! Map) return null;
@@ -41,7 +45,8 @@ class CallKitIncomingEvent {
         .firstOrNull;
     final id = raw['id'];
     if (kind == null || id is! String) return null;
-    return CallKitIncomingEvent(kind, id);
+    return CallKitIncomingEvent(kind, id,
+        callIdIsRingId: raw['ring_id'] == true);
   }
 }
 

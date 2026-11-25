@@ -11,6 +11,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart' show TestWidgetsFlutterBinding;
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
@@ -168,6 +169,8 @@ class VoiceHarness {
     DateTime Function()? now,
     List<Override> extraOverrides = const [],
   }) {
+    // A join reads the app's lifecycle, which needs a binding.
+    TestWidgetsFlutterBinding.ensureInitialized();
     final container = ProviderContainer(
       overrides: [
         keyStoreProvider.overrideWithValue(InMemoryKeyStore()),

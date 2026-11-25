@@ -1,21 +1,16 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 package top.npcserver.slimm.platform
 
-import android.app.Activity
 import android.content.Context
-import android.os.Build
 import android.os.Handler
 import android.os.Looper
-import android.view.WindowManager
 import androidx.core.app.NotificationManagerCompat
-import java.lang.ref.WeakReference
 
 /**
- * The rings this process is showing: how long each lasts, and whether the app may draw over the
- * lock screen while one does.
+ * The rings this process is showing, and how long each lasts.
  *
- * The window flags are set only while a ring is live and cleared with the last one, so slim-m
- * never stays visible over the lock screen once the call is answered, declined or missed.
+ * Nothing here touches the app's own window: the only surface drawn over the lock screen is
+ * [IncomingCallActivity], which [watch]es its ring and closes when it ends.
  */
 object IncomingRings {
     /** Matches the server's `RING_TIMEOUT` (`voice/ring.rs`), so a ring whose end push never arrives still stops. */
@@ -23,7 +18,7 @@ object IncomingRings {
 
     private val main = Handler(Looper.getMainLooper())
     private val timeouts = mutableMapOf<String, Runnable>()
-    private var activity: WeakReference<Activity>? = null
+    private val watchers = mutableMapOf<String, MutableList<() -> Unit>>()
 
     /** A repeat of [callId] restarts its timer instead of adding a second one. */
     fun begin(context: Context, callId: String) {
@@ -32,18 +27,26 @@ object IncomingRings {
         val expire = Runnable { expire(appContext, callId) }
         timeouts[callId] = expire
         main.postDelayed(expire, RING_TIMEOUT_MS)
-        applyLockScreen()
+    }
+
+    fun isLive(callId: String): Boolean = timeouts.containsKey(callId)
+
+    /** Runs [onEnd] once when the ring for [callId] ends; returns what to call to stop watching. */
+    fun watch(callId: String, onEnd: () -> Unit): () -> Unit {
+        watchers.getOrPut(callId) { mutableListOf() }.add(onEnd)
+        return { watchers[callId]?.remove(onEnd) }
     }
 
     fun finish(callId: String) {
         timeouts.remove(callId)?.let(main::removeCallbacks)
-        applyLockScreen()
+        watchers.remove(callId)?.forEach { it() }
     }
 
     fun finishAll() {
         timeouts.values.forEach(main::removeCallbacks)
         timeouts.clear()
-        applyLockScreen()
+        watchers.values.flatten().forEach { it() }
+        watchers.clear()
     }
 
     /** The caller never got an answer: nothing of this ring may outlive it. */
@@ -51,18 +54,6 @@ object IncomingRings {
         SlimmConnection.registry[callId]?.endAsMissed()
         NotificationManagerCompat.from(context).cancel(IncomingCallNotifier.notificationIdFor(callId))
         finish(callId)
-    }
-
-    fun activityAttached(attached: Activity) {
-        activity = WeakReference(attached)
-        applyLockScreen()
-    }
-
-    fun activityDetached(detached: Activity) {
-        if (activity?.get() === detached) {
-            setOverLockScreen(detached, false)
-            activity = null
-        }
     }
 
     /** The user answered from the notification (or Telecom did): the ring is over and Dart joins the call. */
@@ -83,22 +74,5 @@ object IncomingRings {
         NotificationManagerCompat.from(context).cancel(IncomingCallNotifier.notificationIdFor(callId))
         finish(callId)
         CallEvents.emit(context, CallEvent.DECLINED, callId)
-    }
-
-    private fun applyLockScreen() {
-        val current = activity?.get() ?: return
-        setOverLockScreen(current, timeouts.isNotEmpty())
-    }
-
-    @Suppress("DEPRECATION")
-    private fun setOverLockScreen(target: Activity, over: Boolean) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-            target.setShowWhenLocked(over)
-            target.setTurnScreenOn(over)
-            return
-        }
-        val flags = WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-            WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
-        if (over) target.window.addFlags(flags) else target.window.clearFlags(flags)
     }
 }

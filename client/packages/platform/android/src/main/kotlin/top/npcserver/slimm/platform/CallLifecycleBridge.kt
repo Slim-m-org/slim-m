@@ -19,7 +19,7 @@ class CallLifecycleBridge(private val context: Context, messenger: BinaryMesseng
             val id = call.argument<String>("callId")
             when (call.method) {
                 "callStarted" ->
-                    if (id != null) {
+                    if (id != null && ActiveCall.reportsToTelecom(call.argument<Boolean>("direct"))) {
                         ActiveCall.start(context, id, call.argument<String>("displayName").orEmpty())
                     }
                 "callConnected" -> if (id != null) ActiveCall.connected(id)
