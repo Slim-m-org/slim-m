@@ -51,6 +51,9 @@ String newRoleId() => _uuidV7();
 /// The same generator for a theme kept in "Mine", which only names it on this device.
 String newThemeId() => _uuidV7();
 
+/// The same generator for the local database file a newly added account is cached in.
+String newAccountDatabaseId() => _uuidV7();
+
 String _uuidV7() =>
     uuidV7At(DateTime.now().millisecondsSinceEpoch, Random.secure());
 
