@@ -99,11 +99,12 @@ void main() {
     await tester.pump();
 
     clipboardPaste.pasteFiles([_Pasted('report.pdf'), _Pasted('bundle.zip')]);
-    await waitUntil(
-      tester,
-      () => find.text('bundle.zip').evaluate().isNotEmpty,
-    );
-    await tester.pump();
+    for (var i = 0; i < 50 && find.text('bundle.zip').evaluate().isEmpty; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
+      await tester.pump();
+    }
 
     expect(find.text('report.pdf'), findsOneWidget);
     expect(find.text('bundle.zip'), findsOneWidget);
