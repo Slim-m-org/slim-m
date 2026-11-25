@@ -21,6 +21,7 @@ DesktopWindowShell shellFor(
   bool active = false,
   bool frameless = false,
   Future<void> Function()? beforeExit,
+  void Function()? forceExit,
 }) => DesktopWindowShell(
   port: port ?? FakeDesktopWindowPort(),
   chromePlatform: chrome,
@@ -29,4 +30,5 @@ DesktopWindowShell shellFor(
   active: active,
   frameless: frameless,
   beforeExit: beforeExit ?? () async {},
+  forceExit: forceExit ?? () {},
 );

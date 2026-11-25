@@ -43,6 +43,9 @@ class FakeDesktopWindowPort implements DesktopWindowPort {
 
   @override
   bool get windowQueryable => queryable;
+
+  /// Holds every getBounds answer until it completes.
+  Future<void>? boundsGate;
   WindowRect bounds = const WindowRect(x: 10, y: 10, width: 1280, height: 720);
 
   int hideCalls = 0;
@@ -71,6 +74,7 @@ class FakeDesktopWindowPort implements DesktopWindowPort {
   @override
   Future<WindowRect> getBounds() async {
     if (!queryable) nativeQueryCalls++;
+    await boundsGate;
     return bounds;
   }
 
