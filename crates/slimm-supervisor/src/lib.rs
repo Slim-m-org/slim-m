@@ -8,6 +8,7 @@ pub mod config;
 pub mod error;
 pub mod gateway;
 pub mod logs;
+pub mod measure;
 pub mod net;
 pub mod policy;
 pub mod runtime;

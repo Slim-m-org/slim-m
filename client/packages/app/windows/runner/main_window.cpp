@@ -2,6 +2,7 @@
 #include "main_window.h"
 
 #include <dwmapi.h>
+#include <shellapi.h>
 #include <flutter/encodable_value.h>
 #include <flutter/flutter_view.h>
 #include <flutter/method_channel.h>
@@ -9,6 +10,7 @@
 #include <flutter/standard_method_codec.h>
 
 #include <cstdint>
+#include <cwchar>
 #include <memory>
 #include <optional>
 #include <string>
@@ -22,6 +24,8 @@
 #include "now_playing_channel.h"
 #include "popout_window_proc.h"
 #include "screen_overlay_channel.h"
+#include "app_identity.h"
+#include "session_lock_channel.h"
 #include "single_instance.h"
 #include "taskbar_attention_channel.h"
 #include "windows_toasts_channel.h"
@@ -54,6 +58,26 @@ bool g_revealed = false;
 bool g_shown = false;
 HBRUSH g_background = nullptr;
 
+constexpr wchar_t kLoginArgument[] = L"--autostart";
+
+/// A sign-in launch goes to the tray, so its window is never shown at all.
+/// Matches the whole argument, as Dart does, so a link or path that merely
+/// contains the flag is an ordinary launch.
+bool LaunchedAtLogin() {
+  static const bool login = [] {
+    int count = 0;
+    LPWSTR* args = ::CommandLineToArgvW(::GetCommandLineW(), &count);
+    if (args == nullptr) return false;
+    bool found = false;
+    for (int i = 1; i < count; ++i) {
+      if (std::wcscmp(args[i], kLoginArgument) == 0) found = true;
+    }
+    ::LocalFree(args);
+    return found;
+  }();
+  return login;
+}
+
 /// Paints what a resize exposes before Flutter draws it in the app's own
 /// background, not the white Windows uses when a window has no brush.
 void SetBackground(int64_t argb) {
@@ -78,13 +102,27 @@ void ShowMainWindow() {
   ::SetForegroundWindow(g_window);
 }
 
+/// Lets later shows through without showing now, for a login launch that
+/// stays in the tray until the user opens it.
+void ReleaseFirstShowHeld() {
+  if (g_shown || g_window == nullptr) return;
+  g_shown = true;
+  ::KillTimer(g_window, kRevealTimer);
+}
+
 /// Shows the window once the next frame is drawn, so what appears is a
 /// painted frame at the window's current size, never an empty one.
 void RequestReveal() {
   if (g_revealed) return;
   g_revealed = true;
   if (g_window == nullptr) return;
-  g_engine->SetNextFrameCallback([] { ShowMainWindow(); });
+  g_engine->SetNextFrameCallback([] {
+    if (LaunchedAtLogin()) {
+      ReleaseFirstShowHeld();
+    } else {
+      ShowMainWindow();
+    }
+  });
   ::SetTimer(g_window, kRevealTimer, kFrameDeadlineMs, nullptr);
   const HWND content =
       ::FindWindowExW(g_window, nullptr, L"FLUTTERVIEW", nullptr);
@@ -102,6 +140,8 @@ void HoldFirstShow(LPARAM lparam) {
   // A hidden window must not take activation either, or the launch's foreground right is spent on it.
   change->flags = (change->flags & ~static_cast<UINT>(SWP_SHOWWINDOW)) |
                   SWP_NOACTIVATE;
+  // The engine's one first show is dropped, so a login launch lets later shows through.
+  if (LaunchedAtLogin()) ReleaseFirstShowHeld();
 }
 
 std::optional<LRESULT> HandleTopLevelMessage(HWND window, UINT message,
@@ -115,7 +155,11 @@ std::optional<LRESULT> HandleTopLevelMessage(HWND window, UINT message,
   if (!is_main) return HandlePopOutMessage(window, message, wparam, lparam);
   if (message == WM_TIMER && wparam == kRevealTimer) {
     g_revealed = true;
-    ShowMainWindow();
+    if (LaunchedAtLogin()) {
+      ReleaseFirstShowHeld();
+    } else {
+      ShowMainWindow();
+    }
     return 0;
   }
   if (message == WM_COPYDATA && OnForwardedLink(lparam)) return TRUE;
@@ -123,7 +167,11 @@ std::optional<LRESULT> HandleTopLevelMessage(HWND window, UINT message,
     OnSecondInstance(window);
     return 0;
   }
-  if (message == TaskbarButtonCreatedMessage()) OnTaskbarButtonCreated();
+  if (message == TaskbarButtonCreatedMessage() || message == WM_DPICHANGED ||
+      message == WM_DISPLAYCHANGE || message == WM_SETTINGCHANGE) {
+    OnTaskbarButtonCreated();
+  }
+  OnSessionLockMessage(message, wparam);
   if (message == WM_FONTCHANGE) g_engine->ReloadSystemFonts();
   return std::nullopt;
 }
@@ -158,8 +206,10 @@ bool AdoptMainWindow() {
   RegisterScreenOverlayChannel(messenger);
   RegisterClipboardImageChannel(messenger, g_window);
   RegisterTaskbarAttentionChannel(messenger, g_window);
+  RegisterSessionLockChannel(messenger, g_window);
   RegisterWindowsToastsChannel(messenger);
   RegisterYoutubePlayerChannel(g_engine, content);
+  StartShortcutRepair();
   return true;
 }
 
@@ -221,6 +271,7 @@ void ServeMainWindowReady(flutter::FlutterEngine* engine) {
 
 void DestroyDartWindows() {
   // Off screen first, so a teardown that stalls never leaves an empty window behind.
+  UnregisterSessionLockChannel();
   if (g_window != nullptr) ::ShowWindow(g_window, SW_HIDE);
   // The framework's own teardown call, which parks the view before the window goes so the raster thread never sees it freed.
   const auto destroy = reinterpret_cast<DestroyHostWindow>(::GetProcAddress(

@@ -10,6 +10,7 @@ use tokio::sync::broadcast::error::{RecvError, TryRecvError};
 use tokio::task::JoinHandle;
 
 use super::super::AppState;
+use super::{voice_grants, voice_join_gates};
 use crate::hub::{Event, moves_permissions};
 use crate::ids::{ChannelId, DeviceId, UserId};
 use crate::permissions::Permissions;
@@ -53,32 +54,41 @@ async fn watch(state: AppState, mut events: Receiver<Event>) {
     }
 }
 
-/// Removes from the SFU everyone on a call who no longer holds View and Connect in its channel.
+/// Removes from the SFU everyone on a call who no longer holds View and Connect in its channel,
+/// and pushes the new Speak and Use Canvas grants of everyone who stays.
 pub async fn evict_who_lost_access(state: &AppState) {
     let mut lost = Vec::new();
-    for (user_id, channel_id) in state.voice.calls() {
+    let mut staying = Vec::new();
+    for (user_id, channel_id) in on_a_call(state) {
         match state
             .store
             .permissions_in_channel(user_id, channel_id)
             .await
         {
-            Ok(held) if held.contains(IN_CALL) => {}
+            Ok(held) if held.contains(IN_CALL) => staying.push((user_id, channel_id, held)),
             Ok(_) => lost.push((user_id, channel_id)),
             Err(err) => tracing::warn!(%err, "could not re-check a voice participant's access"),
         }
     }
     stream::iter(lost)
         .for_each_concurrent(EVICT_CONCURRENCY, |(user_id, channel_id)| {
-            evict(state, user_id, channel_id)
+            evict_refused_heartbeat(state, user_id, channel_id)
+        })
+        .await;
+    stream::iter(staying)
+        .for_each_concurrent(EVICT_CONCURRENCY, |(user_id, channel_id, held)| {
+            voice_grants::push_if_changed(state, user_id, channel_id, held)
         })
         .await;
 }
 
-/// Drops one call whose access is gone; a call already ended some other way is left alone.
-async fn evict(state: &AppState, user_id: UserId, channel_id: ChannelId) {
-    if forget_call(state, user_id, channel_id) {
-        remove_from_room(state, user_id, channel_id).await;
-    }
+/// Everyone on a call by either record: a heartbeat, or the join webhook of a member who never beat.
+fn on_a_call(state: &AppState) -> Vec<(UserId, ChannelId)> {
+    let mut calls = state.voice.calls();
+    calls.extend(state.voice.live_state().everyone_present());
+    calls.sort_unstable_by_key(|(user, channel)| (user.0, channel.0));
+    calls.dedup();
+    calls
 }
 
 /// Drops the call of someone whose own heartbeat was just refused for lost access.
@@ -95,39 +105,59 @@ pub(in crate::http) async fn evict_refused_heartbeat(
 }
 
 /// Removes someone the SFU just let in who holds no View and Connect in the channel, whose
-/// token's device is signed out, or who is past the room's user limit, answering whether they stay.
+/// token's device is signed out, who is past the room's user limit, or whom a lock or a module's
+/// join hook turns away, answering whether they stay.
 ///
 /// The SFU renews every token it accepts, so one minted before the access or the session went
-/// still joins; this is the check a join by that token never otherwise meets.
+/// still joins; this is the check a join by that token never otherwise meets. A join on such a
+/// token also gets the grants the member holds now, not the ones the token was minted with.
 pub(in crate::http) async fn evict_join_without_access(
     state: &AppState,
     user_id: UserId,
     channel_id: ChannelId,
     holder: Option<&str>,
 ) -> bool {
-    let stays = match state
+    let (access, held) = match state
         .store
         .permissions_in_channel(user_id, channel_id)
         .await
     {
-        Ok(held) if held.contains(IN_CALL) => match state.store.live_device_ids(user_id).await {
-            Ok(live) => held_by_live_device(state, channel_id, holder, &live),
-            Err(err) => {
-                tracing::warn!(%err, "could not check a voice participant's sessions as they joined");
-                true
-            }
-        },
-        Ok(_) => false,
+        Ok(held) if held.contains(IN_CALL) => (true, Some(held)),
+        Ok(_) => (false, None),
         Err(err) => {
             tracing::warn!(%err, "could not check a voice participant's access as they joined");
-            true
+            (true, None)
         }
     };
+    let stays = access && keeps_a_live_device(state, user_id, channel_id, holder).await;
     let stays = stays && !super::voice_rooms::past_user_limit(state, channel_id, user_id).await;
+    let stays = stays && !voice_join_gates::refuses_renewed_join(state, user_id, channel_id).await;
     if !stays {
         evict_refused_heartbeat(state, user_id, channel_id).await;
+    } else if let Some(held) = held
+        && !state
+            .voice
+            .asked_calls()
+            .minted_recently(user_id, channel_id)
+    {
+        voice_grants::push_for_renewed_token(state, user_id, channel_id, held).await;
     }
     stays
+}
+
+async fn keeps_a_live_device(
+    state: &AppState,
+    user_id: UserId,
+    channel_id: ChannelId,
+    holder: Option<&str>,
+) -> bool {
+    match state.store.live_device_ids(user_id).await {
+        Ok(live) => held_by_live_device(state, channel_id, holder, &live),
+        Err(err) => {
+            tracing::warn!(%err, "could not check a voice participant's sessions as they joined");
+            true
+        }
+    }
 }
 
 /// Ends each call of `user_id`'s that a device with no live session left joined.

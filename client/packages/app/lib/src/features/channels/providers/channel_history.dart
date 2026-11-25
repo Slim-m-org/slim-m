@@ -204,24 +204,30 @@ class ChannelHistoryController extends StateNotifier<ChannelHistory> {
   /// Run on opening a channel: refetches the newest page, then every older one
   /// the window shows, since the store holds no extras for them. Stops walking
   /// once the channel is closed.
-  Future<void> hydrate() => _queued(() async {
-    try {
-      _restartIfForgotten();
-      if (await _fetchPage(limit: _recentPage) == null) return;
-      final store = await _ref.read(storeProvider.future);
-      if (!mounted) return;
-      final floor = await store.oldestSeqInWindow(_channelId, state.window);
-      if (floor == null) return;
-      await _hydrateDownTo(floor, () => _isClosed);
-    } catch (error, stack) {
-      api.reportFailure(
-        api.LogTag.ui,
-        'load recent channel messages',
-        error,
-        stack,
-      );
-    }
-  });
+  ///
+  /// [refetchAll] is for a channel that stayed open across a gap: poll tallies and thread counts are never
+  /// replayed, so every page the window shows is read again, in place.
+  Future<void> hydrate({bool refetchAll = false}) {
+    if (refetchAll) _extras.forgetPages(_channelId);
+    return _queued(() async {
+      try {
+        if (!refetchAll) _restartIfForgotten();
+        if (await _fetchPage(limit: _recentPage) == null) return;
+        final store = await _ref.read(storeProvider.future);
+        if (!mounted) return;
+        final floor = await store.oldestSeqInWindow(_channelId, state.window);
+        if (floor == null) return;
+        await _hydrateDownTo(floor, () => _isClosed);
+      } catch (error, stack) {
+        api.reportFailure(
+          api.LogTag.ui,
+          'load recent channel messages',
+          error,
+          stack,
+        );
+      }
+    });
+  }
 
   bool get _isClosed =>
       !mounted || !_ref.read(mountedChannelsProvider).isOpen(_channelId);

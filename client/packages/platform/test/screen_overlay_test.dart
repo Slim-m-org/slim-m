@@ -341,6 +341,13 @@ void main() {
       expect(calls.single.arguments, isNull);
     });
 
+    test('panel says whether the runner took it', () async {
+      answer((_) => null);
+      expect(await const ChannelScreenOverlay().panel(null), isTrue);
+      answer((_) => throw PlatformException(code: 'no_window'));
+      expect(await const ChannelScreenOverlay().panel(null), isFalse);
+    });
+
     test('appMonitor reads the runner, and no answer is unknown', () async {
       answer((_) => 1);
       expect(await const ChannelScreenOverlay().appMonitor(), 1);

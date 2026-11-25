@@ -116,7 +116,7 @@ class AttachScenarioTest(unittest.TestCase):
                 messages.append({"id": "new", "content": "",
                                  "attachments": [{"id": "new"}]})
         client.click = click
-        found = e2e_messaging.attach(client, FakeClient("b"), "general", "f.png", api)
+        found = e2e_messaging.attach(client, FakeClient("b", tree=["f.png"]), "general", "f.png", api)
         self.assertEqual(found["id"], "new")
 
 

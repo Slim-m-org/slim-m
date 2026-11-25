@@ -9,6 +9,8 @@ import 'package:slimm_api/api.dart' show SoundClip;
 
 import '../../../../format.dart';
 import '../../../../hidden_characters.dart';
+import '../../../../picker_extensions.dart';
+import '../../../../widgets/dropped_item_kind.dart';
 
 /// Largest clip the server accepts, so a bigger file is refused before it is sent.
 const soundClipMaxBytes = 512 * 1024;
@@ -85,7 +87,7 @@ String _foldAscii(String s) => String.fromCharCodes([
 /// The first of [items] that is a file; null for a folder alone.
 Future<SoundClipPick?> readDroppedSoundClip(List<DropItem> items) async {
   for (final item in items) {
-    if (item is DropItemDirectory) continue;
+    if (isDroppedFolder(item)) continue;
     return _readPick(item.name, item.length, item.readAsBytes);
   }
   return null;
@@ -116,7 +118,7 @@ final soundClipPickerProvider = Provider<SoundClipPicker>((ref) => _pick);
 Future<SoundClipPick?> _pick() async {
   final files = await FilePicker.pickFiles(
     type: FileType.custom,
-    allowedExtensions: const ['mp3', 'wav'],
+    allowedExtensions: pickerExtensions(const ['mp3', 'wav']),
   );
   if (files.isEmpty) return null;
   final file = files.first;

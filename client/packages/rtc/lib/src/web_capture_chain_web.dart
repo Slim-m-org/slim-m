@@ -13,6 +13,7 @@ import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_api/api.dart' show AppLog, LogTag, versionedWebAssetUrl;
 import 'package:web/web.dart' as web;
 
+import 'capture_chain_guard.dart';
 import 'web_capture_chain_processor.dart';
 import 'web_capture_chain_settings.dart';
 
@@ -24,8 +25,10 @@ const _processorName = 'slimm-capture-chain';
 /// A worklet that has not answered by then is suspended; the poll skips a beat.
 const _readTimeout = Duration(milliseconds: 300);
 
-/// How long a failed load waits before the next microphone tries it again.
-const _retryPause = Duration(seconds: 30);
+/// A context that has not resumed by then is not going to, as on Safari outside a gesture.
+const _resumeTimeout = Duration(seconds: 2);
+
+final _failures = StreamController<void>.broadcast();
 
 bool get webCaptureChainAvailable =>
     web.window.isSecureContext &&
@@ -55,12 +58,21 @@ lk.TrackProcessor<lk.AudioProcessorOptions>? webCaptureProcessor() =>
       name: _processorName,
       attach: attachWebCaptureChain,
       detach: detachWebCaptureChain,
+      chainFailures: _failures.stream,
     );
 
 Future<rtc.MediaStreamTrack> attachWebCaptureChain(
   rtc.MediaStreamTrack track,
-) async =>
-    await (await _Chain.shared())?._attach(track) ?? track;
+) async {
+  final chain = await _Chain.shared();
+  if (chain == null) return track;
+  return attachOrRaw(
+    attach: () => chain._attach(track),
+    raw: track,
+    timeout: _resumeTimeout,
+    onFailed: chain._failedAttach,
+  );
+}
 
 Future<void> detachWebCaptureChain(rtc.MediaStreamTrack processed) async =>
     _Chain._loaded?._detach(processed);
@@ -68,20 +80,25 @@ Future<void> detachWebCaptureChain(rtc.MediaStreamTrack processed) async =>
 class _Chain {
   _Chain._(this._context, this._node) {
     _node.port.onmessage = _onMessage.toJS;
+    _node.onprocessorerror = _onProcessorError.toJS;
+    _context.onstatechange = (web.Event _) {
+      _resumeIfNeeded();
+    }.toJS;
+    web.document.addEventListener('visibilitychange', _onWake);
+    web.document.addEventListener('pointerdown', _onWake);
   }
 
   static _Chain? _loaded;
   static Future<_Chain?>? _loading;
 
-  static DateTime? _retryAfter;
+  static final _retry = ChainRetry();
 
-  static bool get failed => _loaded == null && _retryAfter != null;
+  static bool get failed => _loaded == null && _retry.failed;
 
   /// Loaded once, on the first microphone that needs it; a failure is tried again after a pause.
   static Future<_Chain?> shared() {
-    final retryAfter = _retryAfter;
-    if (retryAfter != null && DateTime.now().isAfter(retryAfter)) {
-      _retryAfter = null;
+    if (_retry.due(DateTime.now())) {
+      _retry.clear();
       _loading = null;
     }
     return _loading ??= _load();
@@ -96,8 +113,9 @@ class _Chain {
   final _reads = <int, Completer<Map<Object?, Object?>?>>{};
 
   static Future<_Chain?> _load() async {
+    web.AudioContext? context;
     try {
-      final context = web.AudioContext(
+      context = web.AudioContext(
         web.AudioContextOptions(
           sampleRate: 48000,
           latencyHint: 'interactive'.toJS,
@@ -124,10 +142,11 @@ class _Chain {
         ),
       );
       final chain = _Chain._(context, node).._configure();
-      _retryAfter = null;
+      _retry.clear();
       return _loaded = chain;
     } on Object catch (error, stack) {
-      _retryAfter = DateTime.now().add(_retryPause);
+      _retry.fail(DateTime.now());
+      unawaited(_closeQuietly(context));
       AppLog.swallowed(
         LogTag.voice,
         'The browser capture chain did not load; the mic is sent unprocessed',
@@ -136,6 +155,69 @@ class _Chain {
       );
       return null;
     }
+  }
+
+  static Future<void> _closeQuietly(web.AudioContext? context) async {
+    try {
+      await context?.close().toDart;
+    } on Object catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.voice, 'Closing the capture context', error, stack);
+    }
+  }
+
+  void _onProcessorError(web.Event _) {
+    AppLog.swallowed(
+      LogTag.voice,
+      'The browser capture chain stopped inside its worklet; the mic is sent unprocessed',
+      StateError('processorerror'),
+      StackTrace.current,
+    );
+    _giveUp();
+    _failures.add(null);
+  }
+
+  void _failedAttach(Object error, StackTrace stack) {
+    AppLog.swallowed(
+      LogTag.voice,
+      'The browser capture chain could not attach; the mic is sent unprocessed',
+      error,
+      stack,
+    );
+    _giveUp();
+  }
+
+  /// Tears the chain down and pauses before the next microphone tries a new one.
+  void _giveUp() {
+    _retry.fail(DateTime.now());
+    if (identical(_loaded, this)) {
+      _loaded = null;
+      _loading = Future.value();
+    }
+    _source?.disconnect();
+    _destination?.disconnect();
+    _node.disconnect();
+    _source = null;
+    _destination = null;
+    _output = null;
+    web.document.removeEventListener('visibilitychange', _onWake);
+    web.document.removeEventListener('pointerdown', _onWake);
+    unawaited(_closeQuietly(_context));
+  }
+
+  late final JSFunction _onWake = ((web.Event _) => _resumeIfNeeded()).toJS;
+
+  void _resumeIfNeeded() {
+    if (!contextNeedsResume(_context.state, inUse: _source != null)) return;
+    _context.resume().toDart.then<void>(
+          (_) {},
+          onError: (Object error, StackTrace stack) => AppLog.swallowed(
+            LogTag.voice,
+            'The capture context would not resume',
+            error,
+            stack,
+          ),
+        );
   }
 
   void _configure() => _node.port.postMessage(_settings.message.jsify());
@@ -160,6 +242,7 @@ class _Chain {
 
   Future<rtc.MediaStreamTrack> _attach(rtc.MediaStreamTrack track) async {
     final input = (track as MediaStreamTrackWeb).jsTrack;
+    _output = null;
     _source?.disconnect();
     _destination?.disconnect();
     _node.disconnect();

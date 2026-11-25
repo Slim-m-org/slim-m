@@ -41,6 +41,9 @@ class _OnePhoto implements PhotoLibrary {
   Future<FileSource?> original(String id) async => photo.source;
 
   @override
+  Future<void> clearCache() async {}
+
+  @override
   Future<void> manageLimited() async {}
 }
 

@@ -22,7 +22,9 @@ import '../../../providers/providers.dart';
 import '../../../providers/server_info.dart';
 import '../../../format.dart';
 import '../../../widgets/transfer_meter.dart';
+import 'picker_temp_files.dart';
 import 'staged_attachment_model.dart';
+import 'unload_guard.dart';
 import '../providers/composer_actions.dart';
 
 export 'staged_attachment_model.dart';
@@ -44,11 +46,23 @@ class AttachmentStagingController extends ChangeNotifier {
     this.onFailure,
     this.onAbandon,
     this.maxBytes,
+    this.tempFiles,
     DateTime Function()? clock,
   }) : _clock = clock ?? DateTime.now;
 
   /// Told the resume key of a failed upload that was removed, not retried.
   final void Function(String resumeKey)? onAbandon;
+
+  /// Told when this list stops reading picked files, so their copies can go.
+  final PickerTempFiles? tempFiles;
+
+  int _staging = 0;
+
+  /// An upload or a retry still reads its file, and so does a pick being staged.
+  void _syncReading() => tempFiles?.update(
+    this,
+    reading: _staging > 0 || _items.any((a) => a is! UploadedAttachment),
+  );
 
   String _resumeKey(String localId) => '$_instance/$localId';
 
@@ -85,6 +99,12 @@ class AttachmentStagingController extends ChangeNotifier {
   bool get hasBlockingAttachment => _items.any((a) => a is! UploadedAttachment);
 
   int get uploadingCount => _items.whereType<UploadingAttachment>().length;
+
+  /// A streamed upload is long enough that a phone suspending the app can end it.
+  bool get hasLargeUpload => _items.any(
+    (a) => a is UploadingAttachment && a.body.length > kInMemoryAttachmentBytes,
+  );
+
   int get failedCount => _items.whereType<FailedAttachment>().length;
 
   /// Whether another file would take this message past what the server takes.
@@ -166,7 +186,21 @@ class AttachmentStagingController extends ChangeNotifier {
   /// The tile is shown before the content is read, so a large pick appears at
   /// once. Answers the refusal sentence, or null when it was staged.
   Future<String?> stageFile(FileSource file) async {
-    if (isFull) return _fullRefusal(file.name);
+    if (isFull) {
+      _syncReading();
+      return _fullRefusal(file.name);
+    }
+    _staging += 1;
+    _syncReading();
+    try {
+      return await _stageChecked(file);
+    } finally {
+      _staging -= 1;
+      _syncReading();
+    }
+  }
+
+  Future<String?> _stageChecked(FileSource file) async {
     final length = await file.length();
     final limit = await maxBytes?.call();
     if (limit != null && length > limit) {
@@ -243,6 +277,7 @@ class AttachmentStagingController extends ChangeNotifier {
         ),
       );
       _spoilers.removeAll([for (final a in taken) a.localId]);
+      _syncReading();
       dismissRefusal();
     } on Object {
       _items.insertAll(0, taken);
@@ -257,6 +292,7 @@ class AttachmentStagingController extends ChangeNotifier {
     }
     _items.removeWhere((a) => a.localId == localId);
     _spoilers.remove(localId);
+    _syncReading();
     notifyListeners();
   }
 
@@ -268,6 +304,7 @@ class AttachmentStagingController extends ChangeNotifier {
     failed.forEach(_drop);
     _items.removeWhere((a) => a is FailedAttachment);
     _spoilers.removeAll([for (final a in failed) a.localId]);
+    _syncReading();
     notifyListeners();
   }
 
@@ -284,8 +321,17 @@ class AttachmentStagingController extends ChangeNotifier {
   }
 
   @override
+  void notifyListeners() {
+    guardUnload(this, active: _items.isNotEmpty);
+    super.notifyListeners();
+  }
+
+  @override
   void dispose() {
     _items.forEach(_stopIfUploading);
+    guardUnload(this, active: false);
+    _items.clear();
+    _syncReading();
     super.dispose();
   }
 
@@ -294,6 +340,7 @@ class AttachmentStagingController extends ChangeNotifier {
     _items.clear();
     _spoilers.clear();
     _refusal = null;
+    _syncReading();
     notifyListeners();
   }
 
@@ -353,6 +400,7 @@ class AttachmentStagingController extends ChangeNotifier {
     final finished = _items[index];
     if (finished is UploadingAttachment) finished.release();
     _items[index] = next;
+    _syncReading();
     notifyListeners();
   }
 }
@@ -383,6 +431,7 @@ final attachmentStagingProvider =
         },
         onAbandon: (key) =>
             ref.read(composerActionsProvider).abandonUpload(key),
+        tempFiles: ref.read(pickerTempFilesProvider),
         maxBytes: () => _attachmentLimit(ref),
         onFailure: (filename, error) => api.AppLog.warning(
           api.LogTag.media,

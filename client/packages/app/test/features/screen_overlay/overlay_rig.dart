@@ -74,12 +74,22 @@ class FakeOverlay implements ScreenOverlay {
   /// False makes every show fail, as a window that cannot be covered does; past a few tries it never answers, so a runaway retry stays countable.
   var showWorks = true;
 
+  /// While set, show waits on it after opening, like a slow runner.
+  Completer<void>? showHold;
+
+  /// False makes every panel call fail, as a runner whose window is not ready does.
+  var panelWorks = true;
+
+  /// When set, each panel send waits here for the test to answer it.
+  List<Completer<bool>>? heldPanels;
+
   @override
   Future<OverlaySupport> support() async => const OverlaySupport.unsupported();
   @override
   Future<bool> show(List<int> monitors, {int? window}) async {
     shown.add(monitors);
     windows.add(window);
+    await showHold?.future;
     if (!showWorks) {
       return shown.length > 5 ? Completer<bool>().future : false;
     }
@@ -114,7 +124,16 @@ class FakeOverlay implements ScreenOverlay {
   }
 
   @override
-  Future<void> panel(OverlayPanel? panel) async => panels.add(panel);
+  Future<bool> panel(OverlayPanel? panel) async {
+    panels.add(panel);
+    if (heldPanels case final held?) {
+      final answer = Completer<bool>();
+      held.add(answer);
+      return answer.future;
+    }
+    return panelWorks;
+  }
+
   @override
   Future<int?> appMonitor() async => appMonitorIndex;
 

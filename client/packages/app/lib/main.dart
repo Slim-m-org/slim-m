@@ -14,6 +14,7 @@ import 'package:slimm_rtc/rtc.dart' show MirrorSelfViewScope;
 
 export 'src/desktop/startup_state.dart';
 
+import 'src/features/composer/widgets/picker_temp_files.dart';
 import 'src/api_failure.dart' show loadFailureRetries;
 import 'src/default_server.dart';
 import 'src/audio/sound_backend_warmup.dart';
@@ -107,6 +108,7 @@ import 'src/widgets/toast_overlay.dart';
 /// size. Waiting for the real first frame avoids that race entirely.
 Future<void> main([List<String> args = const []]) async {
   rememberLaunchArguments(args);
+  linuxSessionBusEnabled = isLinuxHost;
   final binding = WidgetsFlutterBinding.ensureInitialized();
   final shell = await startPlatform(binding);
 
@@ -196,19 +198,22 @@ Future<void> _bootstrapApp(
     // After the session restore: having an account decides whether the splash asks about updates at all.
     await runStartupUpdates(container);
   });
+  final startHidden = launchedAtLogin && shell.loginLaunchStartsHidden;
   await shell.prepareHandoff(
     container,
     splashFloor: floor,
     fadeOut: AppMotion.base,
+    startHidden: startHidden,
   );
   // Revealed before the flip: a window reports its real size only once shown, and the real UI must not build at the splash's 380px.
-  await shell.revealAfterHandoff();
+  await shell.revealAfterHandoff(startHidden: startHidden);
   container.read(appReadyProvider.notifier).state = true;
   forgetLaunchArguments();
   // A login launch goes where a close would, the tray or the taskbar, instead of covering what the user opened first.
-  if (launchedAtLogin) unawaited(shell.requestClose());
+  if (launchedAtLogin) unawaited(shell.hideForLogin());
   unawaited(container.read(selfUpdateProvider).confirmStart());
   unawaited(repairAutostart(container));
+  container.read(pickerTempFilesProvider).clearWhenIdle();
 }
 
 /// Restores the splash on/off and duration preferences and turns them into

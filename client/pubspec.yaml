@@ -12,7 +12,10 @@ dependency_overrides:
   flutter_webrtc:
     git:
       url: https://github.com/Slim-m-org/flutter-webrtc.git
-      ref: 0c22772cebde200a9be2e43042dabf79e1375285
+      ref: ed042a40794f602028c6770ee59d1517b3b556f8
+  # Drops libsecret from the Linux bundle; sign-in lives in a file there (decision 0042).
+  flutter_secure_storage_linux:
+    path: third_party/flutter_secure_storage_linux
 workspace:
   - packages/api
   - packages/slimm_test_support

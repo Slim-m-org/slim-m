@@ -6,6 +6,7 @@ library;
 import 'package:slimm_app/src/desktop/close_behavior.dart';
 import 'package:slimm_app/src/desktop/desktop_window_port.dart';
 import 'package:slimm_app/src/desktop/desktop_window_shell.dart';
+import 'package:slimm_app/src/desktop/linux_window_presenter.dart';
 
 import 'fake_desktop_window_port.dart';
 
@@ -21,12 +22,18 @@ DesktopWindowShell shellFor(
   bool active = false,
   bool frameless = false,
   Future<void> Function()? beforeExit,
+  LinuxWindowPresenter? presenter,
+  void Function()? forceExit,
+  Duration? quitStepTimeout,
 }) => DesktopWindowShell(
   port: port ?? FakeDesktopWindowPort(),
   chromePlatform: chrome,
+  presenter: presenter,
   positionSupported: position ?? () => false,
   splashMappedProbe: probe ?? longMapped,
   active: active,
   frameless: frameless,
   beforeExit: beforeExit ?? () async {},
+  forceExit: forceExit ?? () {},
+  quitStepTimeout: quitStepTimeout ?? const Duration(seconds: 5),
 );

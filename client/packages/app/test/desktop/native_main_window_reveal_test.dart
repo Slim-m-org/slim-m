@@ -10,6 +10,7 @@ import 'package:flutter/widgets.dart' show Color, Size, VoidCallback;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/desktop/window_geometry.dart';
+import 'package:slimm_app/src/desktop/window_geometry_store.dart';
 import 'package:slimm_app/src/desktop/window_view_size.dart';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -80,6 +81,47 @@ void main() {
 
     expect(port.hideCalls, 0);
     expect(port.lastSize, isNotNull);
+  });
+
+  testWidgets('a login launch on Windows never shows the window', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final port = FakeDesktopWindowPort();
+    final shell = shellFor(port, chrome: DesktopPlatform.windows);
+
+    await _settle(
+      tester,
+      shell.prepareHandoff(_container(), startHidden: true),
+    );
+    await _settle(tester, shell.revealAfterHandoff(startHidden: true));
+
+    expect(port.showCalls, 0);
+  });
+
+  testWidgets('a hidden login launch keeps a maximized window unshown', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    await WindowGeometryStore(prefs).write(
+      const WindowGeometry(
+        windowedSize: WindowSize(width: 1280, height: 720),
+        runState: WindowRunState.maximized,
+      ),
+    );
+    final port = FakeDesktopWindowPort();
+    final shell = shellFor(port, chrome: DesktopPlatform.windows);
+
+    await _settle(
+      tester,
+      shell.prepareHandoff(_container(), startHidden: true),
+    );
+
+    expect(port.maximizeCalls, 0);
+    expect(port.showCalls, 0);
+    await port.show();
+    expect(port.maximizeCalls, 1);
   });
 
   testWidgets('elsewhere the handoff still hides the window first', (

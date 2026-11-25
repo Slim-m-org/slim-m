@@ -41,7 +41,7 @@ class _SlowOverlay implements ScreenOverlay {
   @override
   Future<void> dropImage(String key) async {}
   @override
-  Future<void> panel(OverlayPanel? panel) async {}
+  Future<bool> panel(OverlayPanel? panel) async => true;
   @override
   Future<int?> appMonitor() async => null;
   @override

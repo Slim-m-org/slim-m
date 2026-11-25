@@ -5,6 +5,7 @@
 library;
 
 import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:desktop_drop/desktop_drop.dart';
@@ -12,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../widgets/app_drop_zone.dart';
+import '../../../widgets/dropped_item_kind.dart';
 import 'attachment_picker.dart' show stillImageExtensions;
 
 const _refusal = 'Drop one PNG, JPEG or WebP picture.';
@@ -40,14 +42,20 @@ Future<ImageDrop> readDroppedImage(
   List<String> extensions = stillImageExtensions,
   String refusal = _refusal,
 }) async {
-  if (items.length != 1 || items.single is DropItemDirectory) {
+  if (items.length != 1 ||
+      isDroppedFolder(items.single) ||
+      isDroppedAddress(items.single)) {
     return RefusedDrop(refusal);
   }
   final item = items.single;
   final dot = item.name.lastIndexOf('.');
   final extension = dot < 0 ? '' : item.name.substring(dot + 1).toLowerCase();
   if (!extensions.contains(extension)) return RefusedDrop(refusal);
-  return DroppedImage(await item.readAsBytes(), item.name);
+  try {
+    return DroppedImage(await item.readAsBytes(), item.name);
+  } on FileSystemException {
+    return RefusedDrop(refusal);
+  }
 }
 
 class ImageDropZone extends StatelessWidget {

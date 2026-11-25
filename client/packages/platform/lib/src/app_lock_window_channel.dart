@@ -23,13 +23,15 @@ const _channelName = 'top.npcserver.slimm/app_lock_window';
 /// a caller never has to check the platform before using it.
 class AppLockWindowChannel {
   /// [supported] says whether this host has a native half; only Android and
-  /// iOS do.
-  AppLockWindowChannel({MethodChannel? channel, bool? supported})
+  /// iOS do. [isIOS] gates the cover release, which Android does not answer.
+  AppLockWindowChannel({MethodChannel? channel, bool? supported, bool? isIOS})
       : _channel = channel ?? const MethodChannel(_channelName),
-        _supported = supported ?? (isAndroidHost || isIOSHost);
+        _supported = supported ?? (isAndroidHost || isIOSHost),
+        _releasesShield = isIOS ?? isIOSHost;
 
   final MethodChannel _channel;
   final bool _supported;
+  final bool _releasesShield;
 
   /// Best-effort: a missing native handler must not throw, or the one thing
   /// this call exists for - hiding message content - would instead crash
@@ -41,6 +43,18 @@ class AppLockWindowChannel {
     } catch (error, stack) {
       AppLog.swallowed(LogTag.auth,
           'Could not hide the window contents for the app lock', error, stack);
+    }
+  }
+
+  /// Lifts the iOS cover kept up across a resume, once the frame that shows
+  /// the lock screen or the unlocked app has been drawn.
+  Future<void> releasePrivacyShield() async {
+    if (!_releasesShield) return;
+    try {
+      await _channel.invokeMethod<void>('releasePrivacyShield');
+    } catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.auth, 'Could not lift the app lock cover', error, stack);
     }
   }
 }

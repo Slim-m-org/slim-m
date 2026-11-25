@@ -16,7 +16,9 @@ import desktop_audio as da
 import e2e_labels as L
 import e2e_voice_desktop as vd
 import e2e_xp as xp
+from e2e_voice_thresholds import encode_problems
 from private_pulse import private_server
+from e2e_skip import Skip
 
 CASES = "share:1920x1080:1080p30,share:3840x2160:1080p30,share:3440x1440:1080p30,camera:balanced,camera:high"
 SETTLE_SECONDS = int(os.environ.get("E2E_ENCODE_SECONDS", "25"))
@@ -116,12 +118,13 @@ def an_encode_matches_what_was_asked(server, secret, admin_api):
             results.append(result)
     with open(os.path.join(directory, "encode-readback.json"), "w") as fh:
         json.dump(results, fh, indent=1)
-    assert all(r["layers"] for r in results), "a case printed no sender stats"
+    found = [p for case, r in zip(cases, results) for p in encode_problems(case, r)]
+    assert not found, "; ".join(found)
     return results
 
 
 def run_if_selected(server, secret, admin_api):
     if "encode readback" not in os.environ.get("E2E_ONLY", ""):
         print("  skipped: set E2E_ONLY='encode readback' to run it")
-        return
+        raise Skip
     an_encode_matches_what_was_asked(server, secret, admin_api)

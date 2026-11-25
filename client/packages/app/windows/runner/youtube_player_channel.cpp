@@ -75,9 +75,16 @@ void OnFrame() {
   if (id >= 0 && g_textures != nullptr) g_textures->MarkTextureFrameAvailable(id);
 }
 
+// The texture and its frames are freed only once the engine says its raster thread is done with them.
 void DropTexture() {
   int64_t id = g_texture_id.exchange(-1);
-  if (id >= 0 && g_textures != nullptr) g_textures->UnregisterTexture(id, nullptr);
+  std::shared_ptr<flutter::TextureVariant> texture(std::move(g_texture));
+  std::shared_ptr<void> frames = slimm_youtube::HoldFrames();
+  if (id < 0 || g_textures == nullptr) return;
+  g_textures->UnregisterTexture(id, [texture, frames]() mutable {
+    texture.reset();
+    frames.reset();
+  });
 }
 
 bool ParsePointerKind(const std::string& name, slimm_youtube::PointerKind* out) {
@@ -166,4 +173,10 @@ void RegisterYoutubePlayerChannel(flutter::FlutterEngine* engine, HWND view) {
       engine->messenger(), "top.npcserver.slimm/youtube_player",
       &flutter::StandardMethodCodec::GetInstance());
   g_channel->SetMethodCallHandler(Handle);
+}
+
+void ShutdownYoutubePlayer() {
+  DropTexture();
+  slimm_youtube::Destroy();
+  g_channel.reset();
 }

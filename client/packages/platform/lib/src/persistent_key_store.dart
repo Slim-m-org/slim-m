@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Persistent [KeyStore] backends: the platform keychain everywhere it is
-/// always present, and an owner-only file on Linux, where a Secret Service
-/// agent often is not running. Web obfuscates rather than protects. The
-/// tradeoff is in docs/internals.md.
+/// always present, and on Linux the Secret Service keyring when one answers,
+/// with an owner-only file where none does (see `linux_key_store.dart`). Web
+/// obfuscates rather than protects. The tradeoff is in docs/internals.md.
 library;
 
 import 'dart:convert';
@@ -15,6 +15,8 @@ import 'package:path_provider/path_provider.dart';
 
 import 'host_platform.dart';
 import 'key_store.dart';
+import 'linux_key_store.dart';
+import 'migrating_key_store.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// The keychain group the push private key lives in, shared with the
@@ -43,6 +45,9 @@ const legacyKeychainAccessGroup = '76S78SUWVM.top.npcserver.slimm';
 /// local device backups, and it never migrates to a new device. The default
 /// (kSecAttrAccessibleWhenUnlocked) rides into both, which hands a 30-day
 /// refresh token and the push private key to whatever restores that backup.
+///
+/// The default constructor is the WhenUnlocked class an earlier build kept the
+/// session in; [SecureKeyStore.forSession] is where the session lives now.
 class SecureKeyStore implements KeyStore {
   SecureKeyStore({FlutterSecureStorage? storage})
       : _storage = storage ??
@@ -51,6 +56,18 @@ class SecureKeyStore implements KeyStore {
                 // Device-bound; the default would ride into iCloud and local
                 // backups. See the class doc comment.
                 accessibility: KeychainAccessibility.unlocked_this_device,
+              ),
+            );
+
+  /// The session pair, account index and database key: readable once the
+  /// phone has been unlocked since boot, so a token rotation or a call
+  /// answered from the lock screen can read and save them. Still
+  /// `ThisDeviceOnly`, so nothing rides into iCloud or a backup.
+  SecureKeyStore.forSession({FlutterSecureStorage? storage})
+      : _storage = storage ??
+            const FlutterSecureStorage(
+              iOptions: IOSOptions(
+                accessibility: KeychainAccessibility.first_unlock_this_device,
               ),
             );
 
@@ -70,9 +87,8 @@ class SecureKeyStore implements KeyStore {
   /// migrating to a new device, and it is kept here. The only thing that
   /// changes is readability while the screen is locked.
   ///
-  /// Scoped to this one key on purpose: every other secret, the refresh token
-  /// above all, stays on the stricter default above, where nothing can read
-  /// it until the owner has unlocked the phone.
+  /// Scoped to this one key on purpose: it is the only one the extension
+  /// process may read, and it sits in a group of its own.
   SecureKeyStore.forPushKey({FlutterSecureStorage? storage})
       : _storage = storage ??
             const FlutterSecureStorage(
@@ -136,11 +152,10 @@ class SecureKeyStore implements KeyStore {
   }
 }
 
-/// The Linux fallback: a single JSON file under the user's
+/// The Linux fallback when no Secret Service answers: a single JSON file under the user's
 /// application-support directory, in a directory restricted to this OS
-/// account (0700), written through a 0600 temp file and renamed into place. See the library doc for why this, not
-/// flutter_secure_storage, is used there, and for what this does and does
-/// not defend against.
+/// account (0700), written through a 0600 temp file and renamed into place.
+/// See [LinuxKeyStore] for when it is used.
 ///
 /// Every operation is queued behind the last: two calls racing a
 /// read-modify-write of the same file on disk is exactly how a concurrent
@@ -305,6 +320,22 @@ class FileKeyStore implements KeyStore {
     return data.map((key, value) => MapEntry(key, value as String));
   }
 
+  /// The non-secret marker beside the file that records the keyring has
+  /// taken over, so a later locked keyring is never mistaken for a fresh install.
+  Future<File> _keyringMarker() async {
+    final file = await _fileNoCreate();
+    return File('${file.path}.keyring');
+  }
+
+  Future<bool> keyringIsAuthoritative() async =>
+      (await _keyringMarker()).exists();
+
+  Future<void> markKeyringAuthoritative() async {
+    final marker = await _keyringMarker();
+    await marker.parent.create(recursive: true);
+    await marker.writeAsString('1');
+  }
+
   /// Deletes the file this store reads and writes. Only ever called once
   /// every entry [readAllForMigration] returned has been written somewhere
   /// else - see [migrateLegacyFileSecretsIfNeeded].
@@ -343,29 +374,38 @@ class HostPlatformKind {
   final bool isMacOS;
   final bool isWindows;
 
-  /// Whether this platform gets [SecureKeyStore] rather than [FileKeyStore].
-  /// A browser has no filesystem to write an owner-only file to, so it is
-  /// grouped with the three OSes whose keychain is always present; Linux is
-  /// the one host left on the file (see the library doc for why).
+  /// Whether this platform gets a plain [SecureKeyStore]. A browser has no
+  /// filesystem to write an owner-only file to, so it is grouped with the
+  /// OSes whose keychain is always present; Linux picks its backend at run
+  /// time ([LinuxKeyStore]) and iOS wraps its keychain in a migration.
   bool get usesSecureBackend =>
       isWeb || isIOS || isAndroid || isMacOS || isWindows;
 }
 
 /// Picks the right backend for this platform: the OS keychain on iOS,
 /// Android, macOS and Windows, browser storage on the web (see the library
-/// doc for how much weaker that is), and an owner-only-permissioned file on
-/// Linux, the one platform whose flutter_secure_storage backend cannot
-/// promise a running Secret Service (see the library doc).
+/// doc for how much weaker that is), and on Linux the Secret Service keyring
+/// with an owner-only file as the fallback.
+///
+/// iOS wraps the first-unlock session store around the WhenUnlocked one an
+/// earlier build used, so an upgrading install keeps its sign-in.
 KeyStore createPersistentKeyStore({HostPlatformKind? platform}) {
   final kind = platform ?? HostPlatformKind.current();
-  return kind.usesSecureBackend ? SecureKeyStore() : FileKeyStore();
+  if (kind.isIOS) {
+    return MigratingKeyStore(
+      primary: SecureKeyStore.forSession(),
+      legacy: SecureKeyStore(),
+    );
+  }
+  if (kind.usesSecureBackend) return SecureKeyStore();
+  return LinuxKeyStore();
 }
 
 /// Moves secrets an earlier build left in [FileKeyStore] into
 /// [SecureKeyStore], for the two platforms this version newly routes to the
-/// keychain: macOS and Windows. A no-op everywhere else - Linux still uses
-/// the file (see [createPersistentKeyStore]), and iOS, Android and the web
-/// never wrote one, so there is nothing to move.
+/// keychain: macOS and Windows. A no-op everywhere else - Linux moves its own
+/// file when a keyring answers ([LinuxKeyStore]), and iOS, Android and the
+/// web never wrote one, so there is nothing to move.
 ///
 /// Every entry is written to the new store before the old file is deleted,
 /// and the file is left untouched if reading it or writing any entry fails,
@@ -384,11 +424,14 @@ Future<void> migrateLegacyFileSecretsIfNeeded() async {
   );
 }
 
-/// The platform-independent move [migrateLegacyFileSecretsIfNeeded] performs,
-/// split out so a test can supply an in-memory [destination] instead of a
-/// real keychain and a [legacy] store pointed at a throwaway directory.
-@visibleForTesting
-Future<void> migrateLegacyFileSecrets({
+/// The platform-independent move [migrateLegacyFileSecretsIfNeeded] and
+/// [LinuxKeyStore] perform, split out so a test can supply an in-memory
+/// [destination] and a [legacy] store pointed at a throwaway directory.
+///
+/// A handle the destination already holds is kept, never overwritten.
+///
+/// True when nothing is left in the file: it was moved, empty or never there.
+Future<bool> migrateLegacyFileSecrets({
   required FileKeyStore legacy,
   required KeyStore destination,
 }) async {
@@ -398,20 +441,22 @@ Future<void> migrateLegacyFileSecrets({
   } catch (error, stack) {
     AppLog.swallowed(LogTag.auth,
         'Could not read the old secrets file to move it', error, stack);
-    return;
+    return false;
   }
-  if (entries == null) return;
+  if (entries == null) return true;
 
   try {
     for (final entry in entries.entries) {
+      if (await destination.read(entry.key) != null) continue;
       await destination.put(entry.key, entry.value);
     }
   } catch (error, stack) {
     AppLog.swallowed(LogTag.auth,
         'Could not move the old secrets to the new store', error, stack);
-    return;
+    return false;
   }
   await legacy.deleteLegacyFile();
+  return true;
 }
 
 /// Whether the push private key lives somewhere other than where every other

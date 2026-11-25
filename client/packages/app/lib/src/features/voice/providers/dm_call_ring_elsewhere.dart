@@ -16,15 +16,19 @@ typedef RingElsewhere = ({
 /// The first other signed-in account whose server lists a ring still waiting.
 Future<RingElsewhere?> findRingOnOtherAccount(
   AccountHost host,
-  ProviderContainer self,
-) async {
+  ProviderContainer self, {
+  String? ringId,
+}) async {
   for (final other in host.accounts) {
     if (identical(other.container, self) || !other.signedIn) continue;
     try {
       final rings = await other.container
           .read(apiProvider)
           .listIncomingDmCallRings();
-      if (rings.isNotEmpty) return (account: other, ring: rings.first);
+      final ring = ringId == null
+          ? rings.firstOrNull
+          : rings.where((r) => r.ringId == ringId).firstOrNull;
+      if (ring != null) return (account: other, ring: ring);
     } on Exception catch (error, stack) {
       api.reportFailure(
         api.LogTag.voice,

@@ -127,4 +127,62 @@ void main() {
     expect(fresh.existsSync(), isTrue);
     await target.discard();
   });
+
+  group('usableDownloadsDirectory', () {
+    test('a sandbox never uses the host folder', () async {
+      final found = await usableDownloadsDirectory(
+        sandboxed: true,
+        lookup: () async => dir,
+      );
+      expect(found, isNull);
+    });
+
+    test('a folder that exists and takes files is used', () async {
+      final found = await usableDownloadsDirectory(
+        sandboxed: false,
+        lookup: () async => dir,
+      );
+      expect(found?.path, dir.path);
+      expect(dir.listSync(), isEmpty, reason: 'the probe cleans up');
+    });
+
+    test(
+      'a missing folder, or none at all, falls back to the picker',
+      () async {
+        for (final missing in [Directory('${dir.path}/nope'), null]) {
+          final found = await usableDownloadsDirectory(
+            sandboxed: false,
+            lookup: () async => missing,
+          );
+          expect(found, isNull);
+        }
+      },
+    );
+
+    test('a read-only folder falls back to the picker', () async {
+      final locked = Directory('${dir.path}/locked')..createSync();
+      Process.runSync('chmod', ['500', locked.path]);
+      addTearDown(() => Process.runSync('chmod', ['700', locked.path]));
+      final found = await usableDownloadsDirectory(
+        sandboxed: false,
+        lookup: () async => locked,
+      );
+      expect(found, isNull);
+    }, skip: Platform.isWindows);
+  });
+
+  group('inFlatpakSandbox', () {
+    test('either the env var or the info file marks it', () {
+      bool no(String _) => false;
+      expect(inFlatpakSandbox(environment: {}, exists: no), isFalse);
+      expect(
+        inFlatpakSandbox(environment: {'FLATPAK_ID': 'x'}, exists: no),
+        isTrue,
+      );
+      expect(
+        inFlatpakSandbox(environment: {}, exists: (p) => p == '/.flatpak-info'),
+        isTrue,
+      );
+    });
+  });
 }

@@ -24,11 +24,13 @@ use crate::permissions::Permissions;
 use crate::presence::Visibility;
 use crate::ratelimit::Class;
 use crate::store::{Channel, DM_CHANNEL_KIND};
-use crate::voice::{CallRingOutcome, RoomToken, VoiceDevice, VoiceError};
+use crate::voice::{CallRingOutcome, Grants, RoomToken, VoiceDevice, VoiceError};
 
 pub(super) mod voice_access;
 pub(super) mod voice_call_audio;
 pub(super) mod voice_calls;
+pub(super) mod voice_grants;
+pub(super) mod voice_join_gates;
 pub(super) mod voice_move;
 pub(super) mod voice_notice;
 pub(super) mod voice_notify_prefs;
@@ -199,7 +201,11 @@ async fn token(
     {
         Ok(token) => {
             tracing::debug!(%channel_id, user_id = %ctx.user_id, automatic = params.automatic, "voice: join token issued");
-            state.voice.asked_calls().note(ctx.user_id, channel_id);
+            state.voice.asked_calls().note(
+                ctx.user_id,
+                channel_id,
+                Grants::from_permissions(permissions),
+            );
             Ok(Json(token.into()))
         }
         // No SFU is a supported configuration, not a fault; say so plainly.
@@ -239,12 +245,13 @@ async fn heartbeat(
         voice_access::evict_refused_heartbeat(&state, ctx.user_id, channel_id).await;
         return Err(ApiError::Forbidden);
     }
-    callable_channel(&state, channel_id).await?;
+    let channel = callable_channel(&state, channel_id).await?;
 
     // Only a first join answers; see this function's own doc for both halves of why.
     let answered = if state.voice.has_heartbeat(ctx.user_id, channel_id) {
         None
     } else {
+        voice_join_gates::check_first_heartbeat(&state, &channel, ctx.user_id).await?;
         state.voice.rings().answer(channel_id, ctx.user_id)
     };
 
@@ -257,6 +264,10 @@ async fn heartbeat(
         state
             .hub
             .publish(Event::VoiceActivityChanged { channel_id });
+        let (store, voice) = (state.store.clone(), state.voice.clone());
+        tokio::spawn(async move {
+            crate::reopen_deferred(&store, &voice, channel_id).await;
+        });
     }
     self::voice_ring::announce_if_pending(&state, channel_id, ctx.user_id);
     if let Some((ring_id, caller_id)) = answered {
@@ -463,7 +474,10 @@ async fn kick(
     }
 
     match state.voice.remove_participant(channel_id, target).await {
-        Ok(()) => Ok(StatusCode::NO_CONTENT),
+        Ok(()) => {
+            voice_move::record_kick(&state, ctx.user_id, target, channel_id).await?;
+            Ok(StatusCode::NO_CONTENT)
+        }
         Err(VoiceError::Unavailable) => Err(ApiError::NotConfigured(
             "this server has no voice configured",
         )),

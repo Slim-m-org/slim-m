@@ -12,6 +12,7 @@
 
 #include "link_handoff.h"
 #include "main_window_identity.h"
+#include "startup_handoff.h"
 #include "utils.h"
 
 namespace {
@@ -27,7 +28,11 @@ constexpr DWORD kForwardTimeoutMs = 5000;
 // A restart's old copy flushes and quits within this; past it, give up.
 constexpr DWORD kRelaunchWaitMs = 30000;
 
+// Findable from another process the moment the copy holds the mutex, long before Dart reports its window.
+constexpr wchar_t kInboxClass[] = L"top.npcserver.slimm.link_inbox";
+
 std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> g_channel;
+slimm::PendingLinks g_pending;
 
 std::vector<std::wstring> LaunchArguments() {
   int count = 0;
@@ -74,7 +79,35 @@ HWND FindRunningInstance() {
   return search.found;
 }
 
+HWND FindLinkInbox() {
+  const std::wstring own = ExecutablePath();
+  HWND inbox = nullptr;
+  while ((inbox = ::FindWindowExW(HWND_MESSAGE, inbox, kInboxClass, nullptr)) != nullptr) {
+    DWORD pid = 0;
+    ::GetWindowThreadProcessId(inbox, &pid);
+    if (pid != ::GetCurrentProcessId() && slimm::IsSameApp(ImagePathOf(pid), own)) {
+      return inbox;
+    }
+  }
+  return nullptr;
+}
+
+LRESULT CALLBACK InboxProc(HWND window, UINT message, WPARAM wparam, LPARAM lparam) {
+  if (message == WM_COPYDATA) return OnForwardedLink(lparam) ? TRUE : FALSE;
+  return ::DefWindowProcW(window, message, wparam, lparam);
+}
+
 }  // namespace
+
+void OpenLinkInbox() {
+  WNDCLASSW inbox_class{};
+  inbox_class.lpfnWndProc = InboxProc;
+  inbox_class.hInstance = ::GetModuleHandleW(nullptr);
+  inbox_class.lpszClassName = kInboxClass;
+  if (::RegisterClassW(&inbox_class) == 0) return;
+  ::CreateWindowExW(0, kInboxClass, L"", 0, 0, 0, 0, 0, HWND_MESSAGE, nullptr,
+                    inbox_class.hInstance, nullptr);
+}
 
 UINT SecondInstanceMessage() {
   static const UINT message = ::RegisterWindowMessageW(kMessageName);
@@ -107,7 +140,8 @@ bool ClaimSingleInstance(const wchar_t* command_line) {
 bool ForwardLinkToRunningInstance() {
   const std::wstring link = slimm::FindLinkArgument(LaunchArguments());
   if (link.empty()) return false;
-  const HWND running = FindRunningInstance();
+  HWND running = FindRunningInstance();
+  if (running == nullptr) running = FindLinkInbox();
   if (running == nullptr) return false;
   const std::string utf8 = Utf8FromUtf16(link.c_str());
   if (utf8.empty() || utf8.size() > kMaxLinkBytes) return false;
@@ -132,19 +166,34 @@ bool OnForwardedLink(LPARAM lparam) {
   const auto* data = reinterpret_cast<const COPYDATASTRUCT*>(lparam);
   if (data == nullptr || data->dwData != kForwardedLinkId) return false;
   if (data->lpData == nullptr || data->cbData == 0 ||
-      data->cbData > kMaxLinkBytes || !g_channel) {
+      data->cbData > kMaxLinkBytes) {
     return false;
   }
   std::string link(static_cast<const char*>(data->lpData), data->cbData);
-  g_channel->InvokeMethod(
-      "link", std::make_unique<flutter::EncodableValue>(std::move(link)));
-  return true;
+  return g_pending.Offer(std::move(link), [](std::string ready) {
+    g_channel->InvokeMethod(
+        "link", std::make_unique<flutter::EncodableValue>(std::move(ready)));
+  });
 }
 
 void RegisterSecondInstanceChannel(flutter::BinaryMessenger* messenger) {
   g_channel = std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
       messenger, "top.npcserver.slimm/second_instance",
       &flutter::StandardMethodCodec::GetInstance());
+  // Dart asks once its `link` handler is in, and gets what arrived before.
+  g_channel->SetMethodCallHandler(
+      [](const flutter::MethodCall<flutter::EncodableValue>& call,
+         std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result) {
+        if (call.method_name() != "takePending") {
+          result->NotImplemented();
+          return;
+        }
+        flutter::EncodableList held;
+        for (std::string& link : g_pending.StartListening()) {
+          held.emplace_back(std::move(link));
+        }
+        result->Success(flutter::EncodableValue(std::move(held)));
+      });
 }
 
 void OnSecondInstance(HWND window) {

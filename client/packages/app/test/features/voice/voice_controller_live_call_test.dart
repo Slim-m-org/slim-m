@@ -11,6 +11,8 @@ library;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import 'package:slimm_app/src/features/voice/providers/voice_session_sync.dart';
+
 import 'voice_controller_harness.dart';
 
 const _me = VoiceParticipant(
@@ -289,8 +291,10 @@ void main() {
     final controller = harness.controllerWith(session, voiceApi());
     await controller.join('channel-1');
 
+    voiceRemovalGrace = Duration.zero;
+    addTearDown(() => voiceRemovalGrace = const Duration(milliseconds: 1500));
     session.dropWith(VoiceDisconnect.removed);
-    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(const Duration(milliseconds: 20));
 
     expect(controller.state.state, VoiceSessionState.failed);
     expect(controller.state.error, VoiceDisconnect.removed.message);

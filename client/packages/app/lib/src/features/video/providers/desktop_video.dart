@@ -70,6 +70,7 @@ class DesktopVideoController extends Notifier<DesktopVideo?> {
   WindowFullscreenHold? _fullscreenHold;
   StreamSubscription<VideoPlayerEvent>? _events;
   StreamSubscription<DesktopWindowEventKind>? _windowLeaves;
+  StreamSubscription<void>? _displaced;
   bool _playing = false;
   bool _disposed = false;
   final _views = <Object>[];
@@ -186,6 +187,8 @@ class DesktopVideoController extends Notifier<DesktopVideo?> {
           break;
       }
     });
+    // One native view serves every account, so another account's video ends this one.
+    _displaced = player.displaced.listen((_) => close());
     // Leaving window fullscreen first (Esc, the window manager) takes the page out too.
     _windowLeaves = shell.port.events
         .where((kind) => kind == DesktopWindowEventKind.leaveFullScreen)
@@ -201,8 +204,10 @@ class DesktopVideoController extends Notifier<DesktopVideo?> {
     if (player == null) return;
     unawaited(_events?.cancel());
     unawaited(_windowLeaves?.cancel());
+    unawaited(_displaced?.cancel());
     _events = null;
     _windowLeaves = null;
+    _displaced = null;
     _fullscreenHold?.release();
     _coordinator?.detach(player);
     await player.dispose();

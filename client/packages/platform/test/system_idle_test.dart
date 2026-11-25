@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 library;
 
+import 'dart:async';
+
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_platform/src/system_idle_io.dart';
@@ -87,6 +89,24 @@ void main() {
       async.flushMicrotasks();
       expect(idle.idleTime(), Duration.zero);
       expect(laterAsked, isFalse);
+      idle.dispose();
+    });
+  });
+
+  test('Linux idle moves past a source that never answers', () {
+    fakeAsync((async) {
+      final idle = LinuxSystemIdle(
+        probes: [
+          () => Completer<Duration?>().future,
+          () async => const Duration(seconds: 7),
+        ],
+        pollInterval: const Duration(seconds: 10),
+        probeTimeout: const Duration(seconds: 3),
+      );
+      async.elapse(const Duration(seconds: 4));
+      expect(idle.idleTime(), const Duration(seconds: 8));
+      async.elapse(const Duration(seconds: 10));
+      expect(idle.idleTime(), isNotNull, reason: 'the next poll still runs');
       idle.dispose();
     });
   });

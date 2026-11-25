@@ -108,6 +108,7 @@ class Locked(NamedTuple):
     version: str
     source: str
     checkout: str = ""
+    local_path: str = ""
 
 
 def parse_lock(path: Path) -> list[Locked]:
@@ -135,6 +136,8 @@ def _absorb(current: dict[str, str], line: str) -> None:
     value = value.strip().strip('"')
     if key == "url" and value.endswith(".git"):
         current["repo"] = value.rsplit("/", 1)[-1][: -len(".git")]
+    if key == "path" and value:
+        current["path"] = value
     if key == "resolved-ref" and value:
         current["ref"] = value
     if key in ("version", "source", "name") and value:
@@ -146,7 +149,7 @@ def _finish(entry: dict[str, str], path: Path) -> Locked:
     if "version" not in entry or "source" not in entry:
         sys.exit(f"::error file={path}::{name} has no version or source; lock format changed")
     checkout = f"{entry['repo']}-{entry['ref']}" if "repo" in entry and "ref" in entry else ""
-    return Locked(name, entry["version"], entry["source"], checkout)
+    return Locked(name, entry["version"], entry["source"], checkout, entry.get("path", ""))
 
 
 def pub_cache() -> Path:
@@ -187,6 +190,14 @@ class Tally:
     checked: int = 0
 
 
+def _vendored(entry: Locked, repo_root: Path) -> bool:
+    """A path package that lives inside this repository, so its code is covered by the repo's licences."""
+    if entry.source != "path" or not entry.local_path:
+        return False
+    target = (repo_root / "client" / entry.local_path).resolve()
+    return target.is_dir() and target.is_relative_to(repo_root.resolve())
+
+
 def _check_one(
     entry: Locked,
     workspace: set[str],
@@ -194,9 +205,10 @@ def _check_one(
     allowed: set[str],
     exceptions: dict[str, set[str]],
     tally: Tally,
+    repo_root: Path,
 ) -> None:
     """Classify one locked package, recording what happened either way."""
-    name, version, source, checkout = entry
+    name, version, source, checkout, _ = entry
     if source == "git" and checkout:
         # A git dependency is a pinned checkout, classified from its LICENSE like a hosted one.
         _classify_dir(name, version, cache / "git" / checkout, allowed, exceptions, tally)
@@ -204,7 +216,7 @@ def _check_one(
     if source != "hosted":
         # A path dependency has no pub licence to read, and the
         # workspace's own packages are covered by this repository's licences.
-        if name not in workspace and source != "sdk":
+        if name not in workspace and source != "sdk" and not _vendored(entry, repo_root):
             tally.failures.append(
                 f"{name} {version} comes from '{source}', not {PUB_HOST}; classify it by hand")
         return
@@ -263,7 +275,7 @@ def main() -> int:
     workspace = {p.name for p in (root / "client" / "packages").iterdir() if p.is_dir()}
     tally = Tally()
     for entry in packages:
-        _check_one(entry, workspace, cache, allowed, exceptions, tally)
+        _check_one(entry, workspace, cache, allowed, exceptions, tally, root)
 
     # A gate that skips what it cannot find would go green on an empty cache.
     if tally.unpacked < tally.hosted:

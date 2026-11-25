@@ -9,6 +9,9 @@
 /// listener rather than opening a second one on the same live-event stream.
 library;
 
+import 'dart:async';
+
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
 
@@ -20,11 +23,36 @@ import '../../../providers/providers.dart';
 /// network route uniformly, for every channel id, whether or not that id
 /// also happens to be present in a locally cached `Channel.permissions` -
 /// one source of truth for this fact rather than two that could disagree.
+///
+/// A fetch that failed for a reason that passes is asked again after
+/// [channelPermissionsRetryDelay], so one dropped request does not leave the
+/// channel reading as no rights until some unrelated permission event.
 final channelPermissionsProvider = FutureProvider.autoDispose
-    .family<int, String>(
-      (ref, channelId) =>
-          ref.watch(apiProvider).getChannelPermissions(channelId),
-    );
+    .family<int, String>((ref, channelId) async {
+      try {
+        return await ref.watch(apiProvider).getChannelPermissions(channelId);
+      } catch (error) {
+        if (_passesByItself(error)) _retryLater(ref);
+        rethrow;
+      }
+    });
+
+/// How long a failed permissions fetch waits before it is asked again.
+@visibleForTesting
+var channelPermissionsRetryDelay = const Duration(seconds: 5);
+
+/// A refusal or a missing channel is the server's answer; only a failure of the road to it is asked again.
+bool _passesByItself(Object error) => switch (error) {
+  TransportException() || UnavailableException() => true,
+  RateLimitedException() => true,
+  ServerException(:final statusCode) => statusCode >= 500,
+  _ => false,
+};
+
+void _retryLater(Ref ref) {
+  final timer = Timer(channelPermissionsRetryDelay, ref.invalidateSelf);
+  ref.onDispose(timer.cancel);
+}
 
 /// The plain `int` every call site actually wants: 0 while
 /// [channelPermissionsProvider] is loading or failed, the same "show nothing

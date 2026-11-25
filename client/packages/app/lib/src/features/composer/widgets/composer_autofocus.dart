@@ -43,10 +43,9 @@ class _ComposerAutofocusState extends ConsumerState<ComposerAutofocus> {
     super.initState();
     if (widget.focusOnMount) _focusAfterFrame();
     widget.focusRequests?.addListener(_focusAfterFrame);
-    ref.listenManual(
-      threadComposerFocusRequestProvider,
-      (_, _) => _focusComposer(),
-    );
+    ref.listenManual(threadComposerFocusRequestProvider, (_, _) {
+      if (_isDockedThread) _focusComposer();
+    });
   }
 
   @override
@@ -66,6 +65,10 @@ class _ComposerAutofocusState extends ConsumerState<ComposerAutofocus> {
     widget.focusRequests?.removeListener(_focusAfterFrame);
     super.dispose();
   }
+
+  /// The request is for the docked thread's composer, not the channel's beside it.
+  bool get _isDockedThread =>
+      ref.read(dockedThreadsProvider).containsValue(widget.channelId);
 
   void _focusAfterFrame() =>
       WidgetsBinding.instance.addPostFrameCallback((_) => _focusComposer());

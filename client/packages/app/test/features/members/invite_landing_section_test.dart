@@ -110,7 +110,12 @@ class _Server {
   });
 }
 
-Future<void> _pump(WidgetTester tester, _Server server, double width) async {
+Future<void> _pump(
+  WidgetTester tester,
+  _Server server,
+  double width, {
+  Future<FakePlatformFile?> Function()? picker,
+}) async {
   tester.view.physicalSize = Size(width, 1400);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
@@ -120,8 +125,7 @@ Future<void> _pump(WidgetTester tester, _Server server, double width) async {
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
       attachmentPickerProvider.overrideWith(
-        (ref, source) =>
-            () async => file,
+        (ref, source) => picker ?? () async => file,
       ),
       mockApiOverride((request) async => server.handle(request)),
     ],
@@ -177,6 +181,21 @@ Future<void> _untilCalled(
   await tester.pumpAndSettle();
 }
 
+/// The pick is decode-checked on the real clock before the crop sheet opens.
+Future<void> _untilCrop(WidgetTester tester) async {
+  for (
+    var i = 0;
+    i < 50 && find.text('Crop your picture').evaluate().isEmpty;
+    i++
+  ) {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 50)),
+    );
+    await tester.pump();
+  }
+  await tester.pumpAndSettle();
+}
+
 void main() {
   for (final width in [390.0, 1280.0]) {
     testWidgets(
@@ -221,6 +240,24 @@ void main() {
     expect(find.text('Save changes'), findsNothing);
   });
 
+  for (final label in ['banner', 'icon']) {
+    testWidgets('a picker that throws says so for the $label', (tester) async {
+      final server = _Server();
+      await _pump(
+        tester,
+        server,
+        390,
+        picker: () async => throw StateError('permission denied'),
+      );
+      await tester.tap(_button('Choose $label'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Could not open that photo.'), findsOneWidget);
+      expect(server.calls.where((c) => c.startsWith('POST')), isEmpty);
+    });
+  }
+
   testWidgets('choosing a banner uploads it and offers to remove it', (
     tester,
   ) async {
@@ -254,7 +291,7 @@ void main() {
     final server = _Server();
     await _pump(tester, server, 390);
     await tester.tap(_button('Choose icon'));
-    await tester.pumpAndSettle();
+    await _untilCrop(tester);
     expect(find.text('Crop your picture'), findsOneWidget);
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
@@ -268,7 +305,7 @@ void main() {
     final server = _Server();
     await _pump(tester, server, 1280);
     await tester.tap(_button('Choose icon'));
-    await tester.pumpAndSettle();
+    await _untilCrop(tester);
     await tester.tap(find.text('Use picture'));
     await _untilCalled(tester, server, 'POST /space/icon');
     expect(server.calls, contains('POST /space/icon'));

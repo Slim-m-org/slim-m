@@ -4,11 +4,27 @@ library;
 
 import 'package:slimm_api/api.dart' as api;
 
-const _from = 'àáâãäåāăąçćčďđèéêëēėęěğìíîïīįıłñńňòóôõöøōőřśşšșťțùúûüūůűųýÿźżž';
-const _to = 'aaaaaaaaacccddeeeeeeeegiiiiiiilnnnooooooooorsssstttuuuuuuuuyyzzz';
+const _accentGroups = {
+  'a': 'àáâãäåāăą',
+  'c': 'çćč',
+  'd': 'ďđ',
+  'e': 'èéêëēėęě',
+  'g': 'ğ',
+  'i': 'ìíîïīįı',
+  'l': 'ł',
+  'n': 'ñńň',
+  'o': 'òóôõöøōő',
+  'r': 'ř',
+  's': 'śşšș',
+  't': 'ťț',
+  'u': 'ùúûüūůűų',
+  'y': 'ýÿ',
+  'z': 'źżž',
+};
 
 final _fold = {
-  for (var i = 0; i < _from.length; i++) _from[i]: _to[i],
+  for (final MapEntry(key: ascii, value: accented) in _accentGroups.entries)
+    for (final ch in accented.split('')) ch: ascii,
   'ß': 'ss',
   'æ': 'ae',
   'œ': 'oe',

@@ -22,11 +22,11 @@ void main() {
     expect(event.lastReadSeq, 7);
   });
 
-  test('a frame missing last_read_seq is ignored, not thrown', () {
+  test('a frame missing last_read_seq asks for a resync, not thrown', () {
     final event = ServerEvent.parse(
       jsonEncode({'type': 'read_state.changed', 'channel_id': 'c1'}),
     );
-    expect(event, isNull);
+    expect(event, isA<ErrorEvent>());
   });
 
   test('carries the manual unread flag, false when an older server omits it',

@@ -379,7 +379,8 @@ Its platform list is Android, iOS, macOS and OpenHarmony; it has no Linux, Windo
 Everywhere else `photoLibraryProvider` is null and the Photos menu entry opens the system picker as before.
 
 Permissions: iOS reuses the existing `NSPhotoLibraryUsageDescription` (checked by `hygiene.yml`'s purpose-string step), whose text already says the app opens the photo library to attach an image.
-Android declares `READ_MEDIA_IMAGES` (API 33+) and `READ_MEDIA_VISUAL_USER_SELECTED` (API 34+, the partial grant); the plugin supplies `READ_EXTERNAL_STORAGE` up to API 32.
+Android declares `READ_MEDIA_IMAGES` and `READ_MEDIA_VIDEO` (API 33+) and `READ_MEDIA_VISUAL_USER_SELECTED` (API 34+, the partial grant); the plugin supplies `READ_EXTERNAL_STORAGE` up to API 32.
+The Play appbundle removes all three media permissions (`src/play/AndroidManifest.xml`) and builds no photo library, so the Photos entry opens the system picker there.
 A denied grant shows an inline panel with a button into the system picker, and a limited grant shows the allowed photos with an "Allow more" button that reopens the OS selection UI.
 
 ### `image_picker`, for "Take photo" on the profile picture

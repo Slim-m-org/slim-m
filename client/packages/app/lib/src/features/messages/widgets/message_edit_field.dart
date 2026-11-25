@@ -74,12 +74,19 @@ class _MessageEditFieldState extends State<MessageEditField> {
     }
   }
 
+  /// Enter confirms an IME candidate while a composition is open, so it must
+  /// not also save the half-composed text.
+  void _submitUnlessComposing() {
+    if (_controller.value.composing.isValid) return;
+    _submit();
+  }
+
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     return CallbackShortcuts(
       bindings: {
-        const SingleActivator(LogicalKeyboardKey.enter): _submit,
+        const SingleActivator(LogicalKeyboardKey.enter): _submitUnlessComposing,
         const SingleActivator(LogicalKeyboardKey.escape): widget.onCancel,
       },
       child: Container(

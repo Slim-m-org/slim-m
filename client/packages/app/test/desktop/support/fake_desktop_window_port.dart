@@ -43,6 +43,9 @@ class FakeDesktopWindowPort implements DesktopWindowPort {
 
   @override
   bool get windowQueryable => queryable;
+
+  /// Holds every getBounds answer until it completes.
+  Future<void>? boundsGate;
   WindowRect bounds = const WindowRect(x: 10, y: 10, width: 1280, height: 720);
 
   int hideCalls = 0;
@@ -71,6 +74,7 @@ class FakeDesktopWindowPort implements DesktopWindowPort {
   @override
   Future<WindowRect> getBounds() async {
     if (!queryable) nativeQueryCalls++;
+    await boundsGate;
     return bounds;
   }
 
@@ -93,7 +97,11 @@ class FakeDesktopWindowPort implements DesktopWindowPort {
   }
 
   @override
-  Future<void> minimize() async => minimizeCalls++;
+  Future<void> minimize() async {
+    minimizeCalls++;
+    minimized = true;
+  }
+
   @override
   Future<void> maximize() async {
     maximizeCalls++;
@@ -139,10 +147,17 @@ class FakeDesktopWindowPort implements DesktopWindowPort {
   Future<void> center() async => centerCalls++;
   @override
   Future<void> setFullScreen(bool value) async => fullScreen = value;
+  WindowRunState? deferredRunState;
+
+  @override
+  void deferRunState(WindowRunState state) => deferredRunState = state;
+
   @override
   Future<void> show() async {
     showCalls++;
     hiddenByApp = false;
+    if (deferredRunState == WindowRunState.maximized) await maximize();
+    deferredRunState = null;
   }
 
   @override

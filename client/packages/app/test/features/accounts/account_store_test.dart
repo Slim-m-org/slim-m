@@ -43,16 +43,22 @@ void main() {
       );
     });
 
-    test('database files are stable and differ per origin', () {
-      expect(
-        databaseFileFor('https://a.example'),
-        databaseFileFor('https://a.example'),
-      );
-      expect(
-        databaseFileFor('https://a.example'),
-        isNot(databaseFileFor('https://b.example')),
-      );
-      expect(databaseFileFor('https://a.example'), isNot(legacyDatabaseFile));
+    test('a new account gets its own random database file', () {
+      final a = Account.forServer(Uri.parse('https://a.example'));
+      final again = Account.forServer(Uri.parse('https://a.example'));
+
+      expect(a.dbFile, matches(RegExp(r'^slimm-[0-9a-f-]{36}\.sqlite$')));
+      expect(a.dbFile, isNot(again.dbFile));
+      expect(a.dbFile, isNot(legacyDatabaseFile));
+    });
+
+    test('a stored database file is kept as it was', () {
+      final stored = Account.tryFromJson({
+        'serverUrl': 'https://a.example',
+        'dbFile': 'slimm-0123456789abcdef.sqlite',
+      });
+
+      expect(stored!.dbFile, 'slimm-0123456789abcdef.sqlite');
     });
   });
 

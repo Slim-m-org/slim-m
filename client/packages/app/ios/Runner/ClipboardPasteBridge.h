@@ -22,4 +22,8 @@ NS_ASSUME_NONNULL_BEGIN
 /// crashing), but must never treat YES as "Paste now works".
 BOOL SlimmInstallClipboardPasteBridge(void (^onImage)(NSData *pngData));
 
+/// Turns the image paste on or off; Dart sets it while a composer or canvas
+/// owns the focused input, so other fields fall through to the stock paste.
+void SlimmSetImagePasteActive(BOOL active);
+
 NS_ASSUME_NONNULL_END

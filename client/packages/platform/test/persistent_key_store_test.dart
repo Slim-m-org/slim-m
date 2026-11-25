@@ -322,7 +322,7 @@ void main() {
       ),
     };
 
-    for (final entry in platforms.entries) {
+    for (final entry in platforms.entries.where((e) => e.key != 'iOS')) {
       test('${entry.key} gets the keychain backend', () {
         expect(
           createPersistentKeyStore(platform: entry.value),
@@ -330,17 +330,6 @@ void main() {
         );
       });
     }
-
-    test('Linux gets the file backend', () {
-      const linux = HostPlatformKind(
-        isWeb: false,
-        isIOS: false,
-        isAndroid: false,
-        isMacOS: false,
-        isWindows: false,
-      );
-      expect(createPersistentKeyStore(platform: linux), isA<FileKeyStore>());
-    });
   });
 
   group('migrateLegacyFileSecrets', () {

@@ -21,6 +21,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show RenderMetaData;
 import 'package:slimm_design_system/design_system.dart';
 
+import 'web_file_drop.dart';
+
 /// Whether this platform delivers OS drag-and-drop events at all: every
 /// desktop target, and a browser regardless of the host OS underneath it.
 ///
@@ -103,36 +105,48 @@ class _AppDropZoneState extends State<AppDropZone> {
     if (_dragging != value) setState(() => _dragging = value);
   }
 
-  void _hover(DropEventDetails details) =>
-      _setDragging(_takes(details.globalPosition));
+  void _hover(Offset global) => _setDragging(_takes(global));
+
+  void _done(List<DropItem> files, Offset global, Offset local) {
+    _setDragging(false);
+    if (_takes(global)) widget.onDrop(files, local);
+  }
 
   @override
   Widget build(BuildContext context) {
     if (!dropZoneSupported()) return widget.child;
+    // Translucent: on the hit path wherever this zone is, while what is under it still gets taps.
+    final zone = MetaData(
+      metaData: this,
+      behavior: HitTestBehavior.translucent,
+      child: Stack(
+        children: [
+          widget.child,
+          if (_dragging)
+            Positioned.fill(
+              child: AppDropOverlay(label: widget.label, icon: widget.icon),
+            ),
+        ],
+      ),
+    );
+    if (kIsWeb) {
+      return WebFileDropTarget(
+        enable: widget.enabled,
+        onEntered: _hover,
+        onUpdated: _hover,
+        onExited: () => _setDragging(false),
+        onDone: _done,
+        child: zone,
+      );
+    }
     return DropTarget(
       enable: widget.enabled,
-      onDragEntered: _hover,
-      onDragUpdated: _hover,
+      onDragEntered: (details) => _hover(details.globalPosition),
+      onDragUpdated: (details) => _hover(details.globalPosition),
       onDragExited: (_) => _setDragging(false),
-      onDragDone: (details) {
-        _setDragging(false);
-        if (!_takes(details.globalPosition)) return;
-        widget.onDrop(details.files, details.localPosition);
-      },
-      // Translucent: on the hit path wherever this zone is, while what is under it still gets taps.
-      child: MetaData(
-        metaData: this,
-        behavior: HitTestBehavior.translucent,
-        child: Stack(
-          children: [
-            widget.child,
-            if (_dragging)
-              Positioned.fill(
-                child: AppDropOverlay(label: widget.label, icon: widget.icon),
-              ),
-          ],
-        ),
-      ),
+      onDragDone: (details) =>
+          _done(details.files, details.globalPosition, details.localPosition),
+      child: zone,
     );
   }
 }

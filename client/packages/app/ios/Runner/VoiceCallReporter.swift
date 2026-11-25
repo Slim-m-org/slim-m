@@ -11,6 +11,7 @@ protocol OutgoingCallReporting {
   func reportOutgoingCall(with uuid: UUID, startedConnectingAt date: Date?)
   func reportOutgoingCall(with uuid: UUID, connectedAt date: Date?)
   func reportCall(with uuid: UUID, endedAt date: Date?, reason: CXCallEndedReason)
+  func reportCall(with uuid: UUID, updated update: CXCallUpdate)
 }
 
 extension CXProvider: OutgoingCallReporting {}
@@ -21,6 +22,7 @@ extension CXProvider: OutgoingCallReporting {}
 protocol CallRequesting {
   func requestStart(_ action: CXStartCallAction, completion: @escaping (Error?) -> Void)
   func requestEnd(_ action: CXEndCallAction, completion: @escaping (Error?) -> Void)
+  func requestMute(_ action: CXSetMutedCallAction, completion: @escaping (Error?) -> Void)
 }
 
 extension CXCallController: CallRequesting {
@@ -29,6 +31,10 @@ extension CXCallController: CallRequesting {
   }
 
   func requestEnd(_ action: CXEndCallAction, completion: @escaping (Error?) -> Void) {
+    request(CXTransaction(action: action), completion: completion)
+  }
+
+  func requestMute(_ action: CXSetMutedCallAction, completion: @escaping (Error?) -> Void) {
     request(CXTransaction(action: action), completion: completion)
   }
 }
@@ -50,9 +56,16 @@ protocol CallActionFulfilling: AnyObject {
 
 extension CXCallAction: CallActionFulfilling {}
 
+/// A system mute request, as a seam for the same reason as [CallActionFulfilling].
+protocol MuteActionFulfilling: CallActionFulfilling {
+  var isMuted: Bool { get }
+}
+
+extension CXSetMutedCallAction: MuteActionFulfilling {}
+
 /// Reports a call this app's own UI joined - never an inbound VoIP push - to
 /// CallKit, so it gets the same background execution grant an incoming call
-/// already gets. See `VoipCallHandler.swift`'s doc comment and
+/// already gets; a join that follows an answered ring adopts that ring's call. See `VoipCallHandler.swift`'s doc comment and
 /// https://github.com/NC1107/slim-m/issues/212.
 ///
 /// CallKit has no "report a new outgoing call" entry point the way
@@ -65,13 +78,20 @@ extension CXCallAction: CallActionFulfilling {}
 final class OutgoingCallLifecycle {
   private let controller: CallRequesting
   private let provider: OutgoingCallReporting
+  private let onMain: MainHop
 
-  init(controller: CallRequesting, provider: OutgoingCallReporting) {
+  init(controller: CallRequesting, provider: OutgoingCallReporting, onMain: @escaping MainHop = hopToMain) {
     self.controller = controller
     self.provider = provider
+    self.onMain = onMain
   }
 
   private(set) var activeCallId: UUID?
+
+  /// The id Dart named for [activeCallId]: the same call, unless it adopted an answered ring.
+  private var namedByDart: UUID?
+  private var adopted: Set<UUID> = []
+  private var muted = false
 
   /// Calls this side asked CallKit to end, so their end action is not
   /// mistaken for the system UI hanging up and echoed back to Dart.
@@ -83,31 +103,59 @@ final class OutgoingCallLifecycle {
   /// CallKit's own idea of the call and leave the room connected underneath.
   var onHangUp: (() -> Void)?
 
+  /// The system call UI, AirPods or CarPlay muted or unmuted the call; Dart applies it to the microphone.
+  var onMuteRequest: ((Bool) -> Void)?
+
   /// Each CallKit step and its result, for the call report only; see
   /// `call_system_event.dart` for the shape and the words.
   var onEvent: (([String: Any]) -> Void)?
+
+  /// Holds WebRTC's audio back until CallKit activates the session.
+  var audio: CallAudioHandOff?
+
+  /// The ring the user answered that is still up, if any: one call per room, so an in-app join adopts it.
+  var answeredCallId: (() -> UUID?)?
+
+  /// True for a call this side reported, or adopted from an answered ring.
+  func owns(_ id: UUID) -> Bool { activeCallId == id || endingLocally.contains(id) }
+
+  func isAdopted(_ id: UUID) -> Bool { adopted.contains(id) }
 
   /// Asks CallKit to start reporting [id] as an outgoing call. A repeat for
   /// the call already active is a no-op, since CallKit tracks it already. A
   /// different id means the app moved the call to another account, so the
   /// older call is ended first and its own late end is then ignored.
+  ///
+  /// A join that follows an answered ring takes over that ring's call instead of starting a second one.
   func callStarted(id: UUID, displayName: String) {
-    if let current = activeCallId {
-      guard current != id else {
+    if activeCallId != nil {
+      guard namedByDart != id else {
         report("start", result: "skipped")
         return
       }
       callEnded()
     }
+    namedByDart = id
+    muted = false
+    if let answered = answeredCallId?(), !endingLocally.contains(answered) {
+      activeCallId = answered
+      adopted.insert(answered)
+      report("start", result: "adopted")
+      return
+    }
     activeCallId = id
+    audio?.begin(id)
     let action = CXStartCallAction(call: id, handle: CXHandle(type: .generic, value: displayName))
     action.isVideo = false
-    controller.requestStart(action) { [weak self] error in
-      self?.report("start", error: error)
-      // CallKit refused the request (Do Not Disturb, another call already
-      // up); nothing was reported, so nothing should still look active.
-      if error != nil, self?.activeCallId == id {
-        self?.activeCallId = nil
+    controller.requestStart(action) { [weak self, onMain] error in
+      onMain {
+        self?.report("start", error: error)
+        // CallKit refused the request (Do Not Disturb, another call already
+        // up); nothing was reported, so nothing should still look active.
+        guard error != nil, let self, self.activeCallId == id else { return }
+        self.activeCallId = nil
+        self.namedByDart = nil
+        self.audio?.end(id)
       }
     }
   }
@@ -115,17 +163,29 @@ final class OutgoingCallLifecycle {
   /// CallKit grants the request from [callStarted] here.
   func handleStartAction(_ action: CallActionFulfilling) {
     provider.reportOutgoingCall(with: action.callUUID, startedConnectingAt: Date())
+    provider.reportCall(with: action.callUUID, updated: Self.unsupportedFeatures())
     action.fulfill()
     report("startAction")
   }
 
+  /// Hold, grouping and DTMF are all refused, so the system never offers them for this call.
+  static func unsupportedFeatures() -> CXCallUpdate {
+    let update = CXCallUpdate()
+    update.supportsHolding = false
+    update.supportsGrouping = false
+    update.supportsUngrouping = false
+    update.supportsDTMF = false
+    return update
+  }
+
   /// The room actually connected; [callId] names the call, so a late report for a replaced call is dropped.
   func callConnected(callId: UUID? = nil) {
-    guard let id = activeCallId, callId == nil || callId == id else {
+    guard let id = activeCallId, isCurrent(callId) else {
       report("connected", result: "noCall")
       return
     }
-    provider.reportOutgoingCall(with: id, connectedAt: Date())
+    // An answered ring is connected as far as CallKit is concerned from the moment it was answered.
+    if !adopted.contains(id) { provider.reportOutgoingCall(with: id, connectedAt: Date()) }
     report("connected")
   }
 
@@ -139,30 +199,76 @@ final class OutgoingCallLifecycle {
   /// one is stale (the app has moved on to another) and is ignored.
   func callEnded(callId: UUID? = nil) {
     guard let id = activeCallId else { return }
-    if let callId, callId != id {
+    guard isCurrent(callId) else {
       report("end", result: "stale")
       return
     }
-    activeCallId = nil
+    clearActive()
     endingLocally.insert(id)
-    controller.requestEnd(CXEndCallAction(call: id)) { [weak self] error in
-      self?.report("end", error: error)
-      // CallKit refused; report it ended anyway so no dead call lingers in the system UI.
-      guard error != nil, let self, self.endingLocally.remove(id) != nil else { return }
-      self.provider.reportCall(with: id, endedAt: Date(), reason: .remoteEnded)
+    controller.requestEnd(CXEndCallAction(call: id)) { [weak self, onMain] error in
+      onMain {
+        self?.report("end", error: error)
+        // CallKit refused; report it ended anyway so no dead call lingers in the system UI.
+        guard error != nil, let self, self.endingLocally.remove(id) != nil else { return }
+        self.provider.reportCall(with: id, endedAt: Date(), reason: .remoteEnded)
+        self.audio?.end(id)
+      }
     }
   }
 
   /// CallKit delivers an end action, for this side's own request or because
   /// the system call UI hung up; only the latter must tell Dart to leave.
-  func handleEndAction(_ action: CallActionFulfilling) {
+  /// Returns whether the system did it.
+  @discardableResult
+  func handleEndAction(_ action: CallActionFulfilling) -> Bool {
     let fromSystem = endingLocally.remove(action.callUUID) == nil
     if fromSystem {
-      activeCallId = nil
+      clearActive()
       onHangUp?()
     }
+    adopted.remove(action.callUUID)
     action.fulfill()
     report("endAction", result: fromSystem ? "system" : "ok")
+    return fromSystem
+  }
+
+  /// The system muted or unmuted the call: Dart applies it, and a repeat of what is already in force is only fulfilled.
+  func handleMuteAction(_ action: MuteActionFulfilling) {
+    if action.isMuted != muted {
+      muted = action.isMuted
+      onMuteRequest?(action.isMuted)
+    }
+    action.fulfill()
+    report("muteAction", result: action.isMuted ? "muted" : "unmuted")
+  }
+
+  /// The app muted or unmuted, so the system call UI is told to agree.
+  func muteChanged(_ isMuted: Bool) {
+    guard let id = activeCallId, isMuted != muted else { return }
+    muted = isMuted
+    controller.requestMute(CXSetMutedCallAction(call: id, muted: isMuted)) { [weak self, onMain] error in
+      onMain { self?.report("mute", error: error) }
+    }
+  }
+
+  /// The provider was reset: CallKit has forgotten every call, so the room must be left.
+  func reset() {
+    let hadCall = activeCallId != nil
+    clearActive()
+    endingLocally = []
+    adopted = []
+    report("reset")
+    if hadCall { onHangUp?() }
+  }
+
+  private func clearActive() {
+    activeCallId = nil
+    namedByDart = nil
+    muted = false
+  }
+
+  private func isCurrent(_ callId: UUID?) -> Bool {
+    callId == nil || callId == namedByDart || callId == activeCallId
   }
 
   private func report(_ step: String, error: Error? = nil, result: String? = nil) {
@@ -234,53 +340,33 @@ final class AudioSessionObserver {
   }
 }
 
-/// Owns the `CXProvider` for calls this app's own UI joins, and bridges it to
-/// the Dart-side `top.npcserver.slimm/call_lifecycle` channel (see
+/// Bridges the app's own call joins to the Dart-side `top.npcserver.slimm/call_lifecycle` channel (see
 /// `packages/platform/lib/src/call_lifecycle_channel.dart`).
 ///
-/// A separate `CXProvider` from `VoipPushRegistrar`'s: that one exists for an
-/// inbound VoIP push, so the two never report the same call. Consolidating
-/// onto one shared provider needs a device to confirm the ringtone and audio
-/// session hand-off, so it is left apart.
-///
-/// `provider(_:didActivate:)`/`didDeactivate:` only record CallKit's hand-off
-/// in the call report. Handing the session to CallKit instead (livekit's
-/// externalCallSystem mode, the engine gated until `didActivate`) changes
-/// every call this app makes and cannot be verified without a real device,
-/// so it waits for a report that shows the hand-off breaking a call; see
-/// https://github.com/NC1107/slim-m/issues/212.
-final class VoiceCallChannel: NSObject, CXProviderDelegate {
+/// It owns no `CXProvider`: `VoipPushRegistrar` holds the app's only one and routes every action for a
+/// call this app joined to this class's [lifecycle]. One provider and one call per room, so answering a
+/// ring and joining its room is one call in the system UI.
+final class VoiceCallChannel: NSObject {
   static let name = "top.npcserver.slimm/call_lifecycle"
 
-  private let lifecycle: OutgoingCallLifecycle
+  let lifecycle: OutgoingCallLifecycle
   private let audioSession = AudioSessionObserver()
   private var flutterChannel: FlutterMethodChannel?
 
-  init(provider: CXProvider = VoiceCallChannel.makeProvider()) {
-    lifecycle = OutgoingCallLifecycle(controller: CXCallController(), provider: provider)
+  init(provider: CXProvider) {
+    lifecycle = OutgoingCallLifecycle(controller: CXCallController(queue: .main), provider: provider)
     super.init()
-    provider.setDelegate(self, queue: .main)
     lifecycle.onHangUp = { [weak self] in
       self?.flutterChannel?.invokeMethod("endCall", arguments: nil)
+    }
+    lifecycle.onMuteRequest = { [weak self] muted in
+      self?.flutterChannel?.invokeMethod("muteRequest", arguments: ["muted": muted])
     }
     let sendEvent: ([String: Any]) -> Void = { [weak self] event in
       self?.flutterChannel?.invokeMethod("callEvent", arguments: event)
     }
     lifecycle.onEvent = sendEvent
     audioSession.onEvent = sendEvent
-  }
-
-  /// `ringtoneSound` is set here too though never actually played - this
-  /// provider only ever reports an outgoing call, and CallKit's ringtone is
-  /// for an incoming one - so the two configurations stay in sync in case
-  /// the providers are ever consolidated, per this file's own doc comment.
-  private static func makeProvider() -> CXProvider {
-    let configuration = CXProviderConfiguration(localizedName: "slim-m")
-    configuration.supportsVideo = false
-    configuration.maximumCallsPerCallGroup = 1
-    configuration.supportedHandleTypes = [.generic]
-    configuration.ringtoneSound = callKitRingtoneFileName
-    return CXProvider(configuration: configuration)
   }
 
   func attach(to messenger: FlutterBinaryMessenger) {
@@ -301,6 +387,10 @@ final class VoiceCallChannel: NSObject, CXProviderDelegate {
       result(nil)
     case "callEnded":
       lifecycle.callEnded(callId: Self.callId(from: call))
+      result(nil)
+    case "callMuted":
+      let args = call.arguments as? [String: Any]
+      lifecycle.muteChanged(args?["muted"] as? Bool ?? false)
       result(nil)
     case "audioSession":
       result(AudioSessionObserver.snapshot())
@@ -325,27 +415,5 @@ final class VoiceCallChannel: NSObject, CXProviderDelegate {
     }
     lifecycle.callStarted(id: id, displayName: displayName)
     result(nil)
-  }
-
-  // MARK: CXProviderDelegate
-
-  func providerDidReset(_: CXProvider) {
-    // Intentionally empty: this app holds no CallKit state to tear down on a provider reset.
-  }
-
-  func provider(_: CXProvider, didActivate _: AVAudioSession) {
-    lifecycle.onEvent?(AudioSessionObserver.callKitHandOff(active: true))
-  }
-
-  func provider(_: CXProvider, didDeactivate _: AVAudioSession) {
-    lifecycle.onEvent?(AudioSessionObserver.callKitHandOff(active: false))
-  }
-
-  func provider(_: CXProvider, perform action: CXStartCallAction) {
-    lifecycle.handleStartAction(action)
-  }
-
-  func provider(_: CXProvider, perform action: CXEndCallAction) {
-    lifecycle.handleEndAction(action)
   }
 }

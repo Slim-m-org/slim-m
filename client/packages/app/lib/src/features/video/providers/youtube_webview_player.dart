@@ -99,8 +99,11 @@ class WebViewYoutubePlayer extends YoutubeBridgePlayer {
   }
 }
 
-/// Whether a top-level navigation is the host page itself loading.
-bool isYoutubeHostNavigation(String url) =>
-    url.startsWith(kYoutubeHostOrigin) ||
-    url.startsWith('about:') ||
-    url.startsWith('data:');
+/// Whether a top-level navigation is the host page itself loading: its exact
+/// origin, never a lookalike that merely starts with it.
+bool isYoutubeHostNavigation(String url) {
+  if (url == 'about:blank') return true;
+  final uri = Uri.tryParse(url);
+  if (uri == null || uri.scheme != 'https' || !uri.hasAuthority) return false;
+  return uri.origin == kYoutubeHostOrigin;
+}

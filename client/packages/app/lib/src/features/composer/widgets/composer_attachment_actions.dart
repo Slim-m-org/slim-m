@@ -5,6 +5,7 @@ library;
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:desktop_drop/desktop_drop.dart' show DropItem;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
@@ -63,7 +64,7 @@ class ComposerAttachmentActions {
             ref,
             channelId,
             fallback: keepKeyboard(
-              () => unawaited(pickAttachment(AttachmentSource.photoLibrary)),
+              () => unawaited(pickAttachment(AttachmentSource.mediaLibrary)),
             ),
           ),
         ),
@@ -132,6 +133,14 @@ class ComposerAttachmentActions {
   /// A file from a picker or a drop; refused up front when over the limit,
   /// which the staging itself then says.
   Future<void> stageFile(FileSource file) => attachments().stageFile(file);
+
+  /// Pasted files stage under their own names, each through the picker's path.
+  void handlePastedFiles(List<DropItem> files) {
+    setError(null);
+    for (final file in files) {
+      unawaited(stageFile(dropFileSource(file)));
+    }
+  }
 
   /// A pasted image takes the same staging path as a picked file.
   void handlePastedImage(Uint8List bytes, String filename) =>

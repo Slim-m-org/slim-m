@@ -62,4 +62,26 @@ void main() {
       expect(probe.callCount, 2);
     });
   });
+
+  group('waitForTray', () {
+    test('answers true as soon as the host appears', () async {
+      var calls = 0;
+      final found = await waitForTray(
+        () async => ++calls == 3,
+        timeout: const Duration(seconds: 5),
+        interval: const Duration(milliseconds: 1),
+      );
+      expect(found, isTrue);
+      expect(calls, 3);
+    });
+
+    test('gives up false once the timeout passes', () async {
+      final found = await waitForTray(
+        () async => false,
+        timeout: const Duration(milliseconds: 20),
+        interval: const Duration(milliseconds: 5),
+      );
+      expect(found, isFalse);
+    });
+  });
 }

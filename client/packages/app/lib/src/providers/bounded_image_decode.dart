@@ -15,6 +15,8 @@ import 'package:flutter/foundation.dart'
     show immutable, kIsWeb, visibleForTesting;
 import 'package:flutter/painting.dart';
 
+import 'image_header_size.dart';
+
 /// The declared size of an image was past the ceiling the caller allows.
 class ImageTooLargeException implements Exception {
   const ImageTooLargeException(this.width, this.height);
@@ -65,14 +67,15 @@ Future<ui.Image> decodeBoundedImage(
   }
 }
 
-/// The web engine cannot read a descriptor's size, so the size is checked
-/// after the browser's own decode and an oversized result is redrawn smaller.
+/// The web engine cannot read a descriptor's size, so the size comes from the
+/// header before the browser decodes, and an oversized result is redrawn smaller.
 @visibleForTesting
 Future<ui.Image> decodeBoundedViaPostDecodeCheck(
   Uint8List bytes,
   int maxSide,
   int? maxSourcePixels,
 ) async {
+  _refuseOversizedHeader(bytes, maxSourcePixels);
   final codec = await ui.instantiateImageCodec(bytes);
   final ui.Image image;
   try {
@@ -104,6 +107,14 @@ Future<ui.Image> decodeBoundedViaPostDecodeCheck(
   } finally {
     picture.dispose();
     image.dispose();
+  }
+}
+
+void _refuseOversizedHeader(Uint8List bytes, int? maxSourcePixels) {
+  if (maxSourcePixels == null) return;
+  final size = declaredImageSize(bytes);
+  if (size != null && size.width * size.height > maxSourcePixels) {
+    throw ImageTooLargeException(size.width, size.height);
   }
 }
 
@@ -143,12 +154,13 @@ int declaredPixelCeiling(Uint8List bytes) {
 
 /// Throws [ImageTooLargeException] when [buffer] declares more than
 /// [maxPixels], before any pixel is allocated. The web engine cannot read a
-/// declared size, so there the check is skipped.
+/// descriptor, so there the header of [bytes] is read instead.
 Future<void> checkDeclaredSize(
   ui.ImmutableBuffer buffer, {
+  required Uint8List bytes,
   int maxPixels = kMaxDeclaredPixels,
 }) async {
-  if (kIsWeb) return;
+  if (kIsWeb) return _refuseOversizedHeader(bytes, maxPixels);
   final descriptor = await ui.ImageDescriptor.encoded(buffer);
   final width = descriptor.width;
   final height = descriptor.height;
@@ -170,6 +182,7 @@ class BoundedMemoryImage extends MemoryImage {
     try {
       await checkDeclaredSize(
         buffer,
+        bytes: key.bytes,
         maxPixels: declaredPixelCeiling(key.bytes),
       );
     } catch (_) {

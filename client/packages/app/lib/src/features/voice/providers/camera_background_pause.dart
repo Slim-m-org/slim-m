@@ -10,14 +10,17 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
 
+import '../../../providers/app_lifecycle.dart' show mobileLifecycleHostProvider;
 import 'video_pause.dart';
 import 'voice_controller.dart';
 
 /// Whether the camera should be off for the window state, on a phone only.
+///
+/// A browser tab keeps its camera capturing while hidden, so web is not a phone here.
 final cameraBackgroundPausedProvider = Provider<bool>(
   (ref) =>
       ref.watch(localPreviewPausedProvider) &&
-      !ref.watch(pauseOnUnfocusedAppliesProvider),
+      ref.watch(mobileLifecycleHostProvider),
 );
 
 /// Remembers whether it was the one to turn the camera off.
@@ -55,7 +58,7 @@ final cameraBackgroundHostProvider = Provider<void>((ref) {
     setCamera: controller.video.setCameraPublishing,
   );
   // A phone only, and at once: a backgrounded app draws no frame to refresh a derived provider on.
-  final phone = !ref.watch(pauseOnUnfocusedAppliesProvider);
+  final phone = ref.watch(mobileLifecycleHostProvider);
   onVideoPauseChanged(
     ref,
     local: true,

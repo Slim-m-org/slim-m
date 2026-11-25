@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The browser has no file path to stream to; it buffers and downloads at the end.
+/// The browser has no file path to stream to; a large file downloads from a link, a small save buffers.
 library;
 
 import 'dart:js_interop';
@@ -10,7 +10,7 @@ import 'package:web/web.dart' as web;
 import 'download_target.dart';
 
 Future<DownloadTarget?> openPlatformDownloadTarget(String filename) async =>
-    BrowserDownloadTarget(filename, _download);
+    BrowserDownloadTarget(filename, _download, _downloadLink);
 
 void _download(Uint8List bytes, String filename) {
   final blob = web.Blob([bytes.toJS].toJS);
@@ -25,3 +25,18 @@ void _download(Uint8List bytes, String filename) {
     () => web.URL.revokeObjectURL(url),
   );
 }
+
+/// How long the frame lives; the browser has long since taken the file or shown its error inside it.
+const Duration kDownloadFrameLife = Duration(minutes: 2);
+
+/// Loads [link] in a hidden frame, so an error page or a navigation can never replace the app's own document.
+web.HTMLIFrameElement downloadInFrame(Uri link) {
+  final frame = web.HTMLIFrameElement()
+    ..style.display = 'none'
+    ..src = link.toString();
+  web.document.body?.append(frame);
+  Future<void>.delayed(kDownloadFrameLife, () => frame.remove());
+  return frame;
+}
+
+void _downloadLink(Uri link, String filename) => downloadInFrame(link);

@@ -24,12 +24,13 @@ class MemberProfileLinks extends ConsumerWidget {
     final discord = links?.where((link) => link.isDiscord).firstOrNull;
     if (discord == null) return const SizedBox.shrink();
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    final touch = AppTouchTargets.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
+      padding: EdgeInsets.fromLTRB(
         AppSpacing.s16,
         0,
         AppSpacing.s16,
-        AppSpacing.s12,
+        touch ? 0 : AppSpacing.s12,
       ),
       child: Semantics(
         button: true,
@@ -37,32 +38,37 @@ class MemberProfileLinks extends ConsumerWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(AppRadii.control),
           onTap: () async {
+            final toasts = ref.read(toastsProvider.notifier);
             await Clipboard.setData(ClipboardData(text: discord.username));
-            ref
-                .read(toastsProvider.notifier)
-                .show('Username copied.', severity: AppToastSeverity.success);
+            toasts.show('Username copied.', severity: AppToastSeverity.success);
           },
           child: ExcludeSemantics(
-            child: Row(
-              spacing: AppSpacing.s8,
-              children: [
-                LinkedAccountPicture(
-                  userId: userId,
-                  account: discord,
-                  size: AppAvatarSize.s20,
-                  fallback: const BrandLogo(BrandService.discord, size: 16),
-                ),
-                Flexible(
-                  child: Text(
-                    'Discord · ${discordLabel(discord)}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppText.caption.copyWith(
-                      color: tokens.textSecondary,
+            // Layout height rather than a hit area: the card's own bounds would clip a reach beyond the row.
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: touch ? AppSizes.rowTouch : 0,
+              ),
+              child: Row(
+                spacing: AppSpacing.s8,
+                children: [
+                  LinkedAccountPicture(
+                    userId: userId,
+                    account: discord,
+                    size: AppAvatarSize.s20,
+                    fallback: const BrandLogo(BrandService.discord, size: 16),
+                  ),
+                  Flexible(
+                    child: Text(
+                      'Discord · ${discordLabel(discord)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.caption.copyWith(
+                        color: tokens.textSecondary,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

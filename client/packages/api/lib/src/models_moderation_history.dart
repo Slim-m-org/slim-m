@@ -146,6 +146,9 @@ enum AuditLogAction {
   nicknameClear,
   voiceMove,
 
+  /// A moderator disconnected the subject from a call; the reason names the channel.
+  voiceKick,
+
   /// Ownership passed to the subject; the server's own act, so the actor is null.
   ownerHandoff,
 
@@ -179,6 +182,7 @@ enum AuditLogAction {
         'nickname_set' => AuditLogAction.nicknameSet,
         'nickname_clear' => AuditLogAction.nicknameClear,
         'voice_move' => AuditLogAction.voiceMove,
+        'voice_kick' => AuditLogAction.voiceKick,
         'owner_handoff' => AuditLogAction.ownerHandoff,
         'owner_timeout_ended' => AuditLogAction.ownerTimeoutEnded,
         'message_pin_changed' => AuditLogAction.messagePinChanged,

@@ -104,9 +104,9 @@ Gdiplus::Color ColorOf(uint32_t argb, double alpha) {
                         static_cast<BYTE>(argb & 0xFF));
 }
 
-void DrawStroke(Gdiplus::Graphics& g, const Shape& s, double w, double h) {
+void DrawStroke(Gdiplus::Graphics& g, const Shape& s, double w, double h, double scale) {
   if (s.points.size() < 4) return;
-  Gdiplus::Pen pen(ColorOf(s.argb, s.alpha), static_cast<Gdiplus::REAL>(s.width));
+  Gdiplus::Pen pen(ColorOf(s.argb, s.alpha), static_cast<Gdiplus::REAL>(s.width * scale));
   pen.SetLineCap(Gdiplus::LineCapRound, Gdiplus::LineCapRound, Gdiplus::DashCapRound);
   pen.SetLineJoin(Gdiplus::LineJoinRound);
   std::vector<Gdiplus::PointF> pts;
@@ -117,14 +117,14 @@ void DrawStroke(Gdiplus::Graphics& g, const Shape& s, double w, double h) {
   g.DrawLines(&pen, pts.data(), static_cast<INT>(pts.size()));
 }
 
-void DrawEllipse(Gdiplus::Graphics& g, const Shape& s, double w, double h) {
+void DrawEllipse(Gdiplus::Graphics& g, const Shape& s, double w, double h, double scale) {
   if (s.points.size() != 4) return;
   double x0 = std::min(s.points[0], s.points[2]) * w;
   double x1 = std::max(s.points[0], s.points[2]) * w;
   double y0 = std::min(s.points[1], s.points[3]) * h;
   double y1 = std::max(s.points[1], s.points[3]) * h;
   if (x1 - x0 < 1 || y1 - y0 < 1) return;
-  Gdiplus::Pen pen(ColorOf(s.argb, s.alpha), static_cast<Gdiplus::REAL>(s.width));
+  Gdiplus::Pen pen(ColorOf(s.argb, s.alpha), static_cast<Gdiplus::REAL>(s.width * scale));
   g.DrawEllipse(&pen, static_cast<Gdiplus::REAL>(x0), static_cast<Gdiplus::REAL>(y0),
                 static_cast<Gdiplus::REAL>(x1 - x0), static_cast<Gdiplus::REAL>(y1 - y0));
 }
@@ -143,25 +143,25 @@ void AddRoundedRect(Gdiplus::GraphicsPath& path, double x, double y, double w,
   path.CloseFigure();
 }
 
-void DrawNote(Gdiplus::Graphics& g, const Shape& s, double w, double h) {
+void DrawNote(Gdiplus::Graphics& g, const Shape& s, double w, double h, double scale) {
   if (s.points.size() != 2 || s.text.empty()) return;
   Gdiplus::FontFamily family(L"Segoe UI");
-  Gdiplus::Font font(&family, 13, Gdiplus::FontStyleRegular, Gdiplus::UnitPixel);
-  Gdiplus::RectF limit(0, 0, static_cast<Gdiplus::REAL>(kNoteMaxWidth), 0);
+  Gdiplus::Font font(&family, static_cast<Gdiplus::REAL>(13 * scale), Gdiplus::FontStyleRegular, Gdiplus::UnitPixel);
+  Gdiplus::RectF limit(0, 0, static_cast<Gdiplus::REAL>(kNoteMaxWidth * scale), 0);
   Gdiplus::RectF bounds;
   g.MeasureString(s.text.c_str(), -1, &font, limit, &bounds);
-  double bw = bounds.Width + 2 * kNotePad;
-  double bh = bounds.Height + 2 * kNotePad;
+  double bw = bounds.Width + 2 * kNotePad * scale;
+  double bh = bounds.Height + 2 * kNotePad * scale;
   double x = std::max(0.0, std::min(s.points[0] * w, w - bw));
   double y = std::max(0.0, std::min(s.points[1] * h, h - bh));
   Gdiplus::GraphicsPath path;
-  AddRoundedRect(path, x, y, bw, bh, kNoteRadius);
+  AddRoundedRect(path, x, y, bw, bh, kNoteRadius * scale);
   Gdiplus::SolidBrush fill(ColorOf(s.argb, s.alpha));
   g.FillPath(&fill, &path);
   Gdiplus::SolidBrush ink(ColorOf(0xFF1A1A1A, s.alpha));
-  Gdiplus::RectF at(static_cast<Gdiplus::REAL>(x + kNotePad),
-                    static_cast<Gdiplus::REAL>(y + kNotePad),
-                    static_cast<Gdiplus::REAL>(kNoteMaxWidth), 0);
+  Gdiplus::RectF at(static_cast<Gdiplus::REAL>(x + kNotePad * scale),
+                    static_cast<Gdiplus::REAL>(y + kNotePad * scale),
+                    static_cast<Gdiplus::REAL>(kNoteMaxWidth * scale), 0);
   g.DrawString(s.text.c_str(), -1, &font, at, nullptr, &ink);
 }
 
@@ -215,18 +215,19 @@ void Present(Layer& layer, Content content) {
     g.SetCompositingMode(Gdiplus::CompositingModeSourceCopy);
     g.Clear(Gdiplus::Color(0, 0, 0, 0));
     g.SetCompositingMode(Gdiplus::CompositingModeSourceOver);
+    const double dpi = static_cast<double>(GetDpiForWindow(layer.window));
+    const double scale = dpi > 0 ? dpi / 96.0 : 1.0;
     if (content == Content::kShapes) {
       for (const Shape& s : g_shapes) {
         switch (s.kind) {
-          case Shape::Kind::kStroke: DrawStroke(g, s, layer.width, layer.height); break;
-          case Shape::Kind::kEllipse: DrawEllipse(g, s, layer.width, layer.height); break;
-          case Shape::Kind::kNote: DrawNote(g, s, layer.width, layer.height); break;
+          case Shape::Kind::kStroke: DrawStroke(g, s, layer.width, layer.height, scale); break;
+          case Shape::Kind::kEllipse: DrawEllipse(g, s, layer.width, layer.height, scale); break;
+          case Shape::Kind::kNote: DrawNote(g, s, layer.width, layer.height, scale); break;
           case Shape::Kind::kStamp: DrawStamp(g, s, layer.width, layer.height); break;
         }
       }
     } else if (g_panel.present) {
-      double scale = static_cast<double>(GetDpiForWindow(layer.window)) / 96.0;
-      DrawPanel(g, g_panel, layer.width, layer.height, scale > 0 ? scale : 1.0);
+      DrawPanel(g, g_panel, layer.width, layer.height, scale);
     }
   }
   GdiFlush();

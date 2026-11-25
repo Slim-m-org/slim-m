@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Takes a conversation's Android notifications down once it reads as read,
+/// Takes a conversation's notifications down once it reads as read,
 /// here or on another device, the way [appBadgeSyncProvider] does for iOS.
 library;
 
@@ -30,7 +30,7 @@ Set<int> staleNotificationIds({
 
 /// Kept mounted by [ActiveAccountMount] beside [appBadgeSyncProvider].
 final notificationReadSyncProvider = Provider<void>((ref) {
-  if (!isAndroidHost) return;
+  if (!isAndroidHost && !isLinuxHost && !isWindowsHost) return;
   onAccountsChanged(ref, (accounts) {
     final stale = staleNotificationIds(
       readChannelIds: {

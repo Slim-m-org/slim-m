@@ -131,11 +131,11 @@ fn png(b: &[u8]) -> Option<(u32, u32, bool)> {
 /// The frame size is in the first start-of-frame segment; scanning stops at
 /// start-of-scan, which no well-formed JPEG reaches before one.
 fn jpeg(b: &[u8]) -> Option<(u32, u32, bool)> {
-    jpeg_frame(b).map(|(_, width, height)| (width, height, false))
+    jpeg_frame(b).map(|(_, width, height, _)| (width, height, false))
 }
 
-/// The marker, width and height of a JPEG's first start-of-frame segment.
-fn jpeg_frame(b: &[u8]) -> Option<(u8, u32, u32)> {
+/// The marker, width, height and offset of a JPEG's first start-of-frame segment.
+fn jpeg_frame(b: &[u8]) -> Option<(u8, u32, u32, usize)> {
     let mut at = 2;
     loop {
         while *b.get(at)? == 0xFF && *b.get(at + 1)? == 0xFF {
@@ -155,7 +155,7 @@ fn jpeg_frame(b: &[u8]) -> Option<(u8, u32, u32)> {
         let len = usize::try_from(be16(b, at + 2)?).ok()?;
         let is_frame = (0xC0..=0xCF).contains(&marker) && !matches!(marker, 0xC4 | 0xC8 | 0xCC);
         if is_frame {
-            return Some((marker, be16(b, at + 7)?, be16(b, at + 5)?));
+            return Some((marker, be16(b, at + 7)?, be16(b, at + 5)?, at));
         }
         at = at.checked_add(2)?.checked_add(len)?;
     }
@@ -163,7 +163,27 @@ fn jpeg_frame(b: &[u8]) -> Option<(u8, u32, u32)> {
 
 /// Whether a JPEG codes its coefficients in several scans, which a decoder must hold whole.
 pub fn jpeg_is_progressive(bytes: &[u8]) -> bool {
-    matches!(jpeg_frame(bytes), Some((0xC2 | 0xC6 | 0xCA | 0xCE, _, _)))
+    matches!(
+        jpeg_frame(bytes),
+        Some((0xC2 | 0xC6 | 0xCA | 0xCE, _, _, _))
+    )
+}
+
+/// Bytes per pixel of the whole-frame coefficient buffer a decoder keeps for a progressive JPEG
+/// (two bytes a sample, rounded up); 0 for a JPEG that is not progressive.
+pub fn jpeg_coefficient_bytes_per_pixel(bytes: &[u8]) -> u64 {
+    let Some((0xC2 | 0xC6 | 0xCA | 0xCE, _, _, at)) = jpeg_frame(bytes) else {
+        return 0;
+    };
+    let count = bytes.get(at + 9).copied().map_or(0, usize::from);
+    let sampling: Vec<(u64, u64)> = (0..count)
+        .filter_map(|i| bytes.get(at + 11 + 3 * i).copied())
+        .map(|hv| (u64::from(hv >> 4).max(1), u64::from(hv & 15).max(1)))
+        .collect();
+    let max_h = sampling.iter().map(|s| s.0).max().unwrap_or(1);
+    let max_v = sampling.iter().map(|s| s.1).max().unwrap_or(1);
+    let samples: u64 = sampling.iter().map(|s| s.0 * s.1).sum();
+    (2 * samples).div_ceil(max_h * max_v)
 }
 
 /// The canvas of a GIF whose later blocks lie past what was read. It is reported as animated,

@@ -91,7 +91,7 @@ void main() {
     expect((event as InteractionAnswered).interactionId, 'i1');
   });
 
-  test('a components frame with no list is ignored, not thrown', () {
+  test('a components frame with no list asks for a resync, not thrown', () {
     final event = ServerEvent.parse(
       jsonEncode({
         'type': 'message.components',
@@ -99,7 +99,7 @@ void main() {
         'message_id': 'm1',
       }),
     );
-    expect(event, isNull);
+    expect(event, isA<ErrorEvent>());
   });
 
   test('a row carries one select menu, with its bounds defaulted', () {

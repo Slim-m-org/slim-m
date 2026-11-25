@@ -14,6 +14,7 @@ import 'dart:typed_data';
 
 import 'package:cross_file/cross_file.dart' show XFile;
 import 'package:file_picker/file_picker.dart';
+import 'package:desktop_drop/desktop_drop.dart' show DropItem;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -335,6 +336,8 @@ Widget composerHarness({
                       clipboardPaste?.start ?? startClipboardImagePaste,
                   clipboardPasteStop:
                       clipboardPaste?.stop ?? stopClipboardImagePaste,
+                  clipboardFilePasteStart:
+                      clipboardPaste?.startFiles ?? startClipboardFilePaste,
                 ),
               extra,
             ],
@@ -353,9 +356,15 @@ Widget composerHarness({
 /// gets the same protection the real race fix added.
 class FakeClipboardPaste {
   PastedImageHandler? _onImage;
+  PastedFilesHandler? _onFiles;
   int stopCalls = 0;
 
   void start(PastedImageHandler onImage) => _onImage = onImage;
+
+  void startFiles(PastedImageHandler onImage, PastedFilesHandler onFiles) =>
+      _onFiles = onFiles;
+
+  void pasteFiles(List<DropItem> files) => _onFiles?.call(files);
 
   void stop(PastedImageHandler onImage) {
     stopCalls += 1;

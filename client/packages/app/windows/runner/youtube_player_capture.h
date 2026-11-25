@@ -42,6 +42,11 @@ class VisualCapture {
 
   /// The newest frame; safe from any thread.
   virtual SharedFrame Latest() = 0;
+
+  /// Stops capturing and releases the composition objects, on the thread that
+  /// made them; frames already copied stay readable until the last reference
+  /// goes, which may be Flutter's raster thread. Safe to call twice.
+  virtual void Close() = 0;
 };
 
 }  // namespace slimm_youtube

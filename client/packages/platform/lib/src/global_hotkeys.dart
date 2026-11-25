@@ -57,6 +57,12 @@ enum GlobalHotkeyPhase {
 
   /// Capture stopped (hook gone, session closed): every hold must end.
   lost,
+
+  /// The window in front is one this app cannot see keys for.
+  blocked,
+
+  /// Keys reach this app again.
+  unblocked,
 }
 
 class GlobalHotkeyEvent {
@@ -65,6 +71,14 @@ class GlobalHotkeyEvent {
   const GlobalHotkeyEvent.lost()
       : id = null,
         phase = GlobalHotkeyPhase.lost;
+
+  const GlobalHotkeyEvent.blocked()
+      : id = null,
+        phase = GlobalHotkeyPhase.blocked;
+
+  const GlobalHotkeyEvent.unblocked()
+      : id = null,
+        phase = GlobalHotkeyPhase.unblocked;
 
   final GlobalHotkeyId? id;
   final GlobalHotkeyPhase phase;

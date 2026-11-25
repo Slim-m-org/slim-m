@@ -40,6 +40,21 @@ void main() {
 
   tearDown(() => _mock(null));
 
+  test('native image paste is on only while a handler is registered', () async {
+    final active = <Object?>[];
+    _mock((call) async {
+      if (call.method == 'setImagePasteActive') active.add(call.arguments);
+      return null;
+    });
+    void handler(Uint8List bytes, String name) {}
+
+    startClipboardImagePaste(handler);
+    stopClipboardImagePaste(handler);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(active, [true, false]);
+  });
+
   test('hasClipboardImage asks the platform for hasImage', () async {
     MethodCall? seen;
     _mock((call) async {

@@ -4,6 +4,7 @@
 /// its own wording, and the relative time has fixed bucket boundaries.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -35,9 +36,22 @@ Map<String, Object?> _status(String id, String status) => {
   'status': status,
 };
 
-http.Response _handle(http.Request request) {
+int _flaky = 0;
+int _checks = 0;
+Completer<http.Response>? _hold;
+
+Future<http.Response> _handle(http.Request request) async {
   final id = request.url.pathSegments.last;
   const json = {'content-type': 'application/json'};
+  if (id == 'r-flaky') {
+    return _flaky++ == 0
+        ? http.Response('', 500)
+        : http.Response(jsonEncode(_status(id, 'open')), 200, headers: json);
+  }
+  if (id == 'r-slow') {
+    _checks++;
+    return _hold!.future;
+  }
   return switch (id) {
     'r-open' => http.Response(
       jsonEncode(_status(id, 'open')),
@@ -59,7 +73,7 @@ Future<void> _pump(WidgetTester tester, List<String> filed) async {
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
-      mockApiOverride((request) async => _handle(request)),
+      mockApiOverride(_handle),
     ],
   );
   addTearDown(container.dispose);
@@ -119,6 +133,47 @@ void main() {
       tester.getTopLeft(find.text('No report found with that ID.')).dy,
       greaterThan(tester.getBottomLeft(field).dy),
     );
+  });
+
+  testWidgets('a report whose status failed to load can be retried', (
+    tester,
+  ) async {
+    _flaky = 0;
+    await _pump(tester, ['r-flaky']);
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+    await tester.pump();
+
+    expect(find.textContaining('check that report'), findsOneWidget);
+    await tester.tap(find.widgetWithText(AppButton, 'Retry'));
+    await tester.pump();
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+    await tester.pump();
+
+    expect(find.textContaining('check that report'), findsNothing);
+    expect(find.text('Still open. Filed just now.'), findsOneWidget);
+  });
+
+  testWidgets('submitting the id again while it is checked sends nothing', (
+    tester,
+  ) async {
+    _checks = 0;
+    _hold = Completer<http.Response>();
+    await _pump(tester, const []);
+
+    await tester.enterText(
+      find.byWidgetPredicate((w) => w is TextField),
+      'r-slow',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+    await tester.showKeyboard(find.byWidgetPredicate((w) => w is TextField));
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+
+    expect(_checks, 1);
+    _hold!.complete(http.Response('', 500));
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+    await tester.pump();
   });
 
   test('filedAgo buckets sit on their boundaries', () {

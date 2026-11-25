@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Bridges a voice call's lifecycle to iOS CallKit.
+/// Bridges a voice call's lifecycle to iOS CallKit and Android Telecom.
 ///
 /// A call joined from this app's own UI never reaches `CXProvider` unless
 /// something tells it to: `VoipCallHandler.swift`'s reporting only ever runs
@@ -30,20 +30,27 @@ import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 const _channelName = 'top.npcserver.slimm/call_lifecycle';
 
-/// A clean no-op everywhere but iOS: CallKit does not exist elsewhere, and
-/// Android's own incoming-call surface is [CallNotifications], not this.
+/// A clean no-op everywhere but iOS and Android. On Android the native side
+/// (`CallLifecycleBridge.kt`) keeps one self-managed Telecom call in step with
+/// the room, so another call knows slim-m is busy and can end it.
 class CallLifecycleChannel {
-  CallLifecycleChannel({MethodChannel? channel, bool? isIOS})
+  CallLifecycleChannel({MethodChannel? channel, bool? isIOS, bool? isAndroid})
       : _channel = channel ?? const MethodChannel(_channelName),
-        _isIOS = isIOS ?? isIOSHost {
-    // Guarded, or a non-iOS test needs a binary messenger just to construct this.
-    if (_isIOS) _calls = MethodChannelHub.of(_channel).calls.listen(_onCall);
+        _isIOS = isIOS ?? isIOSHost,
+        _isAndroid = isAndroid ?? isAndroidHost {
+    // Guarded, or a plain test needs a binary messenger just to construct this.
+    if (_native) _calls = MethodChannelHub.of(_channel).calls.listen(_onCall);
   }
 
   final MethodChannel _channel;
   final bool _isIOS;
+  final bool _isAndroid;
+
+  /// Both platforms report the call to the system; only iOS can read an audio session.
+  bool get _native => _isIOS || _isAndroid;
   final _endCalls = StreamController<void>.broadcast();
   final _systemEvents = StreamController<String>.broadcast();
+  final _muteRequests = StreamController<bool>.broadcast();
   StreamSubscription<MethodCall>? _calls;
   String? _reportedCallId;
 
@@ -58,10 +65,17 @@ class CallLifecycleChannel {
   /// diagnostics; see [describeCallSystemEvent]. Only records, never acts.
   Stream<String> get systemEvents => _systemEvents.stream;
 
+  /// The system call UI, AirPods or CarPlay asked to mute (true) or unmute (false) the call.
+  Stream<bool> get muteRequests => _muteRequests.stream;
+
   void _onCall(MethodCall call) {
     switch (call.method) {
       case 'endCall':
         if (!_endCalls.isClosed) _endCalls.add(null);
+      case 'muteRequest':
+        final args = call.arguments;
+        final muted = args is Map ? args['muted'] : null;
+        if (muted is bool && !_muteRequests.isClosed) _muteRequests.add(muted);
       case 'callEvent':
         final args = call.arguments;
         final line = args is Map ? describeCallSystemEvent(args) : null;
@@ -95,13 +109,15 @@ class CallLifecycleChannel {
   Future<void> callStarted({
     required String callId,
     required String displayName,
+    bool direct = false,
   }) async {
-    if (!_isIOS) return;
+    if (!_native) return;
     _reportedCallId = callId;
     try {
       await _channel.invokeMethod<void>('callStarted', {
         'callId': callId,
         'displayName': displayName,
+        'direct': direct,
       });
     } on PlatformException catch (error, stack) {
       AppLog.swallowed(
@@ -119,7 +135,7 @@ class CallLifecycleChannel {
   /// The room actually connected, following [callStarted].
   Future<void> callConnected() async {
     final callId = _reportedCallId;
-    if (!_isIOS || callId == null) return;
+    if (!_native || callId == null) return;
     try {
       await _channel.invokeMethod<void>('callConnected', {'callId': callId});
     } on PlatformException catch (error, stack) {
@@ -135,12 +151,26 @@ class CallLifecycleChannel {
     }
   }
 
+  /// The app muted or unmuted the microphone, so the system call UI agrees.
+  Future<void> callMuted({required bool muted}) async {
+    if (!_isIOS || _reportedCallId == null) return;
+    try {
+      await _channel.invokeMethod<void>('callMuted', {'muted': muted});
+    } on PlatformException catch (error, stack) {
+      AppLog.swallowed(LogTag.voice,
+          'The system call screen could not show the mute state', error, stack);
+    } on MissingPluginException catch (error, stack) {
+      AppLog.swallowed(LogTag.voice,
+          'Could not tell the system the call was muted', error, stack);
+    }
+  }
+
   /// The call this instance reported ended, from this side. Sends nothing
   /// when it reported none, and names the call so a stale end cannot close
   /// another account's call.
   Future<void> callEnded() async {
     final callId = _reportedCallId;
-    if (!_isIOS || callId == null) return;
+    if (!_native || callId == null) return;
     _reportedCallId = null;
     try {
       await _channel.invokeMethod<void>('callEnded', {'callId': callId});
@@ -161,5 +191,6 @@ class CallLifecycleChannel {
     unawaited(_calls?.cancel());
     unawaited(_endCalls.close());
     unawaited(_systemEvents.close());
+    unawaited(_muteRequests.close());
   }
 }

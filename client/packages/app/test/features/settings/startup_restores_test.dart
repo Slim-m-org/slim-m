@@ -167,6 +167,75 @@ void main() {
     });
   });
 
+  group('a resync while a call is live', () {
+    final inCall = StateProvider<bool>((ref) => true);
+
+    ProviderContainer wired(ProviderContainer parent) {
+      final container = ProviderContainer(
+        parent: parent,
+        overrides: [
+          voiceFlagsProvider.overrideWith(
+            (ref) => ref.watch(inCall)
+                ? const VoiceFlags(state: VoiceSessionState.connected)
+                : const VoiceFlags(),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      return container;
+    }
+
+    test('runs once the call ends instead of being dropped', () async {
+      final parent = _unreadable();
+      final container = wired(parent);
+      await resyncVoiceDevicePreferences(container);
+      expect(_recorded(parent), isEmpty);
+
+      container.read(inCall.notifier).state = false;
+      await pumpEventQueue();
+
+      expect(_failedRestores(parent), hasLength(11));
+    });
+
+    test('a switch to another channel is not the call ending', () async {
+      final flags = StateProvider<VoiceFlags>(
+        (ref) => const VoiceFlags(state: VoiceSessionState.connected),
+      );
+      final parent = _unreadable();
+      final container = ProviderContainer(
+        parent: parent,
+        overrides: [voiceFlagsProvider.overrideWith((ref) => ref.watch(flags))],
+      );
+      addTearDown(container.dispose);
+      await resyncVoiceDevicePreferences(container);
+
+      container.read(flags.notifier).state = const VoiceFlags(
+        channelId: 'next',
+        state: VoiceSessionState.connecting,
+        joining: true,
+      );
+      await pumpEventQueue();
+      expect(_recorded(parent), isEmpty);
+
+      container.read(flags.notifier).state = const VoiceFlags();
+      await pumpEventQueue();
+      expect(_failedRestores(parent), hasLength(11));
+    });
+
+    test('a second resync does not queue a second one', () async {
+      final parent = _unreadable();
+      final container = wired(parent);
+      await resyncVoiceDevicePreferences(container);
+      await resyncVoiceDevicePreferences(container);
+
+      container.read(inCall.notifier).state = false;
+      await pumpEventQueue();
+
+      expect(_failedRestores(parent), hasLength(11));
+      expect(_recorded(parent), hasLength(11));
+    });
+  });
+
   group('runStartupStep', () {
     test('a step that throws is recorded and does not escape', () async {
       final container = _wired(ProviderContainer());

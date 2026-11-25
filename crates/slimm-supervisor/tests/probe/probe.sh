@@ -54,5 +54,10 @@ if [ -n "$SLIMM_PROBE_FILL_MIB" ]; then
   sync
   echo "filled=$(du -sm /data | cut -f1)"
 fi
+if [ -n "$SLIMM_PROBE_SMALL_FILES" ]; then
+  i=0
+  while [ "$i" -lt "$SLIMM_PROBE_SMALL_FILES" ]; do echo x > "/data/small$i"; i=$((i + 1)); done
+  sync
+fi
 echo "probe=done"
 exec sleep "${SLIMM_PROBE_SLEEP:-3600}"

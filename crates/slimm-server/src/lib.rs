@@ -25,6 +25,7 @@ pub mod db;
 pub mod emoji;
 pub mod ephemeral;
 pub mod export;
+pub mod fd_limit;
 mod forward_backfill;
 mod forward_events;
 pub(crate) mod hidden_chars;
@@ -52,6 +53,7 @@ pub use presence::viewing;
 mod process_metrics;
 pub mod push;
 pub mod ratelimit;
+mod read_announce;
 pub mod room_cleanup;
 mod serve;
 mod sidecar_url;
@@ -71,7 +73,9 @@ pub use sweeps::{
     run_token_sweep_pass, run_transcript_retention_sweep_pass, sweep_stale_call_rings,
     sweep_stale_call_rings_at, sweep_stale_voice_calls, sweep_stale_voice_calls_at,
 };
-pub use voice_session_sweeps::{close_stale_sessions, reconcile_on_startup};
+pub use voice_session_sweeps::{
+    close_stale_sessions, reconcile_on_startup, reopen_deferred, retry_deferred_reopens,
+};
 
 use anyhow::Context as _;
 
@@ -139,6 +143,8 @@ async fn serve(config: config::Config, logging: &'static logging::Logging) -> an
     // Before the database is touched, so a misconfigured origin list is a
     // startup error and not a half-initialized deployment.
     let cors = cors::CorsPolicy::new(&config)?;
+    let fd_limit = fd_limit::raise();
+    log_fd_limit(fd_limit);
     let pool = db::connect(&config).await?;
 
     let store = store::Store::new(pool);
@@ -187,7 +193,6 @@ async fn serve(config: config::Config, logging: &'static logging::Logging) -> an
     let limiter = ratelimit::RateLimiter::with_proxy_trust(config.trust_proxy_hops, proxies);
     let push = push::PushSender::new(&config)?;
     let voice = voice::VoiceService::new(&config)?;
-    voice_session_sweeps::reconcile_on_startup(&store, &voice).await;
     sweeps::spawn_call_sweep(store.clone(), voice.clone(), hub.clone());
     voice_session_sweeps::spawn_retention_sweep(store.clone());
     sweeps::spawn_call_history_sweep(store.clone());
@@ -234,6 +239,7 @@ async fn serve(config: config::Config, logging: &'static logging::Logging) -> an
     }
     http::connector_host::spawn_monitor(state.clone());
     let _module_events = http::spawn_module_events(state.clone());
+    voice_session_sweeps::reconcile_on_startup(&state.store, &state.voice, &state.hub).await;
     let _call_audio = call_audio::runtime::spawn(state.clone());
     http::spawn_voice_access_watch(state.clone());
     voice_transcripts::spawn_voice_transcript_sweep(state.clone());
@@ -261,8 +267,29 @@ async fn serve(config: config::Config, logging: &'static logging::Logging) -> an
         .with_context(|| format!("binding to {addr}"))?;
     tracing::info!(%addr, version = env!("CARGO_PKG_VERSION"), "slim-m server listening");
 
-    serve::serve(listener, app, shutdown_signal()).await?;
+    let max_connections = fd_limit.map_or(serve::MAX_CONNECTIONS, |limit| {
+        limit.connection_cap(serve::MAX_CONNECTIONS)
+    });
+    serve::serve(listener, app, shutdown_signal(), max_connections).await?;
     Ok(())
+}
+
+fn log_fd_limit(limit: Option<fd_limit::FdLimit>) {
+    let Some(limit) = limit else {
+        return;
+    };
+    tracing::info!(
+        inherited = limit.inherited,
+        soft = limit.soft,
+        hard = limit.hard,
+        "open file limit"
+    );
+    if limit.connection_cap(hub::MAX_CONNECTIONS) < hub::MAX_CONNECTIONS {
+        tracing::warn!(
+            soft = limit.soft,
+            "the open file limit is too low for the live connection cap; raise the container's nofile ulimit"
+        );
+    }
 }
 
 /// Imports a directory of images as custom emoji, printing a line per file.

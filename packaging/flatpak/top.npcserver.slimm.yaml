@@ -10,8 +10,7 @@
 #
 # The app id, desktop file and icons are the same ones the rpm installs
 # (top.npcserver.slimm everywhere), on purpose: two different ids for one app
-# would split its icon cache entry, its notification grouping and its
-# eventual Secret Service keyring namespace for no reason.
+# would split its icon cache entry and its notification grouping for no reason.
 #
 # Verification status (packaging/flatpak/README.md has the full account):
 # built successfully with `org.flatpak.Builder` against a real
@@ -59,8 +58,10 @@ finish-args:
   # Raw /dev/video* for the webcam: flutter_webrtc's V4L2 capturer, not a portal (same as Element's manifest).
   - --device=all
   - --share=network
-  # flutter_secure_storage's Linux plugin is libsecret, talking to the Secret Service D-Bus name directly.
-  - --talk-name=org.freedesktop.secrets
+  # The session bus proxy hides every name not listed: these three are what rich presence and automatic away read.
+  - --talk-name=org.mpris.MediaPlayer2.*
+  - --talk-name=org.freedesktop.ScreenSaver
+  - --talk-name=org.gnome.Mutter.IdleMonitor
   # Belt-and-suspenders PipeWire socket access alongside the ScreenCast portal (again matches Element).
   - --filesystem=xdg-run/pipewire-0
   # tray_manager registers a StatusNotifierItem; this is the watcher every desktop implements (Vesktop's grant).
@@ -154,6 +155,7 @@ modules:
       - for so in /app/slim-m/lib/*.so; do patchelf-bin/bin/patchelf --set-rpath '$ORIGIN' "$so"; done
       - chmod 0755 /app/slim-m/lib/*.so
       - ln -s ../slim-m/slimm_app /app/bin/slim-m
+      - install -Dm644 top.npcserver.slimm.metainfo.xml /app/share/metainfo/top.npcserver.slimm.metainfo.xml
       - install -Dm644 top.npcserver.slimm.desktop /app/share/applications/top.npcserver.slimm.desktop
       - install -Dm644 top.npcserver.slimm-16.png /app/share/icons/hicolor/16x16/apps/top.npcserver.slimm.png
       - install -Dm644 top.npcserver.slimm-22.png /app/share/icons/hicolor/22x22/apps/top.npcserver.slimm.png
@@ -181,6 +183,8 @@ modules:
           - x86_64
       - type: file
         path: ../rpm/top.npcserver.slimm.desktop
+      - type: file
+        path: top.npcserver.slimm.metainfo.xml
       - type: file
         path: ../linux/icons/top.npcserver.slimm-16.png
       - type: file

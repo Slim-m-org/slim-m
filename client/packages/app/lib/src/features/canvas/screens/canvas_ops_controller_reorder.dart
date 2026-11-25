@@ -118,7 +118,7 @@ extension CanvasOpsControllerReorder on CanvasOpsController {
         document.refresh();
       }
       _settleUnknownOutcome(error);
-      onError('That could not be $verb.');
+      _reportHistoryFailure(error, 'That could not be $verb.');
       return null;
     }
   }

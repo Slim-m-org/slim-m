@@ -19,6 +19,7 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_local_notifications: ^19.5.0
+  flutter_local_notifications_linux: ^6.0.0
   flutter_secure_storage: ^10.3.1
   # Biometrics with passcode fallback; android, ios, macos and windows only (docs/dependencies.md).
   local_auth: ^3.0.1

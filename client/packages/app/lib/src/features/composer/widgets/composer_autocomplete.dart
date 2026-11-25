@@ -18,8 +18,9 @@ import 'composer_autocomplete_items.dart';
 import '../../emoji/widgets/custom_emoji_image.dart';
 import '../../members/widgets/user_avatar.dart';
 
-/// Room for [maxAutocompleteRows] rows; a longer pick list scrolls.
-const double _maxListHeight = AppSizes.controlMd * maxAutocompleteRows;
+/// A row's height, at the density of whatever input is in use.
+double _rowHeight(BuildContext context) =>
+    AppTouchTargets.of(context) ? AppSizes.rowTouch : AppSizes.controlMd;
 
 class ComposerAutocomplete extends StatelessWidget {
   const ComposerAutocomplete({
@@ -54,7 +55,10 @@ class ComposerAutocomplete extends StatelessWidget {
         ),
         padding: const EdgeInsets.all(6),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxHeight: _maxListHeight),
+          // Room for maxAutocompleteRows rows; a longer pick list scrolls.
+          constraints: BoxConstraints(
+            maxHeight: _rowHeight(context) * maxAutocompleteRows,
+          ),
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -162,7 +166,7 @@ class _RowState extends State<_Row> {
         child: GestureDetector(
           onTap: onTap,
           child: Container(
-            height: AppSizes.controlMd,
+            height: _rowHeight(context),
             padding: const EdgeInsets.symmetric(horizontal: 8),
             decoration: BoxDecoration(
               // A fill, not a ring: focus never leaves the text field.

@@ -19,6 +19,7 @@ import 'package:shared_preferences_platform_interface/types.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 const _defaultPrefix = 'flutter.';
+const _readAttempts = 3;
 
 /// How a read of the preferences file went.
 enum PreferencesReadOutcome { restoredFromBackup, unrecoverable }
@@ -35,13 +36,19 @@ class AtomicPreferencesStore extends SharedPreferencesStorePlatform {
     Future<Directory> Function()? directory,
     this.fileName = 'shared_preferences',
     PreferencesReadReport? onRead,
+    Future<List<int>> Function(File file)? readBytes,
+    this.retryDelay = const Duration(milliseconds: 75),
   }) : _directory = directory ?? getApplicationSupportDirectory,
-       _onRead = onRead ?? _logRead;
+       _onRead = onRead ?? _logRead,
+       _readBytes = readBytes ?? ((file) => file.readAsBytes());
 
   final Future<Directory> Function() _directory;
   final String fileName;
   final PreferencesReadReport _onRead;
+  final Future<List<int>> Function(File file) _readBytes;
+  final Duration retryDelay;
   Future<void> _queue = Future.value();
+  final _pending = <_PendingChange>[];
 
   Future<File> _file(String suffix) async {
     final dir = await _directory();
@@ -103,71 +110,109 @@ class AtomicPreferencesStore extends SharedPreferencesStorePlatform {
   }
 
   Future<bool> _change(void Function(Map<String, Object> all) edit) {
-    final done = _queue.then((_) async {
-      try {
-        final all = await _read();
-        edit(all);
-        await _write(all);
-        return true;
-      } on Object catch (error, stack) {
-        AppLog.warning(
-          LogTag.data,
-          'Could not save preferences',
-          error: error,
-          stack: stack,
-        );
-        return false;
-      }
-    });
-    _queue = done.then((_) {});
-    return done;
+    final change = _PendingChange(edit);
+    _pending.add(change);
+    _queue = _queue.then((_) => _flush());
+    return change.done.future;
   }
 
-  Future<Map<String, Object>> _read() async {
-    final main = await _decode(await _file(''));
-    if (main != null) return main;
-    final backup = await _decode(await _file('.bak'));
-    final mainExists = await (await _file('')).exists();
-    if (backup != null) {
-      _onRead(PreferencesReadOutcome.restoredFromBackup);
-      return backup;
-    }
-    if (mainExists) _onRead(PreferencesReadOutcome.unrecoverable);
-    return {};
-  }
-
-  /// The file's map, or null when it is missing, empty or does not parse.
-  Future<Map<String, Object>?> _decode(File file) async {
+  /// Applies every change queued so far with one read and one write.
+  Future<void> _flush() async {
+    if (_pending.isEmpty) return;
+    final batch = List.of(_pending);
+    _pending.clear();
     try {
-      final text = await file.readAsString();
-      if (text.isEmpty) return null;
-      final data = json.decode(text);
-      if (data is! Map) return null;
-      return data.cast<String, Object>();
+      final snapshot = await _load();
+      for (final change in batch) {
+        change.edit(snapshot.all);
+      }
+      await _write(snapshot);
+      for (final change in batch) {
+        change.done.complete(true);
+      }
     } on Object catch (error, stack) {
+      AppLog.warning(
+        LogTag.data,
+        'Could not save preferences',
+        error: error,
+        stack: stack,
+      );
+      for (final change in batch) {
+        change.done.complete(false);
+      }
+    }
+  }
+
+  Future<Map<String, Object>> _read() async => (await _load()).all;
+
+  Future<_Snapshot> _load() async {
+    final main = await _decode(await _file(''));
+    if (main.all != null) return _Snapshot(main.all!, main.bytes);
+    final backup = await _decode(await _file('.bak'));
+    if (backup.all != null) {
+      _onRead(PreferencesReadOutcome.restoredFromBackup);
+      return _Snapshot(backup.all!, null);
+    }
+    if (main.exists) _onRead(PreferencesReadOutcome.unrecoverable);
+    return _Snapshot({}, null);
+  }
+
+  /// A missing, empty, unparsable or non-map file reads as corrupt; any other
+  /// failure to read it propagates so a transient I/O error never costs settings.
+  Future<_Decoded> _decode(File file) async {
+    final List<int> bytes;
+    try {
+      bytes = await _readWithRetry(file);
+    } on PathNotFoundException {
+      return const _Decoded(null, null, exists: false);
+    }
+    try {
+      final data = bytes.isEmpty ? null : json.decode(utf8.decode(bytes));
+      if (data is Map) {
+        return _Decoded(data.cast<String, Object>(), bytes, exists: true);
+      }
+    } on FormatException catch (error, stack) {
       AppLog.swallowed(
         LogTag.data,
-        'A settings file could not be read; its backup is tried next',
+        'A settings file could not be parsed; its backup is tried next',
         error,
         stack,
       );
-      return null;
+    }
+    return const _Decoded(null, null, exists: true);
+  }
+
+  /// A sharing violation from antivirus or an indexer clears within moments.
+  Future<List<int>> _readWithRetry(File file) async {
+    for (var attempt = 1; ; attempt++) {
+      try {
+        return await _readBytes(file);
+      } on PathNotFoundException {
+        rethrow;
+      } on FileSystemException {
+        if (attempt >= _readAttempts) rethrow;
+        await Future<void>.delayed(retryDelay);
+      }
     }
   }
 
-  Future<void> _write(Map<String, Object> all) async {
+  Future<void> _write(_Snapshot snapshot) async {
     final file = await _file('');
     await file.parent.create(recursive: true);
-    if (await _decode(file) != null) {
-      await _replace(await _file('.bak'), await file.readAsBytes());
-    }
-    await _replace(file, utf8.encode(json.encode(all)));
+    final previous = snapshot.mainBytes;
+    if (previous != null) await _replace(await _file('.bak'), previous);
+    await _replace(file, utf8.encode(json.encode(snapshot.all)));
   }
 
   Future<void> _replace(File target, List<int> bytes) async {
     final temp = File('${target.path}.tmp.$pid');
-    await temp.writeAsBytes(bytes, flush: true);
-    await temp.rename(target.path);
+    try {
+      await temp.writeAsBytes(bytes, flush: true);
+      await temp.rename(target.path);
+    } on Object {
+      await temp.delete().catchError((Object _) => temp);
+      rethrow;
+    }
   }
 
   static void _logRead(PreferencesReadOutcome outcome) {
@@ -176,4 +221,28 @@ class AtomicPreferencesStore extends SharedPreferencesStorePlatform {
         : 'Preferences file was unreadable and no backup could be used; settings reset';
     AppLog.warning(LogTag.data, what);
   }
+}
+
+class _PendingChange {
+  _PendingChange(this.edit);
+
+  final void Function(Map<String, Object> all) edit;
+  final done = Completer<bool>();
+}
+
+class _Snapshot {
+  _Snapshot(this.all, this.mainBytes);
+
+  final Map<String, Object> all;
+
+  /// The main file as read, kept as the next backup; null when it was not good.
+  final List<int>? mainBytes;
+}
+
+class _Decoded {
+  const _Decoded(this.all, this.bytes, {required this.exists});
+
+  final Map<String, Object>? all;
+  final List<int>? bytes;
+  final bool exists;
 }

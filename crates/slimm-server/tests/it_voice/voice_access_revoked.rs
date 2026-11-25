@@ -19,19 +19,19 @@ use support::wait::wait_until;
 const SFU_KEY: &str = "key";
 const SFU_SECRET: &str = "a-secret-at-least-32-chars-long!";
 
-struct Call {
-    recorder: RecordingRoomService,
-    router: Router,
-    state: AppState,
-    admin: Account,
-    member: Account,
-    channel: String,
+pub(crate) struct Call {
+    pub(crate) recorder: RecordingRoomService,
+    pub(crate) router: Router,
+    pub(crate) state: AppState,
+    pub(crate) admin: Account,
+    pub(crate) member: Account,
+    pub(crate) channel: String,
     _db: support::TestDbGuard,
 }
 
 impl Call {
     /// An admin and a member, both on a voice channel's call.
-    async fn start(watch: bool) -> Self {
+    pub(crate) async fn start(watch: bool) -> Self {
         let recorder = RecordingRoomService::default();
         let url = spawn_sfu(recorder.clone()).await;
         let (store, db) = support::new_store("slimm-voice-access-revoked").await;
@@ -68,17 +68,17 @@ impl Call {
         call
     }
 
-    async fn heartbeat(&self, token: &str) -> StatusCode {
+    pub(crate) async fn heartbeat(&self, token: &str) -> StatusCode {
         let uri = format!("/channels/{}/voice/heartbeat", self.channel);
         call_as(&self.router, "POST", &uri, token, None).await.0
     }
 
-    async fn admin(&self, method: &str, uri: &str, body: Option<Value>) {
+    pub(crate) async fn admin(&self, method: &str, uri: &str, body: Option<Value>) {
         let (status, body) = call_as(&self.router, method, uri, &self.admin.token, body).await;
         assert!(status.is_success(), "{method} {uri}: {status} {body}");
     }
 
-    async fn overwrite(
+    pub(crate) async fn overwrite(
         &self,
         kind: &str,
         id: impl std::fmt::Display,
@@ -91,7 +91,7 @@ impl Call {
     }
 
     /// The SFU reporting that `user` joined the call's room.
-    async fn sfu_reports_join(&self, user: UserId) {
+    pub(crate) async fn sfu_reports_join(&self, user: UserId) {
         use tower::ServiceExt;
         let body = json!({
             "event": "participant_joined",
@@ -103,7 +103,7 @@ impl Call {
         assert_eq!(response.status(), StatusCode::NO_CONTENT);
     }
 
-    fn removed(&self, user: UserId) -> bool {
+    pub(crate) fn removed(&self, user: UserId) -> bool {
         let room = format!("channel-{}", self.channel);
         self.recorder
             .removed
@@ -113,7 +113,7 @@ impl Call {
             .any(|c| c["room"] == room.as_str() && c["identity"] == user.to_string().as_str())
     }
 
-    fn in_call(&self, user: UserId) -> bool {
+    pub(crate) fn in_call(&self, user: UserId) -> bool {
         self.state
             .voice
             .has_heartbeat(user, ChannelId(self.channel.parse().unwrap()))

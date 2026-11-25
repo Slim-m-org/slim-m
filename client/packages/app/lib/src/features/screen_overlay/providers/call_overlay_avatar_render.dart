@@ -28,6 +28,14 @@ Future<Uint8List> renderOverlayAvatar({
   Uint8List? picture,
 }) async {
   final photo = picture == null ? null : await _decode(picture);
+  try {
+    return await _bake(photo, name, tintKey);
+  } finally {
+    photo?.dispose();
+  }
+}
+
+Future<Uint8List> _bake(ui.Image? photo, String name, String tintKey) async {
   const side = callOverlayAvatarEdge * 1.0;
   final recorder = ui.PictureRecorder();
   final canvas = ui.Canvas(recorder)
@@ -52,9 +60,12 @@ Future<Uint8List> renderOverlayAvatar({
   } finally {
     recorded.dispose();
   }
-  final png = await baked.toByteData(format: ui.ImageByteFormat.png);
-  baked.dispose();
-  photo?.dispose();
+  final ByteData? png;
+  try {
+    png = await baked.toByteData(format: ui.ImageByteFormat.png);
+  } finally {
+    baked.dispose();
+  }
   if (png == null) throw StateError('The overlay avatar did not encode.');
   return png.buffer.asUint8List();
 }

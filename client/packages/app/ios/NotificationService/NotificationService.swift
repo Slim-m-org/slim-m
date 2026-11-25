@@ -25,6 +25,7 @@ final class NotificationService: UNNotificationServiceExtension {
   /// `internal/apns/apns.go`.
   private static let payloadKey = "payload"
 
+  private let handlerLock = NSLock()
   private var contentHandler: ((UNNotificationContent) -> Void)?
   private var placeholder: UNNotificationContent?
 
@@ -44,7 +45,9 @@ final class NotificationService: UNNotificationServiceExtension {
     _ request: UNNotificationRequest,
     withContentHandler contentHandler: @escaping (UNNotificationContent) -> Void
   ) {
+    handlerLock.lock()
     self.contentHandler = contentHandler
+    handlerLock.unlock()
     placeholder = request.content
 
     // Answered on this call rather than asynchronously: a keychain read,
@@ -69,9 +72,16 @@ final class NotificationService: UNNotificationServiceExtension {
   /// later `serviceExtensionTimeWillExpire` a no-op rather than a second
   /// call.
   private func deliver(_ content: UNNotificationContent) {
-    guard let handler = contentHandler else { return }
-    contentHandler = nil
+    guard let handler = takeHandler() else { return }
     handler(content)
+  }
+
+  private func takeHandler() -> ((UNNotificationContent) -> Void)? {
+    handlerLock.lock()
+    defer { handlerLock.unlock() }
+    let handler = contentHandler
+    contentHandler = nil
+    return handler
   }
 
   /// Nil for anything at all that stops this envelope being readable: no

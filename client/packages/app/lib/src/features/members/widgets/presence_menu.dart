@@ -156,27 +156,25 @@ class _PresenceMenuButtonState extends ConsumerState<PresenceMenuButton> {
       builder: (context, open) =>
           // A 28pt avatar is well under the touch minimum, so the tap area is
           // grown around it rather than the glyph being grown to match.
-          Semantics(
-            button: true,
-            label: 'Change your status',
-            onTap: open,
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTapDown: (_) => setState(() => _pressed = true),
-              onTapUp: (_) => setState(() => _pressed = false),
-              onTapCancel: () => setState(() => _pressed = false),
-              onTap: () {
-                AppHaptics.selection();
-                open();
-              },
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(
-                  minWidth: AppSizes.rowTouch,
-                  minHeight: AppSizes.rowTouch,
-                ),
-                // heightFactor: a bare Center fills any bounded height, which stretched the whole footer row and sent the menu off the top.
-                child: Center(
-                  heightFactor: 1,
+          ConstrainedBox(
+            constraints: const BoxConstraints(
+              minWidth: AppSizes.rowTouch,
+              minHeight: AppSizes.rowTouch,
+            ),
+            // heightFactor: a bare Center fills any bounded height, which stretched the whole footer row and sent the menu off the top.
+            child: Center(
+              heightFactor: 1,
+              child: FocusableTapTarget(
+                semanticLabel: 'Change your status',
+                ringRadius: AppRadii.full,
+                onTap: () {
+                  AppHaptics.selection();
+                  open();
+                },
+                builder: (context, focused, hovered) => Listener(
+                  onPointerDown: (_) => setState(() => _pressed = true),
+                  onPointerUp: (_) => setState(() => _pressed = false),
+                  onPointerCancel: (_) => setState(() => _pressed = false),
                   child: AnimatedScale(
                     scale: _pressed ? AppMotion.pressScale : 1,
                     duration: AppMotion.reduced(context, AppMotion.fast),

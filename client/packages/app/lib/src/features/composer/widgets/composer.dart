@@ -65,6 +65,7 @@ class Composer extends ConsumerStatefulWidget {
     this.onCommandPosted,
     this.clipboardPasteStart = startClipboardImagePaste,
     this.clipboardPasteStop = stopClipboardImagePaste,
+    this.clipboardFilePasteStart = startClipboardFilePaste,
   });
 
   final TextEditingController controller;
@@ -96,6 +97,10 @@ class Composer extends ConsumerStatefulWidget {
   /// doc for the race this closes.
   final void Function(PastedImageHandler onImage) clipboardPasteStop;
 
+  /// Also takes every pasted file, not just an image, on the web.
+  final void Function(PastedImageHandler onImage, PastedFilesHandler onFiles)
+  clipboardFilePasteStart;
+
   @override
   ConsumerState<Composer> createState() => _ComposerState();
 }
@@ -117,6 +122,7 @@ class _ComposerState extends ConsumerState<Composer> {
         _actions.stageAttachment,
         _setAttachmentError,
         textWins: true,
+        stageFile: _actions.stageFile,
       ),
     ),
     onEditLast: () =>
@@ -251,6 +257,10 @@ class _ComposerState extends ConsumerState<Composer> {
       // Tapping the field is how a phone gets its keyboard back from the photo strip.
       ref.read(photoStripOpenProvider(widget.channelId).notifier).state = false;
       widget.clipboardPasteStart(_actions.handlePastedImage);
+      widget.clipboardFilePasteStart(
+        _actions.handlePastedImage,
+        _actions.handlePastedFiles,
+      );
     } else {
       widget.clipboardPasteStop(_actions.handlePastedImage);
     }
@@ -489,7 +499,7 @@ class _ComposerState extends ConsumerState<Composer> {
               charCount: _stats.charCount,
               stageFile: _actions.stageFile,
               onBrowse: () => unawaited(
-                _actions.pickAttachment(AttachmentSource.photoLibrary),
+                _actions.pickAttachment(AttachmentSource.mediaLibrary),
               ),
             ),
           ],

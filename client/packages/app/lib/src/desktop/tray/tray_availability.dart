@@ -18,3 +18,18 @@ Future<bool> Function() trayAvailabilityCheck({
   if (platform != DesktopPlatform.linux) return true;
   return probe.isHostRegistered();
 };
+
+/// Polls [check] every [interval] until it holds or [timeout] passes, and
+/// answers the last result; a login launch can start before the tray host.
+Future<bool> waitForTray(
+  Future<bool> Function() check, {
+  required Duration timeout,
+  required Duration interval,
+}) async {
+  final deadline = DateTime.now().add(timeout);
+  while (!await check()) {
+    if (!DateTime.now().add(interval).isBefore(deadline)) return false;
+    await Future<void>.delayed(interval);
+  }
+  return true;
+}

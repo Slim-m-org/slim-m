@@ -24,6 +24,22 @@ void main() {
       );
     });
 
+    test('an empty or relative XDG_CONFIG_HOME counts as unset', () {
+      for (final value in ['', 'cfg', './cfg']) {
+        expect(
+          XdgAutostart.entryFor({'HOME': '/home/a', 'XDG_CONFIG_HOME': value})
+              .path,
+          '/home/a/.config/autostart/top.npcserver.slimm.desktop',
+          reason: 'XDG_CONFIG_HOME="$value"',
+        );
+      }
+    });
+
+    test('the entry waits for the panel so the tray host is up', () {
+      expect(XdgAutostart.desktopEntry('/x'),
+          contains('X-KDE-autostart-after=panel\n'));
+    });
+
     test('the entry launches the quoted executable with the login flag', () {
       final entry = XdgAutostart.desktopEntry('/opt/slim m/slimm_app');
       expect(entry, startsWith('[Desktop Entry]\n'));
@@ -109,6 +125,58 @@ void main() {
           await WindowsRunKeyAutostart(executable: 'x', run: missing)
               .isEnabled(),
           isFalse);
+    });
+  });
+
+  group('Windows Task Manager state', () {
+    const approved =
+        r'HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run';
+    ProcessResult output(String hex) => ProcessResult(
+        1, 0, '\r\n$approved\r\n    slim-m    REG_BINARY    $hex\r\n', '');
+
+    Future<ProcessResult> Function(String, List<String>) regWith(
+        {String? flag, List<List<String>>? calls}) {
+      return (cmd, args) async {
+        calls?.add(args);
+        if (args.first == 'query' && args[1] == approved) {
+          return flag == null ? ProcessResult(1, 1, '', '') : output(flag);
+        }
+        return ProcessResult(1, 0, '', '');
+      };
+    }
+
+    test('an entry Task Manager turned off reads as off', () async {
+      final off = WindowsRunKeyAutostart(
+          executable: 'x', run: regWith(flag: '030000000000000000000000'));
+      expect(await off.isEnabled(), isFalse);
+    });
+
+    test('an entry Task Manager left on, or never touched, reads as on',
+        () async {
+      final on = WindowsRunKeyAutostart(
+          executable: 'x', run: regWith(flag: '020000000000000000000000'));
+      expect(await on.isEnabled(), isTrue);
+      expect(
+          await WindowsRunKeyAutostart(executable: 'x', run: regWith())
+              .isEnabled(),
+          isTrue);
+    });
+
+    test('turning it on clears the disabled flag', () async {
+      final calls = <List<String>>[];
+      await WindowsRunKeyAutostart(executable: 'x', run: regWith(calls: calls))
+          .setEnabled(true);
+      expect(calls.where((c) => c.first == 'delete' && c[1] == approved),
+          hasLength(1));
+    });
+
+    test('repair never re-enables an entry Task Manager turned off', () async {
+      final calls = <List<String>>[];
+      await WindowsRunKeyAutostart(
+              executable: r'C:\new.exe',
+              run: regWith(flag: '030000000000000000000000', calls: calls))
+          .repair();
+      expect(calls.map((c) => c.first), isNot(contains('add')));
     });
   });
 
@@ -267,14 +335,15 @@ void main() {
 
       await WindowsRunKeyAutostart(executable: r'C:\r\slim-m.exe', run: reg)
           .repair();
-      expect(calls.last.first, 'add');
-      expect(calls.last, contains(r'"C:\r\slim-m.exe" --autostart'));
+      expect(calls.any((c) => c.first == 'add'), isTrue);
+      expect(calls.firstWhere((c) => c.first == 'add'),
+          contains(r'"C:\r\slim-m.exe" --autostart'));
 
       calls.clear();
       await WindowsRunKeyAutostart(
               executable: r'C:\r\app-0.1.0\slimm_app.exe', run: reg)
           .repair();
-      expect(calls.map((c) => c.first), ['query']);
+      expect(calls.map((c) => c.first), isNot(contains('add')));
     });
 
     test('the run key is left alone when off', () async {

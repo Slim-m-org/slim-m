@@ -39,9 +39,16 @@
 /// mocking the channel stands in for the platform side on every target.
 library;
 
+import 'dart:async';
+import 'dart:io';
+
+import 'package:desktop_drop/desktop_drop.dart' show DropItem;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
+
+import 'file_source_io.dart';
+import 'staged_attachment_model.dart';
 
 /// Whether a Ctrl+V keystroke should ask the image clipboard itself, rather
 /// than waiting to be handed an image by [startClipboardImagePaste].
@@ -68,6 +75,9 @@ const MethodChannel _clipboardImageChannel = MethodChannel(
 /// typedef for why a real race made that check necessary.
 typedef PastedImageHandler = void Function(Uint8List bytes, String filename);
 
+/// Every pasted file, as on web; nothing here ever delivers one.
+typedef PastedFilesHandler = void Function(List<DropItem> files);
+
 /// Newest last, as on web: a caller that stops hands the paste back to the one it started over.
 final _handlers = <PastedImageHandler>[];
 
@@ -81,12 +91,38 @@ void startClipboardImagePaste(PastedImageHandler onImage) {
     ..removeWhere((h) => h == onImage)
     ..add(onImage);
   _clipboardImageChannel.setMethodCallHandler(_handlePastedImageCall);
+  _setNativePasteActive(true);
 }
+
+/// Only the browser hands over pasted files, so this does nothing here.
+void startClipboardFilePaste(
+  PastedImageHandler onImage,
+  PastedFilesHandler onFiles,
+) {}
 
 /// Stops [onImage]'s turn without touching any other caller's registration.
 void stopClipboardImagePaste(PastedImageHandler onImage) {
   _handlers.removeWhere((h) => h == onImage);
-  if (_handlers.isEmpty) _clipboardImageChannel.setMethodCallHandler(null);
+  if (_handlers.isEmpty) {
+    _clipboardImageChannel.setMethodCallHandler(null);
+    _setNativePasteActive(false);
+  }
+}
+
+/// Tells the iOS swizzle whether an image paste has an owner, so every other field keeps the stock paste.
+void _setNativePasteActive(bool active) {
+  unawaited(
+    _clipboardImageChannel
+        .invokeMethod<void>('setImagePasteActive', active)
+        .catchError((Object error, StackTrace stack) {
+          AppLog.swallowed(
+            LogTag.media,
+            'Could not tell the platform whether image paste is active',
+            error,
+            stack,
+          );
+        }),
+  );
 }
 
 Future<void> _handlePastedImageCall(MethodCall call) async {
@@ -96,6 +132,9 @@ Future<void> _handlePastedImageCall(MethodCall call) async {
     _handlers.last(bytes, 'pasted-image.png');
   }
 }
+
+/// Whether a tapped "Paste image" is worth offering: here, whenever the clipboard holds an image.
+Future<bool> canPasteImageOnTap() => hasClipboardImage();
 
 /// Thrown by [readClipboardImage] when the clipboard holds an image but the
 /// platform could not read it - on Android, most often a `content://` URI
@@ -150,4 +189,42 @@ Future<Uint8List?> readClipboardImage() async {
       e.message ?? 'The clipboard image could not be read.',
     );
   }
+}
+
+/// Files an app such as Explorer put on the clipboard, with folders left out
+/// and [hadFolder] set when one was.
+///
+/// Only Windows has a file list to read here; every other platform answers an
+/// empty one, so a Ctrl+V there falls through to the image and text routes.
+Future<({List<FileSource> files, bool hadFolder})> readClipboardFiles() async {
+  const none = (files: <FileSource>[], hadFolder: false);
+  if (defaultTargetPlatform != TargetPlatform.windows) return none;
+  final List<Object?>? paths;
+  try {
+    paths = await _clipboardImageChannel.invokeListMethod<Object?>('readFiles');
+  } on MissingPluginException catch (error, stack) {
+    AppLog.swallowed(
+      LogTag.media,
+      'Could not read files from the clipboard',
+      error,
+      stack,
+    );
+    return none;
+  } on PlatformException catch (e) {
+    throw ClipboardImageReadException(
+      e.message ?? 'The clipboard files could not be read.',
+    );
+  }
+  final files = <FileSource>[];
+  var hadFolder = false;
+  for (final path in paths?.whereType<String>() ?? const <String>[]) {
+    if (FileSystemEntity.isDirectorySync(path)) {
+      hadFolder = true;
+      continue;
+    }
+    files.add(
+      fileSourceOf(File(path), name: path.split(RegExp(r'[\\/]')).last),
+    );
+  }
+  return (files: files, hadFolder: hadFolder);
 }

@@ -24,6 +24,7 @@ if ($login -and $login.ToLowerInvariant().Contains($root.ToLowerInvariant() + '\
 foreach ($key in @(
     'HKCU:\Software\Classes\slimm',
     'HKCU:\Software\Classes\AppUserModelId\top.npcserver.slimm',
+    'HKCU:\Software\Classes\CLSID\{6F1D2B5E-3C0A-4E7B-9A52-5D8E1C4B7A31}',
     'HKCU:\Software\Microsoft\Windows\CurrentVersion\Notifications\Settings\top.npcserver.slimm')) {
   if (Test-Path $key) { Remove-Item -Recurse -Force $key }
 }

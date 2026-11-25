@@ -247,9 +247,9 @@ fn apply(state: &AppState, event: WebhookEvent) -> Option<Presence> {
         "participant_joined" => {
             // Recorded even when not a new transition: a duplicate is harmless to the history, a missed join is not.
             record(state, channel_id, user_id, VoiceEventKind::Joined);
-            let present_before =
-                live_state.present_before(channel_id, event.participant_joined_at_ms());
-            if live_state.mark_joined(channel_id, user_id, sid) {
+            let joined_at_ms = event.participant_joined_at_ms();
+            let present_before = live_state.present_before(channel_id, joined_at_ms);
+            if live_state.mark_joined(channel_id, user_id, sid, joined_at_ms) {
                 super::voice_notice::announce_join(state, channel_id, user_id, present_before);
                 presence = Some((channel_id, user_id, true));
                 state.hub.publish(Event::VoiceParticipantJoined {
@@ -300,9 +300,7 @@ fn nudge_if_microphone(state: &AppState, channel_id: ChannelId, event: &WebhookE
         .as_ref()
         .is_some_and(|track| track.source.eq_ignore_ascii_case("MICROPHONE"));
     if is_microphone {
-        state
-            .hub
-            .publish(Event::VoiceActivityChanged { channel_id });
+        state.hub.nudge_voice_roster(channel_id);
     }
 }
 

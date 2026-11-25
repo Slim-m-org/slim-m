@@ -5,6 +5,7 @@ library;
 
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 /// Raised when an upload was cancelled through its [UploadCancelToken].
 class UploadCancelled implements Exception {
@@ -48,6 +49,7 @@ class UploadSource {
 
   StreamIterator<List<int>>? _iterator;
   List<int> _pending = const [];
+  int _pendingAt = 0;
   int _position = 0;
 
   /// Exactly [length] bytes starting at [offset].
@@ -74,6 +76,7 @@ class UploadSource {
     final iterator = _iterator;
     _iterator = null;
     _pending = const [];
+    _pendingAt = 0;
     await iterator?.cancel();
   }
 
@@ -95,18 +98,25 @@ class UploadSource {
   }
 
   Future<List<int>> _take(int most) async {
-    while (_pending.isEmpty) {
+    while (_pendingAt >= _pending.length) {
       final iterator = _iterator;
       if (iterator == null || !await iterator.moveNext()) {
         throw StateError('the file ended before its declared size');
       }
       _pending = iterator.current;
+      _pendingAt = 0;
     }
-    final count = math.min(most, _pending.length);
-    final chunk =
-        count == _pending.length ? _pending : _pending.sublist(0, count);
-    _pending = count == _pending.length ? const [] : _pending.sublist(count);
+    final count = math.min(most, _pending.length - _pendingAt);
+    final chunk = _view(_pending, _pendingAt, _pendingAt + count);
+    _pendingAt += count;
     _position += count;
     return chunk;
+  }
+
+  /// A window onto [bytes] that copies nothing when they are typed data.
+  static List<int> _view(List<int> bytes, int start, int end) {
+    if (start == 0 && end == bytes.length) return bytes;
+    if (bytes is Uint8List) return Uint8List.sublistView(bytes, start, end);
+    return bytes.sublist(start, end);
   }
 }

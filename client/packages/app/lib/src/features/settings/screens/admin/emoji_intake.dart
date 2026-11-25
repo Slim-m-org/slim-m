@@ -9,6 +9,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'emoji_bulk_plan.dart';
 import 'package:slimm_api/api.dart' show LogTag, reportFailure;
+import '../../../../picker_extensions.dart';
+import '../../../../widgets/dropped_item_kind.dart';
 
 /// One file handed to the emoji card, before it is known to be an image or a zip.
 class EmojiPick {
@@ -30,7 +32,10 @@ final emojiFilesPickerProvider = Provider<EmojiFilesPicker>(
 Future<List<EmojiPick>> _pickFiles() async {
   final files = await FilePicker.pickFiles(
     type: FileType.custom,
-    allowedExtensions: const [...acceptedEmojiExtensions, 'zip'],
+    allowedExtensions: pickerExtensions(const [
+      ...acceptedEmojiExtensions,
+      'zip',
+    ]),
   );
   // readAsBytes streams from disk since eager loading OOMs on a large pick.
   return [
@@ -43,8 +48,8 @@ Future<List<EmojiPick>> _pickFiles() async {
 Future<List<EmojiPick>> readDroppedEmoji(List<DropItem> items) async => [
   for (final item in items)
     EmojiPick(
-      fileName: item is DropItemDirectory ? '${item.name}/' : item.name,
-      bytes: item is DropItemDirectory ? const [] : await item.readAsBytes(),
+      fileName: isDroppedFolder(item) ? '${item.name}/' : item.name,
+      bytes: isDroppedFolder(item) ? const [] : await item.readAsBytes(),
     ),
 ];
 

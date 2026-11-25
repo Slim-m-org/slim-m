@@ -117,6 +117,10 @@ jobs:
           Move-Item packaging/windows/launcher/slim-m.exe $release
           # Linker import libraries, never loaded at run time.
           Remove-Item "$release/*.lib", "$release/*.exp"
+          # A clean Windows has no Visual C++ redistributable, so the bundle carries it.
+          foreach ($dll in "vcruntime140.dll", "vcruntime140_1.dll", "msvcp140.dll") {
+            if (-not (Test-Path "$release/$dll")) { throw "$dll is missing from the release bundle" }
+          }
           Copy-Item packaging/windows/install.ps1, packaging/windows/uninstall.ps1, packaging/windows/install.cmd, packaging/windows/README.md $release
           Set-Content -Path "$release/VERSION" -Value $version -NoNewline
           Compress-Archive -Path client/packages/app/build/windows/x64/runner/Release/* -DestinationPath "slim-m-client-$version-windows-x64.zip"

@@ -100,14 +100,16 @@ class _LiveTranscriptViewState extends ConsumerState<LiveTranscriptView> {
         WidgetsBinding.instance.addPostFrameCallback((_) => _toEnd());
       },
     );
-    if (model.error != null && model.lines.isEmpty) {
-      return AppErrorState(
-        message: model.error!,
-        onRetry: () => ref
-            .read(callTranscriptProvider(widget.transcriptId).notifier)
-            .loadMore(),
-      );
-    }
+    final error = model.error;
+    final retry = error == null
+        ? null
+        : AppErrorState(
+            message: error,
+            onRetry: () => ref
+                .read(callTranscriptProvider(widget.transcriptId).notifier)
+                .loadMore(),
+          );
+    if (retry != null && model.lines.isEmpty) return retry;
     if (model.loaded && model.lines.isEmpty) {
       return Center(
         child: Text(
@@ -116,7 +118,7 @@ class _LiveTranscriptViewState extends ConsumerState<LiveTranscriptView> {
         ),
       );
     }
-    return Stack(
+    final lines = Stack(
       children: [
         ListView.builder(
           controller: _scroll,
@@ -144,5 +146,13 @@ class _LiveTranscriptViewState extends ConsumerState<LiveTranscriptView> {
         ),
       ],
     );
+    return retry == null
+        ? lines
+        : Column(
+            children: [
+              retry,
+              Expanded(child: lines),
+            ],
+          );
   }
 }

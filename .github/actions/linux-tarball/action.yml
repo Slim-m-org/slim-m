@@ -36,6 +36,7 @@ runs:
       with:
         cache: ${{ inputs.cache }}
 
+    # Built on the runner's Ubuntu 24.04, so the bundle needs glibc 2.38 (packaging/linux/README.md has the measured floor).
     - name: build linux release
       shell: bash
       env:

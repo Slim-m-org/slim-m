@@ -17,6 +17,7 @@ library;
 import 'dart:async';
 
 import 'package:clock/clock.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
@@ -28,6 +29,7 @@ import 'live_events.dart';
 import '../features/members/providers/member_presence.dart'
     show channelMembersProvider;
 import 'providers.dart';
+import '../sync/providers/sync_status.dart';
 
 export 'invites_provider.dart';
 
@@ -196,22 +198,29 @@ void refreshPermissionsAfterReconnect(Ref ref) {
 
 /// Refetches what a timeout withheld once it runs out: the server sends no
 /// event then, so the bits fetched during it would otherwise stay stale.
+///
+/// Armed again by every answer that still reports a timeout, so a device clock
+/// that runs ahead of the server's keeps asking until the server agrees.
 final timeoutExpiryWatcherProvider = Provider.autoDispose<void>((ref) {
   Timer? expiry;
   ref.onDispose(() => expiry?.cancel());
-  ref.listen(meProvider.select((me) => me.valueOrNull?.timedOutUntil), (
-    _,
-    until,
-  ) {
+  ref.listen(meProvider, (_, me) {
+    if (me.isLoading || me.hasError) return;
     expiry?.cancel();
+    final until = me.valueOrNull?.timedOutUntil;
     if (until == null) return;
     final left = until - clock.now().millisecondsSinceEpoch;
-    expiry = Timer(Duration(milliseconds: left < 0 ? 0 : left), () {
+    final wait = left > 0 ? Duration(milliseconds: left) : timeoutRecheckFloor;
+    expiry = Timer(wait, () {
       ref.invalidate(meProvider);
       ref.invalidate(channelPermissionsProvider);
     });
   }, fireImmediately: true);
 });
+
+/// The shortest wait before a timeout that still reads as running is asked about again.
+@visibleForTesting
+var timeoutRecheckFloor = const Duration(seconds: 1);
 
 // ref.invalidate on a never-watched provider mounts and fetches it.
 void _refreshVisibleChannels(Ref ref) {
@@ -255,9 +264,12 @@ void _onOverwriteChanged(Ref ref, api.OverwriteChanged event) {
 /// here is what makes the next message render (or stop rendering) it. Two
 /// providers over `GET /emoji` would leave a freshly uploaded emoji
 /// unrenderable until relaunch.
-final customEmojiProvider = FutureProvider.autoDispose<List<api.CustomEmoji>>(
-  (ref) => ref.watch(apiProvider).listCustomEmoji(),
-);
+final customEmojiProvider = FutureProvider.autoDispose<List<api.CustomEmoji>>((
+  ref,
+) {
+  ref.watch(syncResyncProvider);
+  return ref.watch(apiProvider).listCustomEmoji();
+});
 
 /// The Space usage analytics toggle and, while it is on, its stats. Off by
 /// default; see `docs/decisions/0008-space-analytics.md` and

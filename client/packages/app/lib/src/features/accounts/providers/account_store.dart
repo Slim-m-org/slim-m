@@ -15,6 +15,9 @@ import 'package:slimm_api/api.dart' show AppLog, LogTag;
 /// The key-store entry holding the [AccountIndex]. It carries no secrets.
 const accountIndexHandle = 'slimm.accounts';
 
+/// The cross-tab lock every write of the index runs under.
+const accountIndexLock = 'slimm-account-index';
+
 class AccountStore {
   AccountStore(this._keys);
 

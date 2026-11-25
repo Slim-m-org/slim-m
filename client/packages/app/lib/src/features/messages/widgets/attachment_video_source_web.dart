@@ -78,6 +78,13 @@ class _WebAttachmentVideoSource implements AttachmentVideoSource {
         );
       }
     }).toJS;
+    xhr.onabort = ((web.Event event) {
+      if (!completer.isCompleted) {
+        completer.completeError(
+          const api.TransportException('attachment fetch cancelled'),
+        );
+      }
+    }).toJS;
     xhr.onerror = ((web.Event event) {
       completer.completeError(
         const api.TransportException('attachment fetch failed: network error'),
@@ -90,6 +97,9 @@ class _WebAttachmentVideoSource implements AttachmentVideoSource {
   // The whole file is fetched up front, so no later request carries a token.
   @override
   bool isStale(api.SlimmApi apiClient) => false;
+
+  @override
+  void cancel() => _request?.abort();
 
   @override
   void dispose() {

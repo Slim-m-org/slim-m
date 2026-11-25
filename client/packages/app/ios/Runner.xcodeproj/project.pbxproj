@@ -25,7 +25,6 @@
 		7A11C0DE0002000000000011 /* SampleHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE0002000000000001 /* SampleHandler.swift */; };
 		7A11C0DE0002000000000012 /* SocketConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE0002000000000002 /* SocketConnection.swift */; };
 		7A11C0DE0002000000000013 /* SampleUploader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE0002000000000003 /* SampleUploader.swift */; };
-		7A11C0DE0002000000000014 /* Atomic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE0002000000000004 /* Atomic.swift */; };
 		7A11C0DE0002000000000015 /* DarwinNotificationCenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE0002000000000005 /* DarwinNotificationCenter.swift */; };
 		7A11C0DE0002000000000016 /* BroadcastConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE0002000000000006 /* BroadcastConstants.swift */; };
 		7A11C0DE0002000000000017 /* BroadcastExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 7A11C0DE0002000000000009 /* BroadcastExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -55,6 +54,7 @@
 		7A11C0DE000B000000000013 /* BadgeCountTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE000B000000000002 /* BadgeCountTests.swift */; };
 		7A11C0DE000B0000000000F2 /* RoutePickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE000B0000000000F1 /* RoutePickerView.swift */; };
 		7A11C0DE000B000000000014 /* AppBadgeChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE000B000000000003 /* AppBadgeChannel.swift */; };
+		7A11C0DE000B000000000091 /* ProtectedDataChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE000B000000000090 /* ProtectedDataChannel.swift */; };
 		7A11C0DE000B0000000000F4 /* SoundClipChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE000B0000000000F3 /* SoundClipChannel.swift */; };
 		7A11C0DE000B000000000015 /* HoldMusicChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE000B000000000004 /* HoldMusicChannel.swift */; };
 		7A11C0DE0008000000000005 /* callkit_ringtone.wav in Resources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE0008000000000002 /* callkit_ringtone.wav */; };
@@ -143,7 +143,6 @@
 		7A11C0DE0002000000000001 /* SampleHandler.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SampleHandler.swift; sourceTree = "<group>"; };
 		7A11C0DE0002000000000002 /* SocketConnection.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SocketConnection.swift; sourceTree = "<group>"; };
 		7A11C0DE0002000000000003 /* SampleUploader.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SampleUploader.swift; sourceTree = "<group>"; };
-		7A11C0DE0002000000000004 /* Atomic.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Atomic.swift; sourceTree = "<group>"; };
 		7A11C0DE0002000000000005 /* DarwinNotificationCenter.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = DarwinNotificationCenter.swift; sourceTree = "<group>"; };
 		7A11C0DE0002000000000006 /* BroadcastConstants.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = BroadcastConstants.swift; sourceTree = "<group>"; };
 		7A11C0DE0002000000000007 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -168,6 +167,7 @@
 		7A11C0DE000B000000000002 /* BadgeCountTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = BadgeCountTests.swift; sourceTree = "<group>"; };
 		7A11C0DE000B0000000000F1 /* RoutePickerView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = RoutePickerView.swift; sourceTree = "<group>"; };
 		7A11C0DE000B000000000003 /* AppBadgeChannel.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AppBadgeChannel.swift; sourceTree = "<group>"; };
+		7A11C0DE000B000000000090 /* ProtectedDataChannel.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ProtectedDataChannel.swift; sourceTree = "<group>"; };
 		7A11C0DE000B0000000000F3 /* SoundClipChannel.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SoundClipChannel.swift; sourceTree = "<group>"; };
 		7A11C0DE000B000000000004 /* HoldMusicChannel.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = HoldMusicChannel.swift; sourceTree = "<group>"; };
 		7A11C0DE0008000000000002 /* callkit_ringtone.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "../../../../assets/audio/notifications/callkit_ringtone.wav"; sourceTree = "<group>"; };
@@ -233,7 +233,6 @@
 				7A11C0DE0002000000000001 /* SampleHandler.swift */,
 				7A11C0DE0002000000000002 /* SocketConnection.swift */,
 				7A11C0DE0002000000000003 /* SampleUploader.swift */,
-				7A11C0DE0002000000000004 /* Atomic.swift */,
 				7A11C0DE0002000000000005 /* DarwinNotificationCenter.swift */,
 				7A11C0DE0002000000000006 /* BroadcastConstants.swift */,
 				7A11C0DE0002000000000007 /* Info.plist */,
@@ -316,6 +315,7 @@
 				7A11C0DE0003000000000001 /* VoiceCallReporter.swift */,
 				7A11C0DE000200000000000A /* BroadcastChannel.swift */,
 				7A11C0DE000B000000000003 /* AppBadgeChannel.swift */,
+				7A11C0DE000B000000000090 /* ProtectedDataChannel.swift */,
 				7A11C0DE000B0000000000F1 /* RoutePickerView.swift */,
 				7A11C0DE000B000000000004 /* HoldMusicChannel.swift */,
 				7A11C0DE000B0000000000F3 /* SoundClipChannel.swift */,
@@ -564,6 +564,7 @@
 				7A11C0DE0003000000000002 /* VoiceCallReporter.swift in Sources */,
 				7A11C0DE0002000000000018 /* BroadcastChannel.swift in Sources */,
 				7A11C0DE000B000000000014 /* AppBadgeChannel.swift in Sources */,
+				7A11C0DE000B000000000091 /* ProtectedDataChannel.swift in Sources */,
 				7A11C0DE000B0000000000F2 /* RoutePickerView.swift in Sources */,
 				7A11C0DE000B000000000015 /* HoldMusicChannel.swift in Sources */,
 				7A11C0DE000B0000000000F4 /* SoundClipChannel.swift in Sources */,
@@ -580,7 +581,6 @@
 				7A11C0DE0002000000000011 /* SampleHandler.swift in Sources */,
 				7A11C0DE0002000000000012 /* SocketConnection.swift in Sources */,
 				7A11C0DE0002000000000013 /* SampleUploader.swift in Sources */,
-				7A11C0DE0002000000000014 /* Atomic.swift in Sources */,
 				7A11C0DE0002000000000015 /* DarwinNotificationCenter.swift in Sources */,
 				7A11C0DE0002000000000016 /* BroadcastConstants.swift in Sources */,
 			);
@@ -698,6 +698,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 7AFA3C8E1D35360C0083082E /* Release.xcconfig */;
 			buildSettings = {
+				APS_ENVIRONMENT = production;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
@@ -878,10 +879,13 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 9740EEB21CF90195004384FC /* Debug.xcconfig */;
 			buildSettings = {
+				APS_ENVIRONMENT = development;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				DEVELOPMENT_TEAM = 76S78SUWVM;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -901,6 +905,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 7AFA3C8E1D35360C0083082E /* Release.xcconfig */;
 			buildSettings = {
+				APS_ENVIRONMENT = production;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;

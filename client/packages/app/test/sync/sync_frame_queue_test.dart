@@ -53,6 +53,30 @@ void main() {
     expect(seen, ['c1', 'c2', 'c3']);
   });
 
+  test(
+    'a flush that dropped frames while it drained throws, not goes live',
+    () async {
+      final gate = Completer<void>();
+      final queue = SerialFrameQueue(
+        (e) async {
+          if (_id(e) == 'c1') await gate.future;
+        },
+        onError: (_, _) {},
+        maxHeld: 1,
+      );
+
+      queue.add(_event(1));
+      final flushed = queue.flush();
+      await Future<void>.delayed(Duration.zero);
+      queue
+        ..add(_event(2))
+        ..add(_event(3));
+      gate.complete();
+
+      await expectLater(flushed, throwsA(isA<FrameBacklogOverflow>()));
+    },
+  );
+
   test('once live, the next frame waits for the previous handler', () async {
     final gate = Completer<void>();
     final log = <String>[];

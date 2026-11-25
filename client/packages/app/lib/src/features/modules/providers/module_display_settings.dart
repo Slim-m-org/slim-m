@@ -10,9 +10,11 @@ import 'package:slimm_api/api.dart' as api;
 
 import '../../../providers/live_events.dart';
 import '../../../providers/providers.dart';
+import '../../../sync/providers/sync_status.dart';
 import '../../settings/providers/settings_actions.dart';
 
 final moduleDisplayProvider = FutureProvider<api.Version>((ref) {
+  ref.watch(syncResyncProvider);
   final sub = ref
       .watch(liveEventsProvider)
       .where((e) => e is api.SpaceSettingsChanged)

@@ -43,6 +43,7 @@ class VoiceCallFlow {
   final VoiceSessionCore _core;
   final _states = StreamController<VoiceSessionState>.broadcast();
   final _restarts = StreamController<void>.broadcast();
+  final _publishPermission = StreamController<bool>.broadcast();
 
   /// The room of the call in progress; cleared synchronously when one ends.
   lk.Room? room;
@@ -80,6 +81,9 @@ class VoiceCallFlow {
 
   /// A full restart the call came back from; see [VoiceSession.transportRestarts].
   Stream<void> get restarts => _restarts.stream;
+
+  /// Whether the SFU lets this client publish, each time it changes mid-call.
+  Stream<bool> get publishPermission => _publishPermission.stream;
 
   /// Joins a room with a server-minted token; [canPublish] only stops a listen-only join from opening the microphone, and rejoining leaves the old connection first.
   /// Overlapping calls serialize, so a second tap or a channel switch mid-connect waits and the state ends as the last caller asked.
@@ -182,6 +186,7 @@ class VoiceCallFlow {
     await _core.roster.dispose();
     await _states.close();
     await _restarts.close();
+    await _publishPermission.close();
   }
 
   Future<void> _join({
@@ -289,9 +294,18 @@ class VoiceCallFlow {
       if (event is lk.RoomDisconnectedEvent) {
         return _onDisconnected(event.reason);
       }
+      if (event is lk.ParticipantPermissionsUpdatedEvent &&
+          event.participant is lk.LocalParticipant) {
+        _onPublishPermission(event.permissions.canPublish);
+      }
       _core.stats.syncHold();
       _core.refresh();
     });
+  }
+
+  void _onPublishPermission(bool canPublish) {
+    _core.readiness.mayPublish = canPublish;
+    if (!_publishPermission.isClosed) _publishPermission.add(canPublish);
   }
 
   /// Marks the first remote audio, once a subscribed track has delivered a packet.
@@ -447,11 +461,12 @@ class VoiceCallFlow {
     _core.share.watch.stop();
     // Awaited before the room disconnects below: the SFU has no bearing on iOS.
     await _step(_core.share.control.stopActiveBroadcast);
-    await _step(_core.share.control.dispose);
     if (leaving != null) {
       await _step(() => leaving.disconnect().timeout(kLeaveGoodbyeWait));
       await _step(leaving.dispose);
     }
+    // After the disconnect, so winding share audio down never keeps the microphone live.
+    await _step(_core.share.control.dispose);
     // The disconnect stops only published tracks.
     await _releaseCapture(videos);
   }

@@ -38,6 +38,7 @@ pub(crate) enum ModerationAction {
     NicknameSet,
     NicknameClear,
     VoiceMove,
+    VoiceKick,
     OwnerHandoff,
     OwnerTimeoutEnded,
     MessagePinChanged,
@@ -47,7 +48,7 @@ pub(crate) enum ModerationAction {
 
 impl ModerationAction {
     #[cfg(test)]
-    pub(crate) const ALL: [Self; 23] = [
+    pub(crate) const ALL: [Self; 24] = [
         Self::Remove,
         Self::Restore,
         Self::Timeout,
@@ -66,6 +67,7 @@ impl ModerationAction {
         Self::NicknameSet,
         Self::NicknameClear,
         Self::VoiceMove,
+        Self::VoiceKick,
         Self::OwnerHandoff,
         Self::OwnerTimeoutEnded,
         Self::MessagePinChanged,
@@ -93,6 +95,7 @@ impl ModerationAction {
             Self::NicknameSet => "nickname_set",
             Self::NicknameClear => "nickname_clear",
             Self::VoiceMove => "voice_move",
+            Self::VoiceKick => "voice_kick",
             Self::OwnerHandoff => "owner_handoff",
             Self::OwnerTimeoutEnded => "owner_timeout_ended",
             Self::MessagePinChanged => "message_pin_changed",
@@ -163,6 +166,30 @@ pub(super) async fn record_system_moderation_audit(
 }
 
 impl Store {
+    /// Writes down that `actor` disconnected `subject` from a call; `channel` names where.
+    pub async fn record_voice_kick(
+        &self,
+        actor: UserId,
+        subject: UserId,
+        channel: Option<&str>,
+    ) -> anyhow::Result<()> {
+        let mut tx = self.begin_write().await?;
+        record_moderation_audit(
+            &mut tx,
+            ModerationAudit {
+                actor_id: actor,
+                subject_id: subject,
+                action: ModerationAction::VoiceKick,
+                reason: channel,
+                until: None,
+                created_at: now_ms(),
+            },
+        )
+        .await?;
+        tx.commit().await?;
+        Ok(())
+    }
+
     /// Writes down that `actor` moved `subject` between two calls; `route` is "<from id> to <to id>".
     pub async fn record_voice_move(
         &self,
@@ -224,6 +251,7 @@ mod tests {
                 ModerationAction::MessagePinChanged => 20,
                 ModerationAction::MessagePreviewRemoved => 21,
                 ModerationAction::WebhookRename => 22,
+                ModerationAction::VoiceKick => 23,
             }
         }
         let mut seen = vec![false; ModerationAction::ALL.len()];

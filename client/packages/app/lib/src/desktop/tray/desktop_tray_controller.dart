@@ -130,7 +130,7 @@ class DesktopTrayController with TrayListener {
   Future<void> _raiseWindow() async {
     try {
       await port.show();
-      await port.restore();
+      if (await port.isMinimized()) await port.restore();
       await port.focus();
     } catch (error, stack) {
       AppLog.warning(

@@ -218,7 +218,7 @@ jobs:
       # media_kit's Linux backend dlopens the system's libmpv at runtime,
       # never linked at build time (see packaging/rpm/slim-m-client.spec's own
       # comment on this), so `flutter test` here needs it present the same
-      # way the runner already carries libgtk/libsecret for other plugins.
+      # way the runner already carries libgtk for other plugins.
       # The runtime library, not -dev: the tests only dlopen libmpv.so.2, and -dev pulls roughly twice the packages (measured with apt-get -s on ubuntu:24.04: 413 against 213). Bounded because an apt stall here once ate the whole job timeout.
       - name: libmpv (media_kit's native video backend on Linux)
         timeout-minutes: 22
@@ -482,7 +482,7 @@ jobs:
         with:
           packages: >-
             xvfb fluxbox wmctrl xdotool x11-utils libgl1-mesa-dri mesa-utils
-            libgtk-3-0 libsecret-1-0 libgstreamer1.0-0 dbus-daemon
+            libgtk-3-0 libgstreamer1.0-0 dbus-daemon
             libgstreamer-plugins-base1.0-0 libayatana-appindicator3-1 libpulse0
             libmpv2 libepoxy0
 

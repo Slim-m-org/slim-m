@@ -232,25 +232,49 @@ async fn probe_internal_network(runtime: &Runtime, instance: &str) -> Result<(),
     Ok(())
 }
 
-/// Binds this supervisor to the first deployment that names itself, kept in the state
-/// directory, so a second server pointed at the same socket is refused rather than
-/// removing the first one's connectors as orphans.
-pub fn bind_deployment(state_dir: &Path, deployment: &str) -> Result<(), ApiError> {
-    let ok = (1..=64).contains(&deployment.len())
+fn valid_deployment(deployment: &str) -> bool {
+    (1..=64).contains(&deployment.len())
         && deployment
             .chars()
-            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-');
-    if !ok {
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+}
+
+/// Writes `contents` so a crash leaves the old file or the whole new one, never half of it.
+fn write_atomic(path: &Path, contents: &str) -> std::io::Result<()> {
+    let dir = path.parent().unwrap_or(Path::new("."));
+    std::fs::create_dir_all(dir)?;
+    let temp = dir.join(format!(".state-{}.tmp", uuid::Uuid::now_v7().simple()));
+    let written = std::fs::File::create(&temp)
+        .and_then(|mut file| {
+            std::io::Write::write_all(&mut file, contents.as_bytes())?;
+            file.sync_all()
+        })
+        .and_then(|()| std::fs::rename(&temp, path));
+    if written.is_err() {
+        let _ = std::fs::remove_file(&temp);
+        return written;
+    }
+    std::fs::File::open(dir).and_then(|d| d.sync_all())
+}
+
+/// Binds this supervisor to the first deployment that names itself, kept in the state
+/// directory, so a second server pointed at the same socket is refused rather than
+/// removing the first one's connectors as orphans. An empty or malformed file is unbound.
+pub fn bind_deployment(state_dir: &Path, deployment: &str) -> Result<(), ApiError> {
+    if !valid_deployment(deployment) {
         return Err(ApiError::bad_request(
             "X-Slimm-Deployment must name the deployment in 1 to 64 of [a-z0-9-]",
         ));
     }
     let path = state_dir.join("deployment-id");
-    let bound = match std::fs::read_to_string(&path) {
-        Ok(existing) => existing.trim().to_owned(),
-        Err(_) => {
-            std::fs::create_dir_all(state_dir)
-                .and_then(|()| std::fs::write(&path, deployment))
+    let bound = std::fs::read_to_string(&path)
+        .map(|existing| existing.trim().to_owned())
+        .ok()
+        .filter(|existing| valid_deployment(existing));
+    let bound = match bound {
+        Some(existing) => existing,
+        None => {
+            write_atomic(&path, deployment)
                 .map_err(|e| ApiError::runtime(format!("state directory: {e}")))?;
             deployment.to_owned()
         }
@@ -274,9 +298,8 @@ pub fn instance_id(state_dir: &Path) -> std::io::Result<String> {
             return Ok(existing);
         }
     }
-    std::fs::create_dir_all(state_dir)?;
     let id = uuid::Uuid::now_v7().simple().to_string()[16..].to_owned();
-    std::fs::write(&path, &id)?;
+    write_atomic(&path, &id)?;
     Ok(id)
 }
 
@@ -400,6 +423,38 @@ mod tests {
             bind_deployment(&dir, "Bad Id").unwrap_err().code,
             crate::error::Code::BadRequest
         );
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn an_empty_or_torn_deployment_file_is_unbound_not_a_lockout() {
+        let dir =
+            std::env::temp_dir().join(format!("slimm-sup-torn-{}", uuid::Uuid::now_v7().simple()));
+        std::fs::create_dir_all(&dir).unwrap();
+        for torn in ["", "  \n", "Not A Deployment"] {
+            std::fs::write(dir.join("deployment-id"), torn).unwrap();
+            assert!(bind_deployment(&dir, "deployment-a").is_ok(), "{torn:?}");
+            assert_eq!(
+                std::fs::read_to_string(dir.join("deployment-id")).unwrap(),
+                "deployment-a"
+            );
+        }
+        assert!(bind_deployment(&dir, "deployment-b").is_err());
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn state_files_are_written_through_a_rename_and_leave_no_temp_behind() {
+        let dir = std::env::temp_dir().join(format!("slimm-sup-atomic-{}", uuid::Uuid::now_v7()));
+        let path = dir.join("instance-id");
+        write_atomic(&path, "first").unwrap();
+        write_atomic(&path, "second").unwrap();
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "second");
+        let names: Vec<_> = std::fs::read_dir(&dir).unwrap().collect();
+        assert_eq!(names.len(), 1, "{names:?}");
+        let blocked = dir.join("instance-id").join("child");
+        assert!(write_atomic(&blocked, "x").is_err());
+        assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 1);
         std::fs::remove_dir_all(&dir).unwrap();
     }
 

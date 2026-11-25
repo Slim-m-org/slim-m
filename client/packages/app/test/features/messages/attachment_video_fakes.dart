@@ -29,6 +29,7 @@ class ScriptedSource implements AttachmentVideoSource {
 
   final List<Object> _outcomes;
   int opens = 0;
+  int cancels = 0;
   bool disposed = false;
 
   @override
@@ -45,6 +46,9 @@ class ScriptedSource implements AttachmentVideoSource {
 
   @override
   bool isStale(api.SlimmApi apiClient) => false;
+
+  @override
+  void cancel() => cancels += 1;
 
   @override
   void dispose() => disposed = true;

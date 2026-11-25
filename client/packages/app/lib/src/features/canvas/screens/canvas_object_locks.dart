@@ -143,39 +143,41 @@ class CanvasObjectLockBadges extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    return IgnorePointer(
-      child: ListenableBuilder(
-        listenable: Listenable.merge([document, locks.ids]),
-        builder: (context, _) {
-          final camera = document.camera;
-          return Stack(
-            children: [
-              for (final id in locks.ids.value)
-                if (document.objectBounds(id) case final b?)
-                  Positioned(
-                    key: ValueKey('canvas-lock-badge-$id'),
-                    left: (b.x - camera.x) * camera.zoom + AppSpacing.s4,
-                    top: (b.y - camera.y) * camera.zoom + AppSpacing.s4,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: tokens.surfaceRaised,
-                        borderRadius: BorderRadius.circular(AppRadii.control),
-                        border: Border.all(color: tokens.borderSubtle),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(AppSpacing.s4),
-                        child: Icon(
-                          AppIcons.tileLocked,
-                          size: AppSizes.icon16,
-                          color: tokens.textSecondary,
-                          semanticLabel: 'Locked in place',
+    // The object's own node says it is locked, so the icons stay out of the reading order.
+    return ExcludeSemantics(
+      child: IgnorePointer(
+        child: ListenableBuilder(
+          listenable: Listenable.merge([document, locks.ids]),
+          builder: (context, _) {
+            final camera = document.camera;
+            return Stack(
+              children: [
+                for (final id in locks.ids.value)
+                  if (document.objectBounds(id) case final b?)
+                    Positioned(
+                      key: ValueKey('canvas-lock-badge-$id'),
+                      left: (b.x - camera.x) * camera.zoom + AppSpacing.s4,
+                      top: (b.y - camera.y) * camera.zoom + AppSpacing.s4,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: tokens.surfaceRaised,
+                          borderRadius: BorderRadius.circular(AppRadii.control),
+                          border: Border.all(color: tokens.borderSubtle),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(AppSpacing.s4),
+                          child: Icon(
+                            AppIcons.tileLocked,
+                            size: AppSizes.icon16,
+                            color: tokens.textSecondary,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-            ],
-          );
-        },
+              ],
+            );
+          },
+        ),
       ),
     );
   }
