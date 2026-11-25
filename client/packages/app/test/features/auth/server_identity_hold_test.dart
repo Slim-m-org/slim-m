@@ -132,7 +132,9 @@ void main() {
       'trusting it restarts', () async {
     final rig = await identityRig();
     rig.container.read(syncControllerProvider.notifier);
-    await rig.untilLive();
+    // Going live re-asks the identity and starts its first reads; count only once they have landed.
+    await rig.untilLiveAndRechecked();
+    await rig.quiet();
     final before = rig.server.signedIn.length;
     expect(rig.server.socketsOpened, 1);
 
