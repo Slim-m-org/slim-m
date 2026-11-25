@@ -12,6 +12,8 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../messages/providers/message_search_query.dart';
 import '../../messages/providers/message_search_request.dart';
+import '../../members/widgets/profile_colour.dart';
+import '../../members/widgets/user_avatar.dart';
 import '../providers/palette_query.dart';
 import 'command_palette_items.dart';
 
@@ -123,7 +125,12 @@ IconData searchKeyIcon(SearchKey key) => switch (key) {
   SearchKey.between => AppIcons.clock,
 };
 
-typedef _Option = ({SearchFilter filter, String label, String? hint});
+typedef _Option = ({
+  SearchFilter filter,
+  String label,
+  String? hint,
+  api.UserProfile? member,
+});
 
 List<PaletteResultItem> _values(
   SearchKey key,
@@ -140,6 +147,7 @@ List<PaletteResultItem> _values(
           filter: SearchFilter(key, member.username, label: member.displayName),
           label: member.displayName,
           hint: '@${member.username}',
+          member: member,
         ),
     ],
     SearchKey.inChannel => [
@@ -153,6 +161,7 @@ List<PaletteResultItem> _values(
           ),
           label: '#${channel.name}',
           hint: null,
+          member: null,
         ),
     ],
     SearchKey.has => [
@@ -162,6 +171,7 @@ List<PaletteResultItem> _values(
             filter: SearchFilter(key, kind),
             label: kind,
             hint: _kindHints[kind],
+            member: null,
           ),
     ],
     SearchKey.pinned => [
@@ -170,12 +180,22 @@ List<PaletteResultItem> _values(
         ('false', 'Messages not pinned'),
       ])
         if (value.startsWith(lower))
-          (filter: SearchFilter(key, value), label: value, hint: hint),
+          (
+            filter: SearchFilter(key, value),
+            label: value,
+            hint: hint,
+            member: null,
+          ),
     ],
     _ => [
       for (final (value, hint) in _dates(key, sources.today))
         if (value.startsWith(typed))
-          (filter: SearchFilter(key, value), label: value, hint: hint),
+          (
+            filter: SearchFilter(key, value),
+            label: value,
+            hint: hint,
+            member: null,
+          ),
     ],
   };
   final exact = canonicalSearchValue(key, typed);
@@ -186,6 +206,7 @@ List<PaletteResultItem> _values(
           filter: SearchFilter(key, exact),
           label: exact,
           hint: null,
+          member: null,
         ), actions);
   final shown = [
     for (final option in options.take(paletteResultLimit))
@@ -216,6 +237,7 @@ PaletteResultItem _item(
   kind: PaletteKind.filter,
   leading: searchKeyIcon(key),
   hint: option.hint,
+  member: option.member,
   keepsOpen: true,
   semanticLabel: '${key.word}: ${option.label}',
   onSelect: (_, _) async => actions.add(option.filter),
@@ -278,6 +300,7 @@ class PaletteFilterRowBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final isKey = item.label.endsWith(':');
+    final member = item.member;
     final label = Text(
       item.label,
       maxLines: 1,
@@ -299,7 +322,20 @@ class PaletteFilterRowBody extends StatelessWidget {
     return Row(
       spacing: AppSpacing.s12,
       children: [
-        Icon(item.leading, size: AppSizes.icon16, color: tokens.textSecondary),
+        if (member != null)
+          UserAvatar.known(
+            userId: member.id,
+            avatarUpdatedAt: member.avatarUpdatedAt,
+            profileColour: profileColourOfUser(member),
+            name: member.displayName,
+            size: AppAvatarSize.s28,
+          )
+        else
+          Icon(
+            item.leading,
+            size: AppSizes.icon16,
+            color: tokens.textSecondary,
+          ),
         if (isKey) ...[
           label,
           if (hint != null) Flexible(child: hint),
