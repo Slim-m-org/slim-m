@@ -237,15 +237,19 @@ HWND CreateSinkWindow() {
 void WriteImageOffThread(
     HWND owner, HWND sink, std::vector<uint8_t> png,
     std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result) {
+  if (sink == nullptr) {
+    result->Error("write_failed", "The image could not be copied.");
+    return;
+  }
   auto* completion = new Completion{std::move(result), owner, {}};
   try {
     std::thread([completion, sink, png = std::move(png)] {
       const bool com = SUCCEEDED(CoInitializeEx(nullptr, COINIT_MULTITHREADED));
       completion->image = PrepareImage(png);
       if (com) CoUninitialize();
-      if (sink == nullptr ||
-          !PostMessageW(sink, kImagePreparedMessage, 0,
+      if (!PostMessageW(sink, kImagePreparedMessage, 0,
                         reinterpret_cast<LPARAM>(completion))) {
+        OutputDebugStringW(L"slim-m: could not hand a copied image back\n");
         FreePrepared(&completion->image);
         delete completion;
       }
@@ -397,6 +401,7 @@ std::string WideToUtf8(const std::wstring& wide) {
 /// puts down, and leaves it empty when there is none. False when the
 /// clipboard stayed busy.
 bool ReadClipboardFiles(HWND owner, std::vector<std::string>* paths) {
+  if (!IsClipboardFormatAvailable(CF_HDROP)) return true;
   if (!OpenClipboardPatiently(owner)) return false;
   if (IsClipboardFormatAvailable(CF_HDROP)) {
     HDROP drop = static_cast<HDROP>(GetClipboardData(CF_HDROP));
