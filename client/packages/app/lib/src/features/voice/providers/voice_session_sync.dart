@@ -58,7 +58,12 @@ class VoiceSessionSync {
 
   /// Applies one session state change to the call state, starting or stopping what depends on a live call.
   void onSessionState(VoiceSessionState s) {
-    reportCallLifecycle(callLifecycle, s, channelId: _current.channelId);
+    reportCallLifecycle(
+      callLifecycle,
+      s,
+      channelId: _current.channelId,
+      microphoneEnabled: _current.microphoneEnabled,
+    );
     final dropped = _classifiedDisconnect();
     if (s == VoiceSessionState.failed && dropped != null) {
       heartbeat.stop();

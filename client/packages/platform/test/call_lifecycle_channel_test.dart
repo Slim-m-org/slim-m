@@ -160,5 +160,46 @@ void main() {
 
       expect(events, hasLength(1));
     });
+
+    test('a muteRequest from native surfaces as a muteRequests event',
+        () async {
+      final lifecycle = CallLifecycleChannel(isIOS: true);
+      addTearDown(lifecycle.dispose);
+      final muted = <bool>[];
+      final sub = lifecycle.muteRequests.listen(muted.add);
+      addTearDown(sub.cancel);
+
+      for (final value in [true, false]) {
+        await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .handlePlatformMessage(
+          _pluginChannelName,
+          const StandardMethodCodec().encodeMethodCall(
+            MethodCall('muteRequest', {'muted': value}),
+          ),
+          (_) {},
+        );
+      }
+
+      expect(muted, [true, false]);
+    });
+
+    test('callMuted forwards only for a call this instance reported', () async {
+      final calls = <MethodCall>[];
+      _mockPlugin((call) async {
+        calls.add(call);
+        return null;
+      });
+      addTearDown(() => _mockPlugin(null));
+      final lifecycle = CallLifecycleChannel(isIOS: true);
+      addTearDown(lifecycle.dispose);
+
+      await lifecycle.callMuted(muted: true);
+      expect(calls, isEmpty);
+
+      await lifecycle.callStarted(callId: 'c', displayName: 'Voice call');
+      await lifecycle.callMuted(muted: true);
+      expect(calls.last.method, 'callMuted');
+      expect(calls.last.arguments, {'muted': true});
+    });
   });
 }

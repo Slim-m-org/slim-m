@@ -30,6 +30,7 @@ import 'voice_audio_devices.dart';
 import 'voice_auto_rejoin.dart';
 import 'voice_call_clock.dart';
 import 'voice_call_heartbeat.dart';
+import 'voice_call_lifecycle_report.dart';
 import 'voice_camera_failure.dart';
 import 'voice_camera_hiding.dart';
 import 'voice_server_presence.dart';
@@ -126,6 +127,13 @@ class VoiceController extends StateNotifier<VoiceState> {
     _endCallRequests = _callLifecycle.endCallRequests.listen((_) {
       if (state.channelId != null) unawaited(leave());
     });
+    _muteBridge = CallMuteBridge(
+      _callLifecycle,
+      inCall: () => state.channelId != null,
+      microphoneEnabled: () => state.microphoneEnabled,
+      toggleMicrophone: toggleMicrophone,
+    );
+    addListener((s) => _muteBridge.reflect(s.microphoneEnabled));
     _session.audioSessionReader = _callLifecycle.audioSessionLine;
     _callSystemEvents = _callLifecycle.systemEvents.listen(
       _session.noteCallSystemEvent,
@@ -212,6 +220,7 @@ class VoiceController extends StateNotifier<VoiceState> {
   late final StreamSubscription<String> _shareSourceLost;
   late final StreamSubscription<CameraJoinOpen> _cameraJoinOpens;
   late final StreamSubscription<void> _endCallRequests;
+  late final CallMuteBridge _muteBridge;
   late final StreamSubscription<String> _callSystemEvents;
 
   /// Bumped by every [join] and [leave], so a stale call's continuation can tell it was superseded.
@@ -521,6 +530,7 @@ class VoiceController extends StateNotifier<VoiceState> {
     unawaited(_shareSourceLost.cancel());
     unawaited(_cameraJoinOpens.cancel());
     unawaited(_endCallRequests.cancel());
+    _muteBridge.dispose();
     unawaited(_callSystemEvents.cancel());
     unawaited(_session.dispose());
     _callLifecycle.dispose();
