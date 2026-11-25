@@ -24,6 +24,7 @@ import '../features/accounts/providers/account_slot.dart';
 import '../features/auth/providers/database_key_store.dart';
 import '../features/auth/providers/server_identity_hold.dart';
 import 'background_key_store.dart';
+import 'fresh_install.dart';
 import 'preference_controller.dart';
 export 'effective_me.dart';
 export 'session_provider.dart';
@@ -167,15 +168,19 @@ Future<void> restoreSession(
   }
   container.read(_restoreRetryProvider).cancel();
   try {
-    // The keychain outlives app deletion and this flag does not, so its absence is a first launch; checked only once storage proved readable.
-    if (prefs.getBool(hasLaunchedBeforeKey) != true) {
-      await keyStore.clear();
-      // A second store on iOS; see [pushKeyStoreProvider].
-      final pushKeys = container.read(pushKeyStoreProvider);
-      if (!identical(pushKeys, keyStore)) await pushKeys.clear();
-      final backgroundKeys = container.read(backgroundKeyStoreProvider);
-      if (!identical(backgroundKeys, keyStore)) await backgroundKeys.clear();
-      await prefs.setBool(hasLaunchedBeforeKey, true);
+    final outcome = await settleFirstLaunch(
+      prefs: prefs,
+      flagKey: hasLaunchedBeforeKey,
+      stores: leftoverSecretStores(container),
+      probe: const [serverUrlHandle, sessionTokenHandle],
+      environment: container.read(firstLaunchEnvironmentProvider),
+    );
+    if (outcome == FirstLaunchOutcome.deferred) {
+      note.state = 'device not unlocked at launch, will retry';
+      container.read(_restoreRetryProvider).schedule(container, firstRetry);
+      return;
+    }
+    if (outcome == FirstLaunchOutcome.wiped) {
       container.read(isFreshInstallProvider.notifier).state = true;
       return;
     }
@@ -448,3 +453,16 @@ final pushKeyStoreProvider = Provider<KeyStore>(
 final legacyPushKeyStoreProvider = Provider<KeyStore?>(
   (ref) => pushKeyHasItsOwnStore ? createLegacyPushKeyStore() : null,
 );
+
+/// Every distinct secret store, the main one first, that a fresh install clears.
+List<KeyStore> leftoverSecretStores(ProviderContainer container) {
+  final main = container.read(keyStoreProvider);
+  return [
+    main,
+    for (final other in [
+      container.read(pushKeyStoreProvider),
+      container.read(backgroundKeyStoreProvider),
+    ])
+      if (!identical(other, main)) other,
+  ];
+}

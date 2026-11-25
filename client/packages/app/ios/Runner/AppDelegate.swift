@@ -41,6 +41,7 @@ import UserNotifications
   private var notificationTapObserver: NotificationTapObserver?
   private var broadcastChannel: FlutterMethodChannel?
   private var appBadgeChannel: FlutterMethodChannel?
+  private var protectedDataChannel: FlutterMethodChannel?
   private var holdMusicChannel: FlutterMethodChannel?
   private var soundClipChannel: FlutterMethodChannel?
   private var clipboardImageChannel: FlutterMethodChannel?
@@ -182,6 +183,13 @@ import UserNotifications
       AppBadgeChannel.handle(call, result: result)
     }
     appBadgeChannel = appBadge
+
+    let protectedData = FlutterMethodChannel(
+      name: ProtectedDataChannel.name, binaryMessenger: messenger)
+    protectedData.setMethodCallHandler { call, result in
+      ProtectedDataChannel.handle(call, result: result)
+    }
+    protectedDataChannel = protectedData
 
     let holdMusic = FlutterMethodChannel(name: HoldMusicChannel.name, binaryMessenger: messenger)
     holdMusic.setMethodCallHandler { call, result in
