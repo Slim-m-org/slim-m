@@ -17,6 +17,8 @@ class SceneDelegate: FlutterSceneDelegate {
 
   override func sceneWillResignActive(_ scene: UIScene) {
     super.sceneWillResignActive(scene)
+    fallbackRelease?.cancel()
+    fallbackRelease = nil
     guard AppLockWindowChannel.shieldEnabled, let window, privacyShield == nil else { return }
     let shield = UIView(frame: window.bounds)
     shield.backgroundColor = .systemBackground

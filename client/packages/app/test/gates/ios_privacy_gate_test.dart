@@ -34,4 +34,16 @@ void main() {
     expect(body.split('removeShield()').length - 1, 2);
     expect(body, isNot(contains('removeFromSuperview')));
   });
+
+  test(
+    'resigning active cancels a pending fallback before the shield guard',
+    () {
+      final code = _code('SceneDelegate.swift');
+      final start = code.indexOf('func sceneWillResignActive');
+      final body = code.substring(start, code.indexOf('sceneDidBecomeActive'));
+      final cancel = body.indexOf('fallbackRelease?.cancel()');
+      expect(cancel, isNonNegative);
+      expect(cancel, lessThan(body.indexOf('guard')));
+    },
+  );
 }
