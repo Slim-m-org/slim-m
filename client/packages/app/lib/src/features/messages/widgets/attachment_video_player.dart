@@ -11,6 +11,7 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:media_kit/media_kit.dart';
@@ -29,6 +30,7 @@ import '../../../widgets/viewport_freeze.dart';
 import '../../../format.dart';
 import '../../favorites/providers/favorite_actions.dart';
 import '../providers/message_api_actions.dart';
+import 'attachment_tap_target.dart';
 import 'attachment_video_fullscreen.dart';
 import 'attachment_video_playback.dart';
 import 'attachment_video_source.dart' show AttachmentVideoSource;
@@ -41,6 +43,14 @@ import '../../voice/widgets/video_playback_controls.dart';
 /// the same 16:9 box every shipped platform's player fills as it loads
 /// before the real video dimensions are known.
 const double kInlineVideoMax = kMessageColumnMax;
+
+/// The largest video the web client fetches on its own: the browser holds the
+/// whole file in memory, so anything bigger waits for a tap.
+const int kWebVideoAutoloadMax = 32 * 1024 * 1024;
+
+/// Whether this client must buffer a whole video before playing it, injectable
+/// so a test can stand in for the browser.
+final attachmentVideoBuffersWholeFileProvider = Provider<bool>((ref) => kIsWeb);
 
 /// How each player gets its media, injectable because the real source talks
 /// to the network (and, on the web, to `XMLHttpRequest`), which a widget test
@@ -133,6 +143,8 @@ class _AttachmentVideoPlayerState extends ConsumerState<AttachmentVideoPlayer>
   bool _ready = false;
   bool _onScreen = false;
   bool _loadStarted = false;
+  bool _revealed = false;
+  int _loadGeneration = 0;
   double? _fetchProgress;
 
   api.Attachment get attachment => widget.attachment;
@@ -163,14 +175,41 @@ class _AttachmentVideoPlayerState extends ConsumerState<AttachmentVideoPlayer>
     _syncPlayback();
   }
 
+  bool get _heldBehindTap =>
+      !_revealed &&
+      ref.read(attachmentVideoBuffersWholeFileProvider) &&
+      attachment.size > kWebVideoAutoloadMax;
+
+  void _reveal() {
+    setState(() => _revealed = true);
+    _syncPlayback();
+  }
+
+  /// A fetch that has not finished is dropped when its row leaves the screen,
+  /// so scrolling past a long video does not keep downloading it.
+  void _abandonUnfinishedLoad() {
+    if (_ready ||
+        !_loadStarted ||
+        !ref.read(attachmentVideoBuffersWholeFileProvider)) {
+      return;
+    }
+    _loadGeneration++;
+    _playback?.source.cancel();
+    _loadStarted = false;
+    _revealed = false;
+    if (mounted) setState(() => _fetchProgress = null);
+  }
+
   void _syncPlayback() {
     if (_onScreen && ref.read(appVisibleProvider)) {
+      if (_heldBehindTap) return;
       if (!_loadStarted) {
         _loadStarted = true;
         unawaited(_load());
       }
       return;
     }
+    if (!_onScreen) _abandonUnfinishedLoad();
     // A video covered by its own fullscreen route is still being watched.
     if (_ready && (ModalRoute.isCurrentOf(context) ?? true)) {
       unawaited(_playback!.player.pause());
@@ -179,6 +218,7 @@ class _AttachmentVideoPlayerState extends ConsumerState<AttachmentVideoPlayer>
 
   Future<void> _load() async {
     clearActionError();
+    final generation = ++_loadGeneration;
     setState(() {
       _ready = false;
       _fetchProgress = null;
@@ -192,16 +232,18 @@ class _AttachmentVideoPlayerState extends ConsumerState<AttachmentVideoPlayer>
           if (mounted) setState(() => _fetchProgress = progress);
         },
       );
-      if (!mounted) return;
+      if (!mounted || generation != _loadGeneration) return;
       await playback.openPaused(media);
       if (!mounted) return;
       setState(() => _ready = true);
     } on api.ApiException catch (e, stack) {
+      if (generation != _loadGeneration) return;
       api.reportFailure(api.LogTag.media, 'load the video', e, stack);
       if (mounted) {
         setActionError(describeApiFailure('load ${attachment.filename}', e));
       }
     } catch (error, stack) {
+      if (generation != _loadGeneration) return;
       api.reportFailure(api.LogTag.media, 'load the video', error, stack);
       if (mounted) setActionError('Could not load ${attachment.filename}.');
     }
@@ -341,6 +383,13 @@ class _AttachmentVideoPlayerState extends ConsumerState<AttachmentVideoPlayer>
                             _save,
                             saving,
                           )
+                        : _heldBehindTap
+                        ? _VideoHeld(
+                            label: 'Load ${attachment.filename}',
+                            size: formatByteSize(attachment.size),
+                            tokens: tokens,
+                            onTap: _reveal,
+                          )
                         : _VideoLoading(
                             progress: _fetchProgress,
                             tokens: tokens,
@@ -416,6 +465,42 @@ class _VideoLoading extends StatelessWidget {
                 'Loading video…',
                 style: AppText.caption.copyWith(color: tokens.textSecondary),
               ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// What a video too large to fetch unasked shows: tap to start the download.
+class _VideoHeld extends StatelessWidget {
+  const _VideoHeld({
+    required this.label,
+    required this.size,
+    required this.tokens,
+    required this.onTap,
+  });
+
+  final String label;
+  final String size;
+  final AppTokens tokens;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return AttachmentTapTarget(
+      label: label,
+      onTap: onTap,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(AppIcons.play, size: 28, color: tokens.textSecondary),
+            const SizedBox(height: AppSpacing.s8),
+            Text(
+              'Tap to load · $size',
+              style: AppText.caption.copyWith(color: tokens.textSecondary),
+            ),
           ],
         ),
       ),

@@ -66,6 +66,9 @@ class _HangingSource implements AttachmentVideoSource {
   bool isStale(api.SlimmApi apiClient) => false;
 
   @override
+  void cancel() {}
+
+  @override
   void dispose() {}
 }
 
