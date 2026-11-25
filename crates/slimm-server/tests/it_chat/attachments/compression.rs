@@ -358,6 +358,49 @@ async fn a_heic_is_converted_to_a_jpeg_every_client_draws() {
     assert_eq!(stored["filename"], json!("IMG_0002.jpg"));
 }
 
+const HEIC_WITH_POSITION: &[u8] = include_bytes!("../../fixtures/tiny_gps.heic");
+
+#[tokio::test]
+async fn a_heic_uploaded_with_compression_off_is_served_without_its_position() {
+    let space = space().await;
+    assert!(
+        contains(HEIC_WITH_POSITION, &GPS_RATIONALS),
+        "the fixture carries a position"
+    );
+    let stored = upload_as(&space, "IMG_0003.HEIC", HEIC_WITH_POSITION.to_vec()).await;
+    assert_eq!(stored["content_type"], json!("image/heic"));
+    let (status, _, body) = fetch(&space, stored["id"].as_str().unwrap(), "").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(!contains(&body, &GPS_RATIONALS));
+    assert!(!contains(&body, b"GPSLatitude"));
+    assert_eq!(
+        body.len(),
+        HEIC_WITH_POSITION.len(),
+        "offsets in the file still hold"
+    );
+}
+
+#[tokio::test]
+async fn a_tiff_uploaded_with_compression_off_is_served_without_its_position() {
+    let space = space().await;
+    let tiff = exif_with_position(1);
+    assert!(contains(&tiff, &GPS_RATIONALS));
+    let stored = upload_as(&space, "scan.tiff", tiff.clone()).await;
+    let (status, _, body) = fetch(&space, stored["id"].as_str().unwrap(), "").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(!contains(&body, &GPS_RATIONALS));
+    assert_eq!(body.len(), tiff.len());
+}
+
+#[tokio::test]
+async fn a_heic_keeps_its_position_when_all_metadata_is_kept() {
+    let space = space().await;
+    configure(&space, json!({"metadata": "keep"})).await;
+    let stored = upload_as(&space, "IMG_0003.HEIC", HEIC_WITH_POSITION.to_vec()).await;
+    let (_, _, body) = fetch(&space, stored["id"].as_str().unwrap(), "").await;
+    assert_eq!(body, HEIC_WITH_POSITION);
+}
+
 #[tokio::test]
 async fn keeping_the_original_serves_the_copy_inline_and_the_original_as_a_download() {
     let space = space().await;

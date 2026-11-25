@@ -90,7 +90,7 @@ MockClient _server({
 }
 
 void main() {
-  testWidgets('the options appear only while compression is on', (
+  testWidgets('the file options appear only while compression is on', (
     tester,
   ) async {
     await tester.pumpWidget(_app(_server()));
@@ -98,7 +98,6 @@ void main() {
 
     expect(find.text('Compress photos'), findsOneWidget);
     expect(find.text('File types'), findsNothing);
-    expect(find.text('Photo metadata'), findsNothing);
     expect(find.text('Keep originals'), findsNothing);
 
     await tester.pumpWidget(_app(_server(enabled: true)));
@@ -108,6 +107,25 @@ void main() {
     expect(find.text('Photo metadata'), findsOneWidget);
     expect(find.text('Keep originals'), findsOneWidget);
     expect(find.text('Restore defaults'), findsNothing);
+  });
+
+  testWidgets('the metadata choice shows and saves with compression off', (
+    tester,
+  ) async {
+    final patches = <Map<String, dynamic>>[];
+    await tester.pumpWidget(_app(_server(patches: patches)));
+    await pumpFrames(tester);
+
+    expect(find.text('Photo metadata'), findsOneWidget);
+    expect(find.text('No location'), findsOneWidget);
+
+    await tester.tap(find.text('None'));
+    await pumpFrames(tester);
+
+    expect(patches, [
+      {'metadata': 'remove_all'},
+    ]);
+    expect(find.text('File types'), findsNothing);
   });
 
   testWidgets('the switch patches only enabled', (tester) async {

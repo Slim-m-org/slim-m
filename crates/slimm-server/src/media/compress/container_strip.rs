@@ -3,7 +3,7 @@
 //! pixel is decoded and no memory beyond the file itself is held.
 
 use super::exif::{self, Rewrite};
-use super::{Kind, Metadata, jpeg_segments};
+use super::{Kind, Metadata, heic_strip, jpeg_segments};
 
 /// The same file with the policy's metadata removed, or `None` when the format is not handled or nothing needs removing.
 pub fn strip(kind: Kind, bytes: &[u8], policy: Metadata) -> Option<Vec<u8>> {
@@ -14,8 +14,20 @@ pub fn strip(kind: Kind, bytes: &[u8], policy: Metadata) -> Option<Vec<u8>> {
         Kind::Jpeg => jpeg_segments::strip(bytes, policy),
         Kind::Png => strip_png(bytes, policy),
         Kind::Webp => strip_webp(bytes, policy),
+        Kind::Heic => heic_strip::strip(bytes, policy),
+        Kind::Tiff => strip_tiff(bytes),
         _ => None,
     }
+}
+
+/// A TIFF file with its position and embedded packets blanked in place, so no offset moves.
+fn strip_tiff(bytes: &[u8]) -> Option<Vec<u8>> {
+    let ranges = exif::location_ranges(bytes)?;
+    let mut out = bytes.to_vec();
+    for range in &ranges {
+        out.get_mut(range.clone())?.fill(0);
+    }
+    (out != bytes).then_some(out)
 }
 
 /// The EXIF block to store in place of `block`, or `None` to store none.
@@ -36,7 +48,7 @@ pub fn cleaned_exif(block: &[u8], policy: Metadata) -> Option<Vec<u8>> {
     }
 }
 
-fn exif_needs_work(block: &[u8], policy: Metadata) -> bool {
+pub fn exif_needs_work(block: &[u8], policy: Metadata) -> bool {
     match policy {
         Metadata::Keep => false,
         Metadata::RemoveLocation => exif::has_location(block),

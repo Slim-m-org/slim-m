@@ -176,6 +176,34 @@ pub fn has_location(raw: &[u8]) -> bool {
         .is_some_and(|entries| entries.iter().any(|e| e.tag == TAG_GPS_IFD))
 }
 
+/// The byte ranges of a TIFF file that hold a GPS block, an XMP packet or IPTC data, for a file that is blanked where it sits.
+pub fn location_ranges(file: &[u8]) -> Option<Vec<std::ops::Range<usize>>> {
+    let tiff = Tiff::parse(file)?;
+    let ifd0 = tiff.entries(tiff.ifd0()?)?;
+    let mut out = Vec::new();
+    for entry in &ifd0 {
+        match entry.tag {
+            TAG_GPS_IFD => {
+                let at = tiff.u32_of(&entry.field) as usize;
+                let gps = tiff.entries(at)?;
+                out.extend(gps.iter().filter_map(|e| value_range(&tiff, e)));
+                out.push(at..at.checked_add(2 + gps.len() * 12 + 4)?);
+            }
+            0x02BC | 0x83BB => out.extend(value_range(&tiff, entry)),
+            _ => {}
+        }
+    }
+    out.retain(|r| r.end <= file.len());
+    Some(out)
+}
+
+/// Where an entry's value sits when it is too big to live in the entry itself.
+fn value_range(tiff: &Tiff, entry: &Entry) -> Option<std::ops::Range<usize>> {
+    let len = Tiff::value_len(entry).filter(|len| *len > 4)?;
+    let at = tiff.u32_of(&entry.field) as usize;
+    Some(at..at.checked_add(len)?)
+}
+
 /// A block holding only an orientation, for a file whose pixels stay unrotated.
 pub fn orientation_only(orientation: u16) -> Vec<u8> {
     let mut out = b"II\x2a\0\x08\0\0\0".to_vec();

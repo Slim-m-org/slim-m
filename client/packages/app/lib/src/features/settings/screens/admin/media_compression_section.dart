@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The Space-wide photo compression controls on the retention and limits pane:
-/// whether uploads are shrunk, which file types, what happens to their
-/// metadata, and whether the original is kept.
+/// whether uploads are shrunk, which file types, whether the original is kept,
+/// and, always, what happens to their metadata.
 library;
 
 import 'package:flutter/material.dart';
@@ -129,6 +129,7 @@ class _MediaCompressionSectionState
               ),
           ],
         ),
+        if (current != null) _metadataCard(current),
         SettingsSaveFeedback(
           tick: successTick,
           error: actionError,
@@ -141,15 +142,6 @@ class _MediaCompressionSectionState
   List<Widget> _options(api.SpaceMediaCompression current) {
     return [
       _fileTypes(current),
-      SettingsSegmentedRow<String>(
-        label: 'Photo metadata',
-        description: 'Details stored inside a photo file.',
-        value: current.metadata,
-        choices: _metadataChoices,
-        onChanged: (mode) => saving
-            ? null
-            : _save(current.copyWith(metadata: mode), metadata: mode),
-      ),
       SettingsToggleRow(
         label: 'Keep originals',
         description: 'Also store each photo as sent, offered as a download.',
@@ -163,6 +155,23 @@ class _MediaCompressionSectionState
               ),
       ),
     ];
+  }
+
+  Widget _metadataCard(api.SpaceMediaCompression current) {
+    return SettingsSectionCard(
+      title: 'Photo privacy',
+      children: [
+        SettingsSegmentedRow<String>(
+          label: 'Photo metadata',
+          description: 'What is removed from uploaded photos.',
+          value: current.metadata,
+          choices: _metadataChoices,
+          onChanged: (mode) => saving
+              ? null
+              : _save(current.copyWith(metadata: mode), metadata: mode),
+        ),
+      ],
+    );
   }
 
   Widget _fileTypes(api.SpaceMediaCompression current) {
