@@ -8422,6 +8422,79 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /channels/{channelId}/canvas/export:
+    parameters:
+      - $ref: "#/components/parameters/ChannelId"
+    post:
+      operationId: exportCanvas
+      tags: [canvas]
+      summary: Copy a board into a new canvas channel, and optionally clear it.
+      description: >
+        Needs `MANAGE_CHANNELS` (and sight of the named category), the draw
+        bits on this board (`VIEW_CHANNEL` and `USE_CANVAS`, not timed out)
+        and, with `clear_source`, `MANAGE_CANVAS` here. The source is a voice
+        channel with its canvas on, or a canvas channel; a direct message or a
+        personal space answers 404, and a channel with no board answers 403
+        `canvas_off`. Advertised by the `canvas_export` capability.
+
+
+        The new channel keeps exactly the source's audience (decision 0064): in
+        the source's own category, when the source follows it, the copy follows
+        it too; anywhere else it copies the source's own overwrites and does
+        not follow. `category_id` absent files the copy where the source is, and
+        null leaves it uncategorised.
+
+
+        Every live object is copied with a new id, keeping its box, stacking
+        order, props, author and creation time. A connector's two ends point at
+        the copies; one that lost an end, and a module tile whose module is not
+        installed, are left behind and counted in `skipped`. Images share the
+        stored bytes, locks and tile scenes are copied (a scene's refresh timers
+        are not), and the call's media tiles are not.
+
+
+        With `clear_source` the source is cleared in the same transaction, so
+        nothing drawn in between can be lost; locked objects stay and are
+        counted in `spared`. `id` is the new channel's id and keys the whole
+        request: a retry with the same `id`, source and `clear_source` answers
+        the stored outcome and changes and announces nothing, and any other
+        channel under that `id` is a 409.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExportCanvasRequest"
+      responses:
+        "200":
+          description: The new channel and what was copied, fresh or replayed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExportCanvasResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: >
+            `id` names another channel, the board is too big to export
+            (`code: canvas_export_too_large`), another export of it is running
+            (`code: canvas_export_busy`), or the new channel's object cap
+            refuses the count.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
   /channels/{channelId}/canvas/objects/{objectId}/lock:
     parameters:
       - $ref: "#/components/parameters/ChannelId"
@@ -14851,7 +14924,10 @@ components:
             channel with its canvas turned off, a text channel or a thread.
             A client treats it as "no board here" and does not retry. A
             channel the caller cannot see, or one that does
-            not exist, still answers the bare 403 with no code. Absent on every
+            not exist, still answers the bare 403 with no code.
+            `canvas_export_too_large` and `canvas_export_busy` on a 409 from
+            `exportCanvas`: the board holds more objects than one export
+            copies, or another export of it is running. Absent on every
             other error; read an unknown value as a refusal for another reason.
         timed_out_until:
           type: integer
@@ -24099,6 +24175,55 @@ components:
           type: integer
           format: int64
           description: Milliseconds since the epoch.
+    ExportCanvasRequest:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: The new channel's id, minted by the client once per export.
+        name:
+          type: string
+          description: The new channel's name, as a channel name is checked.
+        category_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            The category to file the copy under. Absent keeps the source's
+            category; null leaves the copy uncategorised.
+        voice_enabled:
+          type: boolean
+          description: Whether the new channel has a call. Defaults to false.
+        clear_source:
+          type: boolean
+          description: >
+            Clear the source in the same transaction. Needs `MANAGE_CANVAS`
+            on it. Defaults to false.
+    ExportCanvasResult:
+      type: object
+      required: [channel, copied, skipped, cleared, spared]
+      properties:
+        channel:
+          $ref: "#/components/schemas/Channel"
+        copied:
+          type: integer
+          format: int64
+          description: Objects copied, connectors included.
+        skipped:
+          type: integer
+          format: int64
+          description: >
+            Objects left behind: connectors that lost an end, and module tiles
+            whose module is not installed and enabled.
+        cleared:
+          type: integer
+          format: int64
+          description: Objects removed from the source; 0 without `clear_source`.
+        spared:
+          type: integer
+          format: int64
+          description: Locked objects the clear left on the source.
     CanvasTileScene:
       type: object
       required: [object_id, output, ran_at]

@@ -31,6 +31,7 @@ impl Class {
             Class::ScreenStamp => "screen_stamp",
             Class::GroupDmCreate => "group_dm_create",
             Class::CanvasWatch => "canvas_watch",
+            Class::CanvasExport => "canvas_export",
             Class::AuthedRead => "authed_read",
             Class::Module => "module",
             Class::CodeRunner => "code_runner",

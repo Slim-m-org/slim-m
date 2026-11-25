@@ -159,6 +159,18 @@ It lists the open boards you can view that have anyone shown on them, each viewe
 You always see your own entry, Hidden or not.
 `/version` lists `canvas_viewers` in `capabilities` on a server that has it.
 
+### Exporting a board
+
+`POST /channels/{channelId}/canvas/export` with `{ "id": "<new channel id>", "name": "...", "category_id": "...", "voice_enabled": false, "clear_source": false }` copies a board into a new canvas channel.
+It needs `MANAGE_CHANNELS`, the draw bits on the source and, with `clear_source`, `MANAGE_CANVAS` there.
+`category_id` absent files the copy under the source's category, and null leaves it uncategorised.
+The answer is `{ "channel": ..., "copied": 12, "skipped": 0, "cleared": 0, "spared": 0 }`.
+`id` keys the whole request: send the same `id` when you retry and you get the first answer back, never a second copy or a second clear.
+A connector that lost an end and a module tile whose module is not installed are left behind and counted in `skipped`; locked objects survive a clear and are counted in `spared`.
+A board past the export ceiling answers `409` with `{"code": "canvas_export_too_large"}`, and one already being exported answers `409` with `{"code": "canvas_export_busy"}`: wait and try again.
+Exports are limited to a few an hour.
+`/version` lists `canvas_export` in `capabilities` on a server that has it.
+
 ## Member join events
 
 ```json

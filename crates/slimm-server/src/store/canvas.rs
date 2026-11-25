@@ -42,6 +42,8 @@ use self::canvas_batch::{ensure_room, existing_placement, insert_object};
 pub(super) mod canvas_clear;
 pub(super) mod canvas_edges;
 pub(super) mod canvas_edit;
+pub(super) mod canvas_export;
+mod canvas_export_copy;
 pub(super) mod canvas_geometry;
 pub(super) mod canvas_media_slots;
 pub(super) mod canvas_move;

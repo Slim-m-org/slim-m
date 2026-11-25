@@ -182,6 +182,7 @@ pub use call_transcripts::{
 };
 pub use calls::CallRecord;
 pub use canvas::canvas_batch::{BatchError, BatchItem};
+pub use canvas::canvas_export::{CanvasExport, ExportError, ExportRequest, MAX_EXPORT_OBJECTS};
 pub use canvas::canvas_tile_scenes::{
     CANVAS_TILE_POINT, MODULE_TILE_KIND, ModuleTileRef, TileScene,
 };
