@@ -39,6 +39,8 @@
 /// mocking the channel stands in for the platform side on every target.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
@@ -81,12 +83,25 @@ void startClipboardImagePaste(PastedImageHandler onImage) {
     ..removeWhere((h) => h == onImage)
     ..add(onImage);
   _clipboardImageChannel.setMethodCallHandler(_handlePastedImageCall);
+  _setNativePasteActive(true);
 }
 
 /// Stops [onImage]'s turn without touching any other caller's registration.
 void stopClipboardImagePaste(PastedImageHandler onImage) {
   _handlers.removeWhere((h) => h == onImage);
-  if (_handlers.isEmpty) _clipboardImageChannel.setMethodCallHandler(null);
+  if (_handlers.isEmpty) {
+    _clipboardImageChannel.setMethodCallHandler(null);
+    _setNativePasteActive(false);
+  }
+}
+
+/// Tells the iOS swizzle whether an image paste has an owner, so every other field keeps the stock paste.
+void _setNativePasteActive(bool active) {
+  unawaited(
+    _clipboardImageChannel
+        .invokeMethod<void>('setImagePasteActive', active)
+        .catchError((Object _) {}),
+  );
 }
 
 Future<void> _handlePastedImageCall(MethodCall call) async {

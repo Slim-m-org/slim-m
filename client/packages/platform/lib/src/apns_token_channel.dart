@@ -129,6 +129,8 @@ class ApnsTokenChannel {
       {Duration timeout = const Duration(seconds: 10)}) async {
     if (!_isIOS) return const ApnsUnsupported();
 
+    await _requestAuthorization();
+
     // Installed before the first probe so a token landing between probes is
     // not dropped. See the doc comment above.
     _liveError = null;
@@ -168,6 +170,21 @@ class ApnsTokenChannel {
           LogTag.platform, 'Apple push registration failed', e, stack);
       _pending = null;
       return ApnsRegistrationFailed(e.message ?? e.code);
+    }
+  }
+
+  /// Shows the system notification prompt if it has not been answered yet;
+  /// native answers once the person has chosen. Callers reach it only after
+  /// sign-in, which is what gives the prompt its context.
+  Future<void> _requestAuthorization() async {
+    try {
+      await _channel.invokeMethod<void>('requestAuthorization');
+    } on MissingPluginException catch (error, stack) {
+      AppLog.swallowed(LogTag.platform,
+          'This build has no notification permission request', error, stack);
+    } on PlatformException catch (error, stack) {
+      AppLog.swallowed(LogTag.platform,
+          'Requesting notification permission failed', error, stack);
     }
   }
 

@@ -34,7 +34,10 @@ final class NotificationTapObserver: NSObject, UNUserNotificationCenterDelegate 
   /// plugin deallocate and take its whole push path with it; a strong one is
   /// what keeps the chain intact. Both ends are app-lifetime singletons, so
   /// there is nothing here to reclaim later anyway.
-  private let next: UNUserNotificationCenterDelegate?
+  ///
+  /// Settable because the observer takes the slot at launch, before plugin
+  /// registration decides who it should chain to.
+  var next: UNUserNotificationCenterDelegate?
   private let onTap: (String) -> Void
 
   /// A tap on a delivered notification. The channel id is whatever the
