@@ -29,7 +29,6 @@ package_for() {
   case "$1" in
     libmpv.so.2) distro_pkg libmpv2 mpv-libs libmpv2 mpv ;;
     libepoxy.so.0) distro_pkg libepoxy0 libepoxy libepoxy0 libepoxy ;;
-    libsecret-1.so.0) distro_pkg libsecret-1-0 libsecret libsecret-1-0 libsecret ;;
     libayatana-appindicator3.so.1) distro_pkg libayatana-appindicator3-1 libayatana-appindicator-gtk3 libayatana-appindicator3-1 libayatana-appindicator ;;
     libgstreamer-1.0.so.0 | libgstapp-1.0.so.0) distro_pkg libgstreamer1.0-0 gstreamer1 libgstreamer-1_0-0 gstreamer ;;
     libgtk-3.so.0) distro_pkg libgtk-3-0 gtk3 libgtk-3-0 gtk3 ;;
@@ -37,12 +36,22 @@ package_for() {
   esac
 }
 
-# libjvm.so is skipped: libdartjni.so links it but the app never uses the JVM bridge on Linux.
-missing_libraries() {
+# Runs ldd over the binary and every plugin, so both checks below read one listing.
+ldd_bundle() {
   command -v ldd >/dev/null 2>&1 || return 0
   for obj in "$here/slimm_app" "$here"/lib/*.so; do
-    LD_LIBRARY_PATH="$here/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" ldd "$obj" 2>/dev/null
-  done | sed -n 's/^[[:space:]]*\(.*\) => not found.*/\1/p' | grep -v '^libjvm\.so$' | sort -u
+    LD_LIBRARY_PATH="$here/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" ldd "$obj" 2>&1
+  done
+}
+
+# libjvm.so is skipped: libdartjni.so links it but the app never uses the JVM bridge on Linux.
+missing_libraries() {
+  printf '%s\n' "$1" | sed -n 's/^[[:space:]]*\(.*\) => not found.*/\1/p' | grep -v '^libjvm\.so$' | sort -u
+}
+
+# The GLIBC_x.y and GLIBCXX_x.y symbol versions the bundle wants and this system's libraries lack.
+too_new_symbols() {
+  printf '%s\n' "$1" | sed -n "s/.*version \`\(GLIBCX*_[0-9.]*\)' not found.*/\1/p" | sort -uV
 }
 
 root=$(dirname "$here")
@@ -83,7 +92,16 @@ roll_back_if_stuck() {
 
 roll_back_if_stuck "$@"
 
-missing=$(missing_libraries)
+listing=$(ldd_bundle)
+too_new=$(too_new_symbols "$listing")
+if [ -n "$too_new" ]; then
+  echo "slim-m cannot start: this system's C library is older than the one this build needs ($(echo "$too_new" | tr '\n' ' '))." >&2
+  echo "  The portable build needs glibc 2.38 or newer (Ubuntu 24.04, Debian 13, Fedora 39 or newer)." >&2
+  echo "  On an older system use the Flatpak instead." >&2
+  exit 1
+fi
+
+missing=$(missing_libraries "$listing")
 if [ -n "$missing" ]; then
   echo "slim-m cannot start: this system is missing shared libraries." >&2
   echo "$missing" | while read -r lib; do

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0 -->
+<component type="desktop-application">
+  <id>top.npcserver.slimm</id>
+  <name>slim-m</name>
+  <summary>Chat, voice, and screen share on a slim-m server</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>LicenseRef-proprietary=https://polyformproject.org/licenses/noncommercial/1.0.0</project_license>
+  <developer id="top.npcserver">
+    <name>slim-m</name>
+  </developer>
+  <description>
+    <p>slim-m is a lightweight, self-hostable chat platform with text, voice, screen sharing and a shared canvas. This is the desktop client for a slim-m server you or your community run.</p>
+  </description>
+  <launchable type="desktop-id">top.npcserver.slimm.desktop</launchable>
+  <url type="homepage">https://github.com/Slim-m-org/slim-m</url>
+  <url type="bugtracker">https://github.com/Slim-m-org/slim-m/issues</url>
+  <provides>
+    <id>top.npcserver.slimm.desktop</id>
+  </provides>
+  <categories>
+    <category>Network</category>
+    <category>InstantMessaging</category>
+  </categories>
+  <content_rating type="oars-1.1"/>
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+  </supports>
+  <requires>
+    <display_length compare="ge">768</display_length>
+  </requires>
+</component>
