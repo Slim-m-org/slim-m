@@ -25,6 +25,8 @@ const noGlobalCaptureMessage =
     'This works only while slim-m is focused on this system.';
 const captureLostMessage =
     'Background capture stopped, so this works only while slim-m is focused.';
+const elevatedFocusMessage =
+    'An app run as administrator is in front, so these keys do nothing until you switch away.';
 
 /// The chord [action] currently has, or null once it is unbound or keybinds are off.
 HotkeyChord? chordFor(AppAction action) {
@@ -66,7 +68,11 @@ class GlobalHotkeysController extends StateNotifier<GlobalHotkeyAvailability?> {
       voiceSettingsControllerProvider,
       (_, _) => _sync(retryUnavailable: true),
     );
-    _ref.listen(voiceControllerProvider, (_, _) => _sync());
+    _ref.listen(
+      voiceControllerProvider.select((voice) => voice.state),
+      (_, after) =>
+          _sync(retryUnavailable: after == VoiceSessionState.connected),
+    );
     _ref.listen(screenOverlaySupportedProvider, (_, _) => _sync());
     _ref.listen(
       shortcutOverridesProvider,
@@ -83,6 +89,8 @@ class GlobalHotkeysController extends StateNotifier<GlobalHotkeyAvailability?> {
   String _bound = '';
   bool _binding = false;
   bool _probedAvailable = false;
+  bool _blocked = false;
+  GlobalHotkeyAvailability? _result;
 
   /// The native binding set is shared, so only the container that owns the call (else the one on screen) binds it.
   void _onHostChanged() {
@@ -100,20 +108,29 @@ class GlobalHotkeysController extends StateNotifier<GlobalHotkeyAvailability?> {
     if (source == null) return;
     final probed = await source.probe();
     _probedAvailable = probed.available;
-    state = probed;
+    _publish(probed);
     if (mounted) await _sync();
   }
 
+  bool get _inCall =>
+      _ref.read(voiceControllerProvider).state == VoiceSessionState.connected;
+
+  void _publish(GlobalHotkeyAvailability result) {
+    _result = result;
+    state = _blocked && result.available
+        ? const GlobalHotkeyAvailability.unavailable(elevatedFocusMessage)
+        : result;
+  }
+
+  /// Everything the person has switched on, bound once so a call starting or ending never changes the set.
   List<GlobalHotkeyBinding> _wanted() {
     final settings = _ref.read(voiceSettingsControllerProvider);
-    final inCall =
-        _ref.read(voiceControllerProvider).state == VoiceSessionState.connected;
     GlobalHotkeyBinding? call(
       GlobalHotkeyId id,
       AppAction action,
       String description,
     ) {
-      final chord = inCall ? chordFor(action) : null;
+      final chord = chordFor(action);
       if (chord == null) return null;
       return GlobalHotkeyBinding(
         id: id,
@@ -159,7 +176,7 @@ class GlobalHotkeysController extends StateNotifier<GlobalHotkeyAvailability?> {
   Future<void> _sync({bool retryUnavailable = false}) async {
     final source = _source;
     final canBind =
-        state?.available == true || (retryUnavailable && _probedAvailable);
+        _result?.available == true || (retryUnavailable && _probedAvailable);
     if (source == null || _binding || !canBind || !_owned) return;
     final wanted = _wanted();
     final signature = [
@@ -173,12 +190,12 @@ class GlobalHotkeysController extends StateNotifier<GlobalHotkeyAvailability?> {
     try {
       final result = await source.bind(wanted);
       if (!mounted) return;
-      _bound = signature;
-      state = result;
+      _bound = result.available ? signature : '';
+      _publish(result);
     } finally {
       _binding = false;
     }
-    if (mounted && state?.available == true) await _sync();
+    if (mounted && _result?.available == true) await _sync();
   }
 
   void _onEvent(GlobalHotkeyEvent event) {
@@ -187,11 +204,16 @@ class GlobalHotkeysController extends StateNotifier<GlobalHotkeyAvailability?> {
     if (event.phase == GlobalHotkeyPhase.lost) {
       gate.release(HoldSource.global);
       _bound = '';
-      state = const GlobalHotkeyAvailability.unavailable(captureLostMessage);
+      _publish(const GlobalHotkeyAvailability.unavailable(captureLostMessage));
       return;
     }
-    // A desktop may keep delivering a shortcut that was dropped from a live session.
-    if (!_wanted().any((binding) => binding.id == event.id)) return;
+    if (event.phase == GlobalHotkeyPhase.blocked ||
+        event.phase == GlobalHotkeyPhase.unblocked) {
+      _blocked = event.phase == GlobalHotkeyPhase.blocked;
+      if (_result != null) _publish(_result!);
+      return;
+    }
+    if (!_isLive(event.id)) return;
     switch (event.id) {
       case GlobalHotkeyId.pushToTalk:
         if (event.phase == GlobalHotkeyPhase.pressed) {
@@ -220,6 +242,14 @@ class GlobalHotkeysController extends StateNotifier<GlobalHotkeyAvailability?> {
       case null:
         return;
     }
+  }
+
+  /// A desktop may keep delivering a shortcut that is switched off, or a call shortcut outside a call.
+  bool _isLive(GlobalHotkeyId? id) {
+    if (id == null || !_wanted().any((binding) => binding.id == id)) {
+      return false;
+    }
+    return id == GlobalHotkeyId.pushToTalk || _inCall;
   }
 
   void _toggleMute(PushToTalkGate gate) {

@@ -15,7 +15,8 @@ import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 const globalHotkeysChannelName = 'slimm/global_hotkeys';
 
-const hookAvailableMessage = 'Works when slim-m is in the background.';
+const hookAvailableMessage =
+    'Works when slim-m is in the background, but not over an app run as administrator.';
 const hookFailedMessage =
     'Background capture could not start, so this works only while slim-m is focused.';
 const unmappedKeyMessage =
@@ -48,6 +49,11 @@ List<Map<String, Object>>? hookBindingsFor(
 /// The event a native call describes, or null when it is not one.
 GlobalHotkeyEvent? hookEventFromCall(MethodCall call) {
   if (call.method == 'lost') return const GlobalHotkeyEvent.lost();
+  if (call.method == 'blocked') {
+    return call.arguments == true
+        ? const GlobalHotkeyEvent.blocked()
+        : const GlobalHotkeyEvent.unblocked();
+  }
   if (call.method != 'event' || call.arguments is! Map) return null;
   final args = call.arguments as Map;
   final pressed = args['pressed'];
