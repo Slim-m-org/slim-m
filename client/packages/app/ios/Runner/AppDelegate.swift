@@ -271,9 +271,46 @@ import UserNotifications
     case "resetRegistration":
       resetRemoteRegistration(UIApplication.shared)
       result(nil)
+    case "getNotificationAuthorization":
+      UNUserNotificationCenter.current().getNotificationSettings { settings in
+        result(AppDelegate.authorizationName(settings.authorizationStatus))
+      }
+    case "beginBackgroundTask":
+      result(beginBackgroundTask())
+    case "endBackgroundTask":
+      if let id = call.arguments as? Int { endBackgroundTask(id) }
+      result(nil)
     default:
       result(FlutterMethodNotImplemented)
     }
+  }
+
+  private static func authorizationName(_ status: UNAuthorizationStatus) -> String {
+    switch status {
+    case .denied: return "denied"
+    case .notDetermined: return "notDetermined"
+    default: return "authorized"
+    }
+  }
+
+  private var backgroundTasks: [Int: UIBackgroundTaskIdentifier] = [:]
+  private var nextBackgroundTaskId = 0
+
+  /// Keeps the process running while Dart sends its "background" report, which
+  /// iOS would otherwise suspend before the request completes.
+  private func beginBackgroundTask() -> Int {
+    nextBackgroundTaskId += 1
+    let id = nextBackgroundTaskId
+    backgroundTasks[id] = UIApplication.shared.beginBackgroundTask(withName: "slimm.push.lifecycle") {
+      [weak self] in
+      self?.endBackgroundTask(id)
+    }
+    return id
+  }
+
+  private func endBackgroundTask(_ id: Int) {
+    guard let task = backgroundTasks.removeValue(forKey: id) else { return }
+    UIApplication.shared.endBackgroundTask(task)
   }
 
   /// Answers with the channel a tap is waiting to open, and forgets it in the

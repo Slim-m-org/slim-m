@@ -498,7 +498,7 @@ class _ComposerState extends ConsumerState<Composer> {
               charCount: _stats.charCount,
               stageFile: _actions.stageFile,
               onBrowse: () => unawaited(
-                _actions.pickAttachment(AttachmentSource.photoLibrary),
+                _actions.pickAttachment(AttachmentSource.mediaLibrary),
               ),
             ),
           ],

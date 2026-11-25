@@ -19,12 +19,17 @@ void reportCallLifecycle(
   VoiceSessionState s, {
   required String? channelId,
   bool microphoneEnabled = true,
+  required bool direct,
 }) {
   switch (s) {
     case VoiceSessionState.connecting:
       if (channelId == null) return;
       unawaited(
-        lifecycle.callStarted(callId: channelId, displayName: 'Voice call'),
+        lifecycle.callStarted(
+          callId: channelId,
+          displayName: 'Voice call',
+          direct: direct,
+        ),
       );
     case VoiceSessionState.connected:
       unawaited(lifecycle.callConnected());

@@ -70,12 +70,20 @@ class _Rig {
 
   DmCallRingState get ring => container.read(dmCallRingControllerProvider);
 
-  Future<void> nativeSends(String event, {String id = 'uuid-1'}) {
+  Future<void> nativeSends(
+    String event, {
+    String id = 'uuid-1',
+    bool ringId = false,
+  }) {
     return TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .handlePlatformMessage(
           _channelName,
           const StandardMethodCodec().encodeMethodCall(
-            MethodCall('onCallKitEvent', {'event': event, 'id': id}),
+            MethodCall('onCallKitEvent', {
+              'event': event,
+              'id': id,
+              if (ringId) 'ring_id': true,
+            }),
           ),
           (_) {},
         );
@@ -119,7 +127,7 @@ Future<_Rig> _rig({
       liveEventsProvider.overrideWithValue(events.stream),
       routerProvider.overrideWithValue(router),
       callKitIncomingChannelProvider.overrideWithValue(
-        CallKitIncomingChannel(isIOS: true),
+        CallKitIncomingChannel(enabled: true),
       ),
       voiceControllerProvider.overrideWith(
         (ref) => voice = FakeVoiceController(ref, recording: true),
@@ -156,6 +164,46 @@ Future<_Rig> _rig({
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  test('a stale Android answer never joins another live ring', () async {
+    final rig = await _rig(outstanding: [_outstanding('dm-2', 'ring-2')]);
+
+    await rig.nativeSends('answered', id: 'ring-old', ringId: true);
+    await rig.settle();
+
+    expect(rig.voice.joins, isEmpty);
+    expect(rig.ended, ['ring-old']);
+  });
+
+  test('a stale Android answer leaves the ring on screen alone', () async {
+    final rig = await _rig();
+    rig.events.add(_ringFrame);
+    await rig.settle();
+
+    await rig.nativeSends('answered', id: 'ring-old', ringId: true);
+    await rig.settle();
+
+    expect(rig.voice.joins, isEmpty);
+    expect(rig.ring.incoming?.ringId, 'ring-1');
+  });
+
+  test('an Android answer for the live ring joins it', () async {
+    final rig = await _rig(outstanding: [_outstanding('dm-1', 'ring-1')]);
+
+    await rig.nativeSends('answered', id: 'ring-1', ringId: true);
+    await rig.settle();
+
+    expect(rig.voice.joins, ['dm-1']);
+  });
+
+  test('a stale Android decline never declines the only live ring', () async {
+    final rig = await _rig(outstanding: [_outstanding('dm-2', 'ring-2')]);
+
+    await rig.nativeSends('declined', id: 'ring-old', ringId: true);
+    await rig.settle();
+
+    expect(rig.declined, isEmpty);
+  });
 
   test('answering on CallKit before the ring frame joins on arrival', () async {
     final rig = await _rig();
@@ -418,6 +466,61 @@ void main() {
       await rig.settle();
 
       expect(rig.ended, ['uuid-1']);
+    });
+  });
+
+  group('a decline from the Android notification', () {
+    test('declines the ring the app already holds', () async {
+      final rig = await _rig();
+      rig.events.add(_ringFrame);
+      await rig.settle();
+
+      await rig.nativeSends('declined', id: 'ring-1');
+      await rig.settle();
+
+      expect(rig.declined, ['dm-1']);
+      expect(rig.ring.incoming, isNull);
+    });
+
+    test('before the ring frame arrives asks the server which ring', () async {
+      final rig = await _rig(outstanding: [_outstanding('dm-1', 'ring-1')]);
+
+      await rig.nativeSends('declined', id: 'ring-1');
+      await rig.settle();
+
+      expect(rig.declined, ['dm-1']);
+    });
+
+    test(
+      'replayed from before Dart started still reaches the server',
+      () async {
+        final rig = await _rig(
+          pending: [
+            {'event': 'declined', 'id': 'ring-2'},
+          ],
+          outstanding: [
+            _outstanding('dm-1', 'ring-1'),
+            _outstanding('dm-2', 'ring-2'),
+          ],
+        );
+        await rig.settle();
+
+        expect(rig.declined, ['dm-2'], reason: 'the ring named by the decline');
+      },
+    );
+
+    test('names no ring among several: none is declined blindly', () async {
+      final rig = await _rig(
+        outstanding: [
+          _outstanding('dm-1', 'ring-1'),
+          _outstanding('dm-2', 'ring-2'),
+        ],
+      );
+
+      await rig.nativeSends('declined', id: 'unknown');
+      await rig.settle();
+
+      expect(rig.declined, isEmpty);
     });
   });
 }

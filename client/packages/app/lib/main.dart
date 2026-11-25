@@ -14,6 +14,7 @@ import 'package:slimm_rtc/rtc.dart' show MirrorSelfViewScope;
 
 export 'src/desktop/startup_state.dart';
 
+import 'src/features/composer/widgets/picker_temp_files.dart';
 import 'src/api_failure.dart' show loadFailureRetries;
 import 'src/default_server.dart';
 import 'src/audio/sound_backend_warmup.dart';
@@ -209,6 +210,7 @@ Future<void> _bootstrapApp(
   if (launchedAtLogin) unawaited(shell.requestClose());
   unawaited(container.read(selfUpdateProvider).confirmStart());
   unawaited(repairAutostart(container));
+  container.read(pickerTempFilesProvider).clearWhenIdle();
 }
 
 /// Restores the splash on/off and duration preferences and turns them into

@@ -5,6 +5,7 @@ library;
 import 'dart:async';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/widgets.dart' show WidgetsBinding;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_api/api.dart';
@@ -12,6 +13,7 @@ import 'package:slimm_rtc/rtc.dart';
 
 import '../../../api_failure.dart';
 import '../../../providers/providers.dart';
+import 'bluetooth_permission_provider.dart';
 import 'join_timings_provider.dart';
 import 'voice_input_settings.dart';
 import 'voice_join_muted.dart';
@@ -171,6 +173,12 @@ class VoiceSfuConnect {
         _current.microphoneEnabled &&
         token.canPublish &&
         !_input.pushToTalkEnabled;
+    // Before the session starts routing audio, which reads the grant once; a denial, a hung dialog or a backgrounded app leaves the call on the speaker.
+    await askBluetoothBeforeJoin(
+      _ref.read(bluetoothPermissionProvider),
+      lifecycle: WidgetsBinding.instance.lifecycleState,
+    );
+    if (superseded()) return;
     await _session.join(
       url: token.url,
       token: token.token,

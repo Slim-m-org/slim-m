@@ -33,13 +33,14 @@ class ComposerShortcodes extends ConsumerStatefulWidget {
 }
 
 class _ComposerShortcodesState extends ConsumerState<ComposerShortcodes> {
-  late String _previous = widget.controller.text;
+  late String _previous;
   ShortcodeConversion? _converted;
   List<String> _previewNames = const [];
 
   @override
   void initState() {
     super.initState();
+    _previous = widget.controller.text;
     widget.controller.addListener(_onChange);
   }
 
@@ -83,6 +84,11 @@ class _ComposerShortcodesState extends ConsumerState<ComposerShortcodes> {
     final value = widget.controller.value;
     final text = value.text;
     if (text == _previous) return;
+    // Rewriting the field mid-composition cancels the IME's candidate; the first change after it ends converts.
+    if (value.composing.isValid) {
+      _updatePreview();
+      return;
+    }
     final caret = value.selection.baseOffset;
 
     final undo = _converted == null
@@ -114,6 +120,10 @@ class _ComposerShortcodesState extends ConsumerState<ComposerShortcodes> {
       _previous = text;
     }
 
+    _updatePreview();
+  }
+
+  void _updatePreview() {
     final names = _previewFor(widget.controller.text);
     if (names.join(',') != _previewNames.join(',')) {
       setState(() => _previewNames = names);

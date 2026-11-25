@@ -29,6 +29,9 @@ enum AttachmentSource {
   /// on Android.
   photoLibrary,
 
+  /// [photoLibrary] with videos too, for a message attachment.
+  mediaLibrary,
+
   /// The general document browser: `UIDocumentPickerViewController` on iOS,
   /// the SAF browser on Android, the one dialog every desktop platform has.
   fileBrowser,
@@ -46,6 +49,13 @@ typedef AttachmentPicker = Future<PlatformFile?> Function();
 /// arrived as HEIC and played as a broken video for everyone else.
 Future<PlatformFile?> _pickPhotoLibrary() => FilePicker.pickFile(
   type: FileType.image,
+  darwinOptions: const DarwinOptions(
+    assetRepresentationMode: DarwinAssetRepresentationMode.compatible,
+  ),
+);
+
+Future<PlatformFile?> _pickMediaLibrary() => FilePicker.pickFile(
+  type: FileType.media,
   darwinOptions: const DarwinOptions(
     assetRepresentationMode: DarwinAssetRepresentationMode.compatible,
   ),
@@ -69,6 +79,7 @@ final attachmentPickerProvider =
     Provider.family<AttachmentPicker, AttachmentSource>(
       (ref, source) => switch (source) {
         AttachmentSource.photoLibrary => _pickPhotoLibrary,
+        AttachmentSource.mediaLibrary => _pickMediaLibrary,
         AttachmentSource.fileBrowser => _pickFileBrowser,
         AttachmentSource.stillImageFiles => _pickStillImageFile,
       },

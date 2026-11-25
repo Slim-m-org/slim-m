@@ -64,7 +64,7 @@ class ComposerAttachmentActions {
             ref,
             channelId,
             fallback: keepKeyboard(
-              () => unawaited(pickAttachment(AttachmentSource.photoLibrary)),
+              () => unawaited(pickAttachment(AttachmentSource.mediaLibrary)),
             ),
           ),
         ),

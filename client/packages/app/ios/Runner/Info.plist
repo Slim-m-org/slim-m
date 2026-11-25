@@ -95,7 +95,7 @@
 	<key>PHPhotoLibraryPreventAutomaticLimitedAccessAlert</key>
 	<true/>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>slim-m opens your photo library when you attach an image to a message.</string>
+	<string>slim-m opens your photo library when you attach a photo or video to a message.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>slim-m saves an image to your photo library when you choose Save on it.</string>
 	<!-- ITMS-90683 on build 82: a linked SDK referenced Core Location with no

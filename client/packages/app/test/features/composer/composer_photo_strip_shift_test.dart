@@ -50,6 +50,9 @@ class _ShiftingLibrary implements PhotoLibrary {
       MemoryFile(id, _pixels[id]!).source;
 
   @override
+  Future<void> clearCache() async {}
+
+  @override
   Future<void> manageLimited() async => ids = afterManage;
 }
 

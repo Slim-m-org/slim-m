@@ -19,6 +19,7 @@ import '../../../audio/sound_session_release.dart';
 import '../../../push/providers/push_channel_providers.dart';
 import '../../../providers/sync_controller.dart';
 import 'call_foreground_keeper.dart';
+import 'dm_call.dart';
 import 'call_owner.dart';
 import '../../accounts/providers/account_providers.dart'
     show accountHostProvider;
@@ -111,6 +112,7 @@ class VoiceController extends StateNotifier<VoiceState> {
       session: _session,
       access: access,
       callLifecycle: _callLifecycle,
+      isDirectCall: (id) => isDirectCall(_ref, id),
       foreground: _foreground,
       heartbeat: _heartbeat,
       autoRejoin: _autoRejoin,

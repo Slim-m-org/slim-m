@@ -36,6 +36,9 @@ class _Library implements PhotoLibrary {
       MemoryFile('$id.png', _png).source;
 
   @override
+  Future<void> clearCache() async {}
+
+  @override
   Future<void> manageLimited() async {}
 }
 

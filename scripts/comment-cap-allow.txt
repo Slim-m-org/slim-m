@@ -52,7 +52,7 @@ client/packages/app/lib/src/features/channels/widgets/channel_rail_sections.dart
 client/packages/app/lib/src/features/palette/widgets/command_palette.dart 1
 client/packages/app/lib/src/features/palette/widgets/command_palette_items.dart 1
 client/packages/app/lib/src/features/composer/widgets/composer.dart 1
-client/packages/app/lib/src/features/composer/widgets/composer_field.dart 4
+client/packages/app/lib/src/features/composer/widgets/composer_field.dart 3
 client/packages/app/lib/src/features/messages/widgets/fullscreen_image_viewer.dart 2
 client/packages/app/lib/src/features/settings/widgets/join_policy_row.dart 1
 client/packages/app/lib/src/features/members/widgets/member_pane.dart 1
@@ -278,7 +278,6 @@ client/packages/app/windows/runner/screen_overlay_win.h 4
 client/packages/app/windows/runner/single_instance.h 3
 client/packages/app/windows/runner/utils.cpp 2
 client/packages/app/windows/runner/utils.h 3
-client/packages/platform/android/src/main/kotlin/top/npcserver/slimm/platform/IncomingCallNotifier.kt 1
 client/packages/platform/android/src/main/kotlin/top/npcserver/slimm/platform/SlimmConnection.kt 1
 client/packages/platform/android/src/main/kotlin/top/npcserver/slimm/platform/SlimmConnectionService.kt 1
 e2e/playwright.config.ts 1

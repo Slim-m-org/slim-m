@@ -84,3 +84,7 @@ the pre-trim `CLAUDE.md`, "The seven sounds finally play": the choice of `AudioC
 
 **Android's clipboard image paste path has no iOS-equivalent risk, but the reverse is untested: whether the iOS long-press paste fix has any interaction with the composer's other context-menu items (Scan Text, Look Up, etc.) has not been specifically checked beyond confirming Paste itself now appears and works.**
 Inferred from the absence of any test or note covering this interaction; `composer_clipboard_paste_test.dart` and the confirmed device pass both focus on Paste's own presence and behaviour, not on whether forcing it into the system menu list altered any other item's behaviour.
+
+**The app cannot receive from the iOS share sheet or Open in, because there is no Share Extension target and no `CFBundleDocumentTypes` in `Info.plist`.**
+Sharing into the app is Android-only (`ShareIntakeChannel`); on iOS the only inbound routes are in-app pickers and clipboard paste.
+Building it means a Share Extension with an app-group handoff, like the broadcast extension, plus a client intake source; this is an owner decision before any work starts, and it cannot be built or run on this Linux box.
