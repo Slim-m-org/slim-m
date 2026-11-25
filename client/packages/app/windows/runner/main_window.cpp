@@ -153,7 +153,9 @@ std::optional<LRESULT> HandleTopLevelMessage(HWND window, UINT message,
     OnSecondInstance(window);
     return 0;
   }
-  if (message == TaskbarButtonCreatedMessage()) OnTaskbarButtonCreated();
+  if (message == TaskbarButtonCreatedMessage() || message == WM_DPICHANGED) {
+    OnTaskbarButtonCreated();
+  }
   if (message == WM_FONTCHANGE) g_engine->ReloadSystemFonts();
   return std::nullopt;
 }

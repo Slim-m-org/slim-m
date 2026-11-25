@@ -267,15 +267,27 @@ class WindowManagerDesktopWindowPort
       y: bounds.top,
       width: bounds.width,
       height: bounds.height,
+      scale: _perMonitorScale ? _windowScale : null,
     );
   }
 
+  bool get _perMonitorScale =>
+      currentDesktopPlatform() == DesktopPlatform.windows;
+
+  double get _windowScale => wm.windowManager.getDevicePixelRatio();
+
   @override
-  Future<void> setBounds(WindowRect rect) => wm.windowManager.setBounds(
-    null,
-    position: Offset(rect.x, rect.y),
-    size: Size(rect.width, rect.height),
-  );
+  Future<void> setBounds(WindowRect rect) {
+    final saved = rect.scale;
+    final factor = saved == null || !_perMonitorScale
+        ? 1.0
+        : saved / _windowScale;
+    return wm.windowManager.setBounds(
+      null,
+      position: Offset(rect.x * factor, rect.y * factor),
+      size: Size(rect.width * factor, rect.height * factor),
+    );
+  }
 
   @override
   Future<void> setSize(WindowSize size) =>
@@ -397,6 +409,9 @@ class WindowManagerDesktopWindowPort
             y: display.visiblePosition?.dy ?? 0,
             width: (display.visibleSize ?? display.size).width,
             height: (display.visibleSize ?? display.size).height,
+            scaleFactor: _perMonitorScale
+                ? (display.scaleFactor ?? 1.0).toDouble()
+                : 1.0,
           ),
         )
         .toList(growable: false);

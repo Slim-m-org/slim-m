@@ -54,6 +54,7 @@ Future<void> applyFinalGeometry(
         y: position.y,
         width: geometry.windowedSize.width,
         height: geometry.windowedSize.height,
+        scale: position.scale,
       ),
     );
   } else {

@@ -15,7 +15,8 @@ namespace {
 
 using Microsoft::WRL::ComPtr;
 
-constexpr int kIconSize = 16;
+constexpr int kBaseIconSize = 16;
+constexpr int kBaseFontHeight = 11;
 constexpr int kMaxShownCount = 9;
 
 bool FlashTaskbarButton(HWND window, DWORD flags) {
@@ -24,7 +25,9 @@ bool FlashTaskbarButton(HWND window, DWORD flags) {
 }
 
 // A red disc with the count in white; GDI draws no alpha, so a mask bitmap cuts the corners.
-HICON DrawBadge(int count) {
+HICON DrawBadge(int count, UINT dpi) {
+  const int kIconSize = GetSystemMetricsForDpi(SM_CXSMICON, dpi);
+  const int font_height = MulDiv(kBaseFontHeight, kIconSize, kBaseIconSize);
   HDC screen = GetDC(nullptr);
   HDC dc = CreateCompatibleDC(screen);
   HBITMAP color = CreateCompatibleBitmap(screen, kIconSize, kIconSize);
@@ -47,7 +50,7 @@ HICON DrawBadge(int count) {
   const std::wstring text = count > kMaxShownCount
                                 ? std::to_wstring(kMaxShownCount) + L"+"
                                 : std::to_wstring(count);
-  HFONT font = CreateFontW(-11, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE,
+  HFONT font = CreateFontW(-font_height, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE,
                            DEFAULT_CHARSET, OUT_DEFAULT_PRECIS,
                            CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
                            DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
@@ -80,7 +83,7 @@ class OverlayBadge {
     if (count <= 0) {
       return SUCCEEDED(taskbar_->SetOverlayIcon(window_, nullptr, nullptr));
     }
-    HICON icon = DrawBadge(count);
+    HICON icon = DrawBadge(count, GetDpiForWindow(window_));
     if (!icon) return false;
     const std::wstring label = std::to_wstring(count) + L" unread";
     const bool shown =
