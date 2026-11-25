@@ -53,20 +53,28 @@ class CanvasBar extends ConsumerWidget {
       // A canvas channel is its board, so its name needs no mode beside it.
       mode: board ? null : 'Canvas',
       stacked: compact,
-      leading: Padding(
-        padding: const EdgeInsets.only(right: AppSpacing.s8),
-        child: Icon(
-          AppIcons.canvas,
-          size: AppSizes.icon16,
-          color: tokens.textSecondary,
-        ),
-      ),
+      // A phone gives the glyph's width to the title; the back arrow and the board already say what this is.
+      leading: compact
+          ? Semantics(
+              label: board ? 'Canvas channel' : 'Canvas',
+              child: const SizedBox.shrink(),
+            )
+          : Padding(
+              padding: const EdgeInsets.only(right: AppSpacing.s8),
+              child: Icon(
+                AppIcons.canvas,
+                size: AppSizes.icon16,
+                color: tokens.textSecondary,
+              ),
+            ),
     );
     final actions =
         phoneControls ?? CanvasBarActions(channelId: channelId, isDm: isDm);
     return Container(
       height: compact ? AppSizes.rowTouch + AppSpacing.s8 : AppSizes.headerBar,
-      padding: const EdgeInsets.symmetric(horizontal: AppSizes.paneGutter),
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? AppSizes.paneGutterCompact : AppSizes.paneGutter,
+      ),
       alignment: Alignment.centerLeft,
       // Raised off the drawing surface so the strip reads as a pane header, not canvas.
       decoration: BoxDecoration(

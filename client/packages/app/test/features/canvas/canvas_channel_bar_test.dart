@@ -3,6 +3,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderParagraph;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
@@ -18,13 +19,18 @@ import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_data/data.dart';
 
 import '../../support/fake_voice.dart';
+import '../../ui_snapshot_fonts.dart';
 import 'canvas_pane_harness.dart';
 
 const _settle = Duration(milliseconds: 400);
 
-Channel _channel(String kind, {bool? voiceEnabled}) => Channel(
+Channel _channel(
+  String kind, {
+  bool? voiceEnabled,
+  String name = 'new-designs-MVP',
+}) => Channel(
   id: 'c1',
-  name: 'new-designs-MVP',
+  name: name,
   kind: kind,
   createdAt: 0,
   position: 0,
@@ -72,6 +78,7 @@ Future<_Pane> _pump(
   String? elsewhere,
   bool notice = false,
   bool withPeople = true,
+  String name = 'new-designs-MVP',
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -80,7 +87,9 @@ Future<_Pane> _pump(
   final container = fixture.container(
     extraOverrides: [
       channelByIdProvider('c1').overrideWith(
-        (ref) => Stream.value(_channel(kind, voiceEnabled: voiceEnabled)),
+        (ref) => Stream.value(
+          _channel(kind, voiceEnabled: voiceEnabled, name: name),
+        ),
       ),
       voiceControllerProvider.overrideWith(
         (ref) => FakeVoiceController(ref, recording: true),
@@ -115,7 +124,13 @@ Finder get _facepile => find.byTooltip('People here');
 /// A widget located by its type through a predicate, the repo's way past the find.byType ceiling.
 Finder _of<T extends Widget>() => find.byWidgetPredicate((w) => w is T);
 
+RenderParagraph _title(WidgetTester tester, String name) =>
+    tester.renderObject<RenderParagraph>(find.text(name));
+
 void main() {
+  // Name widths are measured, so the real face, not the test one.
+  setUpAll(loadRealFonts);
+
   group('the facepile', () {
     for (final (kind, noun) in [
       ('canvas', 'canvas channel'),
@@ -296,6 +311,82 @@ void main() {
       await tester.tap(join);
       await tester.pump(_settle);
       expect(pane.voice.joins, ['c1']);
+    });
+  });
+
+  group('the phone bar', () {
+    testWidgets('keeps the whole name beside back, Join call, undo, redo and '
+        'the overflow at 390', (tester) async {
+      await _pump(tester, size: const Size(390, 844), voiceEnabled: true);
+
+      final title = _title(tester, 'new-designs-MVP');
+      expect(title.didExceedMaxLines, isFalse);
+      expect(
+        title.size.width,
+        greaterThanOrEqualTo(title.getMaxIntrinsicWidth(double.infinity)),
+      );
+      final bar = _bar(tester);
+      for (final label in [
+        'Back to channels',
+        'Join call, 2 in the call',
+        'Undo',
+        'Redo',
+        'More canvas actions',
+      ]) {
+        final rect = tester.getRect(find.bySemanticsLabel(label));
+        expect(bar.contains(rect.center), isTrue, reason: label);
+        expect(rect.width, greaterThanOrEqualTo(44), reason: label);
+      }
+    });
+
+    testWidgets('keeps at least 8 characters of the name at 360', (
+      tester,
+    ) async {
+      await _pump(tester, size: const Size(360, 844), voiceEnabled: true);
+
+      final title = _title(tester, 'new-designs-MVP');
+      final perChar =
+          title.getMaxIntrinsicWidth(double.infinity) /
+          'new-designs-MVP'.length;
+      expect(title.size.width, greaterThanOrEqualTo(8 * perChar));
+    });
+
+    for (final width in [360.0, 390.0]) {
+      testWidgets('a 64 character name ellipsizes at $width', (tester) async {
+        final name = List.filled(64, 'x').join();
+        await _pump(tester, size: Size(width, 844), name: name);
+        expect(_title(tester, name).didExceedMaxLines, isTrue);
+      });
+    }
+
+    testWidgets('a canvas channel gives the glyph width to the title at 390', (
+      tester,
+    ) async {
+      await _pump(tester, size: const Size(390, 844));
+
+      final back = tester.getRect(find.bySemanticsLabel('Back to channels'));
+      final title = tester.getTopLeft(find.text('new-designs-MVP'));
+      expect(title.dx - back.right, lessThanOrEqualTo(12));
+      expect(find.bySemanticsLabel('Canvas channel'), findsOneWidget);
+    });
+
+    testWidgets('a voice canvas bar does too, and still names itself', (
+      tester,
+    ) async {
+      await _pump(tester, kind: 'voice', size: const Size(390, 844));
+
+      final title = tester.getTopLeft(find.text('new-designs-MVP, Canvas'));
+      expect(title.dx - _bar(tester).left, lessThanOrEqualTo(16));
+      expect(find.bySemanticsLabel('Canvas'), findsOneWidget);
+    });
+
+    testWidgets('both keep the glyph beside the title at pointer widths', (
+      tester,
+    ) async {
+      await _pump(tester, size: const Size(900, 800));
+
+      final title = tester.getTopLeft(find.text('new-designs-MVP'));
+      expect(title.dx - _bar(tester).left, greaterThanOrEqualTo(40));
     });
   });
 
