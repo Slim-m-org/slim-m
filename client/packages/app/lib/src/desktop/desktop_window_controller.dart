@@ -7,11 +7,13 @@ library;
 
 import 'dart:async';
 import 'dart:math' as math;
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 import 'close_behavior.dart';
 import 'desktop_window_port.dart';
 import 'display_server.dart';
 import 'window_geometry.dart';
+import 'tray/tray_availability.dart';
 import 'window_geometry_store.dart';
 
 /// How long to wait after the last resize/move event before writing, on the
@@ -41,6 +43,8 @@ class DesktopWindowController {
     this.keepInTray = _always,
     this.quit,
     this.debounce = desktopGeometryDebounce,
+    this.trayHostWait = const Duration(seconds: 20),
+    this.trayHostPoll = const Duration(milliseconds: 500),
     bool geometryPersistenceEnabled = false,
     bool Function()? positionSupported,
   }) : _geometryPersistenceEnabled = geometryPersistenceEnabled,
@@ -69,6 +73,10 @@ class DesktopWindowController {
 
   /// The "Close to tray" setting; off routes a close to [quit] instead.
   final bool Function() keepInTray;
+
+  /// How long, and how often, a login launch looks for a tray host.
+  final Duration trayHostWait;
+  final Duration trayHostPoll;
 
   /// Ends the app the way the tray's Quit does.
   final Future<void> Function()? quit;
@@ -111,8 +119,26 @@ class DesktopWindowController {
 
   /// Writes a pending debounced move or resize now, for a quit that would
   /// otherwise drop it with the process.
+  ///
+  /// A write already in flight is awaited first and then repeated, since it may
+  /// have read the bounds before the last move or resize.
   Future<void> flush() async {
-    if (_debounceTimer?.isActive ?? false) await _writeNow();
+    final inFlight = _writing;
+    final pending = _debounceTimer?.isActive ?? false;
+    if (inFlight == null && !pending) return;
+    if (inFlight != null) {
+      try {
+        await inFlight;
+      } catch (error, stack) {
+        AppLog.swallowed(
+          LogTag.platform,
+          'Earlier window geometry write failed; repeating it',
+          error,
+          stack,
+        );
+      }
+    }
+    await _writeNow();
   }
 
   void start() {
@@ -157,9 +183,12 @@ class DesktopWindowController {
   /// directly would skip the tray-availability fallback entirely, hiding
   /// the window with nothing to bring it back on a Linux desktop with no
   /// tray host registered.
-  Future<void> requestClose() async {
+  ///
+  /// [awaitTrayHost] retries a missing tray host for [trayHostWait] first, for
+  /// a login launch that can run before the desktop's panel has started.
+  Future<void> requestClose({bool awaitTrayHost = false}) async {
     await _writeNow();
-    await _routeClose();
+    await _routeClose(awaitTrayHost: awaitTrayHost);
   }
 
   bool _holdingMinimum = false;
@@ -195,8 +224,18 @@ class DesktopWindowController {
     _debounceTimer = Timer(debounce, _writeNow);
   }
 
-  Future<void> _writeNow() async {
+  Future<void>? _writing;
+
+  Future<void> _writeNow() {
     _debounceTimer?.cancel();
+    final write = _persist();
+    _writing = write;
+    return write.whenComplete(() {
+      if (identical(_writing, write)) _writing = null;
+    });
+  }
+
+  Future<void> _persist() async {
     if (!_geometryPersistenceEnabled) {
       _skippedWhileDisabled = true;
       return;
@@ -243,18 +282,21 @@ class DesktopWindowController {
   }
 
   /// Hides the window like a close would but never quits, for a login launch.
+  ///
+  /// It waits [trayHostWait] for a tray host, as the desktop's panel may not be up yet.
   Future<void> hideForLogin() async {
     await _writeNow();
-    await _hideWindow();
+    await _hideWindow(awaitTrayHost: true);
   }
 
-  Future<void> _routeClose() async {
+  Future<void> _routeClose({bool awaitTrayHost = false}) async {
     final quit = this.quit;
     if (quit != null && !keepInTray()) return quit();
-    await _hideWindow();
+    await _hideWindow(awaitTrayHost: awaitTrayHost);
   }
 
-  Future<void> _hideWindow() async {
+  Future<void> _hideWindow({bool awaitTrayHost = false}) async {
+    if (awaitTrayHost && !await trayAvailable()) return _minimizeUntilTray();
     final action = resolveCloseAction(
       platform: platform,
       trayAvailable: await trayAvailable(),
@@ -266,5 +308,20 @@ class DesktopWindowController {
       case CloseAction.minimizeToTaskbar:
         await port.minimize();
     }
+  }
+
+  /// A login launch whose panel is not up yet: out of the way at once, and
+  /// into the tray only if the user has not brought the window back by then.
+  Future<void> _minimizeUntilTray() async {
+    _lastCloseAction = CloseAction.minimizeToTaskbar;
+    await port.minimize();
+    final found = await waitForTray(
+      trayAvailable,
+      timeout: trayHostWait,
+      interval: trayHostPoll,
+    );
+    if (!found || !port.windowQueryable || !await port.isMinimized()) return;
+    _lastCloseAction = CloseAction.hideToTray;
+    await port.hide();
   }
 }

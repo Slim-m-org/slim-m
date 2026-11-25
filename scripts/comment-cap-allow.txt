@@ -8,7 +8,7 @@
 .github/workflows/client-ios-ci.yml 11
 .github/workflows/client-macos-ci.yml 3
 .github/workflows/compose-smoke.yml 16
-.github/workflows/flatpak-ci.yml 5
+.github/workflows/flatpak-ci.yml 4
 .github/workflows/hygiene.yml 3
 .github/workflows/main-builds.yml 7
 .github/workflows/push-relay-contract.yml 6

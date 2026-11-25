@@ -13,6 +13,8 @@ import 'dart:io';
 import 'package:dbus/dbus.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
+import 'serial_queue.dart';
+
 const _service = 'org.kde.KWin';
 const _rulesFile = 'kwinrulesrc';
 
@@ -132,14 +134,8 @@ class _RulesFile {
   }
 }
 
-Future<void> _queue = Future<void>.value();
-
 // A pop-out opening while the last one is still being cleaned up must not interleave its reads and writes.
-Future<bool> _serially(Future<bool> Function() run) {
-  final result = _queue.then((_) => run());
-  _queue = result.then<void>((_) {});
-  return result;
-}
+final _queue = SerialQueue();
 
 /// Keeps windows titled [caption] above full screen ones with a KWin rule, reloading rules only when it changed.
 /// False where KWin or its config tools are absent.
@@ -148,7 +144,7 @@ Future<bool> kwinAboveFullScreen(
   DBusClient? client,
   ConfigRunner run = Process.run,
 }) =>
-    _serially(
+    _queue.run(
       () => _withRules(client, run, (rules) => rules.ensure(caption)),
     );
 
@@ -157,7 +153,7 @@ Future<bool> kwinRemoveAboveFullScreen({
   DBusClient? client,
   ConfigRunner run = Process.run,
 }) =>
-    _serially(() => _withRules(client, run, (rules) => rules.remove()));
+    _queue.run(() => _withRules(client, run, (rules) => rules.remove()));
 
 /// Takes out a rule an earlier run left when it ended with a pop-out open.
 /// Run once at startup, before any pop-out; [linux] defaults to the host's.

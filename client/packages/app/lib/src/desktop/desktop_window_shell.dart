@@ -10,6 +10,7 @@
 library;
 
 import 'dart:async';
+import 'dart:io' show exit;
 
 import 'package:flutter/scheduler.dart' show SchedulerBinding;
 import 'package:flutter/widgets.dart' show Color;
@@ -23,6 +24,7 @@ import 'close_behavior.dart';
 import 'desktop_window_controller.dart';
 import 'desktop_window_port.dart';
 import 'popout/popout_windowing.dart' show NativeMainWindow;
+import 'quit_step.dart';
 import 'providers/close_to_tray_preference.dart';
 import 'display_server.dart';
 import 'first_run_tray_notice.dart';
@@ -43,6 +45,8 @@ import 'package:slimm_rtc/rtc.dart' show endShareAudioBeforeExit;
 
 export 'window_view_size.dart';
 
+void _exitProcess() => exit(0);
+
 /// The window shell for one process, built in `main.dart` before `runApp` and
 /// handed to every account's container through [desktopWindowShellProvider].
 class DesktopWindowShell {
@@ -56,6 +60,8 @@ class DesktopWindowShell {
     bool active = false,
     bool frameless = false,
     Future<void> Function() beforeExit = endShareAudioBeforeExit,
+    void Function() forceExit = _exitProcess,
+    Duration quitStepTimeout = const Duration(seconds: 5),
   }) : port = port ?? WindowManagerDesktopWindowPort(),
        _positionSupported = positionSupported,
        _chromePlatform = chromePlatform,
@@ -64,7 +70,9 @@ class DesktopWindowShell {
        _presenter = presenter ?? LinuxWindowPresenter(),
        _active = active,
        _framelessApplied = frameless,
-       _beforeExit = beforeExit;
+       _beforeExit = beforeExit,
+       _forceExit = forceExit,
+       _quitStepTimeout = quitStepTimeout;
 
   /// Shared by every step here, and the one port [TitleBar] drags, minimizes
   /// and maximizes through; the native listener must be registered only once.
@@ -120,21 +128,39 @@ class DesktopWindowShell {
   /// What must not outlive this process: the Linux share audio mix, which would pause the media players feeding it.
   final Future<void> Function() _beforeExit;
 
+  final void Function() _forceExit;
+
+  /// A quit step that never answers is given up on, so the window can still close.
+  final Duration _quitStepTimeout;
+
+  Future<void>? _quitting;
+
   /// Writes any pending geometry, ends a share's audio mix, then destroys the window through [port].
-  Future<void> quit(DesktopWindowPort port) async {
-    await _forgetCall();
-    await _beforeExit();
-    try {
+  ///
+  /// Single-flight: a second trigger gets the quit already running. Every step is
+  /// isolated so one failure cannot keep the window open; the process exits regardless.
+  Future<void> quit(DesktopWindowPort port) => _quitting ??= _quit(port);
+
+  Future<void> _runStep(String what, Future<void> Function() step) =>
+      runQuitStep(what, _quitStepTimeout, step);
+
+  Future<void> _quit(DesktopWindowPort port) async {
+    await _runStep('forget the call', _forgetCall);
+    await _runStep('end the share audio', _beforeExit);
+    await _runStep('save the window position', () async {
       await _controller?.flush();
+    });
+    try {
+      await port.destroy();
     } catch (error, stack) {
       AppLog.warning(
         LogTag.platform,
-        'Could not save the window position on quit',
+        'Could not close the window on quit',
         error: error,
         stack: stack,
       );
+      _forceExit();
     }
-    await port.destroy();
   }
 
   /// Starts a fresh copy through [port] once a share's audio mix has ended, as [quit] does.
@@ -172,9 +198,14 @@ class DesktopWindowShell {
   Future<void> requestClose() =>
       _controller?.requestClose() ?? Future<void>.value();
 
-  /// Sends a login launch to the tray or taskbar without ever quitting.
+  /// Sends a login launch to the tray or taskbar without ever quitting; it
+  /// waits a bounded time for the tray host before settling for the taskbar.
   Future<void> hideForLogin() =>
       _controller?.hideForLogin() ?? Future<void>.value();
+
+  /// Whether the runner keeps a login launch's window hidden from the start.
+  bool get loginLaunchStartsHidden =>
+      currentDesktopPlatform() == DesktopPlatform.windows;
 
   /// Puts the window into small splash mode before it is ever shown, so
   /// nothing visibly jumps; the saved geometry waits for [prepareHandoff].
@@ -275,15 +306,22 @@ class DesktopWindowShell {
     ProviderContainer container, {
     Duration splashFloor = Duration.zero,
     Duration fadeOut = Duration.zero,
+    bool startHidden = false,
   }) async {
     if (currentDesktopPlatform() == null) return;
-    await awaitSplashMapped(floor: splashFloor, probe: _splashMappedProbe);
-    if (fadeOut > Duration.zero) {
+    // A window that never appeared has no splash to wait on or dissolve.
+    if (!startHidden) {
+      await awaitSplashMapped(floor: splashFloor, probe: _splashMappedProbe);
+    }
+    if (fadeOut > Duration.zero && !startHidden) {
       container.read(startupLeavingProvider.notifier).state = true;
       await Future<void>.delayed(fadeOut);
     }
     try {
-      await _applyFinalGeometry(container).timeout(_setupTimeout);
+      await _applyFinalGeometry(
+        container,
+        deferRunState: startHidden,
+      ).timeout(_setupTimeout);
     } catch (error, stack) {
       AppLog.warning(
         LogTag.platform,
@@ -300,7 +338,10 @@ class DesktopWindowShell {
   /// On Windows the window grows in place: the engine holds a resize until a
   /// frame of the new size is drawn, so the splash goes straight to the full
   /// window with nothing hidden in between.
-  Future<void> _applyFinalGeometry(ProviderContainer container) async {
+  Future<void> _applyFinalGeometry(
+    ProviderContainer container, {
+    required bool deferRunState,
+  }) async {
     final prefs = await container.read(preferencesProvider.future);
     final inPlace =
         (_chromePlatform ?? currentDesktopPlatform()) ==
@@ -311,6 +352,7 @@ class DesktopWindowShell {
       WindowGeometryStore(prefs),
       positionSupported: _positionSupported(),
       hideFirst: !inPlace,
+      deferRunState: deferRunState,
       onTarget: (target) {
         _handoffTargetSize = viewSizeFor(target.size, inset);
         _handoffFillsDisplay = target.fillsDisplay;
@@ -326,8 +368,11 @@ class DesktopWindowShell {
   /// [_setupTimeout] (decision 0012's 2026-08-28 addendum has the measurement).
   /// One stale splash frame may show for a vsync tick, but at the right size.
   /// The bound only keeps a stalled host from hanging this method.
-  Future<void> revealAfterHandoff() async {
-    if (currentDesktopPlatform() == null) return;
+  ///
+  /// [startHidden] leaves the window hidden, for a login launch that goes
+  /// straight to the tray.
+  Future<void> revealAfterHandoff({bool startHidden = false}) async {
+    if (currentDesktopPlatform() == null || startHidden) return;
     await _reveal();
   }
 

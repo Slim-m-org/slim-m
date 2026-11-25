@@ -88,7 +88,7 @@ Nothing here fixes that risk structurally.
 The mitigation is watching the first real release build's job log for exactly this `ldd`/`GLIBC_` shape if voice ever fails to load from a shipped Flatpak.
 This is no longer only a theoretical risk found by reading `ldd` output: the fourth defect's own launch attempts hit it live, at process start, both times.
 
-**Not attempted**, each for a stated reason: Flathub submission (out of scope per the task this manifest was built under; a real submission also wants an AppStream `metainfo.xml`, which nothing here writes); a 32-bit or aarch64 build (the rpm's own `ExclusiveArch: x86_64` reasoning applies identically, since the bundle `linux-client` builds is x86_64 only); and confirming the `--talk-name=org.freedesktop.secrets` and `--filesystem=xdg-run/pipewire-0` grants are sufficient rather than merely necessary, which needs a running app on a session with a Secret Service provider and a compositor, not a build sandbox.
+**Not attempted**, each for a stated reason: Flathub submission (out of scope per the task this manifest was built under; a real submission would also want screenshots and a releases list in the `metainfo.xml` shipped here); a 32-bit or aarch64 build (the rpm's own `ExclusiveArch: x86_64` reasoning applies identically, since the bundle `linux-client` builds is x86_64 only); and confirming the `--filesystem=xdg-run/pipewire-0` grant is sufficient rather than merely necessary, which needs a running app on a session with a compositor, not a build sandbox.
 
 ## `release.yml`'s CI build had never once succeeded, through every release up to `client-v0.61.0`
 
@@ -161,8 +161,12 @@ So the runtime stays as it is and the gap stays documented here.
 
 ## Permissions, briefly
 
+The Linux client keeps its sign-in in an owner-only file (decision 0042), so the manifest holds no Secret Service grant and the bundle links no libsecret.
+It also holds no `org.kde.KWin` grant on purpose: a client that can talk to KWin can load a script into the compositor, which is a way out of the sandbox.
+The pop-out's keep-above and above-full-screen rule are therefore off in the flatpak, and a pop-out behaves like any other window there.
+
 The manifest's own inline comments carry the reasoning for each non-obvious `finish-args` entry.
-The short version: `--device=all` is for the webcam (`flutter_webrtc`'s Linux capturer uses V4L2 directly, not the Camera portal, the same reason Element's own manifest grants it), `--talk-name=org.freedesktop.secrets` is for `flutter_secure_storage`'s libsecret backend (not portal-mediated), `--filesystem=xdg-run/pipewire-0` pairs with the ScreenCast portal for screen share (again matching Element's own grant for the same feature shape), and `--talk-name=org.kde.StatusNotifierWatcher` is `tray_manager`'s tray icon registering itself with whichever desktop's watcher implements that name, the same grant Vesktop's own manifest uses for the same plugin family.
+The short version: `--device=all` is for the webcam (`flutter_webrtc`'s Linux capturer uses V4L2 directly, not the Camera portal, the same reason Element's own manifest grants it), `--talk-name=org.mpris.MediaPlayer2.*` lets rich presence list the running media players, `--talk-name=org.freedesktop.ScreenSaver` and `--talk-name=org.gnome.Mutter.IdleMonitor` are the two idle sources automatic away reads, `--filesystem=xdg-run/pipewire-0` pairs with the ScreenCast portal for screen share (again matching Element's own grant for the same feature shape), and `--talk-name=org.kde.StatusNotifierWatcher` is `tray_manager`'s tray icon registering itself with whichever desktop's watcher implements that name, the same grant Vesktop's own manifest uses for the same plugin family.
 
 ## Reproducing this
 
@@ -186,3 +190,15 @@ flatpak run top.npcserver.slimm   # launches; see the fourth defect above for ho
 
 `flutter clean` before `flutter build linux` is not optional if a previous `build/` was removed by hand rather than through `flutter clean`.
 The CMake configuration under `linux/flutter/ephemeral` survives a bare `rm -rf build/` and then fails with `file INSTALL cannot find .../build/native_assets/linux`, since that directory no longer exists but the stale generated install script still expects it.
+
+## What the runtime carries, checked on a real run
+
+Checked with `flatpak run --command=sh org.freedesktop.Platform//25.08` on 2026-11-24 (freedesktop-sdk-25.08.20), and the same in the SDK.
+`parecord`, `pactl`, `pw-link`, `pw-dump`, `pw-cli`, `pw-cat` and `paplay` are all in `/usr/bin`, so voice messages, the device picker and screen share audio isolation need no module of their own.
+`pw-link` and `pw-dump` reach the graph through the `xdg-run/pipewire-0` grant, and `pactl` and `parecord` through the PulseAudio socket.
+`libmpv` is not in the runtime and is built by the modules above.
+Run against a live session with `--socket=pulseaudio` and `--filesystem=xdg-run/pipewire-0`, `pactl info`, `pw-dump`, `pw-link -o` and `pw-cli info 0` all answer; `pw-link` without the PipeWire socket fails with "can't connect", so that grant is needed and stays.
+
+The session bus names were checked the same way, on a private bus owning fakes of each name and `flatpak run` with the manifest's `--talk-name` options.
+With the old grants (secrets and StatusNotifierWatcher) the sandbox's `ListNames` showed only `org.freedesktop.secrets`: no MPRIS player, no ScreenSaver, no Mutter IdleMonitor.
+With the current grants it shows `org.mpris.MediaPlayer2.*`, `org.freedesktop.ScreenSaver` and `org.gnome.Mutter.IdleMonitor`, and `org.kde.KWin` stays hidden by design.

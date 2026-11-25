@@ -18,6 +18,7 @@ import 'package:slimm_api/api.dart' show AppLog, LogTag;
 import 'system_idle.dart';
 
 const _pollInterval = Duration(seconds: 10);
+const _defaultProbeTimeout = Duration(seconds: 3);
 
 /// One idle reading from the session, or null when this source cannot say.
 typedef IdleProbe = Future<Duration?> Function();
@@ -28,12 +29,15 @@ class LinuxSystemIdle implements SystemIdle {
   LinuxSystemIdle({
     required List<IdleProbe> probes,
     Duration pollInterval = _pollInterval,
-  }) : _probes = probes {
+    Duration probeTimeout = _defaultProbeTimeout,
+  })  : _probes = probes,
+        _probeTimeout = probeTimeout {
     _poll();
     _timer = Timer.periodic(pollInterval, (_) => _poll());
   }
 
   final List<IdleProbe> _probes;
+  final Duration _probeTimeout;
   late final Timer _timer;
   Duration? _sample;
   DateTime? _sampledAt;
@@ -67,7 +71,7 @@ class LinuxSystemIdle implements SystemIdle {
 
   Future<Duration?> _safely(IdleProbe probe) async {
     try {
-      return await probe();
+      return await probe().timeout(_probeTimeout);
     } on Object catch (error, stack) {
       AppLog.swallowed(
         LogTag.platform,

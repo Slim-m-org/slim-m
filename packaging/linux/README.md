@@ -39,10 +39,15 @@ A tarball run from anywhere else, the rpm and the flatpak never replace themselv
 
 This removes the versions, the `~/.local/bin/slim-m` link, the desktop entry, the icons and the start-on-login entry in `~/.config/autostart`.
 Your data stays unless you add `--remove-data`.
-The app keeps it under `~/.local/share/top.npcserver.slimm`, and a remembered sign-in lives in your Secret Service keyring (gnome-keyring, KWallet), which you can clear from its own manager.
+The app keeps it under `~/.local/share/top.npcserver.slimm`, and a remembered sign-in lives there too, in a file only your account can read (decision 0042).
 The start-on-login entry also names the executable in `TryExec`, so a session skips it once the binary is gone.
 
 ## What it needs from the system
+
+The portable build is compiled on Ubuntu 24.04.
+Measured with `objdump -T` over the 0.137.0 tarball, its newest requirements are `GLIBC_2.38` and `GLIBCXX_3.4.32`, which makes glibc 2.38 and GCC 13's libstdc++ the floor.
+That is Ubuntu 24.04, Debian 13 and Fedora 39 or newer.
+Ubuntu 22.04, Debian 12 and RHEL 9 are older, and on them the launcher stops with a message naming the glibc version instead of the loader's bare error; use the Flatpak there.
 
 GTK 3, and the usual desktop graphics stack, come from your distribution.
 The first four libraries below are opened by name at runtime rather than linked, so a missing one fails only when you reach the feature rather than at startup.
@@ -55,14 +60,14 @@ The tarball has no dependency mechanism of its own to declare any of the rest, u
 | `libpipewire-0.3.so.0` | no screen share |
 | `libmpv.so.2` (video playback) | linked, so the app will not start without it |
 | `libepoxy.so.0` | linked, so the app will not start without it |
-| `libsecret-1.so.0` | linked, so the app will not start without it |
 | `libgstreamer-1.0.so.0`, `libgstapp-1.0.so.0` (GStreamer, the audio backend) | linked, so the app will not start without it |
 | `libayatana-appindicator3.so.1` (the tray icon) | linked, so the app will not start without it |
 
-`libmpv.so.2` is the one a fresh machine most often lacks: install `libmpv2` on Debian and Ubuntu, `mpv-libs` on Fedora, `libmpv2` on openSUSE, or `mpv` on Arch.
+`libmpv.so.2` is the one a fresh machine most often lacks: install `libmpv2` on Debian and Ubuntu, `mpv-libs` on Fedora (stock repos, no RPM Fusion needed), `libmpv2` on openSUSE, or `mpv` on Arch.
 It is not bundled because distro builds of mpv and ffmpeg are GPL, which does not combine with this project's licence, and because the set of libraries it pulls in is large and differs per distribution.
 
-Screen share also needs `xdg-desktop-portal` running, and a remembered sign-in needs a Secret Service provider (gnome-keyring, KWallet, KeePassXC).
+Screen share also needs `xdg-desktop-portal` running.
+A remembered sign-in needs no keyring or Secret Service.
 
 Recording a voice message runs the `parecord` program: install `pulseaudio-utils` on Debian, Ubuntu, Fedora and openSUSE, or `libpulse` on Arch.
 Without it everything else works, and the composer says what is missing when a recording cannot start.

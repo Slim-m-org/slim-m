@@ -198,13 +198,15 @@ Future<void> _bootstrapApp(
     // After the session restore: having an account decides whether the splash asks about updates at all.
     await runStartupUpdates(container);
   });
+  final startHidden = launchedAtLogin && shell.loginLaunchStartsHidden;
   await shell.prepareHandoff(
     container,
     splashFloor: floor,
     fadeOut: AppMotion.base,
+    startHidden: startHidden,
   );
   // Revealed before the flip: a window reports its real size only once shown, and the real UI must not build at the splash's 380px.
-  await shell.revealAfterHandoff();
+  await shell.revealAfterHandoff(startHidden: startHidden);
   container.read(appReadyProvider.notifier).state = true;
   forgetLaunchArguments();
   // A login launch goes where a close would, the tray or the taskbar, instead of covering what the user opened first.

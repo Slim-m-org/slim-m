@@ -23,6 +23,8 @@ DesktopWindowShell shellFor(
   bool frameless = false,
   Future<void> Function()? beforeExit,
   LinuxWindowPresenter? presenter,
+  void Function()? forceExit,
+  Duration? quitStepTimeout,
 }) => DesktopWindowShell(
   port: port ?? FakeDesktopWindowPort(),
   chromePlatform: chrome,
@@ -32,4 +34,6 @@ DesktopWindowShell shellFor(
   active: active,
   frameless: frameless,
   beforeExit: beforeExit ?? () async {},
+  forceExit: forceExit ?? () {},
+  quitStepTimeout: quitStepTimeout ?? const Duration(seconds: 5),
 );

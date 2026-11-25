@@ -26,6 +26,14 @@ ProcessResult _reg(String value, {int code = 0}) => ProcessResult(
       '',
     );
 
+ProcessResult _policy(String data, {int code = 0}) => ProcessResult(
+      0,
+      code,
+      '\r\nHKEY_LOCAL_MACHINE\\...\\AppPrivacy\r\n'
+          '    LetAppsAccessMicrophone    REG_DWORD    $data\r\n',
+      '',
+    );
+
 void main() {
   group('classifyMicFailure', () {
     test('reads the DOMException names every browser and Apple platform use',
@@ -99,17 +107,53 @@ void main() {
       expect(asked, isFalse);
     });
 
-    test('is true when either consent key says Deny', () async {
-      final keys = <String>[];
+    test('is true when any consent key says Deny', () async {
+      for (final denying in windowsMicConsentKeys) {
+        final blocked = await osBlocksMicrophone(
+          windows: true,
+          query: (args) async => _reg(args[1] == denying ? 'Deny' : 'Allow'),
+        );
+        expect(blocked, isTrue, reason: denying);
+      }
+    });
+
+    test('reads the machine-wide store as well as the user one', () {
+      expect(windowsMicConsentKeys.where((k) => k.startsWith(r'HKLM')),
+          hasLength(2));
+    });
+
+    test('is true when the policy forces deny, whatever the stores say',
+        () async {
       final blocked = await osBlocksMicrophone(
         windows: true,
-        query: (args) async {
-          keys.add(args[1]);
-          return _reg(keys.length == 2 ? 'Deny' : 'Allow');
-        },
+        query: (args) async =>
+            args[1] == windowsMicPolicyKey ? _policy('0x2') : _reg('Allow'),
       );
       expect(blocked, isTrue);
-      expect(keys, windowsMicConsentKeys);
+    });
+
+    test('is false when the policy lets apps in or is absent', () async {
+      for (final result in [
+        _policy('0x1'),
+        _policy('0x0'),
+        _policy('0x2', code: 1)
+      ]) {
+        final blocked = await osBlocksMicrophone(
+          windows: true,
+          query: (args) async =>
+              args[1] == windowsMicPolicyKey ? result : _reg('Allow'),
+        );
+        expect(blocked, isFalse);
+      }
+    });
+
+    test('is false when the policy forces allow over a user Deny', () async {
+      final blocked = await osBlocksMicrophone(
+        windows: true,
+        query: (args) async =>
+            args[1] == windowsMicPolicyKey ? _policy('0x1') : _reg('Deny'),
+      );
+      expect(blocked, isFalse);
     });
 
     test('is false when both allow or a key is missing', () async {
@@ -134,6 +178,13 @@ void main() {
         '    Value    REG_SZ    Deny\r\n\r\n';
     expect(consentIsDeny(real), isTrue);
     expect(consentIsDeny(real.replaceAll('Deny', 'Allow')), isFalse);
+  });
+
+  test('policyForcesMicDeny matches only the force-deny value', () {
+    expect(policyForcesMicDeny(_policy('0x2').stdout as String), isTrue);
+    expect(policyForcesMicDeny(_policy('0x02').stdout as String), isTrue);
+    expect(policyForcesMicDeny(_policy('0x1').stdout as String), isFalse);
+    expect(policyForcesMicDeny(_policy('0x12').stdout as String), isFalse);
   });
 
   test('consentIsDeny ignores other values', () {

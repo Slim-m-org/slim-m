@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+# Stands in for the real Linux plugin so the bundle no longer links libsecret; Linux keeps its sign-in in a file (decision 0042).
+name: flutter_secure_storage_linux
+description: Linux has no keyring-backed store here, so this registers nothing and links no native library.
+version: 3.0.1
+publish_to: none
+
+environment:
+  sdk: ^3.5.0
+  flutter: ">=3.19.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_secure_storage_platform_interface: ^2.0.1
+
+flutter:
+  plugin:
+    implements: flutter_secure_storage
+    platforms:
+      linux:
+        dartPluginClass: FlutterSecureStorageLinuxStub
