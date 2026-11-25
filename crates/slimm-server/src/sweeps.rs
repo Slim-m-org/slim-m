@@ -9,9 +9,13 @@
 //! via [`record_sweep_run`], best-effort, so `GET /space/storage` can show an
 //! operator when each last ran and roughly what it reclaimed.
 
+mod canvas_viewers;
 #[cfg(test)]
 mod tests;
 mod voice;
+pub use canvas_viewers::{
+    flush_canvas_viewers, flush_canvas_viewers_at, spawn_canvas_viewer_flush,
+};
 pub(crate) use voice::{
     spawn_call_history_sweep, spawn_call_sweep, spawn_ring_sweep, spawn_room_sweep,
 };

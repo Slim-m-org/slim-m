@@ -29,6 +29,7 @@ import 'channel_grouping.dart';
 import 'channel_kind_icon.dart';
 import 'channel_move.dart' show groupsAfterMoveTo;
 import 'move_channel_sheet.dart';
+import 'canvas_channel_row.dart';
 import 'channel_rail_channel_rows.dart';
 import 'channel_rail_reorder.dart';
 import 'channel_rail_section_label.dart';
@@ -221,17 +222,23 @@ class _ChannelCategorySectionsState
   }) {
     final selected = channel.id == widget.selectedId;
     if (view.rowHidden(channel)) return const SizedBox.shrink();
-    Widget body(Widget? kebab) => channel.kind == 'voice'
-        ? VoiceChannelRow(
-            channel: channel,
-            selected: selected,
-            trailingExtra: kebab,
-          )
-        : _TextChannelRow(
-            channel: channel,
-            selected: selected,
-            trailingExtra: kebab,
-          );
+    Widget body(Widget? kebab) => switch (channel.kind) {
+      'voice' => VoiceChannelRow(
+        channel: channel,
+        selected: selected,
+        trailingExtra: kebab,
+      ),
+      'canvas' => CanvasChannelRow(
+        channel: channel,
+        selected: selected,
+        trailingExtra: kebab,
+      ),
+      _ => _TextChannelRow(
+        channel: channel,
+        selected: selected,
+        trailingExtra: kebab,
+      ),
+    };
     // The lifted copy is just the face of the row: no menu, kebab or hover.
     if (carried) return body(null);
     final depth =
@@ -423,7 +430,7 @@ class _TextChannelRow extends ConsumerWidget {
       mentioned: indicator.mentioned,
       muted: muted,
       leading: ChannelKindIcon(
-        isVoice: false,
+        glyph: ChannelGlyphKind.text,
         restricted: channel.restricted ?? false,
         color: selected ? tokens.accent : tokens.textSecondary,
       ),

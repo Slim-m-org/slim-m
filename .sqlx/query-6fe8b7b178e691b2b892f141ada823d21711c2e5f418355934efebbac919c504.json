@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO channel_seq_counters (channel_id, stream, next_seq)\n         VALUES (?, 'message', 1), (?, 'canvas', 1)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "6fe8b7b178e691b2b892f141ada823d21711c2e5f418355934efebbac919c504"
+}

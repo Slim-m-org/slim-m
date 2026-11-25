@@ -9,6 +9,7 @@
 /// that is the one this task adds a control to.
 library;
 
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_pane.dart';
@@ -162,6 +163,10 @@ void main() {
         hasLength(2),
       );
       expect(find.bySemanticsLabel('Open canvas'), findsOneWidget);
+
+      // The dock watches an autodispose provider; unmounting it here lets its dispose timer run before the test ends.
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 1));
     },
   );
 }

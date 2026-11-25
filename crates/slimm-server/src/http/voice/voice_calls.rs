@@ -110,8 +110,10 @@ async fn list(
         listed.iter().map(|c| c.started_at).min(),
         listed.iter().map(|c| c.ended_at.unwrap_or(now)).max(),
     );
+    // A hidden board reports no activity and no objects, so the history says nothing about it (decision 0139).
+    let canvas_open = state.store.channel_canvas_open(channel_id).await?;
     let placements = match span {
-        (Some(from), Some(to)) => {
+        (Some(from), Some(to)) if canvas_open => {
             state
                 .store
                 .canvas_placements_between(channel_id, from, to)
@@ -155,7 +157,10 @@ async fn list(
     }
     Ok(Json(CallsDto {
         retention_days: CALL_HISTORY_RETENTION_DAYS,
-        canvas_object_count: state.store.canvas_object_count(channel_id).await?,
+        canvas_object_count: match canvas_open {
+            true => state.store.canvas_object_count(channel_id).await?,
+            false => 0,
+        },
         calls,
     }))
 }

@@ -116,6 +116,61 @@ A "who is on this call right now" snapshot at any time - not just at connect - i
 
 If you are using a bot framework, this is the natural place for it to expose `on_voice_join` / `on_voice_leave` / `on_screen_share` callbacks built on top of these three frames; slim-m itself only guarantees the wire shape above.
 
+## Canvas channels
+
+A channel's `kind` is `text`, `voice` or `canvas`.
+Read an unknown kind as `text`.
+A canvas channel is a board with chat beside it, and an optional call.
+
+Every channel object carries two computed booleans, the same for every reader:
+
+- `canvas_enabled` - the channel has a board now. True for a canvas channel and a DM, the setting for a voice channel, false for text and threads.
+- `voice_enabled` - the channel has a call. True for a voice channel and a DM, the setting for a canvas channel, false for text and threads.
+
+A server that predates canvas channels sends neither. Read their absence as the old rule: voice and DM have a board and a call, text has neither.
+`/version` has `canvas_channels: true` on a server that has them.
+
+Create a canvas channel with `POST /channels` and `kind: "canvas"`, and `voice_enabled: true` for a call.
+On a voice channel `canvas_enabled` is the board, and leaving it out means on, which is what bots written before this existed get.
+Each flag is refused with a 400 on a kind it does not belong to.
+`PATCH /channels/{channelId}` takes `canvas_enabled` (voice) and `voice_enabled` (canvas), and the channel manager bar.
+
+Every board route of a channel with no board answers `403` with `{"code": "canvas_off"}`.
+Do not retry it: the board is off, and someone who manages channels can turn it on in the channel's settings.
+
+`PATCH /channels/{channelId}` with `{"discard_canvas": true}` removes everything on a voice channel's hidden board, locked objects included.
+It needs `MANAGE_CANVAS` in that channel as well, and is refused while the board is on.
+Everyone connected receives the usual `canvas.cleared` frame.
+
+### Who has a board open
+
+```json
+{ "type": "canvas.viewer.changed", "channel_id": "...", "user_id": "...", "viewing": true }
+```
+
+Sent when a member starts or stops being shown as viewing a board: their first connection opens it, their last closes it, or they switch to or from Hidden.
+It reaches every connection that can view the channel while its board is open, whether or not that connection has the board open.
+Frames are batched, so at most one per member and board every half second.
+A Hidden member's arrivals and departures send nothing, and turning a board off sends no frame: read the `channel.updated` that says the canvas is off.
+Ignore a frame type you do not know.
+
+`GET /presence/canvas-viewers` answers `{ "channels": [ { "channel_id": "...", "viewers": [ { "user_id": "...", "since": 1764000000000 } ] } ] }`.
+It lists the open boards you can view that have anyone shown on them, each viewer ordered by `since`.
+You always see your own entry, Hidden or not.
+`/version` lists `canvas_viewers` in `capabilities` on a server that has it.
+
+### Exporting a board
+
+`POST /channels/{channelId}/canvas/export` with `{ "id": "<new channel id>", "name": "...", "category_id": "...", "voice_enabled": false, "clear_source": false }` copies a board into a new canvas channel.
+It needs `MANAGE_CHANNELS`, the draw bits on the source and, with `clear_source`, `MANAGE_CANVAS` there.
+`category_id` absent files the copy under the source's category, and null leaves it uncategorised.
+The answer is `{ "channel": ..., "copied": 12, "skipped": 0, "cleared": 0, "spared": 0 }`.
+`id` keys the whole request: send the same `id` when you retry and you get the first answer back, never a second copy or a second clear.
+A connector that lost an end and a module tile whose module is not installed are left behind and counted in `skipped`; locked objects survive a clear and are counted in `spared`.
+A board past the export ceiling answers `409` with `{"code": "canvas_export_too_large"}`, and one already being exported answers `409` with `{"code": "canvas_export_busy"}`: wait and try again.
+Exports are limited to a few an hour.
+`/version` lists `canvas_export` in `capabilities` on a server that has it.
+
 ## Member join events
 
 ```json

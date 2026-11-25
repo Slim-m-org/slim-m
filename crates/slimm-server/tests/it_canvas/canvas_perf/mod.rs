@@ -37,7 +37,7 @@ async fn a_ten_thousand_object_canvas() {
         .await
         .unwrap();
     let router = app(store.clone());
-    let channel = store.create_channel("canvas", "voice").await.unwrap().id;
+    let channel = store.create_channel("canvas", "canvas").await.unwrap().id;
     let mut users = Vec::new();
     for i in 0..40 {
         users.push(register(&store, &format!("drawer{i}")).await);

@@ -76,7 +76,7 @@ async fn live_canvas_frames_cost_no_permission_queries_per_frame() {
     let (store, _guard) = support::new_store("slimm-canvas-gate-cost").await;
     let alice = store.create_user("alice", "alice").await.unwrap();
     store.bootstrap_deployment(alice.id).await.unwrap();
-    let channel = store.list_channels().await.unwrap()[0].id;
+    let channel = store.create_channel("board", "canvas").await.unwrap().id;
     let mut tickets = Vec::new();
     let mut drawer_id = None;
     for name in ["draws", "watches"] {

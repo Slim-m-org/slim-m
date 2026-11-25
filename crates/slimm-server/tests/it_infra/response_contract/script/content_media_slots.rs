@@ -134,3 +134,15 @@ pub(super) async fn canvas_more_calls(c: &mut Contract, root: &str, channel: &st
     )
     .await;
 }
+
+/// Exports the board into a new canvas channel, clearing nothing.
+pub(super) async fn canvas_export_call(c: &mut Contract, root: &str, channel: &str) {
+    c.json(
+        "exportCanvas",
+        "POST",
+        &format!("/channels/{channel}/canvas/export"),
+        root,
+        json!({ "id": Uuid::now_v7().to_string(), "name": "board export" }),
+    )
+    .await;
+}

@@ -29,7 +29,8 @@ pub(super) fn extra_bit(event: &Event) -> Option<Permissions> {
         | Event::Canvas(CanvasEvent::MediaSlotChanged { .. })
         // Watching a canvas needs only the view bit, as its read routes do; USE_CANVAS gates sending.
         | Event::Canvas(CanvasEvent::ObjectLockChanged { .. })
-        | Event::Canvas(CanvasEvent::TileSceneChanged { .. }) => None,
+        | Event::Canvas(CanvasEvent::TileSceneChanged { .. })
+        | Event::Canvas(CanvasEvent::ViewerChanged { .. }) => None,
         // The bit the transcript read route needs, so a live line reaches no one it would 404.
         Event::CallTranscriptLine { .. } | Event::CallTranscriptMarkChanged { .. } => {
             Some(Permissions::VIEW_TRANSCRIPTS)

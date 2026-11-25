@@ -16,6 +16,7 @@ mod authed_body_charge;
 mod background_tasks_wired;
 mod blob_release;
 mod call_stats_index_plan;
+mod canvas_toggle_migration;
 mod category_overwrite_cleanup_migration;
 mod channel_categories_backfill;
 mod clear_totp_cli;

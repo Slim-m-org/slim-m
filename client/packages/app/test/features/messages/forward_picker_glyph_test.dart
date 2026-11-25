@@ -65,7 +65,13 @@ void main() {
               channelId: 'c',
               label: 'vc',
               isDm: false,
-              isVoice: true,
+              kind: 'voice',
+            ),
+            ForwardTarget(
+              channelId: 'k',
+              label: 'board',
+              isDm: false,
+              kind: 'canvas',
             ),
             ForwardTarget(
               channelId: 'n',
@@ -104,6 +110,7 @@ void main() {
     expect(_glyphsOf(tester, 'a'), [AppIcons.hash]);
     expect(_glyphsOf(tester, 'b'), [AppIcons.hash, AppIcons.restrictedChannel]);
     expect(_glyphsOf(tester, 'c'), [AppIcons.voice]);
+    expect(_glyphsOf(tester, 'k'), [AppIcons.canvas]);
     expect(_glyphsOf(tester, 'n'), [AppIcons.notebook]);
   });
 }

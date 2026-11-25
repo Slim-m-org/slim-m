@@ -15,7 +15,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:slimm_data/data.dart' show Channel;
+import 'package:slimm_data/data.dart' show Channel, ChannelKinds;
 
 import '../../../permissions.dart';
 import '../../../providers/admin_providers.dart';
@@ -23,7 +23,11 @@ import '../../../routing/routes.dart';
 import '../../settings/widgets/settings_notice.dart';
 import '../../settings/screens/admin/channel_permissions_screen.dart';
 import '../widgets/channel_settings_danger_zone.dart';
+import '../providers/canvas_channels_supported.dart';
+import '../widgets/channel_settings_call_section.dart';
+import '../widgets/channel_settings_canvas_section.dart';
 import '../widgets/channel_settings_default_notification_section.dart';
+import '../widgets/channel_settings_discard_canvas_section.dart';
 import '../widgets/channel_settings_general_section.dart';
 import '../widgets/channel_settings_join_muted_section.dart';
 import '../widgets/channel_settings_private_row.dart';
@@ -103,6 +107,7 @@ class ChannelSettingsPane extends ConsumerWidget {
   List<Widget> _generalRows({
     required bool canManageRoles,
     required bool canManageServer,
+    required bool canvasKinds,
   }) {
     final isDm = channel.kind == 'dm';
     final isVoice = channel.kind == 'voice';
@@ -113,6 +118,9 @@ class ChannelSettingsPane extends ConsumerWidget {
       if (canManageServer && !isDm) ChannelRetentionRow(channelId: channel.id),
       if (isVoice) ChannelJoinMutedSection(channel: channel),
       if (isVoice) ChannelRoomsSection(channel: channel),
+      if (isVoice && canvasKinds) ChannelCanvasSection(channel: channel),
+      if (channel.isCanvasChannel && canvasKinds)
+        ChannelCallSection(channel: channel),
     ];
   }
 
@@ -122,6 +130,7 @@ class ChannelSettingsPane extends ConsumerWidget {
     final canManageChannels = permissions.hasPermission(Perm.manageChannels);
     final canManageRoles = permissions.hasPermission(Perm.manageRoles);
     final canManageServer = permissions.hasPermission(Perm.manageServer);
+    final canvasKinds = ref.watch(canvasChannelsSupportedProvider);
 
     if (!canManageChannels && !canManageRoles) {
       return const SettingsNotice(
@@ -139,6 +148,7 @@ class ChannelSettingsPane extends ConsumerWidget {
             rows: _generalRows(
               canManageRoles: canManageRoles,
               canManageServer: canManageServer,
+              canvasKinds: canvasKinds,
             ),
           ),
         if (canManageRoles && _isRoom)
@@ -149,7 +159,16 @@ class ChannelSettingsPane extends ConsumerWidget {
         if (canManageRoles && !_isRoom)
           ChannelPermissionsPane(initialChannel: channel, lockChannel: true),
         if (canManageChannels)
-          ChannelDangerZoneSection(channel: channel, wasOpen: wasOpen),
+          ChannelDangerZoneSection(
+            channel: channel,
+            wasOpen: wasOpen,
+            leadingRows: [
+              if (channel.kind == 'voice' &&
+                  canvasKinds &&
+                  permissions.hasPermission(Perm.manageCanvas))
+                ChannelDiscardCanvasSection(channel: channel),
+            ],
+          ),
       ],
     );
   }

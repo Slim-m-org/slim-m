@@ -212,7 +212,7 @@ async fn an_object_id_belonging_to_another_channel_is_also_a_404() {
     let (store, _guard) = new_store().await;
     let (token, _) = register(&store, "root").await;
     let channel = general(&store).await;
-    let other = store.create_channel("other", "voice").await.unwrap().id;
+    let other = store.create_channel("other", "canvas").await.unwrap().id;
     let app = app(store.clone());
 
     let (_, placed) = post_object(&app, other, &token, stroke(&id())).await;

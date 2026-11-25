@@ -123,6 +123,11 @@ class Channels extends Table {
   /// Temporary voice rooms (decision 0065), nullable so an existing row and
   /// a row built in code read as "not a lobby, no limit, not a room".
   BoolColumn get createsRooms => boolean().nullable()();
+
+  /// Whether this channel has a board and a call, as the server computed
+  /// them. Null for an older server, which reads as the old kind rule.
+  BoolColumn get canvasEnabled => boolean().nullable()();
+  BoolColumn get voiceEnabled => boolean().nullable()();
   IntColumn get userLimit => integer().nullable()();
   TextColumn get roomOwnerId => text().nullable()();
   TextColumn get roomLobbyId => text().nullable()();
@@ -274,7 +279,7 @@ class SlimmDatabase extends _$SlimmDatabase {
   SlimmDatabase(super.e);
 
   @override
-  int get schemaVersion => 34;
+  int get schemaVersion => 35;
 
   /// An older build that opens this cache stamps its own lower version on it
   /// and keeps the newer columns, so the next upgrade meets columns it already has.
@@ -409,6 +414,10 @@ class SlimmDatabase extends _$SlimmDatabase {
         }),
         _UpgradeStep(
             34, () => _addColumnOnce(m, messages, messages.mentionUnsure)),
+        _UpgradeStep(35, () async {
+          await _addColumnOnce(m, channels, channels.canvasEnabled);
+          await _addColumnOnce(m, channels, channels.voiceEnabled);
+        }),
       ];
 
   /// How each schema version is reached. Most add a column in place that the

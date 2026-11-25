@@ -17,17 +17,22 @@ use crate::store::SessionContext;
 use crate::voice::VoiceService;
 
 /// One `canvas.screen_annotation` frame's fields.
+#[derive(serde::Deserialize)]
 pub(super) struct ScreenAnnotationFrame {
     pub(super) channel_id: String,
     pub(super) target_user_id: String,
     pub(super) kind: String,
     pub(super) annotation_id: Option<String>,
+    #[serde(default)]
     pub(super) points: Vec<f64>,
     pub(super) color: Option<String>,
     pub(super) text: Option<String>,
+    #[serde(default)]
     pub(super) ended: bool,
+    #[serde(default)]
     pub(super) allowed: bool,
     pub(super) aspect: Option<f64>,
+    #[serde(default)]
     pub(super) stamps: bool,
 }
 
@@ -69,7 +74,7 @@ pub(super) async fn handle_canvas_screen_annotation(
         ctx,
         cache,
         event.channel_id,
-        Frame::Ink,
+        Frame::ScreenInk,
     )
     .await
     {

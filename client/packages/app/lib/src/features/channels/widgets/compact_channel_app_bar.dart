@@ -25,6 +25,7 @@ import '../../voice/widgets/dm_call_button.dart';
 import '../../voice/providers/voice_flags.dart';
 import '../../voice/screens/voice_text_pane.dart'
     show CallDetailsAction, VoiceChatAction, voiceChatPaneVisibleProvider;
+import 'channel_kind_icon.dart' show ChannelGlyphKind;
 import 'channel_title_glyph.dart';
 import 'group_dm_members_sheet.dart';
 import 'channel_topic_text.dart';
@@ -105,6 +106,7 @@ class CompactChannelAppBar extends ConsumerWidget
         name: channel?.name ?? '',
         topic: departure?.label ?? channel?.topic,
         isVoice: isVoice,
+        glyph: ChannelGlyphKind.of(channel?.kind ?? 'text'),
         restricted: channel?.restricted ?? false,
         isDm: isDm,
         isPersonalSpace: channel?.isPersonalSpace ?? false,
@@ -147,6 +149,7 @@ class _Title extends StatelessWidget {
     required this.name,
     required this.topic,
     required this.isVoice,
+    required this.glyph,
     required this.isDm,
     required this.isPersonalSpace,
     required this.dmParticipantId,
@@ -158,6 +161,7 @@ class _Title extends StatelessWidget {
   final String name;
   final String? topic;
   final bool isVoice;
+  final ChannelGlyphKind glyph;
   final bool isDm;
   final bool isPersonalSpace;
   final String? dmParticipantId;
@@ -183,7 +187,7 @@ class _Title extends StatelessWidget {
           children: [
             ChannelTitleGlyph(
               name: name,
-              isVoice: isVoice,
+              glyph: glyph,
               restricted: restricted,
               isDm: isDm,
               isPersonalSpace: isPersonalSpace,

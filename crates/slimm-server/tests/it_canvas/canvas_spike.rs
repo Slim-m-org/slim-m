@@ -202,7 +202,7 @@ fn row(label: &str, names: (&str, &str), fast: (Duration, usize), slow: (Duratio
 async fn world(name: &str, count: usize) -> (SqlitePool, ChannelId, support::TestDbGuard) {
     let (pool, guard) = new_pool(name).await;
     let channel = Store::new(pool.clone())
-        .create_channel("canvas", "voice")
+        .create_channel("canvas", "canvas")
         .await
         .unwrap()
         .id;
@@ -266,7 +266,7 @@ async fn viewport_cost_against_neighbouring_canvases() {
     for neighbours in 0..5 {
         if neighbours > 0 {
             let other = store
-                .create_channel(&format!("other-{neighbours}"), "voice")
+                .create_channel(&format!("other-{neighbours}"), "canvas")
                 .await
                 .unwrap()
                 .id;

@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../channels/providers/channel_by_id_provider.dart';
+import '../widgets/confirmed_join.dart';
 
 /// Shown instead of an automatic join when the caller is already connected
 /// (or connecting) somewhere else: switching has to leave that call, so it
@@ -30,11 +31,9 @@ class VoiceSwitchPrompt extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => _VoicePrompt(
-    title: 'Already in a call',
-    message:
-        "You're in a call somewhere else. Switching leaves it and "
-        'joins this one instead.',
-    confirmLabel: 'Switch to this call',
+    title: switchCallTitle,
+    message: switchCallMessage,
+    confirmLabel: switchCallConfirm,
     onConfirm: onSwitch,
     cancelLabel: onCancel == null ? null : 'Cancel',
     onCancel: onCancel,
@@ -58,14 +57,10 @@ class VoiceJoinHerePrompt extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final channel = ref.watch(channelByIdProvider(elsewhereChannelId));
-    final name = channel.valueOrNull?.name;
-    final where = name == null || name.isEmpty ? 'a call' : name;
     return _VoicePrompt(
-      title: 'In a call on another device',
-      message:
-          "You're in $where on another device. Joining here moves your "
-          'call to this device.',
-      confirmLabel: 'Join here',
+      title: joinHereTitle,
+      message: joinHereMessage(channel.valueOrNull?.name),
+      confirmLabel: joinHereConfirm,
       onConfirm: onJoin,
       cancelLabel: 'Cancel',
       onCancel: onCancel,

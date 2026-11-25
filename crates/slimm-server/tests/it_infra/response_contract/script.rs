@@ -17,6 +17,7 @@ mod admin_recovery;
 mod bots;
 mod connectors;
 mod content;
+mod content_channel_kinds;
 mod content_dm_calls;
 mod content_emoji;
 mod content_group_dm_calls;
@@ -56,7 +57,9 @@ use content::{channel_calls, message_calls};
 use content_dm_calls::dm_call_ring_calls;
 use content_emoji::emoji_calls;
 use content_group_dm_calls::group_dm_calls;
-use content_media_slots::{canvas_more_calls, media_slot_calls, object_lock_calls};
+use content_media_slots::{
+    canvas_export_call, canvas_more_calls, media_slot_calls, object_lock_calls,
+};
 use content_messages_window::bulk_delete_by_author_call;
 use content_roles::{overwrite_calls, role_calls};
 use debug_logs::debug_log_calls;

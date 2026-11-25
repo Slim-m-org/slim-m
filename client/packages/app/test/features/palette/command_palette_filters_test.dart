@@ -67,6 +67,7 @@ Future<_Opened> _openInGeneral(
   await MessageStore(setup.db).upsertChannels(const [
     api.Channel(id: 'c1', name: 'general', kind: 'text', createdAt: 0),
     api.Channel(id: 'c2', name: 'random', kind: 'text', createdAt: 0),
+    api.Channel(id: 'c3', name: 'designs', kind: 'canvas', createdAt: 0),
   ]);
   await pump(tester, setup.container, initial: '/channels/c1');
   unawaited(
@@ -123,6 +124,18 @@ void main() {
     }
     expect(inPalette('People'), findsNothing, reason: 'a message search only');
     expect(searches, isEmpty);
+
+    await _close(tester, opened);
+  });
+
+  testWidgets('in: lists canvas channels beside text and voice ones', (
+    tester,
+  ) async {
+    final opened = await _openInGeneral(tester);
+    await _type(tester, 'in:');
+
+    expect(inPalette('#designs'), findsOneWidget);
+    expect(inPalette('#random'), findsOneWidget);
 
     await _close(tester, opened);
   });

@@ -21,7 +21,7 @@ async fn deleting_a_channel_removes_its_canvas_objects_and_frees_their_image() {
     let pool = db::connect(&config).await.expect("connect + migrate");
     let store = Store::new(pool.clone());
     let actor = register(&store, "root").await;
-    let doomed = store.create_channel("doomed", "text").await.unwrap().id;
+    let doomed = store.create_channel("doomed", "canvas").await.unwrap().id;
     let sha = [0x24u8; 32];
     store
         .store_attachment(&sha, 8, "image/png", "p.png", Some(actor))

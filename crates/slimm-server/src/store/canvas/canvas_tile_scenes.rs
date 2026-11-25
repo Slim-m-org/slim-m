@@ -168,16 +168,20 @@ impl Store {
         now: i64,
         limit: i64,
     ) -> anyhow::Result<Vec<(CanvasObjectId, ChannelId, i64)>> {
-        let rows = sqlx::query(
-            "SELECT object_id, channel_id, refresh_until_at FROM canvas_tile_scenes \
-             WHERE refresh_due_at IS NOT NULL AND refresh_due_at <= ? \
-             ORDER BY ROW_NUMBER() OVER (PARTITION BY ran_by ORDER BY refresh_due_at), \
-                      refresh_due_at LIMIT ?",
-        )
-        .bind(now)
-        .bind(limit)
-        .fetch_all(&self.pool)
-        .await?;
+        // A hidden board runs no module hosts: only tiles on an open board are due.
+        let sql = format!(
+            "SELECT s.object_id, s.channel_id, s.refresh_until_at FROM canvas_tile_scenes s \
+             JOIN channels c ON c.id = s.channel_id \
+             WHERE s.refresh_due_at IS NOT NULL AND s.refresh_due_at <= ? AND c.deleted_at IS NULL AND {} \
+             ORDER BY ROW_NUMBER() OVER (PARTITION BY s.ran_by ORDER BY s.refresh_due_at), \
+                      s.refresh_due_at LIMIT ?",
+            crate::store::CANVAS_OPEN_SQL
+        );
+        let rows = sqlx::query(sqlx::AssertSqlSafe(sql))
+            .bind(now)
+            .bind(limit)
+            .fetch_all(&self.pool)
+            .await?;
         rows.into_iter()
             .map(|row| {
                 Ok((

@@ -15,7 +15,7 @@ use axum::routing::{get, post};
 use serde::Serialize;
 
 use super::AppState;
-use super::canvas::canvas_write::ensure_may_draw;
+use super::canvas::canvas_write::ensure_may_mark_screen;
 use super::error::ApiError;
 use super::extract::{AUTHED_READ, AuthedLimited, Json, SCREEN_STAMP};
 use super::messages::parse_uuid;
@@ -85,7 +85,7 @@ async fn place(
     {
         return Err(ApiError::BadRequest("that custom emoji does not exist"));
     }
-    let permissions = ensure_may_draw(&state, ctx.user_id, channel_id).await?;
+    let permissions = ensure_may_mark_screen(&state, ctx.user_id, channel_id).await?;
     let picture = matches!(stamp.content, Content::Picture(_));
     if picture && !permissions.contains(Permissions::ATTACH_FILES) {
         return Err(ApiError::Forbidden);

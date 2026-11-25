@@ -64,6 +64,15 @@ class ToastOverlay extends ConsumerWidget {
                       severity: toast.severity,
                       onDismiss: () =>
                           ref.read(toastsProvider.notifier).dismiss(toast.id),
+                      actionLabel: toast.actionLabel,
+                      onAction: toast.onAction == null
+                          ? null
+                          : () {
+                              ref
+                                  .read(toastsProvider.notifier)
+                                  .dismiss(toast.id);
+                              toast.onAction!();
+                            },
                     ),
                   ),
                 ),

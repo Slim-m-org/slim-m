@@ -17,6 +17,8 @@ pub(super) enum Frame {
     Pointer,
     /// Ink or a drag: the pointer bar and no timeout in force.
     Ink,
+    /// A screen annotation: the ink bar, whether or not the channel's board is open (decision 0096).
+    ScreenInk,
 }
 
 /// Fails closed on a store error, and never caches one.
@@ -59,6 +61,9 @@ pub(super) async fn relay_grant(
     if !granted.contains(needed) {
         return None;
     }
+    if frame != Frame::ScreenInk && !surface_open(store, cache, channel_id, now, epoch).await? {
+        return None;
+    }
     if frame == Frame::Pointer {
         return Some(granted);
     }
@@ -75,4 +80,20 @@ pub(super) async fn relay_grant(
     until_ms
         .is_none_or(|until| now_ms() >= until)
         .then_some(granted)
+}
+
+/// Whether the channel's board is open, asked once per cached permissions entry; a store error fails closed and is not cached.
+async fn surface_open(
+    store: &Store,
+    cache: &mut PermissionCache,
+    channel_id: ChannelId,
+    now: Instant,
+    epoch: u64,
+) -> Option<bool> {
+    if let Some(cached) = cache.surface_open(channel_id, now, epoch) {
+        return Some(cached);
+    }
+    let open = store.channel_canvas_open(channel_id).await.ok()?;
+    cache.insert_surface(channel_id, open, epoch);
+    Some(open)
 }

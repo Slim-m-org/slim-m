@@ -20,18 +20,19 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_data/data.dart' show CategoryStore, Channel;
+import 'package:slimm_data/data.dart' show CategoryStore, Channel, ChannelKinds;
 
 import '../../../providers/providers.dart';
 
 /// What [channel] gives members with no choice of their own, or null when it
-/// sets no default (`everything` is the same as none); a voice chat's is mentions.
+/// sets no default (`everything` is the same as none); a voice or canvas chat's is mentions.
 api.NotificationPreference? channelDefaultOf(Channel channel) {
   final level = api.NotificationPreference.parse(
     channel.defaultNotification ?? 'everything',
   );
   if (level != api.NotificationPreference.everything) return level;
-  return channel.kind == 'voice' ? api.NotificationPreference.mentions : null;
+  final quiet = channel.kind == 'voice' || channel.isCanvasChannel;
+  return quiet ? api.NotificationPreference.mentions : null;
 }
 
 class ChannelNotificationOverridesState {

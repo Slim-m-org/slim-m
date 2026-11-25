@@ -31,6 +31,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../widgets/header_icon_action.dart';
 import '../../voice/providers/voice_flags.dart';
+import '../providers/canvas_entry.dart';
 import '../providers/canvas_open.dart';
 
 const canvasOpenButtonKey = Key('canvas_open_button');
@@ -59,7 +60,8 @@ class CanvasOpenButton extends ConsumerWidget {
   final bool isDm;
 
   /// Whether the button draws anything, for a header that leaves it out
-  /// rather than spacing around an empty box.
+  /// rather than spacing around an empty box. A canvas channel is its own
+  /// board and a voice channel with the canvas off has none, so neither offers it.
   static bool shows(
     BuildContext context,
     WidgetRef ref, {
@@ -68,6 +70,7 @@ class CanvasOpenButton extends ConsumerWidget {
     required bool isDm,
   }) {
     if (!isVoice && !isDm) return false;
+    if (!ref.watch(canvasEntryProvider(channelId))) return false;
     if (!isVoice || callDockOmitsCanvasToggle(context)) return true;
     // The call dock carries the toggle in a live call, except on a phone where the header does.
     return !ref.watch(

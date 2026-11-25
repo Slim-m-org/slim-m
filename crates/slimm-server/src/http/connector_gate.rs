@@ -138,6 +138,7 @@ mod tests {
             ("POST", "/reports"),
             ("GET", "/devices"),
             ("POST", "/me/avatar"),
+            ("GET", "/presence/canvas-viewers"),
             ("DELETE", "/push"),
             ("POST", "/space/themes"),
             ("DELETE", "/space/themes/{}"),
@@ -151,6 +152,10 @@ mod tests {
             Rule::Needs(Permissions::VIEW_CHANNEL)
         );
         assert_eq!(rule("POST", &seg("/channels/{}/messages")), Rule::Handler);
+        assert_eq!(
+            rule("POST", &seg("/channels/{}/canvas/export")),
+            Rule::Handler
+        );
         assert_eq!(
             rule("POST", &seg("/dms")),
             Rule::Needs(Permissions::SEND_MESSAGES)

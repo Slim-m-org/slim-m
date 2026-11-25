@@ -27,7 +27,7 @@ async fn erased_a_year_ago() -> (
     let pool = db::connect(&config).await.expect("connect + migrate");
     let store = Store::new(pool.clone());
     let actor = register(&store, "root").await;
-    let channel = store.list_channels().await.unwrap()[0].id;
+    let channel = store.create_channel("board", "canvas").await.unwrap().id;
 
     let object = CanvasObjectId::generate();
     store
@@ -94,7 +94,7 @@ async fn an_erased_object_past_retention_is_hard_deleted_by_the_sweep() {
 async fn a_failing_audit_sweep_does_not_stop_the_erased_object_purge() {
     let (store, pool, object, _guard) = erased_a_year_ago().await;
     let other = register(&store, "other").await;
-    let channel = store.list_channels().await.unwrap()[0].id;
+    let channel = store.create_channel("board", "canvas").await.unwrap().id;
     store
         .place_canvas_object(
             channel,

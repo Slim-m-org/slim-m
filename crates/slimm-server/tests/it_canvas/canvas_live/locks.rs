@@ -56,7 +56,7 @@ async fn a_lock_publishes_once_and_a_repeat_publishes_nothing_to_a_spectator_eit
     let state = support::app::state(store.clone());
     let (alice_access, alice_ticket, alice) = user_ticket(&store, "alice").await;
     store.bootstrap_deployment(alice).await.unwrap();
-    let channel = store.list_channels().await.unwrap()[0].id;
+    let channel = store.create_channel("board", "canvas").await.unwrap().id;
     let (_bob_access, bob_ticket, _bob) = user_ticket(&store, "bob").await;
     let (_carol_access, carol_ticket, carol) = user_ticket(&store, "carol").await;
     store
@@ -120,7 +120,7 @@ async fn a_timed_out_member_can_neither_lock_unlock_nor_edit() {
     let state = support::app::state(store.clone());
     let (alice_access, _alice_ticket, alice) = user_ticket(&store, "alice").await;
     store.bootstrap_deployment(alice).await.unwrap();
-    let channel = store.list_channels().await.unwrap()[0].id;
+    let channel = store.create_channel("board", "canvas").await.unwrap().id;
     let (bob_access, _bob_ticket, bob) = user_ticket(&store, "bob").await;
     let object = place_note(&state, channel, &bob_access).await;
     let until = std::time::SystemTime::now()
@@ -161,7 +161,7 @@ async fn restoring_a_locked_object_publishes_its_lock() {
     let state = support::app::state(store.clone());
     let (alice_access, alice_ticket, alice) = user_ticket(&store, "alice").await;
     store.bootstrap_deployment(alice).await.unwrap();
-    let channel = store.list_channels().await.unwrap()[0].id;
+    let channel = store.create_channel("board", "canvas").await.unwrap().id;
     let (_bob_access, bob_ticket, _bob) = user_ticket(&store, "bob").await;
     let addr = serve(state.clone()).await;
     let _alice_ws = connect(addr, &alice_ticket).await;
@@ -215,7 +215,7 @@ async fn a_delete_for_good_drops_the_object_on_another_members_board_live() {
     let state = support::app::state(store.clone());
     let (alice_access, alice_ticket, alice) = user_ticket(&store, "alice").await;
     store.bootstrap_deployment(alice).await.unwrap();
-    let channel = store.list_channels().await.unwrap()[0].id;
+    let channel = store.create_channel("board", "canvas").await.unwrap().id;
     let (_bob_access, bob_ticket, _bob) = user_ticket(&store, "bob").await;
     let addr = serve(state.clone()).await;
     let _alice_ws = connect(addr, &alice_ticket).await;

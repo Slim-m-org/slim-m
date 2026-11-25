@@ -162,7 +162,7 @@ class _Glyph extends StatelessWidget {
           border: Border.all(color: tokens.borderSubtle),
         ),
         child: ChannelKindIcon(
-          isVoice: true,
+          glyph: ChannelGlyphKind.voice,
           restricted: restricted,
           color: tokens.textSecondary,
           size: AppSizes.icon24,

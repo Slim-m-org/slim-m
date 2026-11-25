@@ -22,6 +22,7 @@ void main() {
           id: 'c1',
           name: 'general',
           kind: 'text',
+          canvasEnabled: true,
           createdAt: 0,
         ),
       ]);

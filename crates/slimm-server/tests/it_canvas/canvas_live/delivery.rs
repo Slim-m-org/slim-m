@@ -21,7 +21,7 @@ async fn an_idempotent_replay_publishes_nothing() {
     let state = support::app::state(store.clone());
     let (access, ticket, alice) = user_ticket(&store, "alice").await;
     store.bootstrap_deployment(alice).await.unwrap();
-    let channel = store.list_channels().await.unwrap()[0].id;
+    let channel = store.create_channel("board", "canvas").await.unwrap().id;
 
     let addr = serve(state.clone()).await;
     let mut ws = connect(addr, &ticket).await;
@@ -64,7 +64,7 @@ async fn a_canvas_burst_does_not_disconnect_a_text_only_connection() {
     let state = support::app::state(store.clone());
     let (alice_access, _alice_ticket, alice) = user_ticket(&store, "alice").await;
     store.bootstrap_deployment(alice).await.unwrap();
-    let channel = store.list_channels().await.unwrap()[0].id;
+    let channel = store.create_channel("board", "canvas").await.unwrap().id;
 
     let (_bob_access, bob_ticket, _bob) = user_ticket(&store, "bob").await;
     let addr = serve(state.clone()).await;
@@ -101,7 +101,7 @@ async fn an_op_that_changes_nothing_publishes_no_frame() {
     let state = support::app::state(store.clone());
     let (alice_access, alice_ticket, alice) = user_ticket(&store, "alice").await;
     store.bootstrap_deployment(alice).await.unwrap();
-    let channel = store.list_channels().await.unwrap()[0].id;
+    let channel = store.create_channel("board", "canvas").await.unwrap().id;
 
     let addr = serve(state.clone()).await;
     let mut alice_ws = connect(addr, &alice_ticket).await;

@@ -24,6 +24,7 @@ import '../../voice/widgets/dm_call_button.dart';
 import '../../voice/widgets/voice_chat_unread_dot.dart';
 import '../../../routing/breakpoints.dart';
 import '../../../widgets/header_icon_action.dart';
+import 'channel_kind_icon.dart' show ChannelGlyphKind;
 import 'channel_title_glyph.dart';
 import 'group_dm_members_action.dart';
 import 'channel_topic_text.dart';
@@ -158,7 +159,9 @@ class ChannelHeader extends ConsumerWidget {
                   children: [
                     ChannelTitleGlyph(
                       name: name,
-                      isVoice: isVoice,
+                      glyph: isVoice
+                          ? ChannelGlyphKind.voice
+                          : ChannelGlyphKind.text,
                       restricted: restricted,
                       isDm: isDm,
                       isPersonalSpace: isPersonalSpace,

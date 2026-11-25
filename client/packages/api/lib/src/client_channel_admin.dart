@@ -17,6 +17,9 @@ class ChannelUpdate {
     this.defaultNotification,
     this.createsRooms,
     this.userLimit,
+    this.canvasEnabled,
+    this.voiceEnabled,
+    this.discardCanvas,
   });
 
   final String? name;
@@ -26,6 +29,15 @@ class ChannelUpdate {
   final NotificationPreference? defaultNotification;
   final bool? createsRooms;
   final int? userLimit;
+
+  /// A voice channel's board on or off.
+  final bool? canvasEnabled;
+
+  /// A canvas channel's call on or off.
+  final bool? voiceEnabled;
+
+  /// With the canvas off: remove everything on the hidden board.
+  final bool? discardCanvas;
 }
 
 /// Channel renaming, deletion and reordering, plus channel-category CRUD:
@@ -52,6 +64,9 @@ extension SlimmApiChannelAdmin on SlimmApi {
       :defaultNotification,
       :createsRooms,
       :userLimit,
+      :canvasEnabled,
+      :voiceEnabled,
+      :discardCanvas,
     ) = update;
     final json = await send(
       'PATCH',
@@ -65,6 +80,9 @@ extension SlimmApiChannelAdmin on SlimmApi {
           'default_notification': defaultNotification.wire,
         if (createsRooms != null) 'creates_rooms': createsRooms,
         if (userLimit != null) 'user_limit': userLimit,
+        if (canvasEnabled != null) 'canvas_enabled': canvasEnabled,
+        if (voiceEnabled != null) 'voice_enabled': voiceEnabled,
+        if (discardCanvas ?? false) 'discard_canvas': true,
       },
     );
     return Channel.fromJson(json as Map<String, dynamic>);

@@ -30,6 +30,7 @@ import '../../voice/providers/voice_chat_unread.dart';
 import '../../voice/widgets/voice_chat_unread_dot.dart';
 import '../widgets/canvas_clear_scope.dart';
 import '../widgets/canvas_clear_sheet.dart';
+import 'canvas_export_entry.dart' show openCanvasExport;
 import 'canvas_overflow_sections.dart';
 import 'canvas_people_sheet.dart';
 import '../../../widgets/context_menu_focus.dart';
@@ -393,6 +394,7 @@ class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
     onDelete: _delete,
     onClear: _requestClear,
     onScopedClear: _requestScopedClear,
+    onExport: () => _openAfterClose(() => openCanvasExport(context)),
   );
 
   List<Widget> _menuItems(BuildContext context, String? selected) {

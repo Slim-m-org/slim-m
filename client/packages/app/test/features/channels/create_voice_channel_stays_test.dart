@@ -144,27 +144,36 @@ void main() {
     await tester.runAsync(() => Future<void>.delayed(Duration.zero));
   });
 
-  test('a category starts the sheet on Voice only when it is for calls', () {
-    Channel channel(String kind) => Channel(
-      id: kind,
-      name: kind,
-      kind: kind,
-      createdAt: 0,
-      position: 0,
-      cursor: 0,
-      lastReadSeq: 0,
-      mentionedSeq: 0,
-      slowModeSeconds: 0,
-      joinMuted: false,
-      isPersonalSpace: false,
-    );
-    const voice = ChannelCategoryRow(id: 'v', name: 'Voice', position: 0);
-    const lounge = ChannelCategoryRow(id: 'l', name: 'Lounge', position: 1);
+  test(
+    'a category starts the sheet on Voice only when it is for calls, Canvas for boards',
+    () {
+      Channel channel(String kind) => Channel(
+        id: kind,
+        name: kind,
+        kind: kind,
+        createdAt: 0,
+        position: 0,
+        cursor: 0,
+        lastReadSeq: 0,
+        mentionedSeq: 0,
+        slowModeSeconds: 0,
+        joinMuted: false,
+        isPersonalSpace: false,
+      );
+      const voice = ChannelCategoryRow(id: 'v', name: 'Voice', position: 0);
+      const lounge = ChannelCategoryRow(id: 'l', name: 'Lounge', position: 1);
 
-    expect(kindToAddIn(lounge, [channel('voice')]), 'voice');
-    expect(kindToAddIn(lounge, [channel('voice'), channel('text')]), 'text');
-    expect(kindToAddIn(voice, const []), 'voice');
-    expect(kindToAddIn(lounge, const []), 'text');
-    expect(kindToAddIn(null, [channel('voice')]), 'text');
-  });
+      expect(kindToAddIn(lounge, [channel('voice')]), 'voice');
+      expect(kindToAddIn(lounge, [channel('voice'), channel('text')]), 'text');
+      expect(kindToAddIn(voice, const []), 'voice');
+      expect(kindToAddIn(lounge, const []), 'text');
+      expect(kindToAddIn(null, [channel('voice')]), 'text');
+      expect(kindToAddIn(lounge, [channel('canvas')]), 'canvas');
+      expect(
+        kindToAddIn(lounge, [channel('canvas'), channel('voice')]),
+        'text',
+      );
+      expect(kindToAddIn(voice, [channel('canvas')]), 'canvas');
+    },
+  );
 }

@@ -217,27 +217,33 @@ impl Store {
     /// A canvas placement is not filtered on `deleted_at IS NULL` the way a
     /// message is: an erased canvas object can be un-erased by a `restore`
     /// op, so a channel's own VIEW_CHANNEL is still the right question to ask
-    /// while it is soft-deleted, not a reason to withdraw fetch access.
+    /// while it is soft-deleted, not a reason to withdraw fetch access. A
+    /// board that is switched off counts for nothing, so a hidden board's
+    /// images are not fetchable on its account (decision 0139).
     pub async fn channels_referencing_attachment(
         &self,
         sha256: &[u8],
     ) -> anyhow::Result<Vec<ChannelId>> {
-        let rows = sqlx::query!(
-            r#"SELECT DISTINCT m.channel_id AS "channel_id!: ChannelId"
-               FROM message_attachments ma
-               JOIN messages m ON m.id = ma.message_id
-               WHERE ma.sha256 = ? AND m.deleted_at IS NULL
-               UNION
-               SELECT DISTINCT co.channel_id AS "channel_id!: ChannelId"
-               FROM canvas_object_attachments coa
-               JOIN canvas_objects co ON co.id = coa.object_id
-               WHERE coa.sha256 = ?"#,
-            sha256,
-            sha256
-        )
-        .fetch_all(&self.pool)
-        .await?;
-        Ok(rows.into_iter().map(|r| r.channel_id).collect())
+        // Built, not a `query!`: the board filter is the shared `CANVAS_OPEN_SQL` fragment.
+        let sql = format!(
+            "SELECT DISTINCT m.channel_id AS channel_id \
+             FROM message_attachments ma \
+             JOIN messages m ON m.id = ma.message_id \
+             WHERE ma.sha256 = ? AND m.deleted_at IS NULL \
+             UNION \
+             SELECT DISTINCT co.channel_id AS channel_id \
+             FROM canvas_object_attachments coa \
+             JOIN canvas_objects co ON co.id = coa.object_id \
+             JOIN channels c ON c.id = co.channel_id \
+             WHERE coa.sha256 = ? AND {}",
+            super::CANVAS_OPEN_SQL
+        );
+        let rows: Vec<ChannelId> = sqlx::query_scalar(sqlx::AssertSqlSafe(sql))
+            .bind(sha256)
+            .bind(sha256)
+            .fetch_all(&self.pool)
+            .await?;
+        Ok(rows)
     }
 
     /// Whether `user_id` uploaded `sha256` themselves, recorded in

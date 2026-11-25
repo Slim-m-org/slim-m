@@ -326,7 +326,7 @@ impl Store {
         };
         let channel_id = channel.id;
         // DMs skip the role and overwrite model; see `granted_in_channel`'s note.
-        if channel.kind == super::dms::DM_CHANNEL_KIND {
+        if channel.kind == super::DM_CHANNEL_KIND {
             return self.dm_permissions(user_id, channel_id).await;
         }
 

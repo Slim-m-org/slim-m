@@ -15,6 +15,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../routing/breakpoints.dart';
+import '../../canvas/providers/canvas_entry.dart' show canvasEntryProvider;
 import '../../canvas/screens/canvas_pane.dart' show canvasOpenProvider;
 import '../providers/voice_call_history.dart';
 import 'voice_idle/call_details_sections.dart';
@@ -129,7 +130,9 @@ class _CallDetailsBodyState extends ConsumerState<_CallDetailsBody> {
         channelId: channelId,
         now: DateTime.now().millisecondsSinceEpoch,
         compact: true,
-        onOpenCanvas: _openCanvas,
+        onOpenCanvas: ref.watch(canvasEntryProvider(channelId))
+            ? _openCanvas
+            : null,
       ),
     );
   }

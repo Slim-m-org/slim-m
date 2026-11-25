@@ -186,7 +186,7 @@ pub(super) async fn dock_calls(c: &mut Contract, root: &str, admin_id: &str, cha
     // code-exec declares a `canvas-tile` too, so this is a populated CanvasTile list and the tile below is a real placement.
     c.get("listCanvasTiles", "/modules/canvas-tiles", root)
         .await;
-    module_tile_calls(c, root, channel, &id).await;
+    module_tile_calls(c, root, &id).await;
     // Launching an app is a message send; the admin holds `run` and can view, so a real 200 carrying the Message with its app_surface.
     c.json(
         "launchAppMessage",
@@ -257,7 +257,17 @@ pub(super) async fn dock_calls(c: &mut Contract, root: &str, admin_id: &str, cha
 }
 
 /// Places code-exec's tile, launches it, then reads the frame the launch stored.
-async fn module_tile_calls(c: &mut Contract, root: &str, channel: &str, module_id: &str) {
+async fn module_tile_calls(c: &mut Contract, root: &str, module_id: &str) {
+    let channel = c
+        .json(
+            "createChannel",
+            "POST",
+            "/channels",
+            root,
+            json!({ "name": "contract-tiles", "kind": "canvas" }),
+        )
+        .await;
+    let channel = text(&channel, "id");
     let tile = c
         .json(
             "placeCanvasObject",

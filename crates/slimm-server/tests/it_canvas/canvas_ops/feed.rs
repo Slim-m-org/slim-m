@@ -17,7 +17,7 @@ use crate::support::canvas::remove_via_op;
 async fn a_place_ops_object_is_present_and_matches_what_was_placed() {
     let (store, _guard) = new_store().await;
     let author = store.create_user("ann", "Ann").await.unwrap().id;
-    let channel = store.create_channel("canvas", "voice").await.unwrap().id;
+    let channel = store.create_channel("canvas", "canvas").await.unwrap().id;
     let placed = place(&store, channel, author, 0).await;
 
     let page = store.list_canvas_ops(channel, 0, 100).await.unwrap();
@@ -35,7 +35,7 @@ async fn a_place_ops_object_is_present_and_matches_what_was_placed() {
 async fn a_place_ops_object_is_absent_once_the_object_has_been_removed() {
     let (store, _guard) = new_store().await;
     let author = store.create_user("ann", "Ann").await.unwrap().id;
-    let channel = store.create_channel("canvas", "voice").await.unwrap().id;
+    let channel = store.create_channel("canvas", "canvas").await.unwrap().id;
     let placed = place(&store, channel, author, 0).await;
     remove_via_op(&store, channel, author, placed).await;
 
@@ -57,7 +57,7 @@ async fn a_place_ops_object_is_absent_once_the_object_has_been_removed() {
 async fn the_feed_serializes_every_kind_the_schema_admits() {
     let (store, pool, _guard) = new_store_and_pool().await;
     let author = store.create_user("ann", "Ann").await.unwrap().id;
-    let channel = store.create_channel("canvas", "voice").await.unwrap().id;
+    let channel = store.create_channel("canvas", "canvas").await.unwrap().id;
     let placed = place(&store, channel, author, 0).await; // seq 1
 
     let remove_op = Uuid::now_v7();
@@ -139,7 +139,7 @@ async fn the_feed_serializes_every_kind_the_schema_admits() {
 async fn the_feed_resets_when_the_cursor_is_ahead_of_latest_seq() {
     let (store, _guard) = new_store().await;
     let author = store.create_user("ann", "Ann").await.unwrap().id;
-    let channel = store.create_channel("canvas", "voice").await.unwrap().id;
+    let channel = store.create_channel("canvas", "canvas").await.unwrap().id;
     place(&store, channel, author, 0).await;
 
     let page = store.list_canvas_ops(channel, 100, 100).await.unwrap();
@@ -152,7 +152,7 @@ async fn the_feed_resets_when_the_cursor_is_ahead_of_latest_seq() {
 async fn the_feed_resets_when_the_caller_is_too_far_behind() {
     let (store, pool, _guard) = new_store_and_pool().await;
     let author = store.create_user("ann", "Ann").await.unwrap().id;
-    let channel = store.create_channel("canvas", "voice").await.unwrap().id;
+    let channel = store.create_channel("canvas", "canvas").await.unwrap().id;
 
     let total = CANVAS_OP_GAP + 5;
     sqlx::query(
@@ -188,7 +188,7 @@ async fn the_feed_resets_when_the_caller_is_too_far_behind() {
 async fn the_feed_resets_only_strictly_behind_the_retained_floor() {
     let (store, pool, _guard) = new_store_and_pool().await;
     let author = store.create_user("ann", "Ann").await.unwrap().id;
-    let channel = store.create_channel("canvas", "voice").await.unwrap().id;
+    let channel = store.create_channel("canvas", "canvas").await.unwrap().id;
     for _ in 0..5 {
         place(&store, channel, author, 0).await;
     }
@@ -218,7 +218,7 @@ async fn the_feed_resets_only_strictly_behind_the_retained_floor() {
 async fn has_more_is_dropped_from_the_back_and_paging_continues_correctly() {
     let (store, _guard) = new_store().await;
     let author = store.create_user("ann", "Ann").await.unwrap().id;
-    let channel = store.create_channel("canvas", "voice").await.unwrap().id;
+    let channel = store.create_channel("canvas", "canvas").await.unwrap().id;
     for _ in 0..5 {
         place(&store, channel, author, 0).await;
     }
@@ -246,7 +246,7 @@ async fn has_more_is_dropped_from_the_back_and_paging_continues_correctly() {
 async fn account_deletion_nulls_the_actor_id_of_a_placed_op() {
     let (store, _guard) = new_store().await;
     let author = store.create_user("ann", "Ann").await.unwrap().id;
-    let channel = store.create_channel("canvas", "voice").await.unwrap().id;
+    let channel = store.create_channel("canvas", "canvas").await.unwrap().id;
     place(&store, channel, author, 0).await;
 
     store.delete_account(author).await.unwrap();

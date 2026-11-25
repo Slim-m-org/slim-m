@@ -238,7 +238,7 @@ class VoiceChannelRow extends ConsumerWidget {
         : ref
                   .watch(voiceRosterProvider(channel.id))
                   .valueOrNull
-                  ?.map(_asVoiceParticipant)
+                  ?.map(voiceRosterAsParticipant)
                   .toList(growable: false) ??
               const <VoiceParticipant>[];
 
@@ -262,7 +262,7 @@ class VoiceChannelRow extends ConsumerWidget {
             leading: channel.createsRooms == true
                 ? RailLobbyIcon(color: iconColor)
                 : ChannelKindIcon(
-                    isVoice: true,
+                    glyph: ChannelGlyphKind.voice,
                     restricted: channel.restricted ?? false,
                     color: iconColor,
                   ),
@@ -344,7 +344,7 @@ class _ReadChatButton extends StatelessWidget {
 /// A roster snapshot carries no live speaking signal, so that flag is false
 /// rather than guessed; the rest is read straight off the roster entry (see
 /// docs/decisions/0032-voice-participant-webhooks.md).
-VoiceParticipant _asVoiceParticipant(api.VoiceRosterParticipant p) =>
+VoiceParticipant voiceRosterAsParticipant(api.VoiceRosterParticipant p) =>
     VoiceParticipant(
       identity: p.userId,
       name: p.displayName,

@@ -2,8 +2,48 @@
 //! Canvas reads and removals for tests, built on the same paths the product uses.
 
 use slimm_server::ids::{CanvasObjectId, CanvasOpId, ChannelId, UserId};
-use slimm_server::store::{CanvasObject, CanvasOpRequest, Rect, Store, ViewportQuery};
+use slimm_server::store::{
+    CanvasObject, CanvasOpRequest, Channel, ChannelDefaults, Rect, Store, ViewportQuery,
+};
 use sqlx::SqlitePool;
+
+/// Channels whose board is open, for the tests whose subject is the board and not the channel's kind.
+pub trait BoardChannels {
+    /// A voice channel with its canvas on, as one made before the toggle was.
+    async fn create_voice_with_canvas(&self, name: &str) -> anyhow::Result<Channel>;
+
+    /// A canvas channel, with a call when `call` is true.
+    async fn create_canvas_channel(&self, name: &str, call: bool) -> anyhow::Result<Channel>;
+}
+
+impl BoardChannels for Store {
+    async fn create_voice_with_canvas(&self, name: &str) -> anyhow::Result<Channel> {
+        create_with(self, name, "voice", true, false).await
+    }
+
+    async fn create_canvas_channel(&self, name: &str, call: bool) -> anyhow::Result<Channel> {
+        create_with(self, name, "canvas", false, call).await
+    }
+}
+
+async fn create_with(
+    store: &Store,
+    name: &str,
+    kind: &str,
+    canvas_enabled: bool,
+    voice_enabled: bool,
+) -> anyhow::Result<Channel> {
+    let defaults = ChannelDefaults {
+        canvas_enabled,
+        voice_enabled,
+        ..ChannelDefaults::default()
+    };
+    let created = store
+        .create_channel_with_id(ChannelId::generate(), name, kind, None, None, defaults)
+        .await
+        .map_err(|err| anyhow::anyhow!("create {kind} channel: {err:?}"))?;
+    Ok(created.channel)
+}
 
 pub const DAY_MS: i64 = 24 * 60 * 60 * 1000;
 

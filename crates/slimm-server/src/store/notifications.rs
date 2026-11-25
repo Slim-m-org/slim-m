@@ -76,6 +76,6 @@ impl Store {
         let Some(resolved) = self.permission_channel(channel).await? else {
             return Ok(false);
         };
-        Ok(resolved.kind == super::dms::DM_CHANNEL_KIND)
+        Ok(resolved.kind == super::DM_CHANNEL_KIND)
     }
 }

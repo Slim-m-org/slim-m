@@ -41,7 +41,13 @@ const _targets = [
     channelId: 'c-lounge',
     label: 'lounge',
     isDm: false,
-    isVoice: true,
+    kind: 'voice',
+  ),
+  ForwardTarget(
+    channelId: 'c-board',
+    label: 'board',
+    isDm: false,
+    kind: 'canvas',
   ),
   ForwardTarget(
     channelId: 'c-bob',
@@ -175,6 +181,18 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('opened c-lounge as chat'), findsOneWidget);
+  });
+
+  testWidgets('a canvas channel opens its chat rather than its board', (
+    tester,
+  ) async {
+    await _pumpShare(tester, const IncomingShare(files: [_photo]));
+
+    await tester.tap(find.text('board'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('opened c-board as chat'), findsOneWidget);
   });
 
   testWidgets('shared text becomes the draft, after what was already typed', (

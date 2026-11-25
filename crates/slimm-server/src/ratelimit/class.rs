@@ -407,6 +407,17 @@ classes! {
     /// Each group lands in every invitee's DM list, so a loop of creates is unwanted mail to chosen
     /// people. Five at once, then one a minute.
     GroupDmCreate,
+    /// `canvas.watch` declarations that add a board over the WebSocket, charged per account.
+    ///
+    /// A person opens and closes boards a few times a minute, and a reconnect re-declares once, so
+    /// twenty at once and two a second is far above use. Over it, additions wait for the next
+    /// accepted declaration while removals still apply.
+    CanvasWatch,
+    /// Exporting a board into a new canvas channel, charged per account (decision 0139).
+    ///
+    /// One export copies up to 20,000 objects under the writer lock, so five at once and
+    /// then five an hour is far above anyone organising a workspace and well below a loop.
+    CanvasExport,
 }
 
 impl Class {
@@ -437,6 +448,10 @@ impl Class {
             Class::Soundboard => (1.0, 1.0 / 3.0),
             Class::ScreenStamp => (3.0, 0.5),
             Class::GroupDmCreate => (5.0, 1.0 / 60.0),
+            // See this variant's own doc comment for how these were sized.
+            Class::CanvasWatch => (20.0, 2.0),
+            // See this variant's own doc comment for how these were sized.
+            Class::CanvasExport => (5.0, 5.0 / 3600.0),
             // See this variant's own doc comment for how these were sized.
             Class::Ring => (5.0, 1.0 / 5.0),
             // See this variant's own doc comment for the roster and reconnect math.

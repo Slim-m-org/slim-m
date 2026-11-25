@@ -28,6 +28,8 @@ use crate::presence::{self, Visibility};
 use crate::presence_activity::Activity;
 use crate::ratelimit::Class;
 
+mod canvas_viewers;
+
 const BODY_LIMIT: usize = 1024;
 
 /// Most ids `GET /presence` may be asked about in one request, matching the
@@ -38,6 +40,7 @@ const MAX_BATCH: usize = 100;
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/presence", get(list).patch(set_visibility))
+        .route("/presence/canvas-viewers", get(canvas_viewers))
         .route(
             "/presence/activity",
             put(set_activity).delete(clear_activity),
@@ -68,6 +71,14 @@ struct VisibilityDto {
 }
 
 // --- Handlers ---
+
+/// Who has each open board the caller can view open, in one read.
+async fn canvas_viewers(
+    AuthedLimited(ctx): AuthedLimited<AUTHED_READ>,
+    State(state): State<AppState>,
+) -> Result<Json<canvas_viewers::CanvasViewersDto>, ApiError> {
+    Ok(Json(canvas_viewers::snapshot(&state, ctx.user_id).await?))
+}
 
 /// Batch presence lookup. An id with nothing live to report (never existed,
 /// or deleted) is simply absent from the result, the same contract
@@ -138,6 +149,10 @@ async fn set_visibility(
     }
     // Refresh the cache before announcing, so the fan-out reads the new choice.
     state.hub.presence().set_visibility(ctx.user_id, visibility);
+    state
+        .hub
+        .canvas_viewers()
+        .mark_user_dirty(ctx.user_id, crate::store::now_ms());
     state.hub.publish(Event::visibility_switched(ctx.user_id));
 
     Ok(Json(VisibilityDto {

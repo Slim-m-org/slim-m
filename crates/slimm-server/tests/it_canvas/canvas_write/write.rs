@@ -328,7 +328,7 @@ async fn the_same_id_in_another_channel_is_a_conflict() {
     let (store, _guard) = new_store().await;
     let (token, _) = register(&store, "root").await;
     let channel = general(&store).await;
-    let other = store.create_channel("other", "text").await.unwrap();
+    let other = store.create_channel("other", "canvas").await.unwrap();
     let app = app(store);
     let object = id();
 

@@ -48,4 +48,13 @@ extension SlimmApiPresence on SlimmApi {
   Future<void> clearPresenceActivity() async {
     await send('DELETE', '/presence/activity');
   }
+
+  /// Who is shown on every open board the caller can view, in one read.
+  /// Only boards with at least one viewer are listed.
+  Future<List<CanvasBoardViewers>> canvasViewers() async {
+    final json = await send('GET', '/presence/canvas-viewers');
+    return ((json as Map<String, dynamic>)['channels'] as List<dynamic>)
+        .map((c) => CanvasBoardViewers.fromJson(c as Map<String, dynamic>))
+        .toList(growable: false);
+  }
 }

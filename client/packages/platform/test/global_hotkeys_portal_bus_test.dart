@@ -90,15 +90,17 @@ class _Session extends DBusObject {
 }
 
 /// Hosts the bus and the portal in their own isolate, so the test can stall
-/// its own isolate while the portal keeps answering.
+/// its own isolate while the portal keeps answering. The object is registered
+/// before the name is taken, so a client reacting to the name never reaches a
+/// portal that cannot answer yet.
 Future<void> _hostPortal(SendPort reply) async {
   final dir = Directory.systemTemp.createTempSync('slimm-portal-bus-');
   final server = DBusServer();
   final address = await server.listenAddress(DBusAddress.unix(dir: dir));
   var bus = DBusClient(address);
-  await bus.requestName('org.freedesktop.portal.Desktop');
   var portal = _Portal();
   await bus.registerObject(portal);
+  await bus.requestName('org.freedesktop.portal.Desktop');
   final commands = ReceivePort();
   reply.send((address.value, commands.sendPort));
   await for (final command in commands) {
@@ -125,9 +127,9 @@ Future<void> _hostPortal(SendPort reply) async {
       final methods = portal.methods;
       await bus.close();
       bus = DBusClient(address);
-      await bus.requestName('org.freedesktop.portal.Desktop');
       portal = _Portal()..methods.addAll(methods);
       await bus.registerObject(portal);
+      await bus.requestName('org.freedesktop.portal.Desktop');
       continue;
     }
     reply.send((portal.methods, portal.bound));

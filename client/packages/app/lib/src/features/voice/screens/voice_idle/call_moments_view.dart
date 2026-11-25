@@ -25,7 +25,9 @@ class CallMomentsView extends ConsumerStatefulWidget {
 
   final List<CallMoment> moments;
   final int canvasObjectCount;
-  final VoidCallback onOpenCanvas;
+
+  /// Null when the channel's canvas is off, which leaves the button out.
+  final VoidCallback? onOpenCanvas;
 
   /// On a phone, how many moments show before "N more".
   final int? collapsedTo;
@@ -80,7 +82,7 @@ class _MomentRow extends ConsumerWidget {
 
   final CallMomentRun run;
   final int canvasObjectCount;
-  final VoidCallback onOpenCanvas;
+  final VoidCallback? onOpenCanvas;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -100,7 +102,9 @@ class _MomentRow extends ConsumerWidget {
     final sentence = momentSentence(moment, names, canvasObjectCount);
     final repeated = run.count > 1;
     final opensCanvas =
-        moment.kind == CallMomentKind.ended && canvasObjectCount > 0;
+        onOpenCanvas != null &&
+        moment.kind == CallMomentKind.ended &&
+        canvasObjectCount > 0;
     return ConstrainedBox(
       constraints: const BoxConstraints(minHeight: AppSpacing.s32),
       child: Row(

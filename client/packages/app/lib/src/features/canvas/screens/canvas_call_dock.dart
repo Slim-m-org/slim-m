@@ -106,7 +106,7 @@ class CanvasDockData {
     required this.onShapeKindChanged,
     required this.pen,
     required this.onPenChanged,
-    required this.onClose,
+    this.onClose,
     required this.hasSelfBubble,
     required this.selfBubbleHidden,
     required this.onToggleSelfBubbleHidden,
@@ -146,7 +146,9 @@ class CanvasDockData {
   final ValueChanged<CanvasShapeKind> onShapeKindChanged;
   final CanvasPenStyle pen;
   final ValueChanged<CanvasPenStyle> onPenChanged;
-  final VoidCallback onClose;
+
+  /// Null where the canvas cannot be closed, which leaves the dock without its toggle.
+  final VoidCallback? onClose;
 
   /// Whether the caller is on this channel's call at all, and the overflow
   /// menu's own hide toggle for it - see `canvas_tools_row.dart`'s own doc
@@ -381,12 +383,20 @@ class CanvasCallDock extends ConsumerWidget {
     extraControl: dockExtras(alone: alone, toggle: toggle),
   );
 
-  static Widget _toggle(CanvasDockData canvas) => canvas.fullscreen
-      ? CanvasDockExitFullscreen(onPressed: canvas.onToggleFullscreen)
-      : CanvasDockToggle(open: true, onPressed: canvas.onClose);
+  static Widget? _toggle(CanvasDockData canvas) {
+    if (canvas.fullscreen) {
+      return CanvasDockExitFullscreen(onPressed: canvas.onToggleFullscreen);
+    }
+    final close = canvas.onClose;
+    return close == null
+        ? null
+        : CanvasDockToggle(open: true, onPressed: close);
+  }
 
   static List<Widget> _toggleAfterGap(CanvasDockData canvas) => [
-    const CanvasDockGroupDivider(),
-    _toggle(canvas),
+    if (_toggle(canvas) case final toggle?) ...[
+      const CanvasDockGroupDivider(),
+      toggle,
+    ],
   ];
 }

@@ -92,6 +92,8 @@ impl Store {
                       c.created_at AS "created_at!",
                       c.slow_mode_seconds AS "slow_mode_seconds!: i64",
                       c.join_muted AS "join_muted!: bool",
+                      c.canvas_enabled AS "canvas_enabled!: bool",
+                      c.voice_enabled AS "voice_enabled!: bool",
                       c.default_notification AS "default_notification!",
                       c.creates_rooms AS "creates_rooms!: bool",
                       c.user_limit AS "user_limit!: i64",

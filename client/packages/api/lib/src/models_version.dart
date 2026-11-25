@@ -45,6 +45,7 @@ class Version {
     this.canvasScopedClear,
     this.canvasEdges = false,
     this.canvasNoteStyle = false,
+    this.canvasChannels = false,
     this.maxAttachmentBytes,
     this.capabilities,
     this.identity,
@@ -144,6 +145,9 @@ class Version {
   /// Whether a note edit merges its props, so the note style bar can send one key; false on an older server, which replaces them.
   final bool canvasNoteStyle;
 
+  /// Whether the server accepts the `canvas` kind and the two channel toggles; false on an older server.
+  final bool canvasChannels;
+
   /// The largest single attachment the server accepts, in bytes. Null on a
   /// server older than this field, which a client treats as no known limit
   /// and lets the server refuse.
@@ -192,6 +196,14 @@ class Version {
   bool get supportsScreenStamps =>
       capabilities?.contains('screen_stamps') ?? false;
 
+  /// Whether the server reports who is viewing a board. False on older servers.
+  bool get supportsCanvasViewers =>
+      capabilities?.contains('canvas_viewers') ?? false;
+
+  /// Whether a canvas can be exported to a canvas channel. False on older servers.
+  bool get supportsCanvasExport =>
+      capabilities?.contains('canvas_export') ?? false;
+
   /// Whether `POST /auth/username/check` exists. False on older servers.
   bool get usernameCheck => capabilities?.contains('username_check') ?? false;
 
@@ -237,6 +249,7 @@ class Version {
         canvasScopedClear: json['canvas_scoped_clear'] as bool?,
         canvasEdges: json['canvas_edges'] as bool? ?? false,
         canvasNoteStyle: json['canvas_note_style'] as bool? ?? false,
+        canvasChannels: json['canvas_channels'] as bool? ?? false,
         // A non-list here is a foreign or broken server, which is unknown
         // rather than a reason to crash sign-in.
         maxAttachmentBytes: json['max_attachment_bytes'] as int?,

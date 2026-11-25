@@ -123,6 +123,7 @@ export 'src/events.dart'
         CanvasMediaSlotChanged,
         CanvasObjectLockChanged,
         CanvasTileSceneChanged,
+        CanvasViewerChanged,
         CanvasObjectEdited,
         CanvasObjectMoved,
         CanvasObjectReordered,

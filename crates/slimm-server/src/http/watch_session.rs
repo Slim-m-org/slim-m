@@ -33,7 +33,6 @@ use crate::store::{
 };
 
 const BODY_LIMIT: usize = 4 * 1024;
-const VOICE_CHANNEL_KIND: &str = "voice";
 const MAX_ITEM_ID_CHARS: usize = 128;
 const MAX_TITLE_CHARS: usize = 200;
 /// A week of film, well past anything a call watches.
@@ -296,7 +295,7 @@ async fn require_bot_in_call(
         .channel(channel_id)
         .await?
         .ok_or(ApiError::NotFound("no such channel"))?;
-    if channel.kind != VOICE_CHANNEL_KIND
+    if !channel.hosts_call()
         || !state
             .store
             .has_permission(bot, channel_id, Permissions::VIEW_CHANNEL)

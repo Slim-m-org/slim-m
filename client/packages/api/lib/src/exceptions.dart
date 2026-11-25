@@ -73,6 +73,9 @@ class ForbiddenException extends ApiException {
   static const leftGroupCode = 'left_group';
   static const dmPinsCode = 'dm_pins_unavailable';
 
+  /// A board read or write in a channel whose canvas is off; mirrors `http/error.rs`.
+  static const canvasOffCode = 'canvas_off';
+
   /// An edit of a message the caller did not write; mirrors `http/messages.rs`.
   static const notAuthorCode = 'not_author';
 

@@ -166,7 +166,7 @@ async fn the_viewport_read_drives_from_the_rtree() {
 async fn raw_sql_writes_still_maintain_the_index() {
     let (pool, _guard) = new_pool("canvas-triggers").await;
     let store = Store::new(pool.clone());
-    let channel = store.create_channel("canvas", "voice").await.unwrap().id;
+    let channel = store.create_channel("canvas", "canvas").await.unwrap().id;
     let author = store.create_user("ann", "Ann").await.unwrap().id;
     place(&store, channel, author, (10.0, 10.0, 20.0, 20.0)).await;
 
@@ -202,7 +202,7 @@ async fn raw_sql_writes_still_maintain_the_index() {
 async fn the_index_follows_a_move_and_a_removal() {
     let (pool, _guard) = new_pool("canvas-move").await;
     let store = Store::new(pool);
-    let channel = store.create_channel("canvas", "voice").await.unwrap().id;
+    let channel = store.create_channel("canvas", "canvas").await.unwrap().id;
     let author = store.create_user("ann", "Ann").await.unwrap().id;
     let id = place(&store, channel, author, (0.0, 0.0, 10.0, 10.0)).await;
 
@@ -238,7 +238,7 @@ async fn the_index_follows_a_move_and_a_removal() {
 async fn the_index_over_reports_and_the_exact_test_cleans_up() {
     let (pool, _guard) = new_pool("canvas-precision").await;
     let store = Store::new(pool.clone());
-    let channel = store.create_channel("canvas", "voice").await.unwrap().id;
+    let channel = store.create_channel("canvas", "canvas").await.unwrap().id;
     let author = store.create_user("ann", "Ann").await.unwrap().id;
     // Far enough out that one float32 step is a quarter of a pixel, and placed
     // between two of them so storing the bounds has to round outwards.
@@ -275,8 +275,8 @@ async fn a_viewport_never_reaches_another_channels_canvas() {
     let (pool, _guard) = new_pool("canvas-scope").await;
     let store = Store::new(pool);
     let author = store.create_user("ann", "Ann").await.unwrap().id;
-    let mine = store.create_channel("mine", "voice").await.unwrap().id;
-    let theirs = store.create_channel("theirs", "voice").await.unwrap().id;
+    let mine = store.create_channel("mine", "canvas").await.unwrap().id;
+    let theirs = store.create_channel("theirs", "canvas").await.unwrap().id;
     place(&store, mine, author, (0.0, 0.0, 10.0, 10.0)).await;
     place(&store, theirs, author, (0.0, 0.0, 10.0, 10.0)).await;
 
@@ -292,7 +292,7 @@ async fn a_viewport_never_reaches_another_channels_canvas() {
 async fn a_pan_returns_only_what_the_new_region_adds() {
     let (pool, _guard) = new_pool("canvas-delta").await;
     let store = Store::new(pool);
-    let channel = store.create_channel("canvas", "voice").await.unwrap().id;
+    let channel = store.create_channel("canvas", "canvas").await.unwrap().id;
     let author = store.create_user("ann", "Ann").await.unwrap().id;
 
     let overlap = place(&store, channel, author, (450.0, 0.0, 10.0, 10.0)).await;
@@ -337,7 +337,7 @@ async fn a_pan_returns_only_what_the_new_region_adds() {
 async fn the_index_leaves_on_erase_and_returns_on_restore() {
     let (pool, _guard) = new_pool("canvas-restore-symmetry").await;
     let store = Store::new(pool.clone());
-    let channel = store.create_channel("canvas", "voice").await.unwrap().id;
+    let channel = store.create_channel("canvas", "canvas").await.unwrap().id;
     let author = store.create_user("ann", "Ann").await.unwrap().id;
     let id = place(&store, channel, author, (0.0, 0.0, 10.0, 10.0)).await;
 

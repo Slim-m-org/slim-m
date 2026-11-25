@@ -37,6 +37,8 @@ typedef RailChannelKey = ({
   int? userLimit,
   bool? roomLocked,
   String? roomLobbyId,
+  bool? canvasEnabled,
+  bool? voiceEnabled,
   bool unread,
   bool mentioned,
 });
@@ -57,6 +59,8 @@ RailChannelKey railChannelKey(Channel channel) => (
       userLimit: channel.userLimit,
       roomLocked: channel.roomLocked,
       roomLobbyId: channel.roomLobbyId,
+      canvasEnabled: channel.canvasEnabled,
+      voiceEnabled: channel.voiceEnabled,
       unread: channel.standingSeq > channel.lastReadSeq ||
           (channel.manuallyUnread ?? false),
       mentioned: channel.mentionedSeq > channel.lastReadSeq,

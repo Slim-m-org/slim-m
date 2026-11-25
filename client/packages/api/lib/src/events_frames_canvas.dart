@@ -436,3 +436,19 @@ class CanvasObjectReordered extends ServerEvent {
   final String objectId;
   final int zIndex;
 }
+
+/// A user started or stopped being shown as viewing a board.
+///
+/// Published after the server's own Hidden rule, so a frame names only people
+/// who chose to be seen. Carries no seq: the roster is current state.
+class CanvasViewerChanged extends ServerEvent {
+  const CanvasViewerChanged({
+    required this.channelId,
+    required this.userId,
+    required this.viewing,
+  });
+
+  final String channelId;
+  final String userId;
+  final bool viewing;
+}

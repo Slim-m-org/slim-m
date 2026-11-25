@@ -37,7 +37,8 @@ use crate::ids::{ChannelId, UserId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 use crate::store::{
-    DeleteAccountError, MAX_TIMEOUT_MS, RemoveMemberError, SpaceRemoval, TimeoutError, now_ms,
+    Channel, DeleteAccountError, MAX_TIMEOUT_MS, RemoveMemberError, SpaceRemoval, TimeoutError,
+    now_ms,
 };
 use crate::voice::VoiceError;
 
@@ -452,7 +453,7 @@ pub(super) async fn voice_room_ids(state: &AppState) -> Option<Vec<ChannelId>> {
         Ok(channels) => Some(
             channels
                 .into_iter()
-                .filter(|c| c.kind == "voice")
+                .filter(Channel::call_kind)
                 .map(|c| c.id)
                 .collect(),
         ),

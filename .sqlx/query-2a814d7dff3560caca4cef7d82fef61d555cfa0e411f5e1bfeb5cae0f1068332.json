@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE canvas_objects SET deleted_at = ?\n           WHERE channel_id = ? AND kind = 'edge' AND deleted_at IS NULL\n             AND lower(hex(id)) NOT IN (SELECT value FROM json_each(?))\n             AND id IN (SELECT e.edge_id FROM canvas_edge_ends e\n                        JOIN canvas_objects end_o ON end_o.id = e.object_id\n                        WHERE end_o.channel_id = ? AND end_o.deleted_at IS NOT NULL)\n           RETURNING id AS \"id!: CanvasObjectId\"",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: CanvasObjectId",
+        "ordinal": 0,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "canvas_objects",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "2a814d7dff3560caca4cef7d82fef61d555cfa0e411f5e1bfeb5cae0f1068332"
+}

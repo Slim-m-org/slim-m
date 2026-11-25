@@ -20,6 +20,7 @@ mod call_transcripts_export;
 mod call_transcripts_live;
 mod call_transcripts_migration;
 mod call_transcripts_read;
+mod canvas_channel_calls;
 mod delete_channel_ends_call;
 mod hidden_presence_read_errors;
 mod hold_music_account;

@@ -101,7 +101,7 @@ pub(super) async fn voice_channel(
         .store
         .channel(id)
         .await?
-        .is_some_and(|c| c.kind == "voice" && c.parent_message_id.is_none());
+        .is_some_and(|c| c.hosts_call());
     if !is_voice {
         return Err(ApiError::NotFound("voice channel not found"));
     }

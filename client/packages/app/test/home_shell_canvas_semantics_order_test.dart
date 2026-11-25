@@ -23,7 +23,13 @@ void main() {
   testWidgets('wide window: toolbar, board, then side panes', (tester) async {
     final s = setup(httpClient: quietClient(), signedIn: true);
     await MessageStore(s.db).upsertChannels([
-      const api.Channel(id: 'c1', name: 'general', kind: 'text', createdAt: 0),
+      const api.Channel(
+        id: 'c1',
+        name: 'general',
+        kind: 'text',
+        createdAt: 0,
+        canvasEnabled: true,
+      ),
     ]);
     s.container.read(canvasOpenProvider.notifier).state = 'c1';
     final handle = tester.ensureSemantics();

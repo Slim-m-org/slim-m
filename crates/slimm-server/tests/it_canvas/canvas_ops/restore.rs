@@ -234,7 +234,7 @@ async fn a_target_op_belonging_to_another_channel_is_also_a_404() {
     let (store, _guard) = new_store().await;
     let (token, _) = register(&store, "root").await;
     let channel = general(&store).await;
-    let other = store.create_channel("other", "voice").await.unwrap().id;
+    let other = store.create_channel("other", "canvas").await.unwrap().id;
     let app = app(store.clone());
 
     let (_, placed) = post_object(&app, other, &token, stroke(&id())).await;
@@ -419,7 +419,7 @@ async fn account_deletion_nulls_the_actor_id_of_a_restore_op() {
 async fn a_restore_spanning_several_batches_touches_every_object() {
     let (store, pool, _guard) = new_store_and_pool().await;
     let author = store.create_user("ann", "Ann").await.unwrap().id;
-    let channel = store.create_channel("canvas", "voice").await.unwrap().id;
+    let channel = store.create_channel("canvas", "canvas").await.unwrap().id;
 
     let n = 1_200;
     for _ in 0..n {

@@ -209,3 +209,10 @@ pub(super) struct TileSceneChanged {
     pub(super) ran_by: Option<String>,
     pub(super) ran_at: i64,
 }
+
+#[derive(Serialize)]
+pub(super) struct ViewerChanged {
+    pub(super) channel_id: String,
+    pub(super) user_id: String,
+    pub(super) viewing: bool,
+}

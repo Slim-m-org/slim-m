@@ -51,6 +51,8 @@ struct Entry {
     permissions: Permissions,
     asked_at: Instant,
     epoch: u64,
+    /// Whether the channel's board was open when last asked, filed with the permissions so one epoch drops both.
+    surface_open: Option<bool>,
 }
 
 impl PermissionCache {
@@ -77,6 +79,7 @@ impl PermissionCache {
             permissions,
             asked_at: now,
             epoch,
+            surface_open: None,
         });
     }
 
@@ -183,8 +186,30 @@ impl PermissionCache {
                 permissions,
                 asked_at: now,
                 epoch,
+                surface_open: None,
             },
         );
+    }
+
+    /// Whether the channel's board is open, or `None` to go and ask; stale exactly when the permissions beside it are.
+    pub(super) fn surface_open(
+        &self,
+        channel_id: ChannelId,
+        now: Instant,
+        epoch: u64,
+    ) -> Option<bool> {
+        let entry = self.entries.get(&channel_id)?;
+        let fresh = now.duration_since(entry.asked_at) < TTL && entry.epoch == epoch;
+        fresh.then_some(entry.surface_open).flatten()
+    }
+
+    /// Files the surface answer on the channel's permissions entry, if it is still the one the epoch was read for.
+    pub(super) fn insert_surface(&mut self, channel_id: ChannelId, open: bool, epoch: u64) {
+        if let Some(entry) = self.entries.get_mut(&channel_id)
+            && entry.epoch == epoch
+        {
+            entry.surface_open = Some(open);
+        }
     }
 }
 

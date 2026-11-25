@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../widgets/context_menu_focus.dart';
+import '../../members/widgets/avatar_facepile.dart';
 import '../../members/widgets/user_avatar.dart';
 import '../widgets/canvas_pill_surface.dart';
 import '../widgets/canvas_roster_avatar.dart';
@@ -44,6 +45,9 @@ class _CanvasPeopleClusterState extends ConsumerState<CanvasPeopleCluster> {
   final _link = LayerLink();
   final _open = ValueNotifier<bool>(false);
 
+  /// Whether the list hangs from the trigger's right edge, because opening rightwards would leave the window.
+  bool _alignEnd = false;
+
   void _hide() {
     _portal.hide();
     _open.value = false;
@@ -54,6 +58,12 @@ class _CanvasPeopleClusterState extends ConsumerState<CanvasPeopleCluster> {
     if (MediaQuery.sizeOf(context).width < kCompactWidth) {
       unawaited(showCanvasPeopleSheet(context));
       return;
+    }
+    final box = context.findRenderObject() as RenderBox?;
+    if (box != null && box.hasSize) {
+      final left = box.localToGlobal(Offset.zero).dx;
+      final room = MediaQuery.sizeOf(context).width - AppSpacing.s12;
+      _alignEnd = left + _popoverWidth > room;
     }
     _portal.toggle();
     _open.value = _portal.isShowing;
@@ -104,7 +114,6 @@ class _CanvasPeopleClusterState extends ConsumerState<CanvasPeopleCluster> {
     final shown = ordered.take(_shownInPill).toList();
     final more = people.length - shown.length;
     const size = AppAvatarSize.s20;
-    const step = size - AppSpacing.s4;
     return Semantics(
       container: true,
       button: true,
@@ -129,30 +138,11 @@ class _CanvasPeopleClusterState extends ConsumerState<CanvasPeopleCluster> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  SizedBox(
-                    width: size + step * (shown.length - 1),
-                    height: size,
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        for (var i = 0; i < shown.length; i++)
-                          Positioned(
-                            left: i * step,
-                            child: _avatar(shown[i], size),
-                          ),
-                      ],
-                    ),
+                  AvatarFacepile(
+                    size: size,
+                    more: more,
+                    avatars: [for (final p in shown) _avatar(p, size)],
                   ),
-                  if (more > 0) ...[
-                    const SizedBox(width: AppSpacing.s4),
-                    Text(
-                      '+$more',
-                      style: AppText.caption.copyWith(
-                        color: tokens.textSecondary,
-                        fontWeight: AppWeights.medium,
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ),
@@ -191,8 +181,12 @@ class _CanvasPeopleClusterState extends ConsumerState<CanvasPeopleCluster> {
             child: CompositedTransformFollower(
               link: _link,
               showWhenUnlinked: false,
-              targetAnchor: Alignment.bottomLeft,
-              followerAnchor: Alignment.topLeft,
+              targetAnchor: _alignEnd
+                  ? Alignment.bottomRight
+                  : Alignment.bottomLeft,
+              followerAnchor: _alignEnd
+                  ? Alignment.topRight
+                  : Alignment.topLeft,
               offset: const Offset(0, AppSpacing.s4),
               child: ContextMenuKeyboardScope(
                 onDismiss: _hide,

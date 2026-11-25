@@ -36,6 +36,7 @@ use crate::ids::{ChannelId, UserId};
 use crate::store::{CanvasObject, Rect, ViewportQuery, WORLD_LIMIT};
 
 pub(super) mod canvas_batch;
+pub(super) mod canvas_export;
 pub(super) mod canvas_media_slots;
 pub(super) mod canvas_module_tiles;
 pub(super) mod canvas_object_locks;
@@ -76,6 +77,7 @@ pub fn routes() -> Router<AppState> {
                 )
                 .layer(DefaultBodyLimit::max(MAX_BATCH_BODY_BYTES)),
         )
+        .merge(canvas_export::routes())
         .merge(canvas_module_tiles::routes())
         .merge(canvas_tile_scene::routes())
 }

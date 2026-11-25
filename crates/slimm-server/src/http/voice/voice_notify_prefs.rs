@@ -74,7 +74,7 @@ async fn set(
         .store
         .channel(channel_id)
         .await?
-        .is_some_and(|c| c.kind == "voice" && c.parent_message_id.is_none());
+        .is_some_and(|c| c.hosts_call());
     if !is_voice {
         return Err(ApiError::BadRequest("that is not a voice channel"));
     }

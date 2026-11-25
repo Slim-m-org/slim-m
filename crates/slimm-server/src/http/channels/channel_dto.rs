@@ -3,7 +3,7 @@
 
 use serde::Serialize;
 
-use crate::store::Channel;
+use crate::store::{Channel, DM_CHANNEL_KIND};
 
 /// `pub(crate)` so `http::ws` can reuse the exact same wire shape for the
 /// live `channel.created`/`channel.updated` frames, the way `MessageDto`
@@ -61,6 +61,10 @@ pub(crate) struct ChannelDto {
     /// Whether joining this voice channel starts with the mic off. A
     /// default members can override, not a lock; always present.
     pub(super) join_muted: bool,
+    /// Whether this channel has a board now (decision 0139): a canvas channel or DM, or a voice channel with its canvas on. Computed, so it is the same for every reader.
+    pub(super) canvas_enabled: bool,
+    /// Whether this channel has a call: a voice channel or DM, or a canvas channel with its call on.
+    pub(super) voice_enabled: bool,
     /// What members with no choice of their own get here: `everything`,
     /// `mentions` or `nothing`. Always present.
     pub(super) default_notification: &'static str,
@@ -89,6 +93,8 @@ pub(crate) struct ChannelDto {
 
 impl From<Channel> for ChannelDto {
     fn from(channel: Channel) -> Self {
+        let canvas_enabled = channel.canvas_open();
+        let voice_enabled = channel.hosts_call() || channel.kind == DM_CHANNEL_KIND;
         Self {
             id: channel.id.to_string(),
             name: channel.name,
@@ -101,6 +107,8 @@ impl From<Channel> for ChannelDto {
             permissions: None,
             slow_mode_seconds: channel.slow_mode_seconds,
             join_muted: channel.join_muted,
+            canvas_enabled,
+            voice_enabled,
             default_notification: channel.default_notification.as_str(),
             creates_rooms: channel.room.creates_rooms,
             user_limit: channel.room.user_limit,

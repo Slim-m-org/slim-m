@@ -248,7 +248,11 @@ async fn an_edge_with_a_bad_shape_or_end_is_refused() {
 #[tokio::test]
 async fn an_end_in_another_channel_answers_like_a_missing_one() {
     let rig = rig().await;
-    let other = rig.store.create_channel("elsewhere", "text").await.unwrap();
+    let other = rig
+        .store
+        .create_channel("elsewhere", "canvas")
+        .await
+        .unwrap();
     let foreign = CanvasObjectId::generate();
     rig.store
         .place_canvas_object(

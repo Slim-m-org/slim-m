@@ -44,6 +44,7 @@ import '../../canvas/screens/canvas_pane.dart';
 import '../widgets/call_audio_start.dart';
 import '../widgets/call_leave_button.dart';
 import '../../canvas/screens/canvas_dock_toggle.dart';
+import '../../canvas/providers/canvas_entry.dart';
 import 'dock_solo_controls.dart';
 
 class VoiceCallDock extends StatefulWidget {
@@ -155,7 +156,9 @@ class _VoiceCallDockState extends State<VoiceCallDock>
                 width: constraints.maxWidth,
                 controller: widget.controller,
                 voice: widget.voice,
-                toggle: channelId == null
+                toggle:
+                    channelId == null ||
+                        !ref.watch(canvasEntryProvider(channelId))
                     ? null
                     : _CanvasToggleButton(channelId: channelId),
                 spillRow: true,
