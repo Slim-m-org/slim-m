@@ -9,10 +9,13 @@
 #include <shobjidl.h>
 #include <wrl/client.h>
 
+#include <fstream>
+#include <iterator>
 #include <string>
 #include <vector>
 
 #include "shortcut_identity.h"
+#include "startup_handoff.h"
 #include "utils.h"
 
 using Microsoft::WRL::ComPtr;
@@ -74,7 +77,7 @@ void Repair(const std::wstring& shortcut, const std::wstring& root) {
   if (FAILED(::CoCreateInstance(CLSID_ShellLink, nullptr, CLSCTX_INPROC_SERVER,
                                 IID_PPV_ARGS(&link))) ||
       FAILED(link.As(&file)) || FAILED(link.As(&store)) ||
-      FAILED(file->Load(shortcut.c_str(), STGM_READWRITE))) {
+      FAILED(file->Load(shortcut.c_str(), STGM_READ))) {
     return;
   }
   std::vector<wchar_t> target(32768, L'\0');
@@ -84,6 +87,8 @@ void Repair(const std::wstring& shortcut, const std::wstring& root) {
   const std::wstring wanted =
       slimm::ShortcutTargetFor(root, target.data(), AppUserModelIdOf(store.Get()));
   if (wanted.empty()) return;
+  // Only a shortcut that needs the change is opened for writing; the rest stay untouched.
+  if (FAILED(file->Load(shortcut.c_str(), STGM_READWRITE))) return;
   link->SetPath(wanted.c_str());
   link->SetWorkingDirectory(root.c_str());
   link->SetIconLocation(wanted.c_str(), 0);
@@ -93,15 +98,23 @@ void Repair(const std::wstring& shortcut, const std::wstring& root) {
   ::SHChangeNotify(SHCNE_UPDATEITEM, SHCNF_PATHW, shortcut.c_str(), nullptr);
 }
 
-}  // namespace
-
-void ClaimAppIdentity() {
-  ::SetCurrentProcessExplicitAppUserModelID(slimm::kAppUserModelId);
+std::string ReadText(const std::wstring& path) {
+  std::ifstream in(path, std::ios::binary);
+  return slimm::TrimLineEnding(
+      std::string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()));
 }
 
-void RepairShortcuts() {
+constexpr wchar_t kRepairMarker[] = L"shortcuts-repaired";
+
+HANDLE g_repair = nullptr;
+
+DWORD WINAPI RepairShortcuts(LPVOID) {
   const std::wstring root = slimm::LayoutRootFor(ExecutablePath(), IsFile);
-  if (root.empty()) return;
+  if (root.empty()) return 0;
+  const std::string current = ReadText(root + L"\\" + slimm::kCurrentPointer);
+  const std::wstring marker = root + L"\\" + kRepairMarker;
+  if (!slimm::ShortcutRepairDue(current, ReadText(marker))) return 0;
+  if (FAILED(::CoInitializeEx(nullptr, COINIT_MULTITHREADED))) return 0;
   const std::wstring pinned = KnownFolder(FOLDERID_UserPinned);
   for (const std::wstring& folder :
        {KnownFolder(FOLDERID_Programs), KnownFolder(FOLDERID_Desktop),
@@ -110,4 +123,25 @@ void RepairShortcuts() {
       Repair(shortcut, root);
     }
   }
+  ::CoUninitialize();
+  std::ofstream(marker, std::ios::binary | std::ios::trunc) << current;
+  return 0;
+}
+
+}  // namespace
+
+void ClaimAppIdentity() {
+  ::SetCurrentProcessExplicitAppUserModelID(slimm::kAppUserModelId);
+}
+
+void StartShortcutRepair() {
+  if (g_repair != nullptr) return;
+  g_repair = ::CreateThread(nullptr, 0, RepairShortcuts, nullptr, 0, nullptr);
+}
+
+void FinishShortcutRepair() {
+  if (g_repair == nullptr) return;
+  ::WaitForSingleObject(g_repair, 10000);
+  ::CloseHandle(g_repair);
+  g_repair = nullptr;
 }
