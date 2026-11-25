@@ -15,6 +15,9 @@ export 'src/call_notifications.dart';
 export 'src/call_service.dart';
 export 'src/clipboard_image_png.dart' show isPng, toPng;
 export 'src/clipboard_file_writer.dart';
+export 'src/clipboard_staging.dart'
+    show clipboardStagingRoot, stageClipboardFile;
+export 'src/safe_file_name.dart' show safeFileName;
 export 'src/clipboard_image_writer.dart';
 export 'src/browser_attention.dart';
 export 'src/cross_tab.dart';
@@ -27,6 +30,8 @@ export 'src/push_envelope.dart';
 export 'src/autostart.dart';
 export 'src/install_format.dart';
 export 'src/key_store.dart';
+export 'src/linux_desktop_bus_stub.dart'
+    if (dart.library.io) 'src/linux_desktop_bus_io.dart';
 export 'src/local_notifications.dart';
 export 'src/notification_tap_channel.dart';
 export 'src/now_playing.dart';

@@ -36,6 +36,8 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   tearDown(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(_channel, null);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMessageHandler(_channel.name, null);
   });
 
@@ -119,6 +121,25 @@ void main() {
     await Future<void>.delayed(Duration.zero);
 
     expect(links, [Uri.parse('slimm://steam-link?code=c')]);
+  });
+
+  test('registering asks the runner for links held before the handler, and '
+      'drops a held one with another scheme', () async {
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(_channel, (call) async {
+      return call.method == 'takePending'
+          ? ['slimm://invite?code=a', 'https://example.com/x']
+          : null;
+    });
+    shell = shellFor(FakeDesktopWindowPort());
+    shell.registerSecondInstanceHandler();
+    final links = <Uri>[];
+    final sub = shell.forwardedLinks.listen(links.add);
+    addTearDown(sub.cancel);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(links, [Uri.parse('slimm://invite?code=a')]);
   });
 
   test('a link call with another scheme or no text is dropped', () async {

@@ -13,10 +13,13 @@ It also registers the `slimm://` scheme for your user, so an invite link, Spotif
 The app registers the scheme as well each time it starts, pointing it at the launcher when it runs from the per-user layout and at its own `slimm_app.exe` otherwise, so a zip install, `install.cmd` and a copy moved in from Settings > About get it too.
 Without it a browser drops the redirect with no prompt, and Spotify's page simply stays on Agree.
 The running copy takes the link even when the launcher starts a newer version folder than the one it came from, because the runner matches it by file name.
-Uninstalling removes the app folders, the launcher, the pointers, the `running.pid` marker, a "Start on login" entry that points into the install, the YouTube player's WebView2 profile, the notification identity the app registered (`AppUserModelId\top.npcserver.slimm`) with the settings Windows kept for it, and the install folder itself once it is empty.
+Uninstalling removes the app folders, the launcher, the pointers, the `running.pid` marker, a "Start on login" entry that points into the install, the YouTube player's WebView2 profile, the notification identity the app registered (`AppUserModelId\top.npcserver.slimm`) with the settings Windows kept for it and the toast click handler beside it, and the install folder itself once it is empty.
 The app keeps its data (sign-in, local databases, settings and caches) under `%APPDATA%\top.npcserver\slim-m`.
 An interactive uninstall asks whether to remove it too, with No as the default; a silent uninstall always keeps it, so reinstalling picks up where you left off.
 Firewall rules Windows created when you allowed slim-m on a network stay, because removing them needs administrator rights; Windows Defender Firewall lists them as `slimm_app.exe`.
+
+The bundle carries the Visual C++ runtime (`vcruntime140.dll`, `vcruntime140_1.dll`, `msvcp140.dll`) beside `slimm_app.exe`, so a clean Windows without the redistributable starts it.
+The shortcut repair (the AppUserModelID on the Start menu, desktop and taskbar shortcuts) runs on a background thread after the window is up, and only once per installed version.
 
 The zip is the second choice.
 Extract it anywhere and double-click `install.cmd`.

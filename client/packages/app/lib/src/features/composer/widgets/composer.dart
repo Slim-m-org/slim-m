@@ -122,6 +122,7 @@ class _ComposerState extends ConsumerState<Composer> {
         _actions.stageAttachment,
         _setAttachmentError,
         textWins: true,
+        stageFile: _actions.stageFile,
       ),
     ),
     onEditLast: () =>

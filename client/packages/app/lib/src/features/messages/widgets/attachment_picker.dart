@@ -22,6 +22,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../composer/widgets/composer_attachments.dart';
 import 'package:slimm_api/api.dart' show LogTag, reportFailure;
+import '../../../picker_extensions.dart';
 
 /// Which native picker a request should open.
 enum AttachmentSource {
@@ -68,7 +69,7 @@ const stillImageExtensions = ['png', 'jpg', 'jpeg', 'webp'];
 
 Future<PlatformFile?> _pickStillImageFile() => FilePicker.pickFile(
   type: FileType.custom,
-  allowedExtensions: stillImageExtensions,
+  allowedExtensions: pickerExtensions(stillImageExtensions),
 );
 
 /// The picker each [AttachmentSource] runs, injectable because `file_picker`

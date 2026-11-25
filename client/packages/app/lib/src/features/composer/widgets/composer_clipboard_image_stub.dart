@@ -40,11 +40,15 @@
 library;
 
 import 'dart:async';
+import 'dart:io';
 
 import 'package:desktop_drop/desktop_drop.dart' show DropItem;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
+
+import 'file_source_io.dart';
+import 'staged_attachment_model.dart';
 
 /// Whether a Ctrl+V keystroke should ask the image clipboard itself, rather
 /// than waiting to be handed an image by [startClipboardImagePaste].
@@ -185,4 +189,42 @@ Future<Uint8List?> readClipboardImage() async {
       e.message ?? 'The clipboard image could not be read.',
     );
   }
+}
+
+/// Files an app such as Explorer put on the clipboard, with folders left out
+/// and [hadFolder] set when one was.
+///
+/// Only Windows has a file list to read here; every other platform answers an
+/// empty one, so a Ctrl+V there falls through to the image and text routes.
+Future<({List<FileSource> files, bool hadFolder})> readClipboardFiles() async {
+  const none = (files: <FileSource>[], hadFolder: false);
+  if (defaultTargetPlatform != TargetPlatform.windows) return none;
+  final List<Object?>? paths;
+  try {
+    paths = await _clipboardImageChannel.invokeListMethod<Object?>('readFiles');
+  } on MissingPluginException catch (error, stack) {
+    AppLog.swallowed(
+      LogTag.media,
+      'Could not read files from the clipboard',
+      error,
+      stack,
+    );
+    return none;
+  } on PlatformException catch (e) {
+    throw ClipboardImageReadException(
+      e.message ?? 'The clipboard files could not be read.',
+    );
+  }
+  final files = <FileSource>[];
+  var hadFolder = false;
+  for (final path in paths?.whereType<String>() ?? const <String>[]) {
+    if (FileSystemEntity.isDirectorySync(path)) {
+      hadFolder = true;
+      continue;
+    }
+    files.add(
+      fileSourceOf(File(path), name: path.split(RegExp(r'[\\/]')).last),
+    );
+  }
+  return (files: files, hadFolder: hadFolder);
 }

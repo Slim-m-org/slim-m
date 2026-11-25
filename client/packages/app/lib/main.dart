@@ -108,6 +108,7 @@ import 'src/widgets/toast_overlay.dart';
 /// size. Waiting for the real first frame avoids that race entirely.
 Future<void> main([List<String> args = const []]) async {
   rememberLaunchArguments(args);
+  linuxSessionBusEnabled = isLinuxHost;
   final binding = WidgetsFlutterBinding.ensureInitialized();
   final shell = await startPlatform(binding);
 
@@ -207,7 +208,7 @@ Future<void> _bootstrapApp(
   container.read(appReadyProvider.notifier).state = true;
   forgetLaunchArguments();
   // A login launch goes where a close would, the tray or the taskbar, instead of covering what the user opened first.
-  if (launchedAtLogin) unawaited(shell.requestClose());
+  if (launchedAtLogin) unawaited(shell.hideForLogin());
   unawaited(container.read(selfUpdateProvider).confirmStart());
   unawaited(repairAutostart(container));
   container.read(pickerTempFilesProvider).clearWhenIdle();

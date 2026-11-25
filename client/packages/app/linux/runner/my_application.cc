@@ -6,6 +6,7 @@
 #endif
 
 #include "clipboard_image_channel.h"
+#include "drop_data_guard.h"
 #include "flutter/generated_plugin_registrant.h"
 #include "flutter_view_focus.h"
 #include "linux_screen_overlay_channel.h"
@@ -13,6 +14,7 @@
 #include "linux_tray_probe_channel.h"
 #include "linux_idle_channel.h"
 #include "linux_window_mapped_channel.h"
+#include "linux_window_present_channel.h"
 #include "linux_window_suspended_channel.h"
 #include "youtube_player_channel.h"
 
@@ -108,6 +110,7 @@ static void my_application_activate(GApplication* application) {
                            self);
   gtk_widget_realize(GTK_WIDGET(view));
 
+  drop_data_guard_install(GTK_WIDGET(view));
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
 
   self->messenger = fl_engine_get_binary_messenger(fl_view_get_engine(view));
@@ -128,6 +131,8 @@ static void my_application_activate(GApplication* application) {
 
   // Lets the splash-to-real-window handoff wait for the splash to be mapped; see linux_window_mapped_channel.h.
   linux_window_mapped_channel_register(self->messenger, window);
+  // A banner click raises the window under the server's activation token; see linux_window_present_channel.h.
+  linux_window_present_channel_register(self->messenger, window);
   // A Wayland minimise changes no window state; see linux_window_suspended_channel.h.
   linux_window_suspended_channel_register(self->messenger, window);
   linux_idle_channel_register(self->messenger);

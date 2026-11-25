@@ -3,6 +3,7 @@
 /// at any target height.
 library;
 
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:desktop_drop/desktop_drop.dart';
@@ -49,6 +50,18 @@ void main() {
         'Drop one PNG, JPEG or WebP picture.',
       );
     }
+  });
+
+  test('a folder or web address dropped as a file is refused', () async {
+    final dir = Directory.systemTemp.createTempSync('slimm-image-drop');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    for (final path in [dir.path, 'https://example.com/a.png']) {
+      expect(await readDroppedImage([DropItemFile(path)]), isA<RefusedDrop>());
+    }
+    expect(
+      await readDroppedImage([DropItemFile('${dir.path}/missing.png')]),
+      isA<RefusedDrop>(),
+    );
   });
 
   for (final (height, stacked) in [(32.0, false), (200.0, true)]) {

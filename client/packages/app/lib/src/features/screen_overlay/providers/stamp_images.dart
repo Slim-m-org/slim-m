@@ -97,9 +97,10 @@ class StampImageCache {
         settle();
         if (key.startsWith('e:') && epoch != _glyphEpoch) {
           image.dispose();
-          return;
+          return load(content);
         }
         _keep(key, image);
+        return null;
       },
       onError: (Object error, StackTrace stack) {
         settle();

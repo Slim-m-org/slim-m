@@ -25,6 +25,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   if (!ClaimSingleInstance(command_line)) {
     return EXIT_SUCCESS;
   }
+  OpenLinkInbox();
   RegisterLinkScheme();
 
   // Attach to console when present (e.g., 'flutter run') or create a
@@ -36,7 +37,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   // Initialize COM, so that it is available for use in the library and/or
   // plugins.
   ::CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
-  RepairShortcuts();
 
   flutter::DartProject project(L"data");
 
@@ -59,6 +59,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   }
 
   // window_manager quits with PostQuitMessage, so the windows are still alive here; tear them down while Dart still runs.
+  FinishShortcutRepair();
   UnregisterGlobalHotkeys();
   DestroyDartWindows();
   ShutdownYoutubePlayer();

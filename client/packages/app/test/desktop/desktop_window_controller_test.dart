@@ -318,6 +318,31 @@ void main() {
     });
   });
 
+  group('DesktopWindowController hideForLogin', () {
+    test(
+      'with Close to tray off, a login launch hides and never quits',
+      () async {
+        final port = FakeDesktopWindowPort();
+        final store = await _store();
+        var quits = 0;
+        final controller = DesktopWindowController(
+          port: port,
+          store: store,
+          platform: DesktopPlatform.windows,
+          trayAvailable: () async => true,
+          keepInTray: () => false,
+          quit: () async => quits++,
+        )..start();
+
+        await controller.hideForLogin();
+
+        expect(quits, 0);
+        expect(port.hideCalls, 1);
+        controller.dispose();
+      },
+    );
+  });
+
   group('DesktopWindowController onShow', () {
     test('fires once per show event, and not for any other event', () async {
       final port = FakeDesktopWindowPort();

@@ -21,6 +21,8 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+// ignore: implementation_imports
+import 'package:flutter_local_notifications_linux/src/model/hint.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 import 'browser_attention.dart';
@@ -51,6 +53,9 @@ const windowsAppUserModelId = 'top.npcserver.slimm';
 const windowsToastsChannelName = 'slimm/windows_toasts';
 const _windowsActivationGuid = '6f1d2b5e-3c0a-4e7b-9a52-5d8e1c4b7a31';
 
+/// The desktop entry the Linux launcher installs; notification servers key per-app settings and the icon on it.
+const linuxDesktopEntry = 'top.npcserver.slimm';
+
 /// The Android channel a plain content-free alert posts through, and the
 /// stable notification id it replaces rather than stacks beside.
 ///
@@ -68,12 +73,14 @@ enum LocalAlertChannel {
     name: messagesChannelName,
     description: 'New messages.',
     notificationId: 1,
+    chat: true,
   ),
   mentions(
     id: mentionsChannelId,
     name: mentionsChannelName,
     description: 'Messages that mention you.',
     notificationId: 2,
+    chat: true,
   ),
 
   /// An incoming call, which is the one kind that has to interrupt.
@@ -115,6 +122,7 @@ enum LocalAlertChannel {
     required this.description,
     required this.notificationId,
     this.critical = false,
+    this.chat = false,
   });
 
   final String id;
@@ -126,6 +134,9 @@ enum LocalAlertChannel {
   /// could have caught later is the thing that makes people turn
   /// notifications off.
   final bool critical;
+
+  /// Whether this is a chat message, which notification servers style as one.
+  final bool chat;
 
   /// Whether Android creates this channel itself, in which case this side
   /// must not. [calls] is Android's native `CallStyle` channel
@@ -228,6 +239,7 @@ class LocalNotifications {
   final bool _isLinux;
   final bool _isWindows;
   BrowserAttention? _browser;
+  final _postedOnDesktop = <int>{};
 
   /// Called when the person clicks a notification, with the payload it was shown with.
   final Future<void> Function(String? payload)? _onActivated;
@@ -291,10 +303,14 @@ class LocalNotifications {
       }
     }
     await _plugin.initialize(
-      const InitializationSettings(
-        android: AndroidInitializationSettings('@drawable/ic_stat_notify'),
-        linux: LinuxInitializationSettings(defaultActionName: 'Open slim-m'),
-        windows: WindowsInitializationSettings(
+      InitializationSettings(
+        android:
+            const AndroidInitializationSettings('@drawable/ic_stat_notify'),
+        linux: LinuxInitializationSettings(
+          defaultActionName: 'Open slim-m',
+          defaultIcon: ThemeLinuxIcon(linuxDesktopEntry),
+        ),
+        windows: const WindowsInitializationSettings(
           appName: _appName,
           appUserModelId: windowsAppUserModelId,
           guid: _windowsActivationGuid,
@@ -361,6 +377,9 @@ class LocalNotifications {
     }
     if (!_supported) return;
     await _ensureReady();
+    if (_isLinux || _isWindows) {
+      _postedOnDesktop.add(id ?? channel.notificationId);
+    }
     await _plugin.show(
       id ?? channel.notificationId,
       title ?? _appName,
@@ -377,6 +396,13 @@ class LocalNotifications {
           urgency: channel.critical
               ? LinuxNotificationUrgency.critical
               : LinuxNotificationUrgency.normal,
+          category: channel.chat ? LinuxNotificationCategory.imReceived : null,
+          customHints: [
+            LinuxNotificationCustomHint(
+              'desktop-entry',
+              LinuxHintStringValue(linuxDesktopEntry),
+            ),
+          ],
         ),
         windows: WindowsNotificationDetails(
           scenario:
@@ -433,9 +459,9 @@ class LocalNotifications {
 
   /// The payload of the notification whose tap launched this process, or null when it was not launched by one.
   ///
-  /// Android only. It also initializes the plugin in the main isolate, which is what makes later taps reach `onActivated`.
+  /// Android and Windows, where a tap can start the process. It also initializes the plugin in the main isolate, which is what makes later taps reach `onActivated`.
   Future<String?> launchPayload() async {
-    if (!_isAndroid) return null;
+    if (!_isAndroid && !_isWindows) return null;
     await _ensureReady();
     if (_launchPayloadTaken) return null;
     _launchPayloadTaken = true;
@@ -444,9 +470,23 @@ class LocalNotifications {
     return details.notificationResponse?.payload;
   }
 
+  /// Desktop has no list of what is showing, so only ids this process posted are taken down.
+  Future<void> _cancelShownOnDesktop(Set<int> staleIds) async {
+    final stale = _postedOnDesktop.intersection(staleIds);
+    if (stale.isEmpty) return;
+    _postedOnDesktop.removeAll(stale);
+    await _ensureReady();
+    for (final id in stale) {
+      if (_isLinux) await _plugin.cancel(id);
+      if (_isWindows) await _removeWindowsToast(id);
+    }
+  }
+
   /// Takes down the notifications this app is showing whose id is in [staleIds], leaving every other one up.
   Future<void> cancelShown(Set<int> staleIds) async {
-    if (!_isAndroid || staleIds.isEmpty) return;
+    if (staleIds.isEmpty) return;
+    if (_isLinux || _isWindows) return _cancelShownOnDesktop(staleIds);
+    if (!_isAndroid) return;
     await _ensureReady();
     final shown = await _plugin.getActiveNotifications();
     for (final notification in shown) {

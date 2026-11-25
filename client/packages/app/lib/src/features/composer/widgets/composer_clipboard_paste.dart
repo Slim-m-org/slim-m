@@ -10,6 +10,7 @@ import 'package:flutter/services.dart';
 
 import 'clipboard_lone_web_address.dart';
 import 'composer_clipboard_image.dart';
+import 'staged_attachment_model.dart' show FileSource;
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// Whether [event] is the paste chord, Ctrl+V or Cmd+V.
@@ -41,15 +42,49 @@ bool isClipboardPasteChord(KeyEvent event) {
 /// web address does not count as text, since a browser adds its picture's own
 /// address to every "Copy image".
 /// The "Paste image" row still forces the picture.
+///
+/// With [stageFile], files on the clipboard (Windows Explorer's Copy) are
+/// attached first, the way a drop of them would be, and nothing else is read.
 Future<void> pasteClipboardImageFromKeystroke(
   Future<void> Function(Uint8List bytes, String filename) stage,
   void Function(String? message) setError, {
   bool textWins = false,
+  Future<void> Function(FileSource file)? stageFile,
 }) async {
   if (!pasteKeystrokeReadsClipboardImage) return;
+  if (stageFile != null && await _pasteClipboardFiles(stageFile, setError)) {
+    return;
+  }
   if (!await hasClipboardImage()) return;
   if (textWins && await _clipboardHoldsRealText()) return;
   await pasteClipboardImage(stage, setError);
+}
+
+/// Whether the clipboard held files, which are then staged or refused here.
+Future<bool> _pasteClipboardFiles(
+  Future<void> Function(FileSource file) stageFile,
+  void Function(String? message) setError,
+) async {
+  try {
+    final (:files, :hadFolder) = await readClipboardFiles();
+    if (files.isEmpty && !hadFolder) return false;
+    setError(
+      hadFolder ? "Folders can't be attached - paste a file instead." : null,
+    );
+    for (final file in files) {
+      await stageFile(file);
+    }
+    return true;
+  } on ClipboardImageReadException catch (e, stack) {
+    AppLog.swallowed(
+      LogTag.ui,
+      'Could not paste the clipboard files',
+      e,
+      stack,
+    );
+    setError(e.message);
+    return true;
+  }
 }
 
 Future<bool> _clipboardHoldsRealText() async {

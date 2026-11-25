@@ -226,14 +226,19 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
         _again = false;
         if (!mounted) return;
         if (_relayout) await _leaveOldLayout();
+        if (!mounted) return;
         if (!_consentWanted && state.consenting) await _stop();
+        if (!mounted) return;
         if (_consentWanted && !state.consenting) await _begin();
+        if (!mounted) return;
         if (_consentWanted && state.consenting) await _syncOverlay();
+        if (!mounted) return;
         final panel = (_windows || !state.active) && _panelWanted;
         if (panel && !_panel.up) await _panel.start();
+        if (!mounted) return;
         if (!panel && _panel.up) await _panel.stop();
       } while (_again && mounted);
-      _panel.sync();
+      if (mounted) _panel.sync();
     } finally {
       _busy = false;
     }
@@ -368,8 +373,9 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
       '${shown ? 'shown' : 'refused by the desktop'}',
     );
     if (!shown) return false;
+    if (!mounted) return _hideOrphan();
     _overlayAspect = sharedAspect(monitors, covered);
-    return mounted;
+    return true;
   }
 
   Future<bool> _showOverWindow(int window) async {
@@ -382,8 +388,15 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
           : 'Drawing overlay could not open over shared window $window',
     );
     if (!shown) return false;
+    if (!mounted) return _hideOrphan();
     _followedWindow = window;
-    return mounted;
+    return true;
+  }
+
+  /// The controller went away while the runner was opening the window, so nothing else will close it.
+  bool _hideOrphan() {
+    unawaited(_window.hide());
+    return false;
   }
 
   /// Asks the desktop again: a monitor plugged in, woken or resized since the app started would otherwise be covered by the old layout.

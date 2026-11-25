@@ -32,6 +32,8 @@ const portalMissingMessage =
     'This desktop has no background shortcuts, so it works only while slim-m is focused.';
 const portalDeclinedMessage =
     'Background shortcuts were not approved, so this works only while slim-m is focused.';
+const portalUnansweredMessage =
+    'Background shortcuts were not answered, so this works only while slim-m is focused.';
 
 List<DBusValue> createSessionValues({
   required String handleToken,
@@ -113,12 +115,16 @@ class PortalGlobalHotkeySource implements GlobalHotkeySource {
   final Duration _approvalTimeout;
   final String _appId;
   final _events = StreamController<GlobalHotkeyEvent>.broadcast();
-  final _listening = <StreamSubscription<DBusSignal>>[];
+  final _listening = <StreamSubscription<Object?>>[];
   DBusClient? _client;
   Future<void>? _registration;
   String? _owner;
   String? _session;
   Set<GlobalHotkeyId> _boundIds = const {};
+  List<GlobalHotkeyBinding> _lastBindings = const [];
+  Future<void> _bindQueue = Future.value();
+  StreamSubscription<DBusNameOwnerChangedEvent>? _ownerWatch;
+  bool _rebindPending = false;
   final _held = <GlobalHotkeyId>{};
   int _tokenCounter = 0;
 
@@ -148,9 +154,16 @@ class PortalGlobalHotkeySource implements GlobalHotkeySource {
   }
 
   @override
-  Future<GlobalHotkeyAvailability> bind(
+  Future<GlobalHotkeyAvailability> bind(List<GlobalHotkeyBinding> bindings) {
+    final turn = _bindQueue.then((_) => _bind(bindings));
+    _bindQueue = turn.then<void>((_) {}, onError: (_) {});
+    return turn;
+  }
+
+  Future<GlobalHotkeyAvailability> _bind(
     List<GlobalHotkeyBinding> bindings,
   ) async {
+    _lastBindings = bindings;
     if (bindings.isEmpty) {
       await _closeSession();
       return const GlobalHotkeyAvailability.available(portalAvailableMessage);
@@ -177,8 +190,12 @@ class PortalGlobalHotkeySource implements GlobalHotkeySource {
       return const GlobalHotkeyAvailability.available(portalAvailableMessage);
     } on Object catch (error, stack) {
       reportFailure(LogTag.platform, 'bind the global shortcuts', error, stack);
-      _endSession();
-      return const GlobalHotkeyAvailability.unavailable(portalMissingMessage);
+      await _closeSession();
+      return GlobalHotkeyAvailability.unavailable(
+        error is TimeoutException
+            ? portalUnansweredMessage
+            : portalMissingMessage,
+      );
     }
   }
 
@@ -190,19 +207,7 @@ class PortalGlobalHotkeySource implements GlobalHotkeySource {
   Future<void> _closeSession() async {
     final handle = _session;
     if (handle == null) return;
-    for (final subscription in _listening) {
-      unawaited(subscription.cancel());
-    }
-    _listening.clear();
-    _session = null;
-    _boundIds = const {};
-    // The closed session never delivers these key-ups, so a held push to talk would stay open.
-    for (final id in _held) {
-      if (!_events.isClosed) {
-        _events.add(GlobalHotkeyEvent(id, GlobalHotkeyPhase.released));
-      }
-    }
-    _held.clear();
+    _forgetSession();
     try {
       await _bus.callMethod(
         destination: portalBusName,
@@ -278,6 +283,9 @@ class PortalGlobalHotkeySource implements GlobalHotkeySource {
         }),
       );
     }
+    _ownerWatch ??= _bus.nameOwnerChanged
+        .where((change) => change.name == portalBusName)
+        .listen(_portalOwnerChanged);
     _listening.add(
       DBusSignalStream(
         _bus,
@@ -287,6 +295,43 @@ class PortalGlobalHotkeySource implements GlobalHotkeySource {
         path: DBusObjectPath(handle),
       ).listen((_) => _endSession()),
     );
+  }
+
+  /// A restarted portal knows neither this session nor the app id registered with it.
+  void _portalOwnerChanged(DBusNameOwnerChangedEvent change) {
+    if (_session != null) {
+      _registration = null;
+      _owner = null;
+      _forgetSession();
+      _rebindPending = _lastBindings.isNotEmpty;
+    }
+    if (change.newOwner != null && _rebindPending) {
+      _rebindPending = false;
+      unawaited(_rebindAfterRestart());
+    }
+  }
+
+  Future<void> _rebindAfterRestart() async {
+    final result = await bind(_lastBindings);
+    if (!result.available && !_events.isClosed) {
+      _events.add(const GlobalHotkeyEvent.lost());
+    }
+  }
+
+  /// Drops the local session state without telling the portal, which no longer has it.
+  void _forgetSession() {
+    for (final subscription in _listening) {
+      unawaited(subscription.cancel());
+    }
+    _listening.clear();
+    _session = null;
+    _boundIds = const {};
+    for (final id in _held) {
+      if (!_events.isClosed) {
+        _events.add(GlobalHotkeyEvent(id, GlobalHotkeyPhase.released));
+      }
+    }
+    _held.clear();
   }
 
   void _endSession() {
@@ -327,6 +372,8 @@ class PortalGlobalHotkeySource implements GlobalHotkeySource {
 
   @override
   Future<void> dispose() async {
+    _lastBindings = const [];
+    unawaited(_ownerWatch?.cancel());
     await _closeSession();
     _endSession();
     await _events.close();
