@@ -20,13 +20,19 @@ void main() {
   });
 
   test('releasing the cover reaches the native side', () async {
-    await AppLockWindowChannel(channel: channel, supported: true)
+    await AppLockWindowChannel(channel: channel, supported: true, isIOS: true)
         .releasePrivacyShield();
     expect(calls.single.method, 'releasePrivacyShield');
   });
 
   test('releasing the cover is silent where nothing answers', () async {
     await AppLockWindowChannel(channel: channel, supported: false)
+        .releasePrivacyShield();
+    expect(calls, isEmpty);
+  });
+
+  test('releasing the cover is not sent on Android', () async {
+    await AppLockWindowChannel(channel: channel, supported: true, isIOS: false)
         .releasePrivacyShield();
     expect(calls, isEmpty);
   });
