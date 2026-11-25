@@ -19,15 +19,24 @@ class SessionLockChannel {
   final MethodChannel _channel;
   final bool _isWindows;
 
-  /// Calls [away] when the session locks or the machine suspends, [back] on the way back in.
+  /// Calls [away] when the session locks or the machine suspends, [back] once
+  /// the last of those has ended.
+  ///
+  /// The runner names the reason with each call, so a wake while the session
+  /// is still locked does not read as the person being back.
   void listen({required void Function() away, required void Function() back}) {
     if (!_isWindows) return;
+    final reasons = <String>{};
     _channel.setMethodCallHandler((call) async {
+      final reason = call.arguments as String? ?? 'session';
       switch (call.method) {
         case 'away':
-          away();
+          final first = reasons.isEmpty;
+          reasons.add(reason);
+          if (first) away();
         case 'back':
-          back();
+          reasons.remove(reason);
+          if (reasons.isEmpty) back();
       }
     });
   }

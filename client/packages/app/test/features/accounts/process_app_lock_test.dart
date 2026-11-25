@@ -180,5 +180,34 @@ void main() {
 
       expect(calls, ['away', 'back']);
     });
+
+    test(
+      'a wake while the session is still locked is not the person back',
+      () async {
+        final calls = <String>[];
+        const channel = MethodChannel('test/session_lock_reasons');
+        SessionLockChannel(
+          channel: channel,
+          isWindows: true,
+        ).listen(away: () => calls.add('away'), back: () => calls.add('back'));
+        for (final (method, reason) in [
+          ('away', 'session'),
+          ('away', 'power'),
+          ('back', 'power'),
+          ('back', 'session'),
+        ]) {
+          await TestDefaultBinaryMessengerBinding
+              .instance
+              .defaultBinaryMessenger
+              .handlePlatformMessage(
+                channel.name,
+                channel.codec.encodeMethodCall(MethodCall(method, reason)),
+                (_) {},
+              );
+        }
+
+        expect(calls, ['away', 'back']);
+      },
+    );
   });
 }

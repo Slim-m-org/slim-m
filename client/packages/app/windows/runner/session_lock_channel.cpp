@@ -7,6 +7,7 @@
 #include <flutter/standard_method_codec.h>
 
 #include <memory>
+#include <string>
 
 namespace {
 
@@ -24,9 +25,10 @@ bool ReturnsToSession(WPARAM reason) {
          reason == WTS_REMOTE_CONNECT;
 }
 
-void Send(const char* method) {
+void Send(const char* method, const char* reason) {
   if (!g_channel) return;
-  g_channel->InvokeMethod(method, std::make_unique<flutter::EncodableValue>());
+  g_channel->InvokeMethod(
+      method, std::make_unique<flutter::EncodableValue>(std::string(reason)));
 }
 
 }  // namespace
@@ -43,11 +45,11 @@ void RegisterSessionLockChannel(flutter::BinaryMessenger* messenger,
 
 void OnSessionLockMessage(UINT message, WPARAM wparam) {
   if (message == WM_WTSSESSION_CHANGE) {
-    if (LeavesSession(wparam)) Send("away");
-    if (ReturnsToSession(wparam)) Send("back");
+    if (LeavesSession(wparam)) Send("away", "session");
+    if (ReturnsToSession(wparam)) Send("back", "session");
   } else if (message == WM_POWERBROADCAST) {
-    if (wparam == PBT_APMSUSPEND) Send("away");
-    if (wparam == PBT_APMRESUMEAUTOMATIC) Send("back");
+    if (wparam == PBT_APMSUSPEND) Send("away", "power");
+    if (wparam == PBT_APMRESUMEAUTOMATIC) Send("back", "power");
   }
 }
 
