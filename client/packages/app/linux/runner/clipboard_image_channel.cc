@@ -159,7 +159,7 @@ struct DecodeLimit {
 
 void OnSizePrepared(GdkPixbufLoader* loader, gint width, gint height,
                     gpointer user_data) {
-  if (!slimm_clipboard::ImageTooLarge(width, height)) return;
+  if (!slimm_clipboard::WriteImageTooLarge(width, height)) return;
   static_cast<DecodeLimit*>(user_data)->exceeded = true;
   gdk_pixbuf_loader_set_size(loader, 1, 1);
 }
@@ -217,6 +217,15 @@ void HandleWriteImage(FlMethodCall* call) {
   FlValue* args = fl_method_call_get_args(call);
   if (fl_value_get_type(args) != FL_VALUE_TYPE_UINT8_LIST) {
     RespondWriteFailed(call, "The image could not be copied.");
+    return;
+  }
+  int width = 0;
+  int height = 0;
+  if (slimm_clipboard::PngDimensions(fl_value_get_uint8_list(args),
+                                     fl_value_get_length(args), &width,
+                                     &height) &&
+      slimm_clipboard::WriteImageTooLarge(width, height)) {
+    RespondWriteFailed(call, kTooLargeMessage);
     return;
   }
   g_autoptr(GTask) task =

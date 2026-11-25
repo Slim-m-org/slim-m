@@ -12,6 +12,14 @@ inline bool ImageTooLarge(int width, int height) {
          height > kMaxImageSide;
 }
 
+// The server's MAX_IMAGE_PIXELS: a copy is refused past it, whatever the shape.
+constexpr unsigned long long kMaxWritePixels = 40000000ULL;
+
+inline bool WriteImageTooLarge(int width, int height) {
+  return width <= 0 || height <= 0 ||
+         static_cast<unsigned long long>(width) * height > kMaxWritePixels;
+}
+
 // Reads the canvas size from a PNG's IHDR chunk without decoding it.
 inline bool PngDimensions(const unsigned char* data, unsigned long size,
                           int* width, int* height) {

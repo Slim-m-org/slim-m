@@ -93,6 +93,17 @@ void ClipboardImageSizesAreCapped() {
   CHECK(ImageTooLarge(-1, 10));
 }
 
+void AWidePanoramaStillCopies() {
+  using slimm_clipboard::ImageTooLarge;
+  using slimm_clipboard::WriteImageTooLarge;
+  CHECK(ImageTooLarge(10000, 3000));
+  CHECK(!WriteImageTooLarge(10000, 3000));
+  CHECK(!WriteImageTooLarge(40000000, 1));
+  CHECK(WriteImageTooLarge(8001, 5000));
+  CHECK(WriteImageTooLarge(0, 10));
+  CHECK(WriteImageTooLarge(-1, 10));
+}
+
 void PngSizeIsReadFromTheHeaderAlone() {
   const unsigned char png[] = {0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A,
                                0,    0,   0,   13,  'I',  'H',  'D',  'R',
@@ -113,6 +124,7 @@ void PngSizeIsReadFromTheHeaderAlone() {
 
 int main() {
   ClipboardImageSizesAreCapped();
+  AWidePanoramaStillCopies();
   PngSizeIsReadFromTheHeaderAlone();
   HostPageMatchesOnlyItself();
   TheTopDocumentNeverLeavesTheHostPage();
