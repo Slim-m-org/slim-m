@@ -58,6 +58,7 @@ class XdgAutostart implements Autostart {
   }
 
   /// The entry's contents; the executable is quoted, as the desktop entry spec asks for a path with spaces.
+  /// The autostart-after key may be ignored by Plasma 6's systemd launcher; a login launch's tray wait is what covers a late panel.
   static String desktopEntry(String executable) {
     final quoted =
         '"${executable.replaceAll(r'\', r'\\').replaceAll('"', r'\"')}"';
