@@ -11,12 +11,13 @@ use slimm_server::http::{self, AppState};
 use slimm_server::hub::{Event, Hub};
 use slimm_server::ids::{ChannelId, UserId};
 use slimm_server::permissions::Permissions;
-use slimm_server::store::Store;
+use slimm_server::store::{ChannelPatch, Store};
 use tokio::net::TcpListener;
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Message as WsMessage;
 
 use crate::support;
+use support::canvas::BoardChannels;
 type Client =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
 
@@ -60,10 +61,23 @@ async fn connect(addr: std::net::SocketAddr, ticket: &str) -> Client {
 }
 
 async fn world() -> World {
+    world_on(|store| async move { store.create_channel("board", "canvas").await.unwrap().id }).await
+}
+
+/// A voice channel whose canvas starts on, so a test can switch it off under an open socket.
+async fn toggleable_world() -> World {
+    world_on(|store| async move { store.create_voice_with_canvas("call").await.unwrap().id }).await
+}
+
+async fn world_on<F, Fut>(channel: F) -> World
+where
+    F: FnOnce(Store) -> Fut,
+    Fut: std::future::Future<Output = ChannelId>,
+{
     let (store, guard) = support::new_store("slimm-canvas-gate-midsession").await;
     let (alice_ticket, alice_id) = ticket_for(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
-    let channel = store.list_channels().await.unwrap()[0].id;
+    let channel = channel(store.clone()).await;
     let (bob_ticket, bob_id) = ticket_for(&store, "bob").await;
     let state = support::app::builder(store.clone()).hub(Hub::new()).build();
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -290,4 +304,43 @@ fn now_ms() -> i64 {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_millis() as i64
+}
+
+/// Turns the voice channel's canvas on or off and tells the sockets, as the update route does.
+async fn set_canvas(w: &World, on: bool) {
+    let channel = w
+        .store
+        .update_channel_settings(
+            w.channel,
+            ChannelPatch {
+                canvas_enabled: Some(on),
+                ..ChannelPatch::default()
+            },
+        )
+        .await
+        .unwrap()
+        .unwrap();
+    w.state
+        .hub
+        .publish(Event::ChannelUpdated(Arc::new(channel), false));
+}
+
+#[tokio::test]
+async fn closing_the_board_drops_the_next_frames_and_opening_it_lets_them_through_on_the_same_socket()
+ {
+    let mut w = toggleable_world().await;
+    cursor(&mut w).await;
+    assert!(arrived(&mut w.alice, "canvas.cursor.moved", SEEN).await);
+
+    set_canvas(&w, false).await;
+    cursor(&mut w).await;
+    assert!(!arrived(&mut w.alice, "canvas.cursor.moved", QUIET).await);
+    ink(&mut w).await;
+    assert!(!arrived(&mut w.alice, "canvas.stroke_preview.updated", QUIET).await);
+
+    set_canvas(&w, true).await;
+    cursor(&mut w).await;
+    assert!(arrived(&mut w.alice, "canvas.cursor.moved", SEEN).await);
+    ink(&mut w).await;
+    assert!(arrived(&mut w.alice, "canvas.stroke_preview.updated", SEEN).await);
 }

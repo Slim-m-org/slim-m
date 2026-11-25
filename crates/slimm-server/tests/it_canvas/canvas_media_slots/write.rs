@@ -33,7 +33,7 @@ async fn persists_across_a_restart() {
     let store = Store::new(db::connect(&config).await.unwrap());
     let (access, _ticket, alice) = user_ticket(&store, "alice").await;
     store.bootstrap_deployment(alice).await.unwrap();
-    let channel = store.list_channels().await.unwrap()[0].id;
+    let channel = store.create_channel("board", "canvas").await.unwrap().id;
 
     let response = http::router(state_for(&store))
         .oneshot(put_slot_request(
@@ -82,7 +82,7 @@ async fn anyone_with_use_canvas_may_move_anyone_elses_slot() {
     let store = Store::new(db::connect(&config).await.unwrap());
     let (_access, _ticket, alice) = user_ticket(&store, "alice").await;
     store.bootstrap_deployment(alice).await.unwrap();
-    let channel = store.list_channels().await.unwrap()[0].id;
+    let channel = store.create_channel("board", "canvas").await.unwrap().id;
     let (bob_access, _bob_ticket, _bob) = user_ticket(&store, "bob").await;
 
     let response = http::router(state_for(&store))
@@ -118,7 +118,7 @@ async fn a_member_denied_use_canvas_is_forbidden() {
     let store = Store::new(db::connect(&config).await.unwrap());
     let (_access, _ticket, alice) = user_ticket(&store, "alice").await;
     store.bootstrap_deployment(alice).await.unwrap();
-    let channel = store.list_channels().await.unwrap()[0].id;
+    let channel = store.create_channel("board", "canvas").await.unwrap().id;
     let (carol_access, _ticket, carol) = user_ticket(&store, "carol").await;
     store
         .set_member_overwrite(channel, carol, Permissions::NONE, Permissions::USE_CANVAS)
@@ -153,7 +153,7 @@ async fn a_timed_out_member_may_not_move_a_slot() {
     let store = Store::new(db::connect(&config).await.unwrap());
     let (_access, _ticket, alice) = user_ticket(&store, "alice").await;
     store.bootstrap_deployment(alice).await.unwrap();
-    let channel = store.list_channels().await.unwrap()[0].id;
+    let channel = store.create_channel("board", "canvas").await.unwrap().id;
     let (bob_access, _ticket, bob) = user_ticket(&store, "bob").await;
     store
         .set_member_timeout(bob, chrono_now_plus_ms(60_000), None, alice)
@@ -189,7 +189,7 @@ async fn moving_a_slot_publishes_live_to_other_viewers() {
     let state = state_for(&store);
     let (access, _ticket, alice) = user_ticket(&store, "alice").await;
     store.bootstrap_deployment(alice).await.unwrap();
-    let channel = store.list_channels().await.unwrap()[0].id;
+    let channel = store.create_channel("board", "canvas").await.unwrap().id;
     let (_bob_access, bob_ticket, _bob) = user_ticket(&store, "bob").await;
 
     let addr = serve(state.clone()).await;
@@ -237,7 +237,7 @@ async fn two_concurrent_first_touches_leave_exactly_one_row() {
     let store = Store::new(db::connect(&config).await.unwrap());
     let (access, _ticket, alice) = user_ticket(&store, "alice").await;
     store.bootstrap_deployment(alice).await.unwrap();
-    let channel = store.list_channels().await.unwrap()[0].id;
+    let channel = store.create_channel("board", "canvas").await.unwrap().id;
     let state = state_for(&store);
 
     let first = http::router(state.clone()).oneshot(put_slot_request(
@@ -277,7 +277,7 @@ async fn an_out_of_bounds_slot_is_refused() {
     let store = Store::new(db::connect(&config).await.unwrap());
     let (access, _ticket, alice) = user_ticket(&store, "alice").await;
     store.bootstrap_deployment(alice).await.unwrap();
-    let channel = store.list_channels().await.unwrap()[0].id;
+    let channel = store.create_channel("board", "canvas").await.unwrap().id;
 
     let response = http::router(state_for(&store))
         .oneshot(put_slot_request(
@@ -309,7 +309,7 @@ async fn deleting_an_account_removes_its_slots() {
     let store = Store::new(db::connect(&config).await.unwrap());
     let (_access, _ticket, alice) = user_ticket(&store, "alice").await;
     store.bootstrap_deployment(alice).await.unwrap();
-    let channel = store.list_channels().await.unwrap()[0].id;
+    let channel = store.create_channel("board", "canvas").await.unwrap().id;
     let (_bob_access, _bob_ticket, bob) = user_ticket(&store, "bob").await;
 
     store
@@ -365,7 +365,7 @@ async fn a_slot_naming_no_real_user_is_not_found_rather_than_a_500() {
     let store = Store::new(db::connect(&config).await.unwrap());
     let (access, _ticket, alice) = user_ticket(&store, "alice").await;
     store.bootstrap_deployment(alice).await.unwrap();
-    let channel = store.list_channels().await.unwrap()[0].id;
+    let channel = store.create_channel("board", "canvas").await.unwrap().id;
     let fake_user = UserId(uuid::Uuid::now_v7());
 
     let response = http::router(state_for(&store))

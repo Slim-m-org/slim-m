@@ -120,7 +120,7 @@ async fn voice_channel(state: &AppState, id: ChannelId) -> Result<Channel, ApiEr
         .store
         .channel(id)
         .await?
-        .filter(|c| c.kind == "voice" && c.parent_message_id.is_none())
+        .filter(Channel::hosts_call)
         .ok_or(ApiError::BadRequest("that is not a voice channel"))
 }
 

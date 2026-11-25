@@ -4,10 +4,11 @@
 //! and socket, and everyone sees the same board in the same order.
 
 use axum::http::StatusCode;
-use serde_json::Value;
+use serde_json::{Value, json};
 use slimm_server::permissions::Permissions;
 
 use crate::support;
+use support::canvas::BoardChannels;
 use support::room_world::{RoomWorld, echo_room_wasm, noughts_wasm, room_world};
 use support::ws::{Client, assert_no_frame_of_type, connect, read_frame_of_type, serve};
 
@@ -193,6 +194,37 @@ async fn a_text_channel_room_needs_send_messages() {
         .unwrap();
     assert_eq!(r.input_in(&ava, text, "4").await.0, StatusCode::FORBIDDEN);
     assert_eq!(r.rooms_in(&ava, text).await.0, StatusCode::OK);
+}
+
+/// A canvas channel is a `channel` room whatever its call toggle says, so a room never changes kind (decision 0139).
+#[tokio::test]
+async fn a_canvas_channel_room_is_a_channel_room_with_its_call_on_or_off() {
+    let r = noughts("slimm-rooms-canvas").await;
+    let ava = r.player("ava").await;
+    for call in [false, true] {
+        let board =
+            r.w.store
+                .create_canvas_channel("studio", call)
+                .await
+                .unwrap()
+                .id;
+        let (status, answer) = r.input_in(&ava, board, "0").await;
+        assert_eq!(status, StatusCode::OK, "call {call}: {answer}");
+        assert_eq!(answer["state"]["board"], "x........");
+        let (_, rooms) = r.rooms_in(&ava, board).await;
+        assert_eq!(
+            rooms["call_scenes"],
+            json!([]),
+            "call {call}: no scene without a voice room"
+        );
+
+        r.w.store
+            .set_member_overwrite(board, ava.id, Permissions::NONE, Permissions::SEND_MESSAGES)
+            .await
+            .unwrap();
+        assert_eq!(r.input_in(&ava, board, "4").await.0, StatusCode::FORBIDDEN);
+        assert_eq!(r.rooms_in(&ava, board).await.0, StatusCode::OK);
+    }
 }
 
 #[tokio::test]

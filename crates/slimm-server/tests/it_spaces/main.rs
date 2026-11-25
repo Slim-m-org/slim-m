@@ -11,6 +11,7 @@ mod admin_audit_hardening;
 mod admin_audit_slow_body;
 mod audit_moderation;
 mod blocking_reach;
+mod canvas_channel_kinds;
 mod categories;
 mod categories_visibility;
 mod category_create_idempotency;

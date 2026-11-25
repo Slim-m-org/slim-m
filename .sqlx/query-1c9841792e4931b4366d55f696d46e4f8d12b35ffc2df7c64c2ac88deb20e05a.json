@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id AS \"id!: ChannelId\", name AS \"name!\", kind AS \"kind!\", topic,\n                  position AS \"position!: i64\",\n                  parent_message_id AS \"parent_message_id: crate::ids::MessageId\",\n                  category_id AS \"category_id: crate::ids::ChannelCategoryId\",\n                  created_at AS \"created_at!\",\n                  slow_mode_seconds AS \"slow_mode_seconds!: i64\",\n                  join_muted AS \"join_muted!: bool\",\n                  default_notification AS \"default_notification!\",\n                  creates_rooms AS \"creates_rooms!: bool\",\n                  user_limit AS \"user_limit!: i64\",\n                  room_owner_id AS \"room_owner_id: crate::ids::UserId\",\n                  room_lobby_id AS \"room_lobby_id: ChannelId\",\n                  room_locked AS \"room_locked!: bool\"\n           FROM channels WHERE id = ?",
+  "query": "SELECT c.id AS \"id!: ChannelId\", c.name AS \"name!\", c.kind AS \"kind!\", c.topic,\n                      c.position AS \"position!: i64\",\n                      c.parent_message_id AS \"parent_message_id: crate::ids::MessageId\",\n                      c.category_id AS \"category_id: crate::ids::ChannelCategoryId\",\n                      c.created_at AS \"created_at!\",\n                      c.slow_mode_seconds AS \"slow_mode_seconds!: i64\",\n                      c.join_muted AS \"join_muted!: bool\",\n                      c.canvas_enabled AS \"canvas_enabled!: bool\",\n                      c.voice_enabled AS \"voice_enabled!: bool\",\n                      c.default_notification AS \"default_notification!\",\n                      c.creates_rooms AS \"creates_rooms!: bool\",\n                      c.user_limit AS \"user_limit!: i64\",\n                      c.room_owner_id AS \"room_owner_id: crate::ids::UserId\",\n                      c.room_lobby_id AS \"room_lobby_id: ChannelId\",\n                      c.room_locked AS \"room_locked!: bool\"\n               FROM channels c\n               LEFT JOIN channel_categories cc ON cc.id = c.category_id\n               LEFT JOIN channel_categories cp ON cp.id = cc.parent_id\n               WHERE c.deleted_at IS NULL AND c.kind != 'dm' AND c.parent_message_id IS NULL\n               ORDER BY c.category_id IS NOT NULL,\n                        COALESCE(cp.position, cc.position), COALESCE(cp.created_at, cc.created_at),\n                        COALESCE(cp.id, cc.id), cc.parent_id IS NOT NULL,\n                        cc.position, cc.created_at, cc.id,\n                        c.position, c.created_at",
   "describe": {
     "columns": [
       {
@@ -114,8 +114,30 @@
         }
       },
       {
-        "name": "default_notification!",
+        "name": "canvas_enabled!: bool",
         "ordinal": 10,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "channels",
+            "name": "canvas_enabled"
+          }
+        }
+      },
+      {
+        "name": "voice_enabled!: bool",
+        "ordinal": 11,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "channels",
+            "name": "voice_enabled"
+          }
+        }
+      },
+      {
+        "name": "default_notification!",
+        "ordinal": 12,
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -126,7 +148,7 @@
       },
       {
         "name": "creates_rooms!: bool",
-        "ordinal": 11,
+        "ordinal": 13,
         "type_info": "Integer",
         "origin": {
           "Table": {
@@ -137,7 +159,7 @@
       },
       {
         "name": "user_limit!: i64",
-        "ordinal": 12,
+        "ordinal": 14,
         "type_info": "Integer",
         "origin": {
           "Table": {
@@ -148,7 +170,7 @@
       },
       {
         "name": "room_owner_id: crate::ids::UserId",
-        "ordinal": 13,
+        "ordinal": 15,
         "type_info": "Blob",
         "origin": {
           "Table": {
@@ -159,7 +181,7 @@
       },
       {
         "name": "room_lobby_id: ChannelId",
-        "ordinal": 14,
+        "ordinal": 16,
         "type_info": "Blob",
         "origin": {
           "Table": {
@@ -170,7 +192,7 @@
       },
       {
         "name": "room_locked!: bool",
-        "ordinal": 15,
+        "ordinal": 17,
         "type_info": "Integer",
         "origin": {
           "Table": {
@@ -181,7 +203,7 @@
       }
     ],
     "parameters": {
-      "Right": 1
+      "Right": 0
     },
     "nullable": [
       false,
@@ -197,10 +219,12 @@
       false,
       false,
       false,
+      false,
+      false,
       true,
       true,
       false
     ]
   },
-  "hash": "65f7022b8bc6f2f83ddfc1c088ffa8a0ec10beda3bca9e469ca4309a528ce5c2"
+  "hash": "1c9841792e4931b4366d55f696d46e4f8d12b35ffc2df7c64c2ac88deb20e05a"
 }

@@ -43,7 +43,9 @@ mod category_overwrites;
 mod category_sight;
 mod channels;
 pub(crate) use channels::channel_slow_mode;
-use channels::{channel_create, channel_notification_prefs, channel_order, channel_settings};
+use channels::{
+    channel_create, channel_discard, channel_notification_prefs, channel_order, channel_settings,
+};
 mod code_runs;
 mod credentials;
 mod deployment_identity;
@@ -203,6 +205,7 @@ pub use category_order::{
     CategoryOrderGroup, CategoryOrderReach, CategoryReorderOutcome, ReorderCategoriesError,
 };
 pub use channel_create::{ChannelDefaults, CreateChannelError, CreatedChannel};
+pub use channel_discard::{DiscardError, DiscardedCanvas};
 pub use channel_notification_prefs::NotificationChoice;
 pub use channel_order::{CategoryReach, ChannelOrderGroup, ReorderChannelsError, ReorderOutcome};
 pub use channel_settings::ChannelPatch;
@@ -215,7 +218,6 @@ pub use debug_logs::{
     DEBUG_LOG_RETENTION_MS, DEBUG_LOGS_PER_USER, DebugLogFull, DebugLogSummary, NewDebugLog,
 };
 pub use deployment_identity::MAX_SPACE_NAME_CHARS;
-pub(crate) use dms::DM_CHANNEL_KIND;
 pub use dms::{DmConversation, GroupDm, OpenDmError};
 pub use dock_sources::DockSource;
 pub use emoji::{CreateEmojiError, CustomEmoji, MAX_CUSTOM_EMOJI};
@@ -247,6 +249,9 @@ pub use message_search::{FtsQuery, SearchError};
 pub use message_search_filters::{HasKind, MessageSearchFilters};
 pub use messages::{Edited, MessageDeletion, NewMessage, SendError, Sent};
 pub use messages_bulk::{BulkDeleteError, BulkDeletion, DeletedMessage};
+pub(crate) use models::{
+    CANVAS_CHANNEL_KIND, CANVAS_OPEN_SQL, DM_CHANNEL_KIND, TEXT_CHANNEL_KIND, VOICE_CHANNEL_KIND,
+};
 pub use models::{Channel, ChannelCategory, ChannelRoom, Message, User};
 pub use moderation_history::{AuditLogEntry, HistoryCursor, ModerationHistoryItem};
 pub use module_health::{EventCandidate, ModuleHealth};

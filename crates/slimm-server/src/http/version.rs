@@ -92,6 +92,9 @@ pub(super) struct Version {
     /// Whether an edit of a note merges its props, so a restyle sends only what changed. A client
     /// hides the note style bar when it is absent or false.
     canvas_note_style: bool,
+    /// Whether the server has canvas channels: the `canvas` kind, `canvas_enabled` and `voice_enabled` on a channel,
+    /// `discard_canvas` on its update, and a `canvas_off` refusal on a closed board. A client reads its absence as an older server.
+    canvas_channels: bool,
     /// The largest single attachment upload the server accepts, in bytes, so a
     /// client can refuse an oversize pick before sending any of it.
     max_attachment_bytes: u64,
@@ -211,6 +214,7 @@ pub(super) async fn version(
         canvas_scoped_clear: true,
         canvas_edges: true,
         canvas_note_style: true,
+        canvas_channels: true,
         max_attachment_bytes: super::attachments::effective_attachment_max(&state).await?,
         min_client_version: min_client_version(),
         capabilities: capabilities(state).await,

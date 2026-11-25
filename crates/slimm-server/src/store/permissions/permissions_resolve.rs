@@ -15,8 +15,9 @@ use std::collections::{HashMap, HashSet};
 
 use sqlx::{QueryBuilder, Row};
 
+use super::super::DM_CHANNEL_KIND;
 use super::super::channels::channel_row::{CHANNEL_COLUMNS, ChannelRow};
-use super::super::dms::{BLOCKED_DENY, DM_BASE, DM_CHANNEL_KIND};
+use super::super::dms::{BLOCKED_DENY, DM_BASE};
 use super::super::{Channel, Store};
 use crate::ids::{ChannelId, MessageId, UserId};
 use crate::permissions::Permissions;

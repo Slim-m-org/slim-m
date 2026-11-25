@@ -112,7 +112,7 @@ pub async fn audience(store: &Store, event: &Event<'_>) -> anyhow::Result<Vec<Us
     let Some(channel) = store.channel(channel_id).await? else {
         return Ok(Vec::new());
     };
-    if channel.kind != "voice" || channel.parent_message_id.is_some() {
+    if !channel.hosts_call() {
         return Ok(Vec::new());
     }
     if store.presence_visibility(actor).await? == Some(Visibility::Hidden)

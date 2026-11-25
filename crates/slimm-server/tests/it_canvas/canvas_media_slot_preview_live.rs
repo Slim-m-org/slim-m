@@ -37,7 +37,7 @@ async fn a_viewer_receives_a_streamed_tile_drag() {
     let (store, _guard) = support::new_store("slimm-media-slot-preview").await;
     let (alice_ticket, alice_id) = user_ticket_and_id(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
-    let channel = store.list_channels().await.unwrap()[0].id;
+    let channel = store.create_channel("board", "canvas").await.unwrap().id;
     let (bob_ticket, bob_id) = user_ticket_and_id(&store, "bob").await;
 
     let state = support::app::builder(store.clone()).hub(Hub::new()).build();
@@ -60,7 +60,7 @@ async fn a_locked_tile_streams_nothing() {
     let (store, _guard) = support::new_store("slimm-media-slot-preview").await;
     let (alice_ticket, alice_id) = user_ticket_and_id(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
-    let channel = store.list_channels().await.unwrap()[0].id;
+    let channel = store.create_channel("board", "canvas").await.unwrap().id;
     let (bob_ticket, bob_id) = user_ticket_and_id(&store, "bob").await;
     store
         .upsert_canvas_media_slot(
@@ -90,7 +90,7 @@ async fn a_member_denied_use_canvas_receives_but_cannot_send() {
     let (store, _guard) = support::new_store("slimm-media-slot-preview").await;
     let (alice_ticket, alice_id) = user_ticket_and_id(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
-    let channel = store.list_channels().await.unwrap()[0].id;
+    let channel = store.create_channel("board", "canvas").await.unwrap().id;
     let (carol_ticket, carol_id) = user_ticket_and_id(&store, "carol").await;
     store
         .set_member_overwrite(
@@ -121,7 +121,7 @@ async fn an_out_of_bounds_box_is_dropped() {
     let (store, _guard) = support::new_store("slimm-media-slot-preview").await;
     let (alice_ticket, alice_id) = user_ticket_and_id(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
-    let channel = store.list_channels().await.unwrap()[0].id;
+    let channel = store.create_channel("board", "canvas").await.unwrap().id;
     let (bob_ticket, bob_id) = user_ticket_and_id(&store, "bob").await;
 
     let state = support::app::builder(store.clone()).hub(Hub::new()).build();
@@ -139,7 +139,7 @@ async fn a_timed_out_member_cannot_stream_a_tile() {
     let (store, _guard) = support::new_store("slimm-media-slot-preview").await;
     let (alice_ticket, alice_id) = user_ticket_and_id(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
-    let channel = store.list_channels().await.unwrap()[0].id;
+    let channel = store.create_channel("board", "canvas").await.unwrap().id;
     let (bob_ticket, bob_id) = user_ticket_and_id(&store, "bob").await;
     let until = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -166,7 +166,7 @@ async fn tile_preview_frames_are_rate_limited() {
     let (store, _guard) = support::new_store("slimm-media-slot-preview").await;
     let (alice_ticket, alice_id) = user_ticket_and_id(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
-    let channel = store.list_channels().await.unwrap()[0].id;
+    let channel = store.create_channel("board", "canvas").await.unwrap().id;
     let (bob_ticket, bob_id) = user_ticket_and_id(&store, "bob").await;
 
     let state = support::app::builder(store.clone()).hub(Hub::new()).build();

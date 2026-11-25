@@ -98,7 +98,7 @@ async fn a_member_without_the_canvas_bit_reads_the_canvas_as_a_spectator() {
         .await
         .unwrap();
     let app = app(store.clone());
-    let channel = store.create_channel("canvas", "voice").await.unwrap().id;
+    let channel = store.create_channel("canvas", "canvas").await.unwrap().id;
 
     let (token, _) = register(&store, "ann").await;
     let (status, body) = get(&app, &region(channel), &token).await;
@@ -131,8 +131,8 @@ async fn the_canvas_gate_is_evaluated_per_channel() {
         .await
         .unwrap();
     let app = app(store.clone());
-    let open = store.create_channel("open", "voice").await.unwrap().id;
-    let closed = store.create_channel("closed", "voice").await.unwrap().id;
+    let open = store.create_channel("open", "canvas").await.unwrap().id;
+    let closed = store.create_channel("closed", "canvas").await.unwrap().id;
 
     let (token, user) = register(&store, "ann").await;
     store
@@ -162,7 +162,7 @@ async fn a_rectangle_the_server_cannot_honour_is_refused() {
         .await
         .unwrap();
     let app = app(store.clone());
-    let channel = store.create_channel("canvas", "voice").await.unwrap().id;
+    let channel = store.create_channel("canvas", "canvas").await.unwrap().id;
     let (token, _) = register(&store, "ann").await;
 
     let base = format!("/channels/{channel}/canvas/objects");
@@ -190,7 +190,7 @@ async fn a_crowded_region_reports_that_it_held_something_back() {
         .await
         .unwrap();
     let app = app(store.clone());
-    let channel = store.create_channel("canvas", "voice").await.unwrap().id;
+    let channel = store.create_channel("canvas", "canvas").await.unwrap().id;
     let (token, user) = register(&store, "ann").await;
     place(&store, channel, user, 0.0).await;
     place(&store, channel, user, 20.0).await;
@@ -216,7 +216,7 @@ async fn a_whole_world_read_stays_under_a_byte_budget() {
         .await
         .unwrap();
     let app = app(store.clone());
-    let channel = store.create_channel("canvas", "voice").await.unwrap().id;
+    let channel = store.create_channel("canvas", "canvas").await.unwrap().id;
     let (token, user) = register(&store, "ann").await;
 
     let props = format!(r#"{{"d":"{}"}}"#, "x".repeat(4000));
@@ -283,7 +283,7 @@ async fn a_whole_board_pages_in_seq_order_and_reports_its_size() {
     let (store, _guard) = new_store().await;
     let app = app(store.clone());
     let (token, user) = register(&store, "ann").await;
-    let channel = store.create_channel("canvas", "voice").await.unwrap().id;
+    let channel = store.create_channel("canvas", "canvas").await.unwrap().id;
     strokes(&store, channel, user, 5).await;
     let world = "min_x=-1000000&min_y=-1000000&max_x=1000000&max_y=1000000";
 
@@ -321,7 +321,7 @@ async fn a_page_never_mixes_the_cursor_with_the_pan_parameters() {
     let (store, _guard) = new_store().await;
     let app = app(store.clone());
     let (token, _) = register(&store, "ann").await;
-    let channel = store.create_channel("canvas", "voice").await.unwrap().id;
+    let channel = store.create_channel("canvas", "canvas").await.unwrap().id;
     let base = format!("/channels/{channel}/canvas/objects?min_x=0&min_y=0&max_x=10&max_y=10");
 
     for extra in [

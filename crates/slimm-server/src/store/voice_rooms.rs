@@ -76,15 +76,16 @@ impl Store {
         }
         sqlx::query!(
             "INSERT INTO channels
-                (id, name, kind, position, created_at, category_id, room_owner_id, room_lobby_id)
-             VALUES (?, ?, 'voice', ?, ?, ?, ?, ?)",
+                (id, name, kind, position, created_at, category_id, room_owner_id, room_lobby_id, canvas_enabled)
+             VALUES (?, ?, 'voice', ?, ?, ?, ?, ?, ?)",
             id,
             name,
             lobby.position,
             now,
             lobby.category_id,
             owner,
-            lobby.id
+            lobby.id,
+            lobby.canvas_enabled
         )
         .execute(&mut *tx)
         .await?;

@@ -16,7 +16,11 @@ async fn ids_from_another_channel_are_foreign_to_every_op() {
     let (store, _pool, _guard) = new_store_and_pool().await;
     let (_, actor) = register(&store, "root").await;
     let here = general(&store).await;
-    let there = store.create_channel("elsewhere", "voice").await.unwrap().id;
+    let there = store
+        .create_channel("elsewhere", "canvas")
+        .await
+        .unwrap()
+        .id;
     let foreign = place(&store, there, actor, "note").await;
     let erase = submit(&store, there, actor, CanvasOpRequest::Remove(vec![foreign]))
         .await

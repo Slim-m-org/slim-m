@@ -35,17 +35,23 @@ pub enum Capability {
     /// Whether `POST /auth/username/check` exists, so the sign-in screen can
     /// ask before choosing between signing in and creating an account.
     UsernameCheck,
+    /// Whether `GET /presence/canvas-viewers` exists, so a board and the rail can show who is viewing (decision 0139).
+    CanvasViewers,
+    /// Whether `POST /channels/{id}/canvas/export` exists, so a canvas can be copied into a canvas channel (decision 0139).
+    CanvasExport,
 }
 
 impl Capability {
     /// Every capability `/version` speaks about, in the order it reports them.
-    pub const ALL: [Capability; 6] = [
+    pub const ALL: [Capability; 8] = [
         Capability::Block,
         Capability::Report,
         Capability::Webhook,
         Capability::UploadSessions,
         Capability::ScreenStamps,
         Capability::UsernameCheck,
+        Capability::CanvasViewers,
+        Capability::CanvasExport,
     ];
 
     /// The name this goes over the wire under.
@@ -57,6 +63,8 @@ impl Capability {
             Capability::UploadSessions => "upload_sessions",
             Capability::ScreenStamps => "screen_stamps",
             Capability::UsernameCheck => "username_check",
+            Capability::CanvasViewers => "canvas_viewers",
+            Capability::CanvasExport => "canvas_export",
         }
     }
 
@@ -81,6 +89,11 @@ impl Capability {
                 "/channels/00000000-0000-0000-0000-000000000000/voice/screen-stamps",
             ),
             Capability::UsernameCheck => (Method::POST, "/auth/username/check"),
+            Capability::CanvasViewers => (Method::GET, "/presence/canvas-viewers"),
+            Capability::CanvasExport => (
+                Method::POST,
+                "/channels/00000000-0000-0000-0000-000000000000/canvas/export",
+            ),
         }
     }
 }

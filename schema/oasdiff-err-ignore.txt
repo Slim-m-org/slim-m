@@ -47,3 +47,13 @@ PATCH /space/screen-share the `max_height` request property `format` changed fro
 PATCH /space/settings the `call_transcript_retention_days` request property `format` changed from `none` to `int64`
 POST /space/themes the `version` request property `format` changed from `none` to `int64`
 GET /voice/transcripts/{transcriptId} for the `query` request parameter `limit`, the `format` was changed from `none` to `int32`
+GET /channels added the new `canvas` enum value to the `items/kind` response property for the response status `200`
+POST /channels added the new `canvas` enum value to the `kind` response property for the response status `200`
+PUT /channels/order added the new `canvas` enum value to the `items/kind` response property for the response status `200`
+PATCH /channels/{channelId} added the new `canvas` enum value to the `kind` response property for the response status `200`
+POST /channels/{channelId}/messages/{messageId}/thread added the new `canvas` enum value to the `kind` response property for the response status `200`
+PATCH /channels/{channelId}/room added the new `canvas` enum value to the `kind` response property for the response status `200`
+POST /channels/{channelId}/voice/room added the new `canvas` enum value to the `kind` response property for the response status `200`
+GET /roles/{roleId}/preview added the new `canvas` enum value to the `channels/items/kind` response property for the response status `200`
+GET /version added the new `canvas_export` enum value to the `capabilities/items/` response property for the response status `200`
+GET /version added the new `canvas_viewers` enum value to the `capabilities/items/` response property for the response status `200`

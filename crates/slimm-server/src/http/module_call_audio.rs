@@ -148,7 +148,7 @@ async fn check_channel(
     channel: ChannelId,
 ) -> Result<(), ApiError> {
     let found = state.store.channel(channel).await?;
-    let is_voice = found.is_some_and(|c| c.kind == "voice" && c.parent_message_id.is_none());
+    let is_voice = found.is_some_and(|c| c.hosts_call());
     let view = Permissions::VIEW_CHANNEL;
     if !is_voice || !state.store.has_permission(caller, channel, view).await? {
         return Err(ApiError::BadRequest("channel_ids must be voice channels"));

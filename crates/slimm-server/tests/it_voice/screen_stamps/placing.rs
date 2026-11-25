@@ -14,6 +14,11 @@ use crate::support::ws::{assert_no_frame_of_type, read_frame_of_type, settle};
 #[tokio::test]
 async fn an_emoji_stamp_reaches_the_sharer_after_their_consent_says_stamps() {
     let rig = rig().await;
+    let lounge = rig.store.channel(rig.channel_id).await.unwrap().unwrap();
+    assert!(
+        !lounge.canvas_open(),
+        "the call's board is off, and a stamp is not a board route (decision 0139)"
+    );
     let mut sharer_ws = rig.socket(&rig.sharer).await;
     sharer_ws
         .send(WsMessage::Text(

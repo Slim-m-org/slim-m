@@ -31,6 +31,7 @@ mod canvas_screen_annotation_live;
 mod canvas_spike;
 mod canvas_state_version;
 mod canvas_stroke_preview_live;
+mod canvas_surface_gate;
 mod canvas_view_live;
 mod canvas_viewport;
 mod canvas_watch_live;

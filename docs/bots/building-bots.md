@@ -116,6 +116,32 @@ A "who is on this call right now" snapshot at any time - not just at connect - i
 
 If you are using a bot framework, this is the natural place for it to expose `on_voice_join` / `on_voice_leave` / `on_screen_share` callbacks built on top of these three frames; slim-m itself only guarantees the wire shape above.
 
+## Canvas channels
+
+A channel's `kind` is `text`, `voice` or `canvas`.
+Read an unknown kind as `text`.
+A canvas channel is a board with chat beside it, and an optional call.
+
+Every channel object carries two computed booleans, the same for every reader:
+
+- `canvas_enabled` - the channel has a board now. True for a canvas channel and a DM, the setting for a voice channel, false for text and threads.
+- `voice_enabled` - the channel has a call. True for a voice channel and a DM, the setting for a canvas channel, false for text and threads.
+
+A server that predates canvas channels sends neither. Read their absence as the old rule: voice and DM have a board and a call, text has neither.
+`/version` has `canvas_channels: true` on a server that has them.
+
+Create a canvas channel with `POST /channels` and `kind: "canvas"`, and `voice_enabled: true` for a call.
+On a voice channel `canvas_enabled` is the board, and leaving it out means on, which is what bots written before this existed get.
+Each flag is refused with a 400 on a kind it does not belong to.
+`PATCH /channels/{channelId}` takes `canvas_enabled` (voice) and `voice_enabled` (canvas), and the channel manager bar.
+
+Every board route of a channel with no board answers `403` with `{"code": "canvas_off"}`.
+Do not retry it: the board is off, and someone who manages channels can turn it on in the channel's settings.
+
+`PATCH /channels/{channelId}` with `{"discard_canvas": true}` removes everything on a voice channel's hidden board, locked objects included.
+It needs `MANAGE_CANVAS` in that channel as well, and is refused while the board is on.
+Everyone connected receives the usual `canvas.cleared` frame.
+
 ## Member join events
 
 ```json

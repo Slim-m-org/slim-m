@@ -50,8 +50,13 @@ pub(crate) fn region(channel: ChannelId) -> String {
     format!("/channels/{channel}/canvas/objects")
 }
 
+/// The one canvas channel, made on first use: the seeded general channel has no board.
 pub(crate) async fn general(store: &Store) -> ChannelId {
-    store.list_channels().await.unwrap()[0].id
+    let channels = store.list_channels().await.unwrap();
+    match channels.iter().find(|c| c.kind == "canvas") {
+        Some(channel) => channel.id,
+        None => store.create_channel("board", "canvas").await.unwrap().id,
+    }
 }
 
 pub(crate) async fn post(

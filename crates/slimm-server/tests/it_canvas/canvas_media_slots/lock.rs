@@ -36,7 +36,7 @@ async fn a_locked_slot_refuses_a_move_that_would_leave_it_locked() {
     let store = Store::new(db::connect(&config).await.unwrap());
     let (access, _ticket, alice) = user_ticket(&store, "alice").await;
     store.bootstrap_deployment(alice).await.unwrap();
-    let channel = store.list_channels().await.unwrap()[0].id;
+    let channel = store.create_channel("board", "canvas").await.unwrap().id;
     let (bob_access, _ticket, _bob) = user_ticket(&store, "bob").await;
     let state = state_for(&store);
 
@@ -84,7 +84,7 @@ async fn unlocking_a_slot_frees_the_next_move() {
     let store = Store::new(db::connect(&config).await.unwrap());
     let (access, _ticket, alice) = user_ticket(&store, "alice").await;
     store.bootstrap_deployment(alice).await.unwrap();
-    let channel = store.list_channels().await.unwrap()[0].id;
+    let channel = store.create_channel("board", "canvas").await.unwrap().id;
     let (bob_access, _ticket, _bob) = user_ticket(&store, "bob").await;
     let state = state_for(&store);
 
@@ -150,7 +150,7 @@ async fn a_locked_slots_depth_may_still_be_toggled() {
     let store = Store::new(db::connect(&config).await.unwrap());
     let (access, _ticket, alice) = user_ticket(&store, "alice").await;
     store.bootstrap_deployment(alice).await.unwrap();
-    let channel = store.list_channels().await.unwrap()[0].id;
+    let channel = store.create_channel("board", "canvas").await.unwrap().id;
     let state = state_for(&store);
 
     let response = http::router(state.clone())
@@ -191,7 +191,7 @@ async fn a_move_that_claims_the_slot_is_unlocked_is_still_refused() {
     let store = Store::new(db::connect(&config).await.unwrap());
     let (access, _ticket, alice) = user_ticket(&store, "alice").await;
     store.bootstrap_deployment(alice).await.unwrap();
-    let channel = store.list_channels().await.unwrap()[0].id;
+    let channel = store.create_channel("board", "canvas").await.unwrap().id;
     let (bob_access, _ticket, _bob) = user_ticket(&store, "bob").await;
     let state = state_for(&store);
     let put = |token: &str, body: Value| put_slot_request(channel, token, "screen", alice, body);

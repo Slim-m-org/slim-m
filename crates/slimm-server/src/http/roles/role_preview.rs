@@ -47,10 +47,16 @@ struct PreviewChannelDto {
     /// The role's effective bits in this channel; VIEW_CHANNEL is always among them.
     permissions: i64,
     restricted: bool,
+    /// Whether the channel has a board now (decision 0139).
+    canvas_enabled: bool,
+    /// Whether the channel has a call.
+    voice_enabled: bool,
 }
 
 impl PreviewChannelDto {
     fn new(channel: Channel, permissions: Permissions, restricted: bool) -> Self {
+        let canvas_enabled = channel.canvas_open();
+        let voice_enabled = channel.hosts_call();
         Self {
             id: channel.id.to_string(),
             name: channel.name,
@@ -59,6 +65,8 @@ impl PreviewChannelDto {
             category_id: channel.category_id.map(|id| id.to_string()),
             permissions: permissions.bits(),
             restricted,
+            canvas_enabled,
+            voice_enabled,
         }
     }
 }

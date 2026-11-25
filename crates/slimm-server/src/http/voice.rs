@@ -125,16 +125,14 @@ impl From<RoomToken> for TokenResponse {
     }
 }
 
-/// The channel itself, refused unless it can host a call: a voice channel, or a direct message
+/// The channel itself, refused unless it can host a call: a voice channel, a canvas channel with its call on, or a direct message
 /// (whose permissions already limit it to its parties). A text channel or thread has no room.
 async fn callable_channel(state: &AppState, channel_id: ChannelId) -> Result<Channel, ApiError> {
     state
         .store
         .channel(channel_id)
         .await?
-        .filter(|c| {
-            c.parent_message_id.is_none() && matches!(c.kind.as_str(), "voice" | DM_CHANNEL_KIND)
-        })
+        .filter(|c| c.hosts_call() || c.parent_message_id.is_none() && c.kind == DM_CHANNEL_KIND)
         .ok_or(ApiError::BadRequest("that channel has no voice room"))
 }
 
@@ -174,6 +172,11 @@ async fn token(
     }
 
     let channel = callable_channel(&state, channel_id).await?;
+    // The draw grant follows the board, so a closed one hands out no data channel.
+    let permissions = match channel.canvas_open() {
+        true => permissions,
+        false => permissions.remove(Permissions::USE_CANVAS),
+    };
     self::voice_rooms::check_join(&state, &channel, ctx.user_id).await?;
     super::module_hooks::check_permission(
         &state,

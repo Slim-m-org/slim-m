@@ -36,9 +36,14 @@ async fn room() -> (Room, support::TestDbGuard) {
     let (store, guard) = support::new_store("slimm-canvas-watch").await;
     let (alice_ticket, alice_id) = user_ticket_and_id(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
-    let channel = store.list_channels().await.unwrap()[0].id.to_string();
+    let channel = store
+        .create_channel("board", "canvas")
+        .await
+        .unwrap()
+        .id
+        .to_string();
     let other = store
-        .create_channel("second-canvas", "text")
+        .create_channel("second-canvas", "canvas")
         .await
         .unwrap()
         .id

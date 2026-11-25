@@ -32,7 +32,7 @@ async fn a_viewer_with_both_bits_receives_the_cursor() {
     let (store, _guard) = support::new_store("slimm-canvas-cursor-live").await;
     let (alice_ticket, alice_id) = user_ticket_and_id(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
-    let channel = store.list_channels().await.unwrap()[0].id;
+    let channel = store.create_channel("board", "canvas").await.unwrap().id;
     let (bob_ticket, _bob_id) = user_ticket_and_id(&store, "bob").await;
 
     let state = support::app::builder(store.clone()).hub(Hub::new()).build();
@@ -55,7 +55,7 @@ async fn a_pointer_leaving_the_canvas_is_relayed() {
     let (store, _guard) = support::new_store("slimm-canvas-cursor-live").await;
     let (alice_ticket, alice_id) = user_ticket_and_id(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
-    let channel = store.list_channels().await.unwrap()[0].id;
+    let channel = store.create_channel("board", "canvas").await.unwrap().id;
     let (bob_ticket, _bob_id) = user_ticket_and_id(&store, "bob").await;
 
     let state = support::app::builder(store.clone()).hub(Hub::new()).build();
@@ -84,7 +84,7 @@ async fn a_spectator_without_use_canvas_still_sees_a_cursor() {
     let (store, _guard) = support::new_store("slimm-canvas-cursor-live").await;
     let (alice_ticket, alice_id) = user_ticket_and_id(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
-    let channel = store.list_channels().await.unwrap()[0].id;
+    let channel = store.create_channel("board", "canvas").await.unwrap().id;
 
     let (carol_ticket, carol_id) = user_ticket_and_id(&store, "carol").await;
     store
@@ -116,7 +116,7 @@ async fn a_hidden_users_cursor_reaches_a_viewer_of_the_same_canvas() {
     let (store, _guard) = support::new_store("slimm-canvas-cursor-live").await;
     let (alice_ticket, alice_id) = user_ticket_and_id(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
-    let channel = store.list_channels().await.unwrap()[0].id;
+    let channel = store.create_channel("board", "canvas").await.unwrap().id;
     store
         .set_presence_visibility(alice_id, Visibility::Hidden)
         .await
@@ -142,7 +142,7 @@ async fn an_out_of_bounds_cursor_is_dropped() {
     let (store, _guard) = support::new_store("slimm-canvas-cursor-live").await;
     let (alice_ticket, alice_id) = user_ticket_and_id(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
-    let channel = store.list_channels().await.unwrap()[0].id;
+    let channel = store.create_channel("board", "canvas").await.unwrap().id;
     let (bob_ticket, _bob_id) = user_ticket_and_id(&store, "bob").await;
 
     let state = support::app::builder(store.clone()).hub(Hub::new()).build();
@@ -173,7 +173,7 @@ async fn cursor_frames_are_rate_limited() {
     let mut channel_ids = Vec::new();
     for i in 0..60 {
         let channel = store
-            .create_channel(&format!("canvas-cursor-rl-{i}"), "text")
+            .create_channel(&format!("canvas-cursor-rl-{i}"), "canvas")
             .await
             .unwrap();
         channel_ids.push(channel.id.to_string());

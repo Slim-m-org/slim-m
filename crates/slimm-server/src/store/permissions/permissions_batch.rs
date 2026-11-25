@@ -95,7 +95,7 @@ impl Store {
             timeout.union(gate.deny_in(Some(requested)))
         };
 
-        if channel.kind == super::super::dms::DM_CHANNEL_KIND {
+        if channel.kind == super::super::DM_CHANNEL_KIND {
             let Some(participants) = self.dm_participants(channel_id).await? else {
                 return Ok(Vec::new());
             };

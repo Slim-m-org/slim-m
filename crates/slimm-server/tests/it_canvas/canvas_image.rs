@@ -41,8 +41,14 @@ async fn register(store: &Store, username: &str) -> (String, UserId) {
     (tokens.access_token, account.id)
 }
 
+/// The deployment's one canvas channel, made on first use: the seeded general channel has no board.
+/// The one canvas channel, made on first use: the seeded general channel has no board.
 async fn general(store: &Store) -> ChannelId {
-    store.list_channels().await.unwrap()[0].id
+    let channels = store.list_channels().await.unwrap();
+    match channels.iter().find(|c| c.kind == "canvas") {
+        Some(channel) => channel.id,
+        None => store.create_channel("board", "canvas").await.unwrap().id,
+    }
 }
 
 fn id() -> String {
@@ -312,5 +318,113 @@ async fn an_attachment_that_is_not_a_picture_cannot_be_placed_as_an_image() {
     assert_eq!(
         body["error"],
         "an image object must name a picture attachment"
+    );
+}
+
+async fn fetch_status(app: &Router, attachment: &str, token: &str) -> StatusCode {
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("/attachments/{attachment}"))
+                .header("authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap()
+        .status()
+}
+
+async fn set_canvas(store: &Store, channel: ChannelId, on: bool) {
+    store
+        .update_channel_settings(
+            channel,
+            slimm_server::store::ChannelPatch {
+                canvas_enabled: Some(on),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap()
+        .unwrap();
+}
+
+/// A hidden board's images are not fetchable on its account, and are again once it reopens (decision 0139).
+#[tokio::test]
+async fn a_hidden_boards_image_is_not_fetchable_until_the_board_reopens() {
+    let (store, _pool, _guard) = new_store_and_pool().await;
+    let (root_token, _root_id) = register(&store, "root").await;
+    let channel = support::canvas::BoardChannels::create_voice_with_canvas(&store, "call")
+        .await
+        .unwrap()
+        .id;
+    let app = app(store.clone());
+    let (bob_token, _bob_id) = register(&store, "bob").await;
+    let attachment = upload(&app, &root_token).await;
+    let (status, body) = post_json(
+        &app,
+        &format!("/channels/{channel}/canvas/objects"),
+        &root_token,
+        image(&attachment),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{body}");
+    assert_eq!(
+        fetch_status(&app, &attachment, &bob_token).await,
+        StatusCode::OK
+    );
+
+    set_canvas(&store, channel, false).await;
+    assert_ne!(
+        fetch_status(&app, &attachment, &bob_token).await,
+        StatusCode::OK
+    );
+
+    set_canvas(&store, channel, true).await;
+    assert_eq!(
+        fetch_status(&app, &attachment, &bob_token).await,
+        StatusCode::OK
+    );
+}
+
+/// A message that carries the same image keeps it fetchable whatever the board does.
+#[tokio::test]
+async fn an_image_also_on_a_message_stays_fetchable_when_the_board_is_hidden() {
+    let (store, _pool, _guard) = new_store_and_pool().await;
+    let (root_token, root_id) = register(&store, "root").await;
+    let voice = support::canvas::BoardChannels::create_voice_with_canvas(&store, "call")
+        .await
+        .unwrap()
+        .id;
+    let app = app(store.clone());
+    let (bob_token, _bob_id) = register(&store, "bob").await;
+    let attachment = upload(&app, &root_token).await;
+    let (status, body) = post_json(
+        &app,
+        &format!("/channels/{voice}/canvas/objects"),
+        &root_token,
+        image(&attachment),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{body}");
+    store
+        .send_message(NewMessage {
+            channel_id: voice,
+            author_id: root_id,
+            id: slimm_server::ids::MessageId::generate(),
+            content: "look",
+            attachment_ids: &[slimm_server::media::from_hex(&attachment).unwrap()],
+            spoiler_ids: &[],
+            reply_to_id: None,
+            forward: None,
+        })
+        .await
+        .unwrap();
+
+    set_canvas(&store, voice, false).await;
+    assert_eq!(
+        fetch_status(&app, &attachment, &bob_token).await,
+        StatusCode::OK
     );
 }

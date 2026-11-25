@@ -24,11 +24,14 @@ use axum::middleware::from_fn;
 use axum::routing::{get, patch, post};
 use serde::Deserialize;
 
+use self::channel_discard::discard_hidden_canvas;
 pub(crate) use self::channel_dto::ChannelDto;
 use self::channel_slow_mode::validate_slow_mode_seconds;
+use self::channel_update_checks::KindSensitive;
 use self::channel_validation::{
-    JOIN_MUTED_VOICE_ONLY, ROOMS_VOICE_ONLY, validate_channel_name, validate_channel_topic,
-    validate_default_notification, validate_user_limit,
+    CreateFlags, canvas_enabled_at_create, validate_channel_name, validate_channel_topic,
+    validate_create_kind, validate_default_notification, validate_user_limit,
+    voice_enabled_at_create,
 };
 use super::AppState;
 use super::category_sight::CategorySight;
@@ -45,12 +48,14 @@ use crate::store::{
 };
 use crate::voice::VoiceError;
 
+pub(super) mod channel_discard;
 pub(super) mod channel_dto;
 pub(super) mod channel_notification_prefs;
 pub(super) mod channel_order;
 pub(super) mod channel_permissions;
 pub(super) mod channel_retention;
 pub(super) mod channel_slow_mode;
+pub(super) mod channel_update_checks;
 pub(super) mod channel_validation;
 
 const CHANNEL_BODY_LIMIT: usize = 4 * 1024;
@@ -72,7 +77,7 @@ struct CreateRequest {
     /// Absent means the server mints one and this is always a fresh create.
     id: Option<String>,
     name: String,
-    /// "text" or "voice"; defaults to text.
+    /// "text", "voice" or "canvas"; defaults to text.
     kind: Option<String>,
     /// The rail section to file this channel under, or absent for
     /// uncategorised. Lets a client create straight into the category a
@@ -99,6 +104,12 @@ struct CreateRequest {
     /// True creates a voice lobby that makes a room per person (decision 0065).
     #[serde(default)]
     creates_rooms: Option<bool>,
+    /// Voice only: whether the call has a board. Absent means on, so a client that never heard of it keeps today's channel.
+    #[serde(default)]
+    canvas_enabled: Option<bool>,
+    /// Canvas only: whether the board has a call. Absent means off.
+    #[serde(default)]
+    voice_enabled: Option<bool>,
     /// The notification level members get here until they choose their own.
     /// Absent means `everything`. Needs MANAGE_CHANNELS like the rest of create.
     #[serde(default)]
@@ -135,6 +146,16 @@ struct UpdateChannelRequest {
     /// Voice only: the most people in the call, 0 for no limit.
     #[serde(default)]
     user_limit: Option<i64>,
+    /// Voice only: whether the call has a board. Turning it off hides the board and deletes nothing.
+    #[serde(default)]
+    canvas_enabled: Option<bool>,
+    /// Canvas only: whether the board has a call. Turning it off ends the call.
+    #[serde(default)]
+    voice_enabled: Option<bool>,
+    /// Voice only, while the canvas is off: removes everything on the hidden board, locked objects too.
+    /// Needs `MANAGE_CANVAS` here as well. `false` means absent.
+    #[serde(default)]
+    discard_canvas: Option<bool>,
 }
 
 /// Lists the channels the caller can view. One batched store call: the
@@ -192,15 +213,15 @@ async fn create(
 
     let name = validate_channel_name(&req.name)?;
     let kind = req.kind.as_deref().unwrap_or("text");
-    if !matches!(kind, "text" | "voice") {
-        return Err(ApiError::BadRequest("kind must be text or voice"));
-    }
-    if req.join_muted == Some(true) && kind != "voice" {
-        return Err(ApiError::BadRequest(JOIN_MUTED_VOICE_ONLY));
-    }
-    if req.creates_rooms == Some(true) && kind != "voice" {
-        return Err(ApiError::BadRequest(ROOMS_VOICE_ONLY));
-    }
+    validate_create_kind(
+        kind,
+        &CreateFlags {
+            join_muted: req.join_muted,
+            creates_rooms: req.creates_rooms,
+            canvas_enabled: req.canvas_enabled,
+            voice_enabled: req.voice_enabled,
+        },
+    )?;
     let default_notification = req
         .default_notification
         .as_deref()
@@ -250,6 +271,8 @@ async fn create(
             ChannelDefaults {
                 join_muted: req.join_muted == Some(true),
                 creates_rooms: req.creates_rooms == Some(true),
+                canvas_enabled: canvas_enabled_at_create(kind, req.canvas_enabled),
+                voice_enabled: voice_enabled_at_create(kind, req.voice_enabled),
                 notification: default_notification,
             },
         )
@@ -334,6 +357,7 @@ async fn update(
         .as_deref()
         .map(validate_default_notification)
         .transpose()?;
+    let kind_sensitive = KindSensitive::of(&req, user_limit);
     if name.is_none()
         && topic.is_none()
         && slow_mode_seconds.is_none()
@@ -341,44 +365,43 @@ async fn update(
         && default_notification.is_none()
         && req.creates_rooms.is_none()
         && user_limit.is_none()
+        && !kind_sensitive.toggles()
     {
         return Err(ApiError::BadRequest("nothing to update"));
     }
-    let makes_rooms = req.creates_rooms == Some(true);
-    let limits = user_limit.is_some_and(|limit| limit > 0);
-    if req.join_muted == Some(true) || makes_rooms || limits {
+    if kind_sensitive.needs_channel() {
         let current = state
             .store
             .channel(channel_id)
             .await?
             .ok_or(ApiError::NotFound("channel not found"))?;
-        if current.kind != "voice" && req.join_muted == Some(true) {
-            return Err(ApiError::BadRequest(JOIN_MUTED_VOICE_ONLY));
-        }
-        if (makes_rooms || limits) && current.kind != "voice"
-            || makes_rooms && current.room.is_room()
-        {
-            return Err(ApiError::BadRequest(ROOMS_VOICE_ONLY));
-        }
+        kind_sensitive.check(&state, ctx.user_id, &current).await?;
     }
 
-    let channel = state
-        .store
-        .update_channel_settings(
-            channel_id,
-            ChannelPatch {
-                name,
-                topic: topic.as_ref().map(|t| t.as_deref()),
-                slow_mode_seconds,
-                join_muted: req.join_muted,
-                default_notification,
-                creates_rooms: req.creates_rooms,
-                user_limit,
-                room_locked: None,
-            },
-        )
-        .await?
-        .ok_or(ApiError::NotFound("channel not found"))?;
+    let patch = ChannelPatch {
+        name,
+        topic: topic.as_ref().map(|t| t.as_deref()),
+        slow_mode_seconds,
+        join_muted: req.join_muted,
+        default_notification,
+        creates_rooms: req.creates_rooms,
+        user_limit,
+        room_locked: None,
+        canvas_enabled: req.canvas_enabled,
+        voice_enabled: req.voice_enabled,
+    };
+    let channel = if kind_sensitive.discard {
+        discard_hidden_canvas(&state, channel_id, patch, ctx.user_id).await?
+    } else {
+        state
+            .store
+            .update_channel_settings(channel_id, patch)
+            .await?
+            .ok_or(ApiError::NotFound("channel not found"))?
+    };
+    if req.voice_enabled == Some(false) {
+        end_voice_room(&state, channel_id).await;
+    }
     let restricted = state.store.channel_restricted(channel_id).await?;
     state
         .hub

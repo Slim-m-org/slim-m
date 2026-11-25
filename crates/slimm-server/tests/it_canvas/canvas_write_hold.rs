@@ -36,7 +36,7 @@ async fn seeded(count: usize) -> (Store, SqlitePool, ChannelId, String, support:
     };
     let pool = db::connect(&config).await.expect("connect + migrate");
     let store = Store::new(pool.clone());
-    let channel = store.create_channel("canvas", "voice").await.unwrap().id;
+    let channel = store.create_channel("canvas", "canvas").await.unwrap().id;
     let b = channel.0.as_bytes();
     let key = i64::from(b[13]) << 16 | i64::from(b[14]) << 8 | i64::from(b[15]);
     let filler = "x".repeat(PROPS_BYTES);

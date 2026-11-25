@@ -17,6 +17,7 @@ mod admin_recovery;
 mod bots;
 mod connectors;
 mod content;
+mod content_channel_kinds;
 mod content_dm_calls;
 mod content_emoji;
 mod content_group_dm_calls;
