@@ -79,7 +79,7 @@ class _ScreenAnnotateLayerState extends ConsumerState<ScreenAnnotateLayer>
   late final ScreenAnnotationFeed _feed = ref.read(
     screenAnnotationFeedProvider,
   );
-  late final Ticker _ticker = createTicker((_) => _frame.value++);
+  late final Ticker _ticker = createTicker(_onFrame);
   final _frame = ValueNotifier<int>(0);
   final _noteText = TextEditingController();
   ScreenAnnotateTool? _tool;
@@ -106,7 +106,7 @@ class _ScreenAnnotateLayerState extends ConsumerState<ScreenAnnotateLayer>
       _sender?.dispose();
       _sender = null;
       _shapeStart = null;
-      _pendingNote = null;
+      _dropPendingNote();
     }
     if (old.zoom == widget.zoom) return;
     old.zoom?.removeListener(_onFeed);
@@ -122,6 +122,12 @@ class _ScreenAnnotateLayerState extends ConsumerState<ScreenAnnotateLayer>
     _noteText.dispose();
     _sender?.dispose();
     super.dispose();
+  }
+
+  void _onFrame(Duration _) {
+    _frame.value++;
+    // Marks fade on the clock without a feed event, so the last one's expiry is seen here.
+    if (_feed.marksFor(widget.sharerId).isEmpty) _onFeed();
   }
 
   void _onFeed() {
@@ -183,8 +189,13 @@ class _ScreenAnnotateLayerState extends ConsumerState<ScreenAnnotateLayer>
     _sender = null;
     setState(() {
       _tool = tool;
-      _pendingNote = null;
+      _dropPendingNote();
     });
+  }
+
+  void _dropPendingNote() {
+    _pendingNote = null;
+    _noteText.clear();
   }
 
   ScreenAnnotationSender _newSender() {
@@ -423,7 +434,7 @@ class _ScreenAnnotateLayerState extends ConsumerState<ScreenAnnotateLayer>
           if (event.logicalKey != LogicalKeyboardKey.escape) {
             return KeyEventResult.ignored;
           }
-          setState(() => _pendingNote = null);
+          setState(_dropPendingNote);
           return KeyEventResult.handled;
         },
         child: AppInput(
