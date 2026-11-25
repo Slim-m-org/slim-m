@@ -18,6 +18,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../support/async_wait.dart';
 import 'composer_harness.dart';
 
 final _bytes = Uint8List.fromList([1, 2, 3, 4]);
@@ -95,11 +96,15 @@ void main() {
         clipboardPaste: clipboardPaste,
       ),
     );
-    await tester.tap(find.byType(TextField));
+    await tester.tap(find.byWidgetPredicate((w) => w is TextField));
     await tester.pump();
 
     clipboardPaste.pasteFiles([_Pasted('report.pdf'), _Pasted('bundle.zip')]);
-    await tester.pumpAndSettle();
+    await waitUntil(
+      tester,
+      () => find.text('bundle.zip').evaluate().isNotEmpty,
+    );
+    await tester.pump();
 
     expect(find.text('report.pdf'), findsOneWidget);
     expect(find.text('bundle.zip'), findsOneWidget);
