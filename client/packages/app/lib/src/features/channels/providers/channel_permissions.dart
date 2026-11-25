@@ -16,8 +16,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
 
 import '../../../providers/providers.dart';
-import '../../messages/providers/attachment_bytes.dart'
-    show isTransientAttachmentFailure;
 
 /// The caller's raw effective bitmask in [channelId], fetched fresh on every
 /// watch the same way `invitesProvider`/`rolesProvider` are: nothing here is
@@ -34,7 +32,7 @@ final channelPermissionsProvider = FutureProvider.autoDispose
       try {
         return await ref.watch(apiProvider).getChannelPermissions(channelId);
       } catch (error) {
-        if (isTransientAttachmentFailure(error)) _retryLater(ref);
+        if (_passesByItself(error)) _retryLater(ref);
         rethrow;
       }
     });
@@ -42,6 +40,14 @@ final channelPermissionsProvider = FutureProvider.autoDispose
 /// How long a failed permissions fetch waits before it is asked again.
 @visibleForTesting
 var channelPermissionsRetryDelay = const Duration(seconds: 5);
+
+/// A refusal or a missing channel is the server's answer; only a failure of the road to it is asked again.
+bool _passesByItself(Object error) => switch (error) {
+  TransportException() || UnavailableException() => true,
+  RateLimitedException() => true,
+  ServerException(:final statusCode) => statusCode >= 500,
+  _ => false,
+};
 
 void _retryLater(Ref ref) {
   final timer = Timer(channelPermissionsRetryDelay, ref.invalidateSelf);
