@@ -6,5 +6,5 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 enum ScreenAnnotateTool { pen, ellipse, note, stamp }
 
-final screenAnnotateToolProvider =
-    StateProvider.family<ScreenAnnotateTool?, String>((ref, sharerId) => null);
+final screenAnnotateToolProvider = StateProvider.autoDispose
+    .family<ScreenAnnotateTool?, String>((ref, sharerId) => null);

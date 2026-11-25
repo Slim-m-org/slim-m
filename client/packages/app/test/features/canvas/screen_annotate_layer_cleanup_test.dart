@@ -57,7 +57,7 @@ class _Rig {
     ),
   );
 
-  Future<void> pump() async {
+  Future<void> pump({bool shared = false, bool mounted = true}) async {
     tester.view.physicalSize = const Size(1280, 800);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -73,14 +73,16 @@ class _Rig {
         ],
         child: MaterialApp(
           theme: buildTheme(Brightness.light, AppTokens.light),
-          home: const Scaffold(
+          home: Scaffold(
             body: Stack(
               children: [
-                ScreenAnnotateLayer(
-                  sharerId: 'sharer',
-                  sharerName: 'Ada',
-                  tileRect: _tile,
-                ),
+                if (mounted)
+                  ScreenAnnotateLayer(
+                    sharerId: 'sharer',
+                    sharerName: 'Ada',
+                    tileRect: _tile,
+                    shareToolState: shared,
+                  ),
               ],
             ),
           ),
@@ -131,6 +133,26 @@ void main() {
     await tester.pump();
 
     expect(find.text('never sent'), findsNothing);
+    semantics.dispose();
+  });
+
+  testWidgets('a new share from the same sharer starts with the pen down', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    final rig = _Rig(tester);
+    await rig.pump(shared: true);
+    rig.handle('sharer', 'consent');
+    await tester.pump();
+    await tester.tap(find.bySemanticsLabel("Draw on Ada's screen"));
+    await tester.pump();
+    expect(find.bySemanticsLabel('Stop drawing on the screen'), findsOneWidget);
+
+    await rig.pump(shared: true, mounted: false);
+    await rig.pump(shared: true);
+
+    expect(find.bySemanticsLabel('Stop drawing on the screen'), findsNothing);
+    expect(find.bySemanticsLabel("Draw on Ada's screen"), findsOneWidget);
     semantics.dispose();
   });
 }
