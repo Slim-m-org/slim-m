@@ -140,8 +140,41 @@ class CanvasEdgeGesture {
   void hover(Offset world) {
     if (active) return;
     final mouse = document.lastPointerKind == PointerDeviceKind.mouse;
-    _hovered = mouse && _supported ? _objectAt(world) : null;
+    _hovered = mouse && _supported ? _hoverAt(world) : null;
     syncDots();
+  }
+
+  /// The hovered object holds on while the pointer is within a dot's reach, so a dot's outer half does not hide it.
+  String? _hoverAt(Offset world) {
+    final held = _hovered;
+    final box = held == null ? null : _edges.boxOf(held);
+    final holds =
+        box != null &&
+        holdsSideDots(box, world, zoom: document.camera.zoom, touch: touch());
+    return holds ? held : _objectAt(world) ?? _dotReachAt(world);
+  }
+
+  /// The object whose dot is nearest [world], among those with a dot in reach, so a dot is found from outside the object.
+  String? _dotReachAt(Offset world) {
+    final zoom = document.camera.zoom;
+    String? nearest;
+    var nearestDistance = double.infinity;
+    for (final id in document.visibleIdsInReadingOrder()) {
+      if (!_attachable.contains(document.kindOf(id))) continue;
+      final box = _edges.boxOf(id);
+      if (box == null ||
+          !holdsSideDots(box, world, zoom: zoom, touch: touch())) {
+        continue;
+      }
+      for (final dot in sideDots(box).values) {
+        final distance = (dot - world).distance;
+        if (distance < nearestDistance) {
+          nearest = id;
+          nearestDistance = distance;
+        }
+      }
+    }
+    return nearest;
   }
 
   bool get picking => _edges.connectFrom.value != null;

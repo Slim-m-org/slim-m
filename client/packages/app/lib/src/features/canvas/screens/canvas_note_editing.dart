@@ -33,6 +33,7 @@ class CanvasNoteEditing {
     required this.focusBoard,
     required this.spectating,
     required this.currentTool,
+    required this.onEscaped,
   });
 
   final CanvasEngine engine;
@@ -45,6 +46,9 @@ class CanvasNoteEditing {
   final VoidCallback focusBoard;
   final bool Function() spectating;
   final CanvasTool Function() currentTool;
+
+  /// Runs after Escape cancels the edit.
+  final VoidCallback onEscaped;
 
   CanvasNoteEditSession? session;
 
@@ -281,7 +285,10 @@ class CanvasNoteEditing {
               session: open,
               palette: canvasNotePalette(tokens),
               onCommit: (text) => unawaited(commit(text)),
-              onCancel: cancel,
+              onCancel: () {
+                cancel();
+                onEscaped();
+              },
               onGone: gone,
             ),
           ?textEditor,

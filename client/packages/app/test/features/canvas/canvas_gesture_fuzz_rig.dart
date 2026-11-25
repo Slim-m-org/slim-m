@@ -250,6 +250,7 @@ class FuzzRig {
     required bool phone,
     List<Map<String, dynamic>>? board,
     Duration placeDelay = Duration.zero,
+    List<Override> overrides = const [],
   }) async {
     tester.view.physicalSize = phone
         ? const Size(390, 844)
@@ -261,6 +262,7 @@ class FuzzRig {
     final frames = RecordedFrames();
     final container = fixture.container(
       extraOverrides: [
+        ...overrides,
         syncControllerProvider.overrideWith(
           (ref) => _RecordingSync(ref, frames),
         ),

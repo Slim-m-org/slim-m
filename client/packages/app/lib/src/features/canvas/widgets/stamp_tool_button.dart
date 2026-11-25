@@ -54,7 +54,9 @@ class StampToolButton extends ConsumerWidget {
               bottom: 0,
               width: _sampleSide,
               height: _sampleSide,
-              child: IgnorePointer(child: StampView(content: armed)),
+              child: IgnorePointer(
+                child: StampView(content: armed, animate: active),
+              ),
             ),
         ],
       ),

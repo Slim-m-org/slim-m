@@ -57,6 +57,16 @@ EdgeSide? sideDotAt(
   return best;
 }
 
+/// Whether a pointer at [world] still counts as over [box]'s dots, on a dot's outer half too, so the dots stay while it travels onto one.
+bool holdsSideDots(
+  Rect box,
+  Offset world, {
+  required double zoom,
+  bool touch = false,
+}) =>
+    box.contains(world) ||
+    sideDotAt(box, world, zoom: zoom, touch: touch) != null;
+
 /// The side of [box] a pointer at [world] is nearest, for snapping a release near an object.
 EdgeSide nearestSide(Rect box, Offset world) => facingSide(box, world);
 

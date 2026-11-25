@@ -105,6 +105,7 @@ extension _CanvasPaneHelpers on _CanvasPaneState {
     focusBoard: _boardFocusNode.requestFocus,
     spectating: () => _spectating,
     currentTool: () => _tool,
+    onEscaped: _putToolDown,
   );
 
   /// Tells the places that size a note how the board lays its text out.

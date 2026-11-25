@@ -105,6 +105,8 @@ void main() {
     await placeWithTool(tester, const Offset(150, 150));
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyT);
+    await tester.pump();
     final again = await tester.startGesture(
       screenFor(tester, const Offset(150, 150)),
     );
@@ -117,7 +119,7 @@ void main() {
     expect(fixture.posted, isEmpty);
   });
 
-  testWidgets('Escape cancels a new text box and keeps the tool armed', (
+  testWidgets('Escape cancels a new text box and puts the tool down', (
     tester,
   ) async {
     final fixture = await openPane(tester);
@@ -129,13 +131,13 @@ void main() {
 
     expect(field, findsNothing);
     expect(fixture.posted, isEmpty);
-    final text = tester.widget<AppIconButton>(
+    final pan = tester.widget<AppIconButton>(
       find.ancestor(
-        of: find.bySemanticsLabel('Text'),
+        of: find.bySemanticsLabel('Pan'),
         matching: find.byWidgetPredicate((w) => w is AppIconButton),
       ),
     );
-    expect(text.active, isTrue, reason: 'the editor took the press');
+    expect(pan.active, isTrue, reason: 'one press ends the edit and the tool');
   });
 
   testWidgets('Ctrl+Enter saves the text box', (tester) async {
@@ -217,6 +219,7 @@ void main() {
     await openPane(tester);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.keyT);
+    await tester.pump();
     await tester.pump();
     final gesture = await tester.startGesture(
       screenFor(tester, const Offset(150, 150)),
