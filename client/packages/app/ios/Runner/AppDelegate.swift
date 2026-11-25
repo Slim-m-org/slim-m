@@ -45,7 +45,7 @@ import UserNotifications
   private var soundClipChannel: FlutterMethodChannel?
   private var clipboardImageChannel: FlutterMethodChannel?
   private var appLockWindowChannel: FlutterMethodChannel?
-  private let voiceCallChannel = VoiceCallChannel()
+  private var voiceCallChannel: VoiceCallChannel?
   private var voipRegistrar: VoipPushRegistrar?
   private var cachedVoipTokenHex: String?
 
@@ -110,6 +110,9 @@ import UserNotifications
     }
     registrar.onCallEvent = { [weak self] event in self?.deliverCallKitEvent(event) }
     voipRegistrar = registrar
+    let channel = VoiceCallChannel(provider: registrar.provider)
+    registrar.outgoing = channel.lifecycle
+    voiceCallChannel = channel
   }
 
   /// An answer can land before Dart exists to hear it, so events are held until
@@ -218,7 +221,7 @@ import UserNotifications
       self?.clipboardImageChannel?.invokeMethod("pastedImage", arguments: pngData)
     }
 
-    voiceCallChannel.attach(to: messenger)
+    voiceCallChannel?.attach(to: messenger)
     installNotificationTapObserver()
   }
 

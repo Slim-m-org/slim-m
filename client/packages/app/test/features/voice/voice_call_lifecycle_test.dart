@@ -17,6 +17,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
+
 import 'voice_controller_harness.dart';
 
 const _channelName = 'top.npcserver.slimm/call_lifecycle';
@@ -173,4 +175,92 @@ void main() {
 
     expect(calls.single.arguments, {'callId': 'channel-1'});
   });
+
+  Future<void> nativeCall(String method, Object? arguments) =>
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .handlePlatformMessage(
+            _channelName,
+            const StandardMethodCodec().encodeMethodCall(
+              MethodCall(method, arguments),
+            ),
+            (_) {},
+          );
+
+  Future<VoiceController> connectedCall(
+    FakeSession session,
+    CallLifecycleChannel lifecycle,
+  ) async {
+    final controller = harness.controllerWith(
+      session,
+      voiceApi(),
+      callLifecycle: lifecycle,
+    );
+    unawaited(controller.join('channel-1'));
+    await Future<void>.delayed(Duration.zero);
+    session.emitState(VoiceSessionState.connecting);
+    session.emitState(VoiceSessionState.connected);
+    await Future<void>.delayed(Duration.zero);
+    return controller;
+  }
+
+  test('muting from the system call screen mutes the microphone', () async {
+    final (:lifecycle, :calls) = iosLifecycle();
+    final controller = await connectedCall(FakeSession(), lifecycle);
+    expect(controller.state.microphoneEnabled, isTrue);
+
+    await nativeCall('muteRequest', {'muted': true});
+    await Future<void>.delayed(Duration.zero);
+
+    expect(controller.state.microphoneEnabled, isFalse);
+  });
+
+  test('a system unmute while already live changes nothing', () async {
+    final (:lifecycle, :calls) = iosLifecycle();
+    final controller = await connectedCall(FakeSession(), lifecycle);
+
+    await nativeCall('muteRequest', {'muted': false});
+    await Future<void>.delayed(Duration.zero);
+
+    expect(controller.state.microphoneEnabled, isTrue);
+  });
+
+  test('a system mute with no call up is ignored', () async {
+    final (:lifecycle, :calls) = iosLifecycle();
+    final controller = harness.controllerWith(
+      FakeSession(),
+      voiceApi(),
+      callLifecycle: lifecycle,
+    );
+
+    await nativeCall('muteRequest', {'muted': true});
+    await Future<void>.delayed(Duration.zero);
+
+    expect(controller.state.microphoneEnabled, isTrue);
+  });
+
+  test('muting in the app tells the system call screen', () async {
+    final (:lifecycle, :calls) = iosLifecycle();
+    final controller = await connectedCall(FakeSession(), lifecycle);
+    calls.clear();
+
+    await controller.toggleMicrophone();
+    await Future<void>.delayed(Duration.zero);
+
+    expect(calls.map((c) => c.method), ['callMuted']);
+    expect(calls.single.arguments, {'muted': true});
+  });
+
+  test(
+    'a mute that came from the system is told back once, not echoed forever',
+    () async {
+      final (:lifecycle, :calls) = iosLifecycle();
+      await connectedCall(FakeSession(), lifecycle);
+      calls.clear();
+
+      await nativeCall('muteRequest', {'muted': true});
+      await Future<void>.delayed(Duration.zero);
+
+      expect(calls.where((c) => c.method == 'callMuted'), hasLength(1));
+    },
+  );
 }
