@@ -26,26 +26,26 @@ use support::livekit_webhook::webhook_request;
 type Present = Arc<Mutex<Vec<String>>>;
 type Removed = Arc<Mutex<Vec<String>>>;
 
-const API_KEY: &str = "APItestkey";
-const API_SECRET: &str = "a-test-secret-of-at-least-32-characters";
+pub(super) const API_KEY: &str = "APItestkey";
+pub(super) const API_SECRET: &str = "a-test-secret-of-at-least-32-characters";
 
-fn signed_webhook(body: &Value) -> Request<Body> {
+pub(super) fn signed_webhook(body: &Value) -> Request<Body> {
     webhook_request(body.clone(), API_KEY, API_SECRET)
 }
 
-struct World {
-    app: Router,
-    store: Store,
-    voice: VoiceService,
-    hub: Hub,
-    present: Present,
-    removed: Removed,
-    admin: String,
-    admin_id: String,
-    alice: (String, String),
-    bob: (String, String),
-    lobby: String,
-    _guard: support::TestDbGuard,
+pub(super) struct World {
+    pub(super) app: Router,
+    pub(super) store: Store,
+    pub(super) voice: VoiceService,
+    pub(super) hub: Hub,
+    pub(super) present: Present,
+    pub(super) removed: Removed,
+    pub(super) admin: String,
+    pub(super) admin_id: String,
+    pub(super) alice: (String, String),
+    pub(super) bob: (String, String),
+    pub(super) lobby: String,
+    pub(super) _guard: support::TestDbGuard,
 }
 
 /// A LiveKit room service whose participant list is whatever `present` holds.
@@ -98,7 +98,7 @@ async fn session(store: &Store, username: &str) -> (String, String) {
     (token, account.id.to_string())
 }
 
-async fn world(prefix: &str) -> World {
+pub(super) async fn world(prefix: &str) -> World {
     let (path, guard) = support::TestDbGuard::new(prefix);
     let config = Config {
         port: 0,
@@ -154,7 +154,13 @@ async fn world(prefix: &str) -> World {
 }
 
 impl World {
-    async fn call(&self, method: &str, uri: &str, token: &str, body: Value) -> (StatusCode, Value) {
+    pub(super) async fn call(
+        &self,
+        method: &str,
+        uri: &str,
+        token: &str,
+        body: Value,
+    ) -> (StatusCode, Value) {
         let mut builder = Request::builder()
             .method(method)
             .uri(uri)
@@ -176,19 +182,19 @@ impl World {
         )
     }
 
-    async fn open_room(&self, token: &str) -> Value {
+    pub(super) async fn open_room(&self, token: &str) -> Value {
         let uri = format!("/channels/{}/voice/room", self.lobby);
         let (status, room) = self.call("POST", &uri, token, Value::Null).await;
         assert_eq!(status, StatusCode::OK, "{room}");
         room
     }
 
-    async fn token_status(&self, token: &str, channel: &str) -> StatusCode {
+    pub(super) async fn token_status(&self, token: &str, channel: &str) -> StatusCode {
         let uri = format!("/channels/{channel}/voice/token");
         self.call("POST", &uri, token, Value::Null).await.0
     }
 
-    async fn listed(&self, token: &str, channel: &str) -> bool {
+    pub(super) async fn listed(&self, token: &str, channel: &str) -> bool {
         let (_, list) = self.call("GET", "/channels", token, Value::Null).await;
         list.as_array()
             .unwrap()
@@ -196,7 +202,7 @@ impl World {
             .any(|c| c["id"] == json!(channel))
     }
 
-    async fn remove_if_empty(&self, channel: &str) {
+    pub(super) async fn remove_if_empty(&self, channel: &str) {
         let id = ChannelId(channel.parse().unwrap());
         slimm_server::room_cleanup::remove_if_empty(&self.store, &self.voice, &self.hub, id).await;
     }
@@ -345,33 +351,6 @@ async fn a_lock_and_a_limit_turn_away_new_people_but_never_the_owner_or_someone_
 }
 
 #[tokio::test]
-async fn an_empty_room_is_removed_and_a_busy_one_or_a_plain_channel_is_not() {
-    let w = world("slimm-rooms-cleanup").await;
-    let room = w.open_room(&w.alice.0).await;
-    let id = room["id"].as_str().unwrap().to_owned();
-
-    w.present.lock().unwrap().push(w.bob.1.clone());
-    w.remove_if_empty(&id).await;
-    assert!(w.listed(&w.alice.0, &id).await, "someone is still in it");
-
-    w.present.lock().unwrap().clear();
-    w.remove_if_empty(&w.lobby).await;
-    assert!(
-        w.listed(&w.alice.0, &w.lobby).await,
-        "a lobby is never removed"
-    );
-    w.remove_if_empty(&id).await;
-    assert!(!w.listed(&w.alice.0, &id).await, "the empty room is gone");
-
-    let again = w.open_room(&w.alice.0).await;
-    assert_ne!(
-        again["id"],
-        json!(id),
-        "a fresh room after the old one went"
-    );
-}
-
-#[tokio::test]
 async fn a_room_copies_its_lobbys_audience() {
     let w = world("slimm-rooms-audience").await;
     let (_, roles) = w.call("GET", "/roles", &w.admin, Value::Null).await;
@@ -405,30 +384,6 @@ async fn a_room_copies_its_lobbys_audience() {
         w.call("POST", &uri, &w.bob.0, Value::Null).await.0,
         StatusCode::FORBIDDEN
     );
-}
-
-#[tokio::test]
-async fn the_last_person_leaving_removes_the_room_through_the_webhook() {
-    let w = world("slimm-rooms-webhook").await;
-    let room = w.open_room(&w.alice.0).await;
-    let id = room["id"].as_str().unwrap().to_owned();
-    let left = json!({
-        "event": "participant_left",
-        "room": { "name": format!("channel-{id}") },
-        "participant": { "identity": w.alice.1 },
-    });
-    let status = w
-        .app
-        .clone()
-        .oneshot(signed_webhook(&left))
-        .await
-        .unwrap()
-        .status();
-    assert_eq!(status, StatusCode::NO_CONTENT);
-    support::wait::wait_until_async("the emptied room to leave the list", || async {
-        !w.listed(&w.alice.0, &id).await
-    })
-    .await;
 }
 
 #[tokio::test]
