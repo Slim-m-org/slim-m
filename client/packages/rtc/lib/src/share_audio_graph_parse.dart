@@ -21,11 +21,12 @@ Map<dynamic, dynamic> _props(Map<dynamic, dynamic> object) =>
 
 /// Whether the playback stream with [props] is this app's own.
 ///
-/// A sandbox reports a namespaced pid that need not match ours, so the binary
-/// name, which reads the same inside and out, counts too.
+/// A sandbox numbers pids per namespace, so two apps can share one; there the
+/// binary name alone decides, and outside one the pid does.
 bool _isOwnStream(Map<dynamic, dynamic> props, int processId, String? binary) =>
-    '${props['application.process.id']}' == '$processId' ||
-    (binary != null && props['application.process.binary'] == binary);
+    binary == null
+        ? '${props['application.process.id']}' == '$processId'
+        : props['application.process.binary'] == binary;
 
 /// One `pw-dump` decoded once, which every reader below shares.
 class ShareGraphSnapshot {

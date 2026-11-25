@@ -125,6 +125,7 @@ pub(in crate::http) async fn place_batch(
 /// Fans the placed objects out at once while subscribers keep up, and hands the rest to a
 /// detached paced task once one falls behind, so a max-size batch cannot push it past the
 /// channel capacity and a dropped request cannot strand a commit.
+/// A stuck receiver keeps the backlog high, so each batch can reach viewers up to 2 s late.
 fn publish_paced(hub: crate::hub::Hub, channel_id: ChannelId, objects: Vec<Arc<CanvasObject>>) {
     let mut objects = objects.into_iter();
     while !hub.publish_backlogged() {

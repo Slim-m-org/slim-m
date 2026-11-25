@@ -37,7 +37,7 @@ class FakeShareAudioGraph implements ShareAudioGraph {
   Completer<void>? holdCreate;
   int creates = 0;
   @override
-  String? executableName = 'slimm';
+  String? executableName;
 
   @override
   bool get supported => canDrive;

@@ -94,7 +94,10 @@ def change_status(client, api):
         print('  status changed to do-not-disturb, and the server agrees')
     finally:
         # Later scenarios run as this account and must not inherit do not disturb.
-        api.call('PATCH', '/presence', {'visibility': 'online'})
+        try:
+            api.call('PATCH', '/presence', {'visibility': 'online'})
+        except Exception as restore_error:
+            print(f'  could not restore presence: {restore_error}')
 
 
 def upload_avatar(client, api, path):

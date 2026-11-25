@@ -7,18 +7,14 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_rtc/src/share_audio_isolation.dart';
-
-String _withoutComments(String source) => source
-    .split('\n')
-    .map((l) => l.replaceFirst(RegExp(r'//.*'), ''))
-    .join('\n');
+import 'package:slimm_test_support/source_gates.dart';
 
 void main() {
   test('the runner exports the mix monitor as the share capture source', () {
     final main = File('../app/linux/runner/main.cc').readAsStringSync();
 
     expect(
-      _withoutComments(main),
+      stripComments(main),
       contains('setenv("SLIMM_SHARE_AUDIO_SOURCE", "$shareMixSource", 1);'),
     );
   });
@@ -29,7 +25,7 @@ void main() {
         if (file is File &&
             file.path.endsWith('.dart') &&
             RegExp(r"SLIMM_SHARE_AUDIO_SOURCE")
-                .hasMatch(_withoutComments(file.readAsStringSync())))
+                .hasMatch(stripComments(file.readAsStringSync())))
           file.path,
     ];
 

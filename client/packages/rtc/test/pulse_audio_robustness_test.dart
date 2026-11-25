@@ -43,6 +43,22 @@ void main() {
     expect(await started.single.exitCode, isNot(0));
   });
 
+  test('a killed pactl with undecodable output raises no uncaught error',
+      () async {
+    final uncaught = <Object>[];
+    await runZonedGuarded(() async {
+      await runPactlWithin(
+        _sources,
+        within: const Duration(milliseconds: 300),
+        start: (_, __) =>
+            Process.start('sh', ['-c', r"printf '\377\377\n'; sleep 30"]),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+    }, (e, _) => uncaught.add(e));
+
+    expect(uncaught, isEmpty);
+  });
+
   test('a hung device query neither blocks nor is replayed to the next ask',
       () async {
     var calls = 0;

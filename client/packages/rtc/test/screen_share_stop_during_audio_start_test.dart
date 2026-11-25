@@ -60,4 +60,43 @@ void main() {
     expect(shareAudioNote.value, isNull);
     expect(isolation.active, isFalse);
   });
+
+  test('start, stop, start while the first mix is starting keeps the second',
+      () async {
+    final graph = FakeShareAudioGraph()..holdCreate = Completer<void>();
+    final isolation = ShareAudioIsolation(graph: graph);
+    final control = ScreenShareControl(_DesktopBridge(), isolation: isolation);
+    final published = <bool>[];
+    Future<void> publish(
+        bool on, lk.ScreenShareCaptureOptions? o, bool a) async {
+      published.add(on);
+    }
+
+    Future<ScreenShareOutcome> start() => control.setEnabled(
+          true,
+          quality: ScreenShareQuality.standard,
+          includeAudio: true,
+          publish: publish,
+          isSharing: () => published.contains(true),
+          onSettled: (_) {},
+        );
+    final a = start();
+    await Future<void>.delayed(Duration.zero);
+    final b = control.setEnabled(
+      false,
+      quality: ScreenShareQuality.standard,
+      publish: publish,
+      isSharing: () => false,
+      onSettled: (_) {},
+    );
+    await Future<void>.delayed(Duration.zero);
+    final c = start();
+    graph.holdCreate!.complete();
+
+    expect(await a, ScreenShareOutcome.stopped);
+    await b;
+    expect(await c, ScreenShareOutcome.started);
+    expect(isolation.active, isTrue);
+    expect(shareAudioNote.value, isNull);
+  });
 }

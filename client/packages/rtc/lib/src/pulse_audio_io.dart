@@ -82,6 +82,8 @@ Future<ProcessResult> runPactlWithin(
   final process = await start('pactl', args);
   final out = process.stdout.transform(utf8.decoder).join();
   final err = process.stderr.transform(utf8.decoder).join();
+  out.ignore();
+  err.ignore();
   final code = await boundedBy(process.exitCode, within, () {
     process.kill(ProcessSignal.sigkill);
     return pactlTimedOutExit;

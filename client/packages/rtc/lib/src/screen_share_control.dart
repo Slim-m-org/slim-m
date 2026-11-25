@@ -154,7 +154,6 @@ class ScreenShareControl {
           ? await _beginAudio(stopsAtStart)
           : includeAudio;
       if (enabled && stopsAtStart != _stops) {
-        await _isolation?.end();
         return ScreenShareOutcome.stopped;
       }
       try {

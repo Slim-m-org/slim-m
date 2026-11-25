@@ -142,6 +142,18 @@ def merge(shards, names):
     return rows
 
 
+def forgive_all_skipped(shards, codes, rows):
+    """A shard whose every scenario skipped exits 1 alone; that is no failure while another shard ran something."""
+    if not rows:
+        return codes
+    forgiven = []
+    for (env, assigned), code in zip(shards, codes):
+        done = {row["name"]: row for row in read_results(env) or []}
+        skipped = all(done.get(n, {}).get("skipped") for n in assigned)
+        forgiven.append(0 if code and assigned and skipped else code)
+    return forgiven
+
+
 def report(rows, wall, shards, codes):
     failed = [r for r in rows if not r[2]]
     print(f"\n== parallel report: {len(rows)} scenarios on {len(shards)} stacks, "
@@ -223,6 +235,7 @@ def main(argv=None):
         for _, log in procs:
             log.close()
     rows = merge(shards, names)
+    codes = forgive_all_skipped(shards, codes, rows)
     code = report(rows, time.time() - began, shards, codes)
     if args.record and code == 0:
         record_durations(rows)

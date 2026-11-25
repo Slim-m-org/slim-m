@@ -9,7 +9,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
-import 'pulse_audio_io.dart' show subscribePactl;
+import 'pulse_audio_io.dart' show sandboxedExecutableName, subscribePactl;
 import 'pulse_audio_parse.dart' show newSinkInputIndex;
 import 'share_audio_graph.dart';
 
@@ -31,10 +31,7 @@ class PipewireShareGraph implements ShareAudioGraph {
   int get processId => pid;
 
   @override
-  String? get executableName {
-    final name = Platform.resolvedExecutable.split('/').last;
-    return name.isEmpty ? null : name;
-  }
+  String? get executableName => sandboxedExecutableName();
 
   @override
   Future<bool> createMix(String name) async {

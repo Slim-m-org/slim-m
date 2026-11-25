@@ -66,6 +66,30 @@ class ParallelRun(unittest.TestCase):
             merged = par.merge([(env, ["a", "b"])], ["a", "b"])
         self.assertEqual([r[0] for r in merged], ["a"])
 
+    def test_a_shard_that_only_skipped_does_not_fail_the_run(self):
+        envs = [({"E2E_RESULTS": "a"}, ["a"]), ({"E2E_RESULTS": "b"}, ["b opt in"])]
+        by_path = {"a": [{"name": "a", "ok": True, "seconds": 1.0}],
+                   "b": [{"name": "b opt in", "ok": None, "skipped": True, "seconds": 0.0}]}
+        with mock.patch.object(par, "read_results", side_effect=lambda e: by_path[e["E2E_RESULTS"]]):
+            rows = par.merge(envs, ["a", "b opt in"])
+            codes = par.forgive_all_skipped(envs, [0, 1], rows)
+        self.assertEqual(codes, [0, 0])
+
+    def test_a_run_where_every_shard_skipped_still_fails(self):
+        envs = [({"E2E_RESULTS": "b"}, ["b opt in"])]
+        rows_json = [{"name": "b opt in", "ok": None, "skipped": True, "seconds": 0.0}]
+        with mock.patch.object(par, "read_results", return_value=rows_json):
+            rows = par.merge(envs, ["b opt in"])
+            self.assertEqual(par.forgive_all_skipped(envs, [1], rows), [1])
+
+    def test_a_shard_that_failed_a_scenario_keeps_its_code(self):
+        envs = [({"E2E_RESULTS": "a"}, ["a", "b"])]
+        rows_json = [{"name": "a", "ok": False, "seconds": 1.0},
+                     {"name": "b", "ok": None, "skipped": True, "seconds": 0.0}]
+        with mock.patch.object(par, "read_results", return_value=rows_json):
+            rows = par.merge(envs, ["a", "b"])
+            self.assertEqual(par.forgive_all_skipped(envs, [1], rows), [1])
+
 
 if __name__ == "__main__":
     unittest.main()

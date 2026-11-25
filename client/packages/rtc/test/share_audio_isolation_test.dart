@@ -223,11 +223,21 @@ void main() {
   });
 
   test('a sandboxed own stream is excluded by its binary name', () async {
+    graph.executableName = 'slimm';
     graph.streams[50] = '7';
     graph.binaries[50] = 'slimm';
     await isolation.begin();
     expect(graph.links.where((l) => l.$1 ~/ 10 == 50), isEmpty);
     expect(graph.links.where((l) => l.$1 ~/ 10 == 30), isNotEmpty);
+  });
+
+  test('in a sandbox a foreign app reporting our pid stays in the mix',
+      () async {
+    graph.executableName = 'slimm';
+    graph.streams[50] = '$fakeOwnPid';
+    graph.binaries[50] = 'firefox';
+    await isolation.begin();
+    expect(graph.links.where((l) => l.$1 ~/ 10 == 50), isNotEmpty);
   });
 
   test('a stream naming no application is the server\'s plumbing', () {
