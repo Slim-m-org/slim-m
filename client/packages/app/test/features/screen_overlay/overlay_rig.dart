@@ -80,6 +80,9 @@ class FakeOverlay implements ScreenOverlay {
   /// False makes every panel call fail, as a runner whose window is not ready does.
   var panelWorks = true;
 
+  /// When set, each panel send waits here for the test to answer it.
+  List<Completer<bool>>? heldPanels;
+
   @override
   Future<OverlaySupport> support() async => const OverlaySupport.unsupported();
   @override
@@ -123,6 +126,11 @@ class FakeOverlay implements ScreenOverlay {
   @override
   Future<bool> panel(OverlayPanel? panel) async {
     panels.add(panel);
+    if (heldPanels case final held?) {
+      final answer = Completer<bool>();
+      held.add(answer);
+      return answer.future;
+    }
     return panelWorks;
   }
 

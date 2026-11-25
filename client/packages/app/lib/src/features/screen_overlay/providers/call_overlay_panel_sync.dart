@@ -98,10 +98,12 @@ class CallOverlayPanelSync {
     _last = panel;
     _avatarsSent.addAll(pending);
     if (await _window.panel(outgoing) || generation != _generation) return;
-    if (_last == panel) _last = null;
+    final overtaken = _last != panel;
+    _last = null;
     pending.forEach((id, key) {
       if (_avatarsSent[id] == key) _avatarsSent.remove(id);
     });
+    if (overtaken) sync();
   }
 
   /// Follows the shown people's pictures, so one arriving or changing repaints the panel.

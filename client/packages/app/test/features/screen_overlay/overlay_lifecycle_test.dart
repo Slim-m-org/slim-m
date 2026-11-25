@@ -22,10 +22,14 @@ void _settle(FakeAsync async) {
   async.flushMicrotasks();
 }
 
-VoiceParticipant _person(String name, {bool local = false}) => VoiceParticipant(
+VoiceParticipant _person(
+  String name, {
+  bool local = false,
+  bool speaking = false,
+}) => VoiceParticipant(
   identity: name,
   name: name,
-  isSpeaking: false,
+  isSpeaking: speaking,
   isMuted: false,
   isLocal: local,
   isScreenSharing: false,
@@ -106,6 +110,59 @@ void main() {
       );
     });
   });
+
+  test(
+    'a refused send overtaken by a newer one still gets its pictures resent',
+    () {
+      fakeAsync((async) {
+        final rig = OverlayRig(
+          allow: false,
+          callOverlay: true,
+          initial: VoiceState(
+            channelId: 'call',
+            state: VoiceSessionState.connected,
+            participants: [_person('me', local: true), _person('web')],
+          ),
+        );
+        final held = rig.overlay.heldPanels = [];
+        final baseline = rig.overlay.panels.length;
+        rig.setAvatar('web', 1);
+        _settle(async);
+        rig.voice.set(
+          VoiceState(
+            channelId: 'call',
+            state: VoiceSessionState.connected,
+            participants: [
+              _person('me', local: true),
+              _person('web', speaking: true),
+            ],
+          ),
+        );
+        _settle(async);
+        final sent = rig.overlay.panels
+            .skip(baseline)
+            .whereType<OverlayPanel>();
+        final first = sent.toList().indexWhere(
+          (p) => p.rows.any((r) => r.id == 'web' && r.avatar != null),
+        );
+        expect(first, isNot(-1));
+        expect(
+          held.length,
+          greaterThan(first + 1),
+          reason: 'a newer send follows',
+        );
+        for (var i = 0; i < held.length; i++) {
+          held[i].complete(i != first);
+        }
+        _settle(async);
+        final resent = rig.overlay.panels.skip(2).whereType<OverlayPanel>();
+        final carried = resent
+            .expand((p) => p.rows)
+            .where((r) => r.id == 'web');
+        expect(carried.any((r) => r.avatar != null), isTrue);
+      });
+    },
+  );
 
   test('a stamp picture landing after dispose starts no repaint timer', () {
     fakeAsync((async) {
