@@ -51,6 +51,8 @@ std::vector<Binding> g_bindings;
 HWND g_watch_window = nullptr;
 bool g_session_registered = false;
 HANDLE g_hook_thread = nullptr;
+HWINEVENTHOOK g_foreground_hook = nullptr;
+bool g_blocked = false;
 DWORD g_hook_thread_id = 0;
 std::atomic<HWND> g_notify_window{nullptr};
 std::atomic<bool> g_watched_keys[256];
@@ -84,6 +86,12 @@ void Notify(const std::string& id, bool pressed) {
 void NotifyLost() {
   if (!g_channel) return;
   g_channel->InvokeMethod("lost", std::make_unique<EncodableValue>());
+}
+
+void NotifyBlocked(bool blocked) {
+  if (!g_channel) return;
+  g_channel->InvokeMethod("blocked",
+                          std::make_unique<EncodableValue>(blocked));
 }
 
 // Ends every hold the Dart side still believes in, so no key stays "down".
@@ -228,6 +236,66 @@ void StopHookThread() {
   g_hook_thread_id = 0;
 }
 
+/// A process whose token cannot be read is treated as elevated: the OS refuses
+/// exactly the ones this app has no standing over.
+bool ProcessIsElevated(DWORD pid) {
+  HANDLE process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+  if (process == nullptr) return GetLastError() == ERROR_ACCESS_DENIED;
+  HANDLE token = nullptr;
+  bool elevated = false;
+  if (OpenProcessToken(process, TOKEN_QUERY, &token)) {
+    TOKEN_ELEVATION elevation = {};
+    DWORD size = 0;
+    if (GetTokenInformation(token, TokenElevation, &elevation,
+                            sizeof(elevation), &size)) {
+      elevated = elevation.TokenIsElevated != 0;
+    }
+    CloseHandle(token);
+  } else {
+    elevated = GetLastError() == ERROR_ACCESS_DENIED;
+  }
+  CloseHandle(process);
+  return elevated;
+}
+
+/// Windows hides an elevated window's keys from a hook that is not elevated
+/// itself, so the person is told rather than left holding a dead key.
+bool ForegroundIsOutOfReach(HWND window) {
+  static const bool self_elevated = ProcessIsElevated(GetCurrentProcessId());
+  if (self_elevated || window == nullptr) return false;
+  DWORD pid = 0;
+  GetWindowThreadProcessId(window, &pid);
+  if (pid == 0 || pid == GetCurrentProcessId()) return false;
+  return ProcessIsElevated(pid);
+}
+
+void UpdateBlocked(HWND window) {
+  const bool blocked = ForegroundIsOutOfReach(window);
+  if (blocked == g_blocked) return;
+  g_blocked = blocked;
+  NotifyBlocked(blocked);
+}
+
+void CALLBACK ForegroundChanged(HWINEVENTHOOK, DWORD, HWND window, LONG,
+                                LONG, DWORD, DWORD) {
+  UpdateBlocked(window);
+}
+
+void WatchForeground() {
+  if (g_foreground_hook != nullptr) return;
+  g_foreground_hook =
+      SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND,
+                      nullptr, ForegroundChanged, 0, 0, WINEVENT_OUTOFCONTEXT);
+}
+
+void StopWatchingForeground() {
+  if (g_foreground_hook != nullptr) UnhookWinEvent(g_foreground_hook);
+  g_foreground_hook = nullptr;
+  if (!g_blocked) return;
+  g_blocked = false;
+  NotifyBlocked(false);
+}
+
 bool EndsInputSession(WPARAM reason) {
   return reason == WTS_SESSION_LOCK || reason == WTS_CONSOLE_DISCONNECT ||
          reason == WTS_REMOTE_DISCONNECT || reason == WTS_SESSION_LOGOFF;
@@ -348,6 +416,7 @@ void RemoveHook() {
   g_bindings.clear();
   PublishWatchedKeys();
   StopHookThread();
+  StopWatchingForeground();
   DestroyWatchWindow();
 }
 
@@ -371,6 +440,9 @@ bool Bind(const EncodableList& list) {
     RemoveHook();
     return false;
   }
+  WatchForeground();
+  if (g_blocked) NotifyBlocked(true);
+  UpdateBlocked(GetForegroundWindow());
   return true;
 }
 
