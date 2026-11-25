@@ -73,7 +73,7 @@ Future<void> runConfirmedJoin(
     noticeFailed('Could not check the transcription notice.');
     return;
   }
-  if (host.dropped()) return;
+  if (!context.mounted || host.dropped()) return;
   if (switching) return join();
   host.checking(true);
   final String? elsewhere;
