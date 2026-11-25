@@ -147,6 +147,15 @@ void main() {
       }
     });
 
+    test('is false when the policy forces allow over a user Deny', () async {
+      final blocked = await osBlocksMicrophone(
+        windows: true,
+        query: (args) async =>
+            args[1] == windowsMicPolicyKey ? _policy('0x1') : _reg('Deny'),
+      );
+      expect(blocked, isFalse);
+    });
+
     test('is false when both allow or a key is missing', () async {
       expect(
         await osBlocksMicrophone(

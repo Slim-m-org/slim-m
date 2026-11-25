@@ -31,3 +31,10 @@ bool policyForcesMicDeny(String output) => RegExp(
       multiLine: true,
       caseSensitive: false,
     ).hasMatch(output);
+
+/// True when the same policy value is "force allow" (1), which overrides the user's own Deny.
+bool policyForcesMicAllow(String output) => RegExp(
+      '^\\s*$windowsMicPolicyValue\\s+REG_DWORD\\s+0x0*1\\s*\$',
+      multiLine: true,
+      caseSensitive: false,
+    ).hasMatch(output);
