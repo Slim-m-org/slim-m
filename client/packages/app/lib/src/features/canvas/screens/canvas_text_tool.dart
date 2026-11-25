@@ -46,6 +46,9 @@ class CanvasTextTool {
   /// Where the editor for a box not placed yet is open, in world coordinates.
   Offset? draft;
 
+  /// What was typed into a draft whose placement failed, so reopening it keeps the text.
+  CanvasTextProps? _unsaved;
+
   /// Opens the editor for a new box at [world]; nothing is sent until it is saved with text.
   void place(Offset world) {
     if (spectating() || canvasErrorBlocksDrawing(engine.error)) return;
@@ -60,7 +63,10 @@ class CanvasTextTool {
     place(world);
   }
 
-  void cancelDraft() => draft = null;
+  void cancelDraft() {
+    draft = null;
+    _unsaved = null;
+  }
 
   /// The editor for the open draft, or for the text box [editingId]; null when none is open.
   Widget? editor(
@@ -90,11 +96,13 @@ class CanvasTextTool {
       key: ValueKey(at),
       document: document,
       anchor: at,
-      initial: CanvasTextProps(
-        text: '',
-        size: ref.read(canvasLastTextStyleProvider).size,
-        colorKey: ref.read(canvasLastTextStyleProvider).colorKey,
-      ),
+      initial:
+          _unsaved ??
+          CanvasTextProps(
+            text: '',
+            size: ref.read(canvasLastTextStyleProvider).size,
+            colorKey: ref.read(canvasLastTextStyleProvider).colorKey,
+          ),
       onSave: (props) => unawaited(_saveDraft(at, props)),
       onCancel: onCancel,
     );
@@ -108,7 +116,10 @@ class CanvasTextTool {
 
   Future<void> _saveDraft(Offset world, CanvasTextProps props) async {
     final startedWith = currentTool();
-    changed(() => draft = null);
+    changed(() {
+      draft = null;
+      _unsaved = null;
+    });
     _remember(props);
     final placed = await placement().placeText(
       world,
@@ -117,7 +128,14 @@ class CanvasTextTool {
     );
     if (!ref.context.mounted) return;
     focusBoard();
-    if (placed != null) onPlaced(placed.id, startedWith);
+    if (placed != null) {
+      onPlaced(placed.id, startedWith);
+    } else if (draft == null) {
+      changed(() {
+        draft = world;
+        _unsaved = props;
+      });
+    }
   }
 
   /// Restyles the placed box [id] with one edit, keeping its text and whatever [size] or [colorKey] leaves alone.
