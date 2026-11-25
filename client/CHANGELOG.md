@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.138.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.137.0...client-v0.138.0) (2026-11-25)
+
+
+### Features
+
+* **canvas:** connections, in-place note editing with styles and Markdown, and Open canvas ([#2489](https://github.com/Slim-m-org/slim-m/issues/2489)) ([71a652d](https://github.com/Slim-m-org/slim-m/commit/71a652d62c445a7e26dbecaada70981fdb4853e9))
+
+
+### Bug Fixes
+
+* audit round 4, calls, desktop, phones, sync and deploy ([#2491](https://github.com/Slim-m-org/slim-m/issues/2491)) ([2542722](https://github.com/Slim-m-org/slim-m/commit/2542722a9f9cf64af20a09f57ccc571d9b3cb3a3))
+
 ## [0.137.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.136.0...client-v0.137.0) (2026-11-24)
 
 
