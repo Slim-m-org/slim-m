@@ -20,6 +20,7 @@ class DockUpdateReport {
     required this.updated,
     required this.skipped,
     required this.failures,
+    this.needPassword = const [],
     this.withoutAccess = const [],
   });
 
@@ -28,6 +29,9 @@ class DockUpdateReport {
 
   /// Modules the admin skipped, which keep their update.
   final List<api.DockIndexEntry> skipped;
+
+  /// Administrator connectors left behind because the password prompt was dismissed.
+  final List<api.DockIndexEntry> needPassword;
 
   /// One sentence per install that failed, with the reason.
   final List<String> failures;
@@ -45,14 +49,24 @@ class DockUpdateReport {
       for (final entry in skipped)
         if (behind.contains(entry.id)) entry.name,
     ];
+    final passwordNow = [
+      for (final entry in needPassword)
+        if (behind.contains(entry.id)) entry.name,
+    ];
     final bareNow = [
       for (final (:entry, :lost) in withoutAccess)
         if (_stillLacks(catalog.installedFor(entry.id), lost)) entry.name,
     ];
-    if (skippedNow.isEmpty && bareNow.isEmpty && failures.isEmpty) return null;
+    if (skippedNow.isEmpty &&
+        passwordNow.isEmpty &&
+        bareNow.isEmpty &&
+        failures.isEmpty) {
+      return null;
+    }
     return [
       'Updated $updated of $total.',
       if (skippedNow.isNotEmpty) 'Skipped ${skippedNow.join(', ')}.',
+      if (passwordNow.isNotEmpty) _needPasswordSentence(passwordNow),
       if (bareNow.isNotEmpty) _withoutAccessSentence(bareNow),
     ].join(' ');
   }
@@ -61,6 +75,10 @@ class DockUpdateReport {
 bool _stillLacks(api.InstalledDockModule? installed, List<String> lost) =>
     installed != null &&
     lost.any((c) => !installed.approvedHostCapabilities.contains(c));
+
+String _needPasswordSentence(List<String> names) => names.length == 1
+    ? '${names.single} needs your password to update.'
+    : '${names.join(', ')} need your password to update.';
 
 String _withoutAccessSentence(List<String> names) => names.length == 1
     ? '${names.single} was updated without the access it had.'

@@ -47,6 +47,7 @@ class DockUpdateMod {
     this.dropsOnCarry = const [],
     this.heldHooks = const {},
     this.offeredHooks = const {},
+    this.connector,
   });
 
   final String id;
@@ -88,6 +89,9 @@ class DockUpdateMod {
   final Map<String, List<Map<String, dynamic>>> heldHooks;
   final Map<String, List<Map<String, dynamic>>> offeredHooks;
 
+  /// The core permission bits the module is a connector with, or null for a WASM module.
+  final int? connector;
+
   String get name => 'Mod $id';
 }
 
@@ -128,6 +132,7 @@ class DockUpdateWorld {
         'enabled': true,
         'installed_at': 1000,
         if (m.community) 'source_repo': 'someone/mods',
+        'connector_permissions': ?m.connector,
         ...m.heldHooks,
       };
     }
@@ -137,6 +142,12 @@ class DockUpdateWorld {
   final installed = <String, Map<String, dynamic>>{};
   final bodies = <Map<String, dynamic>>[];
   final _committed = <String, int>{};
+
+  /// The password an Administrator connector's install checks for.
+  static const adminPassword = 'hunter2';
+
+  /// The password each install of an Administrator connector arrived with, wrong ones too.
+  final passwordAttempts = <String?>[];
 
   /// How many times the installed list was fetched, which the catalog does on every refresh.
   int catalogReads = 0;
@@ -171,8 +182,22 @@ class DockUpdateWorld {
       'approved_capabilities': m.asks,
       'approved_host_capabilities': approved,
       'local_network_approved': local,
+      'connector_permissions': ?m.connector,
       ...m.offeredHooks,
     };
+  }
+
+  http.Response? _refusePassword(DockUpdateMod mod, Map<String, dynamic> body) {
+    if (((mod.connector ?? 0) & 1) == 0) return null;
+    final password = body['password'] as String?;
+    passwordAttempts.add(password);
+    if (password == null) {
+      return _json({'error': 'your password is required'}, 400);
+    }
+    if (password != adminPassword) {
+      return _json({'error': 'that password is not correct'}, 403);
+    }
+    return null;
   }
 
   Future<http.Response> handle(http.Request request) async {
@@ -211,7 +236,14 @@ class DockUpdateWorld {
               ? null
               : {'hosts': mod.hosts, 'local': mod.local},
           reviewDigest: 'digest-${mod.id}',
-          extras: {'name': mod.name, ...mod.offeredHooks},
+          extras: {
+            'name': mod.name,
+            if (mod.connector != null) ...{
+              'provider': 'connector',
+              'connector': {'permissions': mod.connector},
+            },
+            ...mod.offeredHooks,
+          },
         ),
       );
     }
@@ -219,6 +251,8 @@ class DockUpdateWorld {
     if (mod.refuse) {
       return _json({'error': 'moved on'}, 409);
     }
+    final refused = _refusePassword(mod, body);
+    if (refused != null) return refused;
     bodies.add({...body, 'id': mod.id});
     final done = _committed[mod.id] ?? 0;
     _committed[mod.id] = done + 1;
