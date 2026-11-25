@@ -296,34 +296,41 @@ void main() {
       },
     );
 
-    test('a login close waits for a tray host that starts late', () async {
+    test('hiding for login waits for a tray host that starts late', () async {
       final port = FakeDesktopWindowPort();
       final store = await _store();
+      var quits = 0;
       var probes = 0;
       final controller = DesktopWindowController(
         port: port,
         store: store,
         platform: DesktopPlatform.linux,
+        keepInTray: () => false,
+        quit: () async => quits++,
         trayAvailable: () async => ++probes >= 3,
         trayHostPoll: const Duration(milliseconds: 1),
       )..start();
 
-      await controller.requestClose(awaitTrayHost: true);
+      await controller.hideForLogin();
 
       expect(port.hideCalls, 1);
+      expect(quits, 0);
       controller.dispose();
     });
 
     test(
-      'a login close leaves a window the user restored while waiting',
+      'hiding for login leaves a window the user restored while waiting',
       () async {
         final port = FakeDesktopWindowPort();
         final store = await _store();
+        var quits = 0;
         var probes = 0;
         final controller = DesktopWindowController(
           port: port,
           store: store,
           platform: DesktopPlatform.linux,
+          keepInTray: () => false,
+          quit: () async => quits++,
           trayAvailable: () async {
             if (++probes == 3) port.minimized = false;
             return probes >= 3;
@@ -331,30 +338,38 @@ void main() {
           trayHostPoll: const Duration(milliseconds: 1),
         )..start();
 
-        await controller.requestClose(awaitTrayHost: true);
+        await controller.hideForLogin();
 
         expect(port.hideCalls, 0);
+        expect(quits, 0);
         controller.dispose();
       },
     );
 
-    test('a login close settles for the taskbar once the wait is up', () async {
-      final port = FakeDesktopWindowPort();
-      final store = await _store();
-      final controller = DesktopWindowController(
-        port: port,
-        store: store,
-        platform: DesktopPlatform.linux,
-        trayAvailable: () async => false,
-        trayHostWait: const Duration(milliseconds: 20),
-        trayHostPoll: const Duration(milliseconds: 5),
-      )..start();
+    test(
+      'hiding for login settles for the taskbar once the wait is up',
+      () async {
+        final port = FakeDesktopWindowPort();
+        final store = await _store();
+        var quits = 0;
+        final controller = DesktopWindowController(
+          port: port,
+          store: store,
+          platform: DesktopPlatform.linux,
+          keepInTray: () => false,
+          quit: () async => quits++,
+          trayAvailable: () async => false,
+          trayHostWait: const Duration(milliseconds: 20),
+          trayHostPoll: const Duration(milliseconds: 5),
+        )..start();
 
-      await controller.requestClose(awaitTrayHost: true);
+        await controller.hideForLogin();
 
-      expect(port.minimizeCalls, 1);
-      controller.dispose();
-    });
+        expect(port.minimizeCalls, 1);
+        expect(quits, 0);
+        controller.dispose();
+      },
+    );
 
     test('with Close to tray off, closing quits instead of hiding', () async {
       final port = FakeDesktopWindowPort();

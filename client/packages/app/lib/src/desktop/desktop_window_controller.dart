@@ -183,12 +183,9 @@ class DesktopWindowController {
   /// directly would skip the tray-availability fallback entirely, hiding
   /// the window with nothing to bring it back on a Linux desktop with no
   /// tray host registered.
-  ///
-  /// [awaitTrayHost] retries a missing tray host for [trayHostWait] first, for
-  /// a login launch that can run before the desktop's panel has started.
-  Future<void> requestClose({bool awaitTrayHost = false}) async {
+  Future<void> requestClose() async {
     await _writeNow();
-    await _routeClose(awaitTrayHost: awaitTrayHost);
+    await _routeClose();
   }
 
   bool _holdingMinimum = false;
@@ -289,10 +286,10 @@ class DesktopWindowController {
     await _hideWindow(awaitTrayHost: true);
   }
 
-  Future<void> _routeClose({bool awaitTrayHost = false}) async {
+  Future<void> _routeClose() async {
     final quit = this.quit;
     if (quit != null && !keepInTray()) return quit();
-    await _hideWindow(awaitTrayHost: awaitTrayHost);
+    await _hideWindow();
   }
 
   Future<void> _hideWindow({bool awaitTrayHost = false}) async {
