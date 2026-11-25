@@ -18,6 +18,7 @@ import 'package:slimm_api/api.dart' as api;
 import '../../../api_failure.dart';
 import '../../../providers/live_events.dart';
 import '../../../providers/providers.dart';
+import '../../../sync/providers/sync_status.dart';
 
 /// How many history items to ask for at a time. Matches [reportsPageSize]'s
 /// own reasoning: under the server's clamp, and enough that a small
@@ -56,6 +57,7 @@ class ModerationHistoryController
     _sub = _ref.read(liveEventsProvider).listen((event) {
       if (event is api.ReportsChanged) unawaited(refresh());
     });
+    _ref.listen(syncResyncProvider, (_, _) => unawaited(refresh()));
     unawaited(refresh());
   }
 

@@ -116,16 +116,13 @@ class _ChannelPrivateRowState extends ConsumerState<ChannelPrivateRow>
 
   @override
   Widget build(BuildContext context) {
-    // The save writes overwrites, not this row, so the tapped value stands until the row agrees.
-    ref.listen(channelByIdProvider(widget.channel.id), (_, next) {
-      final restricted = next.valueOrNull?.restricted;
-      if (_optimistic != null && !_saving && restricted == _optimistic) {
-        setState(() => _optimistic = null);
-      }
-    });
     final stored =
         ref.watch(channelByIdProvider(widget.channel.id)).valueOrNull ??
         widget.channel;
+    // The save writes overwrites, not this row, so the tapped value stands until the row agrees.
+    if (_optimistic != null && !_saving && stored.restricted == _optimistic) {
+      _optimistic = null;
+    }
     final private = _optimistic ?? stored.restricted ?? false;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

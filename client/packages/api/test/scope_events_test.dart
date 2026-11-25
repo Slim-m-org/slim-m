@@ -77,11 +77,12 @@ void main() {
       expect((event! as OverwriteChanged).channelId, 'c');
     });
 
-    test('a known type with the wrong shape is ignored, not a crash', () {
+    test('a known type with the wrong shape asks for a resync, not a crash',
+        () {
       // role.changed missing role_id entirely.
       expect(
         ServerEvent.parse(jsonEncode({'type': 'role.changed'})),
-        isNull,
+        isA<ErrorEvent>(),
       );
     });
   });

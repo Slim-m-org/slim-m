@@ -8,6 +8,7 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_session_sync.dart';
 import 'package:slimm_app/src/features/accounts/providers/account_host.dart';
 import 'package:slimm_app/src/features/accounts/providers/account_providers.dart';
 import 'package:slimm_app/src/features/accounts/providers/account_slot.dart';
@@ -105,8 +106,10 @@ void main() {
     await connected();
     events.clear();
 
+    voiceRemovalGrace = Duration.zero;
+    addTearDown(() => voiceRemovalGrace = const Duration(milliseconds: 1500));
     session.dropWith(VoiceDisconnect.removed);
-    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(const Duration(milliseconds: 20));
 
     expect(events, ['service call=false share=false']);
   });

@@ -48,9 +48,10 @@ Map<String, dynamic> _wireLine(int seq) => {
 };
 
 class _Rig {
-  _Rig(this.container, this.events, this.requests);
+  _Rig(this.container, this.events, this.requests, this.historyLoads);
 
   final ProviderContainer container;
+  final int Function() historyLoads;
   final StreamController<api.ServerEvent> events;
   final List<String> requests;
 }
@@ -66,6 +67,7 @@ Future<_Rig> _pump(
   bool newerCall = false,
   bool transcriptOngoing = false,
   double width = 1100,
+  Completer<void>? deleteGate,
 }) async {
   tester.view.physicalSize = Size(width, 1100);
   tester.view.devicePixelRatio = 1;
@@ -74,6 +76,7 @@ Future<_Rig> _pump(
   addTearDown(events.close);
   final requests = <String>[];
   var served = 0;
+  var historyLoads = 0;
   final container = ProviderContainer(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
@@ -92,8 +95,9 @@ Future<_Rig> _pump(
       myChannelPermissionsProvider(
         'voice-1',
       ).overrideWithValue(canManage ? Perm.manageMessages : Perm.viewChannel),
-      voiceCallHistoryProvider.overrideWith(
-        (ref, channelId) async => api.VoiceCallHistory(
+      voiceCallHistoryProvider.overrideWith((ref, channelId) async {
+        historyLoads++;
+        return api.VoiceCallHistory(
           retentionDays: 30,
           canvasObjectCount: 0,
           calls: [
@@ -112,8 +116,8 @@ Future<_Rig> _pump(
               transcriptId: withTranscript ? 't1' : null,
             ),
           ],
-        ),
-      ),
+        );
+      }),
       apiProvider.overrideWith((ref) {
         final client = testApi((request) async {
           requests.add(
@@ -121,6 +125,7 @@ Future<_Rig> _pump(
             '${request.url.query.isEmpty ? '' : '?${request.url.query}'}',
           );
           if (request.method == 'DELETE') {
+            await deleteGate?.future;
             return http.Response(
               deleteStatus == 204 ? '' : jsonEncode({'error': 'no'}),
               deleteStatus,
@@ -169,7 +174,7 @@ Future<_Rig> _pump(
     ),
   );
   await _frames(tester);
-  return _Rig(container, events, requests);
+  return _Rig(container, events, requests, () => historyLoads);
 }
 
 Future<void> _frames(WidgetTester tester) async {
@@ -279,6 +284,34 @@ void main() {
     expect(rig.requests, contains('DELETE /voice/transcripts/t1'));
     expect(find.text('line number 1'), findsNothing);
   });
+
+  testWidgets(
+    'a Delete answered after the pane is gone still refreshes history',
+    (tester) async {
+      final gate = Completer<void>();
+      final rig = await _pump(
+        tester,
+        pages: [
+          [1, 2],
+        ],
+        canManage: true,
+        deleteGate: gate,
+      );
+      rig.container.listen(voiceCallHistoryProvider('voice-1'), (_, _) {});
+      final before = rig.historyLoads();
+
+      await _tapKey(tester, transcriptDeleteKey);
+      await tester.tap(find.text('Delete transcript'));
+      await _frames(tester);
+      await tester.pumpWidget(const SizedBox());
+      gate.complete();
+      await _frames(tester);
+
+      expect(tester.takeException(), isNull);
+      await rig.container.read(voiceCallHistoryProvider('voice-1').future);
+      expect(rig.historyLoads(), before + 1);
+    },
+  );
 
   testWidgets('a transcript still being written offers no Delete', (
     tester,

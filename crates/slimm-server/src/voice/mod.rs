@@ -47,6 +47,7 @@ mod heartbeat;
 mod in_call;
 mod live_state;
 mod notice_windows;
+mod recent_joins;
 mod ring;
 mod room_admin;
 mod room_lifecycle;
@@ -61,6 +62,7 @@ use heartbeat::{CallHeartbeats, IN_CALL_WITHIN};
 pub use in_call::Listing;
 pub use live_state::RoomLiveState;
 pub use notice_windows::{NOTICE_WINDOW_MS, NoticeWindows};
+pub use recent_joins::RecentJoins;
 pub use ring::{CallRingOutcome, CallRings, Canceled, Declined, RING_TIMEOUT, StaleRing};
 pub use roster::{RoomParticipant, RosterCache};
 use token::{Claims, VideoGrant, http_url_for, unix_secs};
@@ -154,6 +156,8 @@ pub struct VoiceService {
     notice_windows: NoticeWindows,
     /// Ephemeral like its siblings; see `voice::asked_calls`'s own doc.
     asked_calls: AskedCalls,
+    /// Ephemeral like its siblings; see `voice::recent_joins`'s own doc.
+    recent_joins: RecentJoins,
 }
 
 struct Enabled {
@@ -180,6 +184,7 @@ impl VoiceService {
             watch_viewing: watch_viewing::WatchViewing::default(),
             notice_windows: NoticeWindows::default(),
             asked_calls: AskedCalls::default(),
+            recent_joins: RecentJoins::default(),
         }
     }
 
@@ -236,6 +241,11 @@ impl VoiceService {
     /// The call each member last asked a token for.
     pub fn asked_calls(&self) -> &AskedCalls {
         &self.asked_calls
+    }
+
+    /// When join tokens were last minted per channel.
+    pub fn recent_joins(&self) -> &RecentJoins {
+        &self.recent_joins
     }
 
     /// Who on each call plays the watch party's title themselves.
@@ -340,6 +350,7 @@ impl VoiceService {
             },
         )?;
 
+        self.recent_joins.record(channel_id, crate::store::now_ms());
         Ok(RoomToken {
             url: enabled.url.clone(),
             room,

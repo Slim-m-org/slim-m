@@ -175,7 +175,7 @@ impl VoiceService {
         Ok(())
     }
 
-    /// One authenticated room-service call with the regular room-admin token. `Ok(None)` is a 404:
+    /// One authenticated room-service call with the regular room-admin token. `Ok(None)` is a Twirp `not_found`:
     /// the room, or the participant in it, is already gone, which every caller treats as the state
     /// it asked for.
     pub(super) async fn room_service_call(
@@ -224,7 +224,13 @@ impl VoiceService {
             .map_err(|e| VoiceError::Internal(e.into()))?;
         let status = response.status();
         if status == reqwest::StatusCode::NOT_FOUND {
-            return Ok(None);
+            return if is_twirp_not_found(&response.text().await.unwrap_or_default()) {
+                Ok(None)
+            } else {
+                Err(VoiceError::Internal(anyhow::anyhow!(
+                    "livekit room service answered 404 to {method} without a not_found error, check SLIMM_LIVEKIT_SERVICE_URL"
+                )))
+            };
         }
         if !status.is_success() {
             return Err(VoiceError::Internal(anyhow::anyhow!(
@@ -303,4 +309,10 @@ impl VoiceService {
 
         Ok(format!("{signing_input}.{signature}"))
     }
+}
+
+/// Whether a 404 body is LiveKit's own `not_found` answer, not a proxy's or router's plain 404.
+fn is_twirp_not_found(body: &str) -> bool {
+    serde_json::from_str::<serde_json::Value>(body)
+        .is_ok_and(|v| v.get("code").and_then(serde_json::Value::as_str) == Some("not_found"))
 }

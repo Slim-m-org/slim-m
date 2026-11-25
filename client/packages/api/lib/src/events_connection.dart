@@ -23,6 +23,9 @@ class EventConnection {
   final SocketLiveness _liveness;
   bool _closed = false;
 
+  /// Shared by every connection, because each resync it asks for opens the next one.
+  static final _resyncs = ParseResyncThrottle();
+
   /// Events after a successful handshake.
   Stream<ServerEvent> get events => _events;
 
@@ -56,6 +59,7 @@ class EventConnection {
         try {
           event = ServerEvent.parse(
             raw is String ? raw : utf8.decode(raw as List<int>),
+            throttle: _resyncs,
           );
         } on Object catch (error, stack) {
           AppLog.swallowed(LogTag.sync,

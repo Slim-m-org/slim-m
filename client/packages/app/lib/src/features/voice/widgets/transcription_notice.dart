@@ -6,6 +6,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_api/api.dart' show ApiException;
 
 import '../../../widgets/confirm_dialog.dart';
 import '../providers/transcription_notice.dart';
@@ -15,6 +16,7 @@ const transcriptionNoticeCancelKey = Key('transcription-notice-cancel');
 
 /// Whether to go ahead and join: true when no notice is due, or the member
 /// chose Join (which records the acknowledgement first).
+/// Throws [ApiException] when the notice cannot be read, so the caller shows the failure.
 Future<bool> confirmTranscriptionNotice(
   BuildContext context,
   WidgetRef ref,

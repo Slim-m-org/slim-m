@@ -24,6 +24,7 @@ import 'package:slimm_rtc/rtc.dart';
 
 import '../../support/fake_api.dart';
 import '../../support/dead_voice_session.dart';
+import 'voice_controller_harness.dart' show noticeNotOwed;
 
 const _tokens = TokenPair(
   userId: 'user-1',
@@ -98,6 +99,8 @@ void main() {
           keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
           sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
           mockApiOverride((request) async {
+            final notice = noticeNotOwed(request);
+            if (notice != null) return notice;
             // Holds the join between joining being set and state moving off idle.
             await tokenGate.future;
             return http.Response(

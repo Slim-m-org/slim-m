@@ -4,6 +4,7 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
@@ -18,6 +19,10 @@ import 'voice_rejoin.dart';
 import 'voice_share_resume.dart';
 import 'voice_state.dart';
 import 'voice_state_access.dart';
+
+/// How long a plain removal waits for the server's word that it was a move.
+@visibleForTesting
+var voiceRemovalGrace = const Duration(milliseconds: 1500);
 
 class VoiceSessionSync {
   VoiceSessionSync({
@@ -56,10 +61,26 @@ class VoiceSessionSync {
 
   VoiceState get _current => access.state;
 
+  Timer? _removalHold;
+  bool _removalGraceSpent = false;
+
+  /// Drops a held removal because the server moved the call, so the move is a switch and no failure.
+  void cancelHeldRemoval() {
+    _removalHold?.cancel();
+    _removalHold = null;
+  }
+
   /// Applies one session state change to the call state, starting or stopping what depends on a live call.
   void onSessionState(VoiceSessionState s) {
-    reportCallLifecycle(callLifecycle, s, channelId: _current.channelId);
+    if (s != VoiceSessionState.failed) cancelHeldRemoval();
     final dropped = _classifiedDisconnect();
+    if (s == VoiceSessionState.failed &&
+        dropped == VoiceDisconnect.removed &&
+        !_removalGraceSpent) {
+      _holdRemoval();
+      return;
+    }
+    reportCallLifecycle(callLifecycle, s, channelId: _current.channelId);
     if (s == VoiceSessionState.failed && dropped != null) {
       heartbeat.stop();
       input.stopWatchingSpaceNoiseSuppression();
@@ -94,6 +115,20 @@ class VoiceSessionSync {
       unawaited(callClock.adoptServerStart(access));
       unawaited(shareResume.onConnected());
     }
+  }
+
+  /// The SFU's removal lands before the server's move frame, so a removal alone waits for that frame.
+  void _holdRemoval() {
+    cancelHeldRemoval();
+    _removalHold = Timer(voiceRemovalGrace, () {
+      _removalHold = null;
+      _removalGraceSpent = true;
+      try {
+        onSessionState(VoiceSessionState.failed);
+      } finally {
+        _removalGraceSpent = false;
+      }
+    });
   }
 
   bool get _showsRefusal =>

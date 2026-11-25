@@ -25,6 +25,7 @@ import 'package:slimm_rtc/rtc.dart';
 
 import '../../support/fake_api.dart';
 import '../../support/dead_voice_session.dart';
+import 'voice_controller_harness.dart' show noticeNotOwed;
 
 const _tokens = TokenPair(
   userId: 'user-1',
@@ -123,6 +124,8 @@ class _NoopSession extends DeadVoiceSession {
 }
 
 http.Client _tokenApi(int status) => MockClient((request) async {
+  final notice = noticeNotOwed(request);
+  if (notice != null) return notice;
   if (status == 200) {
     return http.Response(
       jsonEncode({

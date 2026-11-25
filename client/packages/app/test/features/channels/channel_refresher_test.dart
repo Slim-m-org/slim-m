@@ -173,6 +173,25 @@ void main() {
     expect(f.hits['/channels'], 2, reason: 'each session refreshed for itself');
   });
 
+  test('a change parked behind a newer run is refreshed after it, not '
+      'dropped when the discarded run ends', () async {
+    final f = _fixture();
+    addTearDown(f.db.close);
+    final refresher = ChannelRefresher();
+
+    final old = refresher.refreshOnce(f.api, f.store, isCurrent: () => true);
+    refresher.discardInFlight();
+    final newer = refresher.refreshOnce(f.api, f.store, isCurrent: () => true);
+    final changed = refresher.refreshAfterChange(
+      f.api,
+      f.store,
+      isCurrent: () => true,
+    );
+    await Future.wait([old, newer, changed]);
+
+    expect(f.hits['/channels'], 3, reason: 'the change gets a run of its own');
+  });
+
   test('one channel failing its read state does not stop the others on a '
       'server without GET /read-states', () async {
     final f = _fixture(

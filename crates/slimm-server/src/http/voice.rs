@@ -264,6 +264,10 @@ async fn heartbeat(
         state
             .hub
             .publish(Event::VoiceActivityChanged { channel_id });
+        let (store, voice) = (state.store.clone(), state.voice.clone());
+        tokio::spawn(async move {
+            crate::reopen_deferred(&store, &voice, channel_id).await;
+        });
     }
     self::voice_ring::announce_if_pending(&state, channel_id, ctx.user_id);
     if let Some((ring_id, caller_id)) = answered {

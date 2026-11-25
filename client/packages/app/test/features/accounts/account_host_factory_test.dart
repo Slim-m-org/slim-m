@@ -90,6 +90,31 @@ void main() {
     });
   });
 
+  test('retiring one account leaves the others logging', () {
+    final host = createAccountHost(
+      DesktopWindowShell(),
+      Uri.parse(officialServer),
+    );
+    final kept = host.createFirst();
+    addTearDown(kept.dispose);
+    kept.read(accountSlotProvider)!.account = Account.forServer(
+      Uri.parse('https://a.example'),
+    );
+    final retired = host.createContainer(
+      AccountSlot(chooseServer: (_, _) => throw UnimplementedError())
+        ..account = Account.forServer(Uri.parse('https://b.example')),
+    );
+    kept.read(debugLogProvider);
+    retired.read(debugLogProvider);
+    AppLog.install(kept.read(debugLogSinkProvider));
+    addTearDown(() => AppLog.install(null));
+
+    retired.dispose();
+    AppLog.error(LogTag.sync, 'failed uri=https://a.example/channels/1');
+
+    expect(kept.read(debugLogProvider), hasLength(1));
+  });
+
   test('the push channels outlive the container that first read them', () {
     final host = createAccountHost(
       DesktopWindowShell(),

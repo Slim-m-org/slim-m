@@ -7,11 +7,13 @@ import 'dart:convert';
 import 'client.dart';
 import 'models.dart';
 import 'events_tallies.dart';
+import 'events_resync_throttle.dart';
 import 'logging/app_log.dart';
 import 'events_parse.dart';
 import 'events_parse_canvas.dart';
 
 export 'events_connection.dart' show EventConnection, EventConnectionRefused;
+export 'events_resync_throttle.dart' show ParseResyncThrottle;
 
 // ServerEvent is sealed, so its subclasses must stay in this library.
 part 'events_frames.dart';
@@ -28,10 +30,12 @@ sealed class ServerEvent {
   const ServerEvent();
 
   /// Parses a frame, or returns null for anything unrecognized. Unknown frame
-  /// types (or a known type with a shape that does not parse) are ignored
-  /// rather than fatal, so the server can add events without breaking older
-  /// clients.
-  static ServerEvent? parse(String raw) {
+  /// types are ignored rather than fatal, so the server can add events without
+  /// breaking older clients. A known durable frame whose shape does not parse comes
+  /// back as the `resync` error, since its change would otherwise stay unseen.
+  ///
+  /// A [throttle] caps how often one frame type may ask for that resync, so a shape this client cannot read degrades to a logged drop.
+  static ServerEvent? parse(String raw, {ParseResyncThrottle? throttle}) {
     final Object? decoded;
     try {
       decoded = jsonDecode(raw);
@@ -42,16 +46,62 @@ sealed class ServerEvent {
     }
     if (decoded is! Map<String, dynamic>) return null;
     try {
-      return _fromFrame(decoded);
+      return _fromFrame(decoded) ?? _resyncIfDurable(decoded, throttle);
     } on TypeError catch (error, stack) {
-      AppLog.swallowed(LogTag.sync,
-          'Dropped a server event with an unexpected shape', error, stack);
-      return null;
+      return _unreadable(decoded, error, stack, throttle);
     } on FormatException catch (error, stack) {
-      AppLog.swallowed(LogTag.sync,
-          'Dropped a server event with an unexpected shape', error, stack);
-      return null;
+      return _unreadable(decoded, error, stack, throttle);
     }
+  }
+
+  /// A frame of a durable type that cannot be read is a change this client never saw, so it asks for a resync.
+  static ServerEvent? _unreadable(
+    Map<String, dynamic> frame,
+    Object error,
+    StackTrace stack,
+    ParseResyncThrottle? throttle,
+  ) {
+    AppLog.swallowed(
+      LogTag.sync,
+      'Dropped a ${frame['type']} server event with an unexpected shape',
+      error,
+      stack,
+    );
+    return _resyncIfDurable(frame, throttle);
+  }
+
+  /// The frame types the server stores durably, so a missed one is a change this client never saw.
+  static const _durableTypes = {
+    'message.created',
+    'message.edited',
+    'message.deleted',
+    'message.pinned',
+    'message.unpinned',
+    'message.embeds',
+    'message.components',
+    'message.link_previews_removed',
+    'reactions.changed',
+    'poll.voted',
+    'thread.updated',
+    'channel.created',
+    'channel.updated',
+    'channel.deleted',
+    'dm.changed',
+    'role.changed',
+    'member.role_changed',
+    'overwrite.changed',
+    'category.changed',
+    'read_state.changed',
+  };
+
+  static ServerEvent? _resyncIfDurable(
+    Map<String, dynamic> frame,
+    ParseResyncThrottle? throttle,
+  ) {
+    final type = frame['type'];
+    if (!_durableTypes.contains(type)) return null;
+    if (throttle != null && !throttle.allow('$type')) return null;
+    return const ErrorEvent('resync');
   }
 
   static ServerEvent? _fromFrame(Map<String, dynamic> decoded) =>

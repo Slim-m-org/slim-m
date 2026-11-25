@@ -89,7 +89,7 @@ class _RailParticipantDraggableState
         widget.member.id;
     final reaches =
         isSelf || ref.watch(roleLadderProvider).outranks(widget.member);
-    if (!mayMove || !reaches) return widget.child;
+    if (!mayMove || !reaches || widget.member.isBot) return widget.child;
     final tokens = Theme.of(context).extension<AppTokens>()!;
     // Hover precedes the press, which is the only time a pointer's kind is known before the drag recognizer is built.
     return MouseRegion(

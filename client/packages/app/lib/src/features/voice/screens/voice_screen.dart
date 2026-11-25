@@ -21,6 +21,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_api/api.dart' show ApiException;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
@@ -120,6 +121,9 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
   VoidCallback? _confirmedJoin;
   bool _checking = false;
 
+  /// Why the transcription notice could not be checked; nothing joins until a retry reads it.
+  String? _noticeError;
+
   /// The join a press on the page asked for while in another call, waiting on the switch prompt.
   Future<void> Function()? _switchJoin;
 
@@ -156,6 +160,7 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
     _autoJoinedFor = looking || handedOff || loaded ? widget.channelId : null;
     _check++;
     _checking = false;
+    _noticeError = null;
     _elsewhere = null;
     _confirmedJoin = null;
     _switchJoin = null;
@@ -190,12 +195,29 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
 
   /// Runs [join] now, after the one-time transcription notice, or after "Join here" when it would move a call open on another device.
   /// A call that came up meanwhile, here or elsewhere, wins over the join.
-  Future<void> _joinConfirmed(Future<void> Function() join) async {
+  /// A [switching] join already left the other call's decision to the switch prompt, so it only owes the notice.
+  Future<void> _joinConfirmed(
+    Future<void> Function() join, {
+    bool switching = false,
+  }) async {
     final check = ++_check;
     final channelId = widget.channelId;
     bool dropped() => !mounted || check != _check;
-    if (!widget.isDm && !await confirmTranscriptionNotice(context, ref)) return;
+    if (_noticeError != null) setState(() => _noticeError = null);
+    try {
+      if (!widget.isDm && !await confirmTranscriptionNotice(context, ref)) {
+        return;
+      }
+    } on ApiException {
+      if (dropped()) return;
+      _autoJoinedFor = channelId;
+      setState(
+        () => _noticeError = 'Could not check the transcription notice.',
+      );
+      return;
+    }
     if (dropped()) return;
+    if (switching) return join();
     setState(() => _checking = true);
     final String? elsewhere;
     try {
@@ -244,8 +266,12 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
   void _switchNow(VoiceController controller) {
     _autoJoinedFor = widget.channelId;
     final join = _switchJoin ?? () => controller.join(widget.channelId);
-    _switchJoin = null;
-    unawaited(join());
+    unawaited(
+      _joinConfirmed(() {
+        _switchJoin = null;
+        return join();
+      }, switching: true),
+    );
   }
 
   /// Back to the page a press on its Join came from, still in the other call.
@@ -348,6 +374,7 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
         ),
         'switch' => VoiceSwitchPrompt(
           onSwitch: () => _switchNow(controller),
+          errorMessage: _noticeError,
           onCancel: _switchJoin == null ? null : _cancelSwitch,
         ),
         _ when !widget.isDm => VoiceChannelIdle(
@@ -425,11 +452,11 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
     final attemptedThis = _autoJoinedFor == channelId;
 
     // `join` never clears `channelId` on error, so an error only ever belongs here.
-    final errorMessage =
-        inThisChannel && voice.state == VoiceSessionState.failed
+    final joinError = inThisChannel && voice.state == VoiceSessionState.failed
         ? voice.error
         : null;
-    final canRetry = errorMessage == null || voice.retryable;
+    final errorMessage = _noticeError ?? joinError;
+    final canRetry = joinError == null || voice.retryable;
 
     // A rejoin in progress stays on the call stage rather than the full-screen
     // connecting spinner: the bounded auto-rejoin behind it is still trying,

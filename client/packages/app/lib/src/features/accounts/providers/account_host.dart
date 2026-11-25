@@ -9,16 +9,22 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_platform/platform.dart' show CrossTab;
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../../providers/providers.dart'
-    show keyStoreProvider, sessionProvider, sessionRestoreNoteProvider;
+    show
+        databaseProvider,
+        keyStoreProvider,
+        sessionProvider,
+        sessionRestoreNoteProvider;
 import '../../../diagnostics/debug_log.dart' show debugLogProvider;
 import '../../../providers/session_media_caches.dart';
 import '../../voice/providers/jellyfin_credential_store.dart';
 import '../../voice/providers/voice_controller.dart';
 import '../../voice/providers/voice_flags.dart';
 import 'account.dart';
+import 'account_index_writer.dart';
 import 'account_slot.dart';
 import 'account_store.dart';
 import 'account_unread.dart';
@@ -48,7 +54,9 @@ class AccountHost extends ChangeNotifier {
     required this.onActivate,
     required this.readSession,
     required this.signOutRuntime,
-  });
+    this.crossTab,
+    String Function() newDbFile = newDatabaseFile,
+  }) : _newDbFile = newDbFile;
 
   final AccountStore store;
   final ProviderContainer Function(AccountSlot slot) createContainer;
@@ -65,11 +73,14 @@ class AccountHost extends ChangeNotifier {
   /// Ends the session on the server and clears it locally.
   final Future<void> Function(AccountRuntime runtime) signOutRuntime;
 
+  /// Serialises index writes across browser tabs; null where one process is the whole session.
+  final CrossTab? crossTab;
+  final String Function() _newDbFile;
+
   final List<AccountRuntime> _runtimes = [];
   AccountRuntime? _active;
   AccountRuntime? _returnTo;
   AccountIndex _index = const AccountIndex();
-  bool _indexUnread = false;
   bool _disposed = false;
 
   AccountRuntime? get active => _active;
@@ -145,7 +156,7 @@ class AccountHost extends ChangeNotifier {
     } catch (error, stack) {
       reportFailure(LogTag.auth, 'read the saved accounts', error, stack);
       _index = const AccountIndex();
-      _indexUnread = true;
+      _writer.unread = true;
     }
     final first = _active;
     final account = _index.active;
@@ -182,19 +193,58 @@ class AccountHost extends ChangeNotifier {
     final existing = _index.byOrigin(origin);
     final runtime = _runtimeOf(slot);
     final previous = slot.account;
-    if (previous != null && !(runtime?.signedIn ?? false)) {
-      _index = _index.without(previous.origin);
-    }
-    final account = existing ?? Account.forServer(server);
+    final fileBefore = slot.databaseFile;
+    final dropsPrevious = previous != null && !(runtime?.signedIn ?? false);
+    if (dropsPrevious) _index = _index.without(previous.origin);
+    final account = existing ?? _newAccount(server);
     _index = _index.withAccount(account);
     if (runtime != null && existing != null) {
       // Already filed here: land on that account, not on a duplicate.
       scheduleMicrotask(() => _mergeInto(runtime, origin));
     } else {
       scheduleMicrotask(() => _watchLate(slot));
+      if (runtime != null && fileBefore != account.dbFile) {
+        scheduleMicrotask(() => _reopenDatabase(runtime));
+      }
     }
-    unawaited(_saveIndex());
+    Account? stored;
+    unawaited(
+      _saveIndex((index) {
+        final base = dropsPrevious ? index.without(previous.origin) : index;
+        stored = base.byOrigin(origin);
+        return stored == null ? base.withAccount(account) : base;
+      }).then((_) => _adoptStoredFile(slot, account, stored)),
+    );
     return account;
+  }
+
+  /// Another tab filed this server first: its database file stays, so every tab caches into the same one.
+  void _adoptStoredFile(AccountSlot slot, Account mine, Account? stored) {
+    if (_disposed || stored == null || stored.dbFile == mine.dbFile) return;
+    if (slot.account != mine) return;
+    slot.account = stored;
+    _index = _index.withAccount(stored);
+    final runtime = _runtimeOf(slot);
+    if (runtime != null) _reopenDatabase(runtime);
+    _changed();
+  }
+
+  /// A file name no other account already caches into.
+  Account _newAccount(Uri server) {
+    for (var attempt = 0; attempt < 8; attempt++) {
+      final dbFile = _newDbFile();
+      final taken =
+          dbFile == legacyDatabaseFile ||
+          _index.accounts.any((a) => a.dbFile == dbFile);
+      if (!taken) return Account.forServer(server, dbFile: dbFile);
+    }
+    throw StateError('Could not find an unused database file name');
+  }
+
+  /// The container opened its database before its server was chosen or changed, so it must reopen on the new file.
+  void _reopenDatabase(AccountRuntime runtime) {
+    if (_disposed || !_runtimes.contains(runtime)) return;
+    runtime.container.invalidate(databaseProvider);
   }
 
   AccountRuntime? _runtimeOf(AccountSlot slot) {
@@ -267,12 +317,17 @@ class AccountHost extends ChangeNotifier {
     runtime._cancels.add(voice.close);
   }
 
-  void _leaveOtherCalls(AccountRuntime joined) {
-    for (final other in _runtimes) {
-      if (other == joined || !other.inCall) continue;
-      unawaited(other.container.read(voiceControllerProvider.notifier).leave());
-    }
-  }
+  void _leaveOtherCalls(AccountRuntime joined) =>
+      unawaited(leaveCallsOutside(joined.container));
+
+  /// Hangs up every other account's call and waits for its teardown.
+  ///
+  /// The foreground service and the call system are one per process, so a call that ends after the next one has started would stop what the new one runs on.
+  Future<void> leaveCallsOutside(ProviderContainer joining) => Future.wait([
+    for (final other in _runtimes)
+      if (!identical(other.container, joining) && other.inCall)
+        other.container.read(voiceControllerProvider.notifier).leave(),
+  ]);
 
   /// Puts [origin]'s account on screen, dropping an add flow it interrupts.
   Future<void> switchTo(String origin) async {
@@ -298,8 +353,9 @@ class AccountHost extends ChangeNotifier {
       if (next.slot.restoreFailed) await readSession(next);
       await onActivate(next);
       if (next.account != null) {
-        _index = _index.withActive(next.account!.origin);
-        unawaited(_saveIndex());
+        final origin = next.account!.origin;
+        _index = _index.withActive(origin);
+        unawaited(_saveIndex((index) => index.withActive(origin)));
       }
       _changed();
     } finally {
@@ -333,7 +389,7 @@ class AccountHost extends ChangeNotifier {
     final account = pending.account;
     if (account != null) {
       _index = _index.without(account.origin);
-      await _saveIndex();
+      await _saveIndex((index) => index.without(account.origin));
     }
     _retire(pending);
   }
@@ -356,6 +412,7 @@ class AccountHost extends ChangeNotifier {
     if (runtime == null || account == null) return;
     final others = accounts.where((r) => r != runtime).toList();
     _index = _index.without(origin);
+    final withoutRemoved = _saveIndex((index) => index.without(origin));
     await JellyfinCredentialStore(
       runtime.container.read(keyStoreProvider),
     ).forgetAll(runtime.container.read(sessionProvider).tokens?.userId);
@@ -369,7 +426,7 @@ class AccountHost extends ChangeNotifier {
         stack,
       );
     }
-    await _saveIndex();
+    await withoutRemoved;
     if (_active == runtime) {
       if (others.isNotEmpty) {
         await _activate(others.first);
@@ -425,37 +482,10 @@ class AccountHost extends ChangeNotifier {
     );
   }
 
-  Future<void> _saveIndex() async {
-    try {
-      if (_indexUnread) await _mergeIntoStoredIndex();
-      await store.save(_index);
-    } catch (error, stack) {
-      AppLog.swallowed(
-        LogTag.auth,
-        'Could not save the account list; each sign-in is saved on its own',
-        error,
-        stack,
-      );
-    }
-  }
+  late final AccountIndexWriter _writer = AccountIndexWriter(store, crossTab);
 
-  /// A failed read at launch left the real list unknown, so the first save
-  /// reads it again and adds to it instead of replacing it; still unreadable
-  /// throws, and nothing is written.
-  Future<void> _mergeIntoStoredIndex() async {
-    final stored = await store.loadOrMigrate();
-    var merged = AccountIndex(
-      accounts: stored.accounts,
-      activeOrigin: _index.activeOrigin ?? stored.activeOrigin,
-    );
-    for (final account in _index.accounts) {
-      if (merged.byOrigin(account.origin) == null) {
-        merged = merged.withAccount(account);
-      }
-    }
-    _index = merged;
-    _indexUnread = false;
-  }
+  Future<void> _saveIndex(AccountIndex Function(AccountIndex stored) change) =>
+      _writer.save(change, known: _index);
 
   bool _notifyQueued = false;
 

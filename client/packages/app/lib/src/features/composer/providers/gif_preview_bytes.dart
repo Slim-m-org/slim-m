@@ -25,9 +25,15 @@ typedef GifPreviewKey = ({String gifId, String? channelId});
 
 final gifPreviewBytesProvider = FutureProvider.autoDispose
     .family<Uint8List, GifPreviewKey>((ref, key) async {
-      _recent.hold(ref, key.gifId);
-      final fetched = await ref
-          .watch(apiProvider)
-          .fetchGifPreview(key.gifId, channelId: key.channelId);
-      return fetched.bytes;
+      _recent.hold(ref, key);
+      try {
+        final fetched = await ref
+            .watch(apiProvider)
+            .fetchGifPreview(key.gifId, channelId: key.channelId);
+        return fetched.bytes;
+      } catch (_) {
+        // A cached failure would replay for every later view of this tile.
+        _recent.release(key);
+        rethrow;
+      }
     });

@@ -241,7 +241,7 @@ async fn startup_closes_every_session_left_open() {
         .await;
     w.deliver("participant_joined", Some((w.other, "PA_2")))
         .await;
-    slimm_server::reconcile_on_startup(&w.store, &w.voice).await;
+    slimm_server::reconcile_on_startup(&w.store, &w.voice, &w.hub).await;
     assert!(w.sessions().await.iter().all(|r| !r["left_at"].is_null()));
 }
 
@@ -260,7 +260,7 @@ async fn startup_carries_on_the_session_of_a_member_still_on_the_call() {
     let url = support::fake_sfu::spawn_sfu(sfu).await;
     let voice = VoiceService::for_test(&url, API_KEY, API_SECRET);
 
-    slimm_server::reconcile_on_startup(&w.store, &voice).await;
+    slimm_server::reconcile_on_startup(&w.store, &voice, &w.hub).await;
 
     let rows = w.sessions().await;
     let open: Vec<&Value> = rows.iter().filter(|r| r["left_at"].is_null()).collect();
@@ -299,7 +299,7 @@ async fn startup_opens_a_session_for_a_member_who_connected_while_it_was_down() 
     let url = support::fake_sfu::spawn_sfu(sfu).await;
     let voice = VoiceService::for_test(&url, API_KEY, API_SECRET);
 
-    slimm_server::reconcile_on_startup(&w.store, &voice).await;
+    slimm_server::reconcile_on_startup(&w.store, &voice, &w.hub).await;
 
     let rows = w.sessions().await;
     let mut open: Vec<&str> = rows

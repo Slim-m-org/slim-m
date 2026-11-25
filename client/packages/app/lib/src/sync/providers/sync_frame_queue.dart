@@ -125,7 +125,7 @@ class SerialFrameQueue {
     if (!_held) unawaited(_pump());
   }
 
-  /// Applies everything held so far, in order, then goes live.
+  /// Applies everything held so far, in order, then goes live; throws [FrameBacklogOverflow] if frames were dropped meanwhile.
   ///
   /// A frame arriving while this drains joins the same drain, and the switch
   /// to live happens with no await after the last emptiness check, so no frame
@@ -134,6 +134,8 @@ class SerialFrameQueue {
     while (_pending.isNotEmpty) {
       await _handle(_pending.removeFirst());
     }
+    // Frames dropped while the drain awaited the store are never replayed, so the connect must restart.
+    if (overflowed) throw const FrameBacklogOverflow();
     _held = false;
     _completeDrained();
   }

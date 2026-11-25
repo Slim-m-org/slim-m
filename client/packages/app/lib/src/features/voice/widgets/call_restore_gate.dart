@@ -7,6 +7,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_api/api.dart' show ApiException;
 
 import '../../../widgets/confirm_dialog.dart';
 import '../providers/call_restore.dart';
@@ -40,9 +41,28 @@ class _CallRestoreGateState extends ConsumerState<CallRestoreGate> {
     if (!mounted) return;
     await ref.read(answerCallToRestoreProvider)();
     if (!rejoin || !mounted) return;
-    if (!await confirmTranscriptionNotice(context, ref)) return;
+    if (!await _noticeAllowsJoin()) return;
     if (!mounted || ref.read(voiceFlagsProvider).channelId != null) return;
     await ref.read(rejoinRestoredCallProvider)(call);
+  }
+
+  /// Asks again while the notice cannot be read, so the call never comes back unannounced.
+  Future<bool> _noticeAllowsJoin() async {
+    while (true) {
+      try {
+        return await confirmTranscriptionNotice(context, ref);
+      } on ApiException {
+        if (!mounted) return false;
+        final retry = await confirmChoice(
+          context,
+          title: 'Could not rejoin the call',
+          message: 'slim-m could not check the transcription notice.',
+          confirmLabel: 'Try again',
+          cancelLabel: 'Not now',
+        );
+        if (!retry || !mounted) return false;
+      }
+    }
   }
 
   Future<bool> _askToRejoin(String channelName) => confirmChoice(

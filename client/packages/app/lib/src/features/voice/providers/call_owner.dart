@@ -7,6 +7,7 @@
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 import '../../accounts/providers/account_host.dart';
 import '../../accounts/providers/account_providers.dart';
@@ -30,4 +31,23 @@ bool otherAccountInCall(Ref ref) {
   return host.runtimes.any(
     (r) => r.inCall && !identical(r.container, ref.container),
   );
+}
+
+/// Hangs up the call another account holds and waits for it, up to a few seconds.
+///
+/// A call starting in [ref]'s container then begins on a clear process-wide call state.
+Future<void> leaveOtherAccountCalls(Ref ref) async {
+  try {
+    await ref
+        .read(accountHostProvider)
+        ?.leaveCallsOutside(ref.container)
+        .timeout(const Duration(seconds: 5));
+  } on Object catch (error, stack) {
+    AppLog.swallowed(
+      LogTag.voice,
+      'The other account\'s call did not end before this one started',
+      error,
+      stack,
+    );
+  }
 }

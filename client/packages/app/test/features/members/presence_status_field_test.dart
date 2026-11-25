@@ -267,4 +267,19 @@ void main() {
     expect(find.byType(AppErrorState), findsOneWidget);
     expect(find.byType(AppMenu), findsOneWidget);
   });
+
+  testWidgets('a refused clear puts the old status back in the field', (
+    tester,
+  ) async {
+    final wired = _wire(currentStatus: 'afk', patchStatus: 500);
+    await _pump(tester, wired.container);
+
+    await _openMenu(tester);
+    await tester.tap(find.bySemanticsLabel('Clear status'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.textContaining('clear your status'), findsOneWidget);
+    expect(find.text('afk'), findsOneWidget);
+  });
 }

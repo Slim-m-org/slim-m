@@ -92,7 +92,9 @@ List<Widget> participantCallMenuItems(
       canMove:
           sourceChannel != null &&
           _canMove(ref, sourceChannel) &&
-          (profile == null || ref.read(roleLadderProvider).outranks(profile)),
+          (profile == null ||
+              (!profile.isBot &&
+                  ref.read(roleLadderProvider).outranks(profile))),
     ),
   );
 
