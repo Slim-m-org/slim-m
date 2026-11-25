@@ -47,6 +47,15 @@ class PluginsWaitForTheWindow(unittest.TestCase):
         self.assertNotIn("FlutterViewController", main)
         self.assertLess(main.index("ServeMainWindowReady("), main.index("->Run()"))
 
+    def test_a_login_launch_never_shows_from_the_deadline(self):
+        window = strip_c_comments((RUNNER_DIR / "main_window.cpp").read_text())
+        timer = window[window.index("wparam == kRevealTimer"):]
+        timer = timer[: timer.index("return 0;")]
+        self.assertRegex(timer, r"if \(LaunchedAtLogin\(\)\) \{\s*ReleaseFirstShowHeld\(\);")
+        hold = window[window.index("void HoldFirstShow("):]
+        hold = hold[: hold.index("\n}")]
+        self.assertIn("if (LaunchedAtLogin()) ReleaseFirstShowHeld();", hold)
+
     def test_plugins_follow_the_main_view(self):
         window = strip_c_comments((RUNNER_DIR / "main_window.cpp").read_text())
         self.assertLess(window.index("GetViewById("), window.index("RegisterPlugins("))

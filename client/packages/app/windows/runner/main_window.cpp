@@ -126,6 +126,8 @@ void HoldFirstShow(LPARAM lparam) {
   // A hidden window must not take activation either, or the launch's foreground right is spent on it.
   change->flags = (change->flags & ~static_cast<UINT>(SWP_SHOWWINDOW)) |
                   SWP_NOACTIVATE;
+  // The engine's one first show is dropped, so a login launch lets later shows through.
+  if (LaunchedAtLogin()) ReleaseFirstShowHeld();
 }
 
 std::optional<LRESULT> HandleTopLevelMessage(HWND window, UINT message,
@@ -138,10 +140,8 @@ std::optional<LRESULT> HandleTopLevelMessage(HWND window, UINT message,
   if (g_window == nullptr) return std::nullopt;
   if (!is_main) return HandlePopOutMessage(window, message, wparam, lparam);
   if (message == WM_TIMER && wparam == kRevealTimer) {
-    // Dart asked to reveal a login launch, so only the safety deadline of one it never asked about shows it.
-    const bool asked = g_revealed;
     g_revealed = true;
-    if (asked && LaunchedAtLogin()) {
+    if (LaunchedAtLogin()) {
       ReleaseFirstShowHeld();
     } else {
       ShowMainWindow();
