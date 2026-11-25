@@ -4,27 +4,21 @@ library;
 
 import 'dart:io';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 
-/// Asks the activity to copy a file to a document the user picked, without reading it into Dart.
+/// Asks the activity to save a file through the document dialog, without reading it into Dart.
 const MethodChannel _fileExportChannel = MethodChannel(
   'top.npcserver.slimm/file_export',
 );
 
-/// Android: the picker creates an empty document, then the platform copies the file into it.
+/// Android: the system "create document" dialog, then a native copy of the file into the chosen document.
 Future<bool> documentFileSaver(File file, String filename) async {
-  final document = await FilePicker.saveFile(
-    fileName: filename,
-    bytes: Uint8List(0),
-  );
-  if (document == null) return false;
-  await _fileExportChannel.invokeMethod<void>('copyToDocument', {
+  final saved = await _fileExportChannel.invokeMethod<bool>('saveCopy', {
     'path': file.path,
-    'document': document.toString(),
+    'fileName': filename,
   });
-  return true;
+  return saved ?? false;
 }
 
 /// iOS: the share sheet takes the file itself and offers Save to Files.
