@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// One Escape puts every armed tool down to Pan when nothing is being drawn or edited.
+/// One Escape puts every armed tool down to Pan; ending a note or text edit counts as that press.
 library;
 
 import 'package:flutter/gestures.dart';
@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/canvas/providers/armed_stamp.dart';
 import 'package:slimm_app/src/features/canvas/providers/canvas_edge_style.dart';
 import 'package:slimm_app/src/features/screen_overlay/providers/stamp_content.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_text_focus.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_tool_model.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
@@ -69,7 +70,7 @@ void main() {
   }
 
   for (final tool in [CanvasTool.note, CanvasTool.text]) {
-    testWidgets('Escape ends the ${tool.name} edit first, then leaves', (
+    testWidgets('one Escape ends the ${tool.name} edit and leaves the tool', (
       tester,
     ) async {
       final rig = await _arm(tester, tool);
@@ -81,11 +82,12 @@ void main() {
         id: 40,
       );
       await lift(tester, pointer);
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(textInputHasFocus(), isTrue, reason: 'baseline: an edit is open');
 
       await key(tester, LogicalKeyboardKey.escape);
-      expect(rig.tool, tool, reason: 'the first press ends the edit only');
 
-      await key(tester, LogicalKeyboardKey.escape);
+      expect(textInputHasFocus(), isFalse, reason: 'the edit ended');
       expect(rig.tool, CanvasTool.pan);
     });
   }

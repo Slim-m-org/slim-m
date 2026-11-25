@@ -151,7 +151,30 @@ class CanvasEdgeGesture {
     final holds =
         box != null &&
         holdsSideDots(box, world, zoom: document.camera.zoom, touch: touch());
-    return holds ? held : _objectAt(world);
+    return holds ? held : _objectAt(world) ?? _dotReachAt(world);
+  }
+
+  /// The object whose dot is nearest [world], among those with a dot in reach, so a dot is found from outside the object.
+  String? _dotReachAt(Offset world) {
+    final zoom = document.camera.zoom;
+    String? nearest;
+    var nearestDistance = double.infinity;
+    for (final id in document.visibleIdsInReadingOrder()) {
+      if (!_attachable.contains(document.kindOf(id))) continue;
+      final box = _edges.boxOf(id);
+      if (box == null ||
+          !holdsSideDots(box, world, zoom: zoom, touch: touch())) {
+        continue;
+      }
+      for (final dot in sideDots(box).values) {
+        final distance = (dot - world).distance;
+        if (distance < nearestDistance) {
+          nearest = id;
+          nearestDistance = distance;
+        }
+      }
+    }
+    return nearest;
   }
 
   bool get picking => _edges.connectFrom.value != null;

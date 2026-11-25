@@ -9,7 +9,10 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 import '../../support/async_wait.dart';
 import 'canvas_pane_harness.dart';
 
-Future<CanvasPaneFixture> _open(WidgetTester tester) async {
+Future<CanvasPaneFixture> _open(
+  WidgetTester tester, {
+  List<Map<String, dynamic>> extra = const [],
+}) async {
   final fixture = CanvasPaneFixture();
   fixture.routes = (request) async => request.url.path == '/version'
       ? jsonResponse({
@@ -25,6 +28,7 @@ Future<CanvasPaneFixture> _open(WidgetTester tester) async {
   fixture.objects = [
     {...canvasNoteJson('a', x: 100, seq: 1), 'y': 100.0, 'w': 120.0, 'h': 60.0},
     {...canvasNoteJson('c', x: 400, seq: 2), 'y': 300.0, 'w': 120.0, 'h': 60.0},
+    ...extra,
   ];
   final container = fixture.container();
   addTearDown(container.dispose);
@@ -81,5 +85,56 @@ void main() {
     await tester.pump();
 
     expect(document.edges.dotsOn.value, isNull);
+  });
+
+  testWidgets('hovering straight onto a dot from outside shows the dots and '
+      'a press there draws a connection', (tester) async {
+    final fixture = await _open(tester);
+    final document = surfaceDocument(tester);
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: screenFor(tester, const Offset(0, 0)));
+    expect(document.edges.dotsOn.value, isNull, reason: 'baseline');
+
+    const outer = Offset(160, 160 + sideDotReachPx - 3);
+    await mouse.moveTo(screenFor(tester, const Offset(160, 220)));
+    await mouse.moveTo(screenFor(tester, outer));
+    await tester.pump();
+    expect(document.edges.dotsOn.value, 'a');
+
+    await mouse.down(screenFor(tester, outer));
+    await mouse.moveTo(screenFor(tester, const Offset(300, 250)));
+    await mouse.moveTo(screenFor(tester, const Offset(460, 330)));
+    await mouse.up();
+    await waitUntil(
+      tester,
+      () => fixture.posted.any((p) => p['kind'] == 'edge'),
+    );
+    final props = fixture.posted.single['props'] as Map<String, dynamic>;
+    expect(props['from'], {'object_id': 'a', 'side': 'bottom'});
+  });
+
+  testWidgets('with two dots in reach the nearest object wins', (tester) async {
+    await _open(
+      tester,
+      extra: [
+        {
+          ...canvasNoteJson('d', x: 100, seq: 3),
+          'y': 180.0,
+          'w': 120.0,
+          'h': 60.0,
+        },
+      ],
+    );
+    final document = surfaceDocument(tester);
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: screenFor(tester, const Offset(0, 0)));
+
+    // Between a's bottom dot (160, 160) and d's top dot (160, 180), nearer d's.
+    await mouse.moveTo(screenFor(tester, const Offset(160, 172)));
+    await tester.pump();
+
+    expect(document.edges.dotsOn.value, 'd');
   });
 }

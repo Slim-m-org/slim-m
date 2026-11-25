@@ -35,7 +35,7 @@ extension _CanvasPaneGestures on _CanvasPaneState {
     unawaited(ref.read(canvasToolsHiddenProvider.notifier).select(hide));
   }
 
-  /// Escape with a drawing tool armed: drop a half-drawn stroke or shape, else close a docked thread, else put the tool down to Pan.
+  /// Escape with a tool armed: drop a half-drawn stroke or shape, else close a docked thread, else put the tool down to Pan.
   void _onEscapeTool() {
     if (_gestureController.cancelDrawing()) return;
     if (_threadPaneDocked) return _closeThreadPane();
@@ -189,6 +189,12 @@ extension _CanvasPaneGestures on _CanvasPaneState {
       _text.cancelDraft();
     });
     _boardFocusNode.requestFocus();
+    _putToolDown();
+  }
+
+  /// Escape ends an edit and the tool that opened it together, so one press returns to Pan.
+  void _putToolDown() {
+    if (_tool != CanvasTool.pan) _onToolChanged(CanvasTool.pan);
   }
 
   /// The text box's own editor while one is open.
