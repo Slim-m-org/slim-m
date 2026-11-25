@@ -137,7 +137,7 @@ extension CanvasOpsControllerEdit on CanvasOpsController {
           ..refresh();
       }
       _settleUnknownOutcome(error);
-      onError(errorMessage);
+      _reportHistoryFailure(error, errorMessage);
       return null;
     }
     await _regrowNote(objectId, document.noteTextOf(objectId) ?? '');
@@ -198,7 +198,7 @@ extension CanvasOpsControllerEdit on CanvasOpsController {
         document.refresh();
       }
       _settleUnknownOutcome(error);
-      onError(errorMessage);
+      _reportHistoryFailure(error, errorMessage);
       return null;
     }
     await _regrowNote(objectId, text);
@@ -328,7 +328,7 @@ extension CanvasOpsControllerTextEdit on CanvasOpsController {
     } on api.ApiException catch (error) {
       if (_textPropsOf(objectId) == next) _applyTextProps(objectId, before);
       _settleUnknownOutcome(error);
-      onError(errorMessage);
+      _reportHistoryFailure(error, errorMessage);
       return null;
     }
     await _refitText(objectId, next);
@@ -453,7 +453,7 @@ extension CanvasOpsControllerEdges on CanvasOpsController {
     } on api.ApiException catch (error) {
       edges.applyEdited(objectId, inverse);
       _settleUnknownOutcome(error);
-      onError(errorMessage);
+      _reportHistoryFailure(error, errorMessage);
       return null;
     }
     return inverse;

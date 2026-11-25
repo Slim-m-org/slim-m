@@ -163,6 +163,18 @@ class CanvasOpsController {
     if (error is api.TransportException) unawaited(onUnknownOutcome?.call());
   }
 
+  /// Set when a history step found its object deleted elsewhere, so the entry is dropped rather than retried.
+  bool _entryGone = false;
+
+  /// A history step on an object the server no longer has is skipped quietly; any other failure is reported.
+  void _reportHistoryFailure(api.ApiException error, String message) {
+    if (_historyBusy && error is api.NotFoundException) {
+      _entryGone = true;
+    } else {
+      onError(message);
+    }
+  }
+
   /// Called after a change failed with no reply, where the server may have applied it.
   final Future<void> Function()? onUnknownOutcome;
 
@@ -256,10 +268,11 @@ class CanvasOpsController {
       while (_undoStack.isNotEmpty && !_disposed) {
         final epoch = _editEpoch;
         final entry = _undoStack.last;
+        _entryGone = false;
         final redo = await _undoStep(entry);
-        if (redo == null) return;
+        if (redo == null && !_entryGone) return;
         _undoStack.remove(entry);
-        if (redo is _Skipped) {
+        if (redo == null || redo is _Skipped) {
           skipped++;
           continue;
         }
@@ -275,7 +288,7 @@ class CanvasOpsController {
   Future<_RedoEntry?> _undoStep(_UndoEntry entry) => switch (entry) {
     _DrawEntry(:final objectIds) => _undoDraw(objectIds),
     _EraseEntry(:final opIds, :final objectIds) => _restore(opIds, objectIds),
-    _PurgeEntry(:final objects) => _undoPurge(objects),
+    final _PurgeEntry purge => _undoPurge(purge),
     _MoveEntry(
       :final objectId,
       :final fromX,
@@ -318,11 +331,16 @@ class CanvasOpsController {
     if (_historyBusy || _redoStack.isEmpty) return;
     _historyBusy = true;
     try {
-      final entry = _redoStack.last;
-      final undoEntry = await _redoStep(entry);
-      if (undoEntry == null) return;
-      _redoStack.remove(entry);
-      if (undoEntry is! _NoUndo) _pushUndo(undoEntry, keepRedo: true);
+      while (_redoStack.isNotEmpty && !_disposed) {
+        final entry = _redoStack.last;
+        _entryGone = false;
+        final undoEntry = await _redoStep(entry);
+        if (undoEntry == null && !_entryGone) return;
+        _redoStack.remove(entry);
+        if (undoEntry == null) continue;
+        if (undoEntry is! _NoUndo) _pushUndo(undoEntry, keepRedo: true);
+        return;
+      }
     } finally {
       _historyBusy = false;
     }
