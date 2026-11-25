@@ -152,16 +152,18 @@ void main() {
     expect((fixture.posted.single['props'] as Map)['text'], 'keys only');
   });
 
-  testWidgets('size and colour share one row of the bar', (tester) async {
+  testWidgets('the colour button then the sizes share one row of the bar', (
+    tester,
+  ) async {
     await openPane(tester);
     await placeWithTool(tester, const Offset(150, 150));
 
     final small = tester.getCenter(find.text('S'));
     final large = tester.getCenter(find.text('L'));
-    final blue = tester.getCenter(find.bySemanticsLabel('Blue'));
-    expect(small.dy, closeTo(blue.dy, 0.5));
-    expect(large.dy, closeTo(blue.dy, 0.5));
-    expect(large.dx, lessThan(blue.dx), reason: 'sizes first, then colours');
+    final colour = tester.getCenter(find.byTooltip('Text colour'));
+    expect(small.dy, closeTo(colour.dy, 0.5));
+    expect(large.dy, closeTo(colour.dy, 0.5));
+    expect(colour.dx, lessThan(small.dx), reason: 'colour first, then sizes');
   });
 
   testWidgets('size and colour picked in the editor travel with the text', (
@@ -172,7 +174,9 @@ void main() {
     await placeWithTool(tester, const Offset(150, 150));
     await tester.enterText(field, 'big blue');
     await tester.tap(find.text('L'));
-    await tester.tap(find.bySemanticsLabel('Blue'));
+    await tester.tap(find.byTooltip('Text colour'));
+    await tester.pump();
+    await tester.tap(find.byTooltip('Blue'));
     await commit(tester);
 
     expect(fixture.posted.single['props'], {
@@ -314,7 +318,9 @@ void main() {
 
         await tester.enterText(field, 'after');
         await tester.tap(find.text('S'));
-        await tester.tap(find.bySemanticsLabel('Green'));
+        await tester.tap(find.byTooltip('Text colour'));
+        await tester.pump();
+        await tester.tap(find.byTooltip('Green'));
         await commit(tester);
 
         final edits = fixture.postedOps.where((op) => op['kind'] == 'edit');

@@ -23,6 +23,7 @@ class ObjectPainter {
     required this.inkColors,
     required this.textFontFamily,
     required this.noteSpans,
+    required this.textSpans,
     required this.noteSpansRevision,
     required this.elevationShadow,
     this.palette = const NotePalette(),
@@ -32,6 +33,7 @@ class ObjectPainter {
   final Map<String, Color> inkColors;
   final String? textFontFamily;
   final NoteSpanBuilder? noteSpans;
+  final NoteSpanBuilder? textSpans;
   final int noteSpansRevision;
   final List<BoxShadow> elevationShadow;
 
@@ -48,6 +50,8 @@ class ObjectPainter {
   static final Paint _noteStroke = Paint()
     ..style = PaintingStyle.stroke
     ..strokeWidth = 1.5;
+  static final Paint _emojiPaint = Paint()
+    ..filterQuality = FilterQuality.medium;
   static final Paint _checkTick = Paint()
     ..style = PaintingStyle.stroke
     ..strokeCap = StrokeCap.round
@@ -129,7 +133,30 @@ class ObjectPainter {
     );
     painter.paint(canvas, const Offset(noteWorldPad, noteWorldPad));
     _paintChecks(canvas, painter, ink, palette.behind(style, color));
+    _paintEmojis(
+        canvas, painter, ink, const Offset(noteWorldPad, noteWorldPad));
     canvas.restore();
+  }
+
+  /// Each custom emoji in the gap the layout left for it; one still loading shows a faint tile.
+  void _paintEmojis(Canvas canvas, TextPainter painter, Color ink, Offset at) {
+    for (final emoji in noteEmojisOf(painter)) {
+      final rect = emoji.rect.shift(at);
+      final image = emoji.image;
+      if (image == null) {
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(rect, Radius.circular(rect.width * 0.2)),
+          _noteFill..color = ink.withValues(alpha: 0.12),
+        );
+        continue;
+      }
+      canvas.drawImageRect(
+        image,
+        Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
+        rect,
+        _emojiPaint,
+      );
+    }
   }
 
   void _paintChecks(
@@ -183,23 +210,23 @@ class ObjectPainter {
       return;
     }
     // A text box's layout does not depend on its height, so the key's height slot is 0 and its colour rides in the revision slot.
+    final textInk = stroke.colorKey == canvasDefaultTextColor
+        ? palette.textInk
+        : resolveCanvasInk(inkColors, stroke.colorKey, ink);
     final painter = noteLabels.painterFor(
       stroke.id,
-      (text, stroke.w, 0, stroke.colorKey.hashCode, fontSize),
-      () => TextPainter(
-        text: TextSpan(
-          text: text,
-          style: TextStyle(
-            fontFamily: textFontFamily,
-            fontSize: fontSize,
-            color: stroke.colorKey == canvasDefaultTextColor
-                ? palette.textInk
-                : resolveCanvasInk(inkColors, stroke.colorKey, ink),
-            height: canvasTextLineHeight,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout(maxWidth: stroke.w - canvasTextPad * 2, minWidth: 0),
+      (
+        text,
+        stroke.w,
+        0,
+        Object.hash(stroke.colorKey, noteSpansRevision),
+        fontSize
+      ),
+      () => layoutNoteText(
+        _textSpan(text, fontSize, textInk),
+        fontSize: fontSize,
+        width: stroke.w - canvasTextPad * 2,
+      ),
     );
     canvas.save();
     canvas.translate(
@@ -209,7 +236,19 @@ class ObjectPainter {
     canvas.scale(camera.zoom);
     canvas.clipRect(Rect.fromLTWH(0, 0, stroke.w, stroke.h));
     painter.paint(canvas, const Offset(canvasTextPad, canvasTextPad));
+    _paintEmojis(
+        canvas, painter, textInk, const Offset(canvasTextPad, canvasTextPad));
     canvas.restore();
+  }
+
+  InlineSpan _textSpan(String text, double fontSize, Color ink) {
+    final base = TextStyle(
+      fontFamily: textFontFamily,
+      fontSize: fontSize,
+      color: ink,
+      height: canvasTextLineHeight,
+    );
+    return textSpans?.call(text, base) ?? TextSpan(text: text, style: base);
   }
 
   InlineSpan _noteSpan(String text, double fontSize, double height, Color ink) {

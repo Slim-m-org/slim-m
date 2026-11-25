@@ -12,6 +12,8 @@ import 'package:slimm_design_system/design_system.dart' show AppTokens;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../../ids.dart';
+import '../../composer/widgets/composer_shortcode_convert.dart';
+import '../../emoji/providers/emoji_catalog_provider.dart';
 import '../providers/canvas_edge_style.dart';
 import '../providers/canvas_note_style.dart';
 import '../widgets/canvas_note_editor.dart';
@@ -55,6 +57,13 @@ class CanvasNoteEditing {
   void _apply([VoidCallback? mutate]) =>
       _disposed ? mutate?.call() : changed(mutate);
 
+  Map<String, String> _lastEmojiIndex = const {};
+
+  /// The custom emoji as last read: a pane closing still sends what was typed, once its ref is gone.
+  Map<String, String> _emojiIndex() => _disposed
+      ? _lastEmojiIndex
+      : _lastEmojiIndex = ref.read(customEmojiIndexProvider);
+
   CanvasDocument get _document => engine.document;
   bool get active => session != null;
 
@@ -75,6 +84,7 @@ class CanvasNoteEditing {
         objectId: id,
         initialText: text,
         startBounds: bounds,
+        emojiIndex: _emojiIndex,
       ),
     );
   }
@@ -119,6 +129,7 @@ class CanvasNoteEditing {
         initialText: text,
         startBounds: (x: box.left, y: box.top, w: box.width, h: box.height),
         draft: CanvasNoteDraft(world: world, draggedSize: draggedSize),
+        emojiIndex: _emojiIndex,
       ),
     );
   }
@@ -186,9 +197,10 @@ class CanvasNoteEditing {
     barFocus.dispose();
   }
 
-  Future<void> commit(String text) async {
+  Future<void> commit(String typed) async {
     final s = session;
     if (s == null) return;
+    final text = canonicalCustomEmojiText(typed, _emojiIndex());
     final draft = s.draft;
     if (draft != null) return _commitDraft(s, draft, text);
     _restoreBounds(s);
@@ -253,7 +265,10 @@ class CanvasNoteEditing {
             document: _document,
             tool: tool,
             session: open,
-            mayEdit: (id) => !engine.ops.isLocked(id) && mayEdit(id),
+            // The person typing a draft owns it, whatever the board would say of an object with no author yet.
+            mayEdit: (id) =>
+                (open?.draft != null && open?.objectId == id) ||
+                (!engine.ops.isLocked(id) && mayEdit(id)),
             onStyle: restyle,
             onTextStyle: onTextStyle,
             textEditing: textEditing,

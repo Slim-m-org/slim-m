@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import 'canvas_inline_emoji_controller.dart';
 import 'canvas_note_sizing.dart';
 import 'canvas_note_field.dart';
 
@@ -28,7 +29,11 @@ class CanvasNoteEditSession {
     required this.initialText,
     required this.startBounds,
     this.draft,
-  }) : controller = TextEditingController(text: initialText),
+    Map<String, String> Function()? emojiIndex,
+  }) : controller = InlineEmojiController(
+         text: initialText,
+         index: emojiIndex ?? () => const {},
+       ),
        focusNode = FocusNode(),
        baseHeight = startBounds.h {
     controller.selection = TextSelection.collapsed(offset: initialText.length);
@@ -43,7 +48,7 @@ class CanvasNoteEditSession {
   /// Set for a note that exists only here until its text is committed: where it was asked for.
   final CanvasNoteDraft? draft;
 
-  final TextEditingController controller;
+  final InlineEmojiController controller;
   final FocusNode focusNode;
 
   /// Counts the inserts the note's cap refused, so its field can say why.
@@ -249,6 +254,7 @@ class _CanvasNoteEditorState extends State<CanvasNoteEditor>
           bounds.w * camera.zoom,
           bounds.h * camera.zoom,
         );
+        _endWhenOutOfView(rect);
         _keepAboveKeyboard(rect, inset);
         final ink = widget.palette.inkOf(style, AppCanvasColors.note);
         return Stack(
@@ -287,6 +293,15 @@ class _CanvasNoteEditorState extends State<CanvasNoteEditor>
         );
       },
     );
+  }
+
+  /// A note panned out of the pane is committed (or dropped when empty), so no bar is left editing it from afar.
+  void _endWhenOutOfView(Rect rect) {
+    final view = widget.document.viewport;
+    if (_done || view.isEmpty || (Offset.zero & view).overlaps(rect)) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !_done) _commit();
+    });
   }
 
   /// A phone's keyboard must not cover the note: the camera pans, never the layout.
