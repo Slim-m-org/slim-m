@@ -154,6 +154,12 @@ async fn the_sweep_keeps_the_invite_a_member_registered_with() {
         .await
         .unwrap();
     store.redeem_invite(&later.code, carol.id).await.unwrap();
+    // Both redemptions can land in one millisecond, where the earliest-wins order falls to the random code.
+    sqlx::query("UPDATE invite_redemptions SET redeemed_at = redeemed_at + 1000 WHERE code = ?")
+        .bind(&later.code)
+        .execute(&pool)
+        .await
+        .unwrap();
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
