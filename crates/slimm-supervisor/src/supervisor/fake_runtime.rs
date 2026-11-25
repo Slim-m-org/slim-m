@@ -151,7 +151,7 @@ impl IntoJson for Value {
 
 pub async fn serve() -> (Arc<Supervisor>, Shared, std::path::PathBuf) {
     let dir = std::env::temp_dir().join(format!("slimm-sup-{}", uuid::Uuid::now_v7().simple()));
-    std::fs::create_dir_all(&dir).unwrap();
+    tokio::fs::create_dir_all(&dir).await.unwrap();
     let socket = dir.join("runtime.sock");
     let docker: Shared = Default::default();
     let listener = tokio::net::UnixListener::bind(&socket).unwrap();

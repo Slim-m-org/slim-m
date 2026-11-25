@@ -533,7 +533,6 @@ def main():
 
     results = run_selected(
         scenarios(a, b, admin, member, room_id, server, secret), only, exact, prepare)
-    failures = [r["name"] for r in results if r["ok"] is False]
 
     write_results(results)
     print("\n== what this run actually touched ==")
