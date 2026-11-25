@@ -28,9 +28,10 @@ void main() {
   tearDown(() => dir.deleteSync(recursive: true));
 
   ProcessResult launch(String lddOutput) {
+    File('${dir.path}/ldd.out').writeAsStringSync('$lddOutput\n');
     File(
       '${dir.path}/bin/ldd',
-    ).writeAsStringSync("#!/bin/sh\necho '$lddOutput'\n");
+    ).writeAsStringSync("#!/bin/sh\ncat '${dir.path}/ldd.out'\n");
     Process.runSync('chmod', ['+x', '${dir.path}/bin/ldd']);
     return Process.runSync(
       'sh',
