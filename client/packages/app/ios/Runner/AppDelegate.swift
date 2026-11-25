@@ -220,12 +220,16 @@ import UserNotifications
     }
 
     voiceCallChannel.attach(to: messenger)
-    chainNotificationTapObserver()
   }
 
   /// Takes the notification delegate slot during launch: iOS hands a cold
   /// launch tap to whatever holds it when `didFinishLaunching` returns, so
   /// waiting for the engine would lose that tap.
+  ///
+  /// Never re-taken or chained to a later claimant. firebase_messaging sees
+  /// this observer as the existing delegate, keeps it as its original and
+  /// forwards to it, so setting `next` to firebase would make the two call
+  /// each other until the stack overflows.
   private func installNotificationTapObserver() {
     let observer = NotificationTapObserver(next: nil) { [weak self] channelId in
       self?.deliverTap(channelId)
@@ -234,25 +238,6 @@ import UserNotifications
     // observer alive.
     notificationTapObserver = observer
     UNUserNotificationCenter.current().delegate = observer
-  }
-
-  /// Chains the observer in front of whatever claimed the notification
-  /// delegate during plugin registration, so that whoever claimed it is
-  /// captured and kept.
-  ///
-  /// Chained rather than overridden: `FlutterAppDelegate` implements this
-  /// callback but declares it in no public header, so Swift cannot see it to
-  /// override it and cannot reach `super` to forward it either. Shadowing it
-  /// would silently drop the plugin fan-out that firebase_messaging's own
-  /// notification handling rides on. `UNUserNotificationCenterDelegate` is
-  /// ordinary public API, so a chain needs none of that.
-  private func chainNotificationTapObserver() {
-    guard let observer = notificationTapObserver else { return }
-    let center = UNUserNotificationCenter.current()
-    if let claimed = center.delegate, claimed !== observer {
-      observer.next = claimed
-    }
-    center.delegate = observer
   }
 
   /// Held as well as sent: on a cold launch the engine exists before Dart has
