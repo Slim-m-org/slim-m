@@ -53,6 +53,16 @@ const tokens = TokenPair(
 /// [rosterUnreadable] answers the room's list with a 503 for as long as it says so.
 /// [holdHeartbeat] keeps a heartbeat POST unanswered until it completes.
 /// [refuseComeback] refuses a token asked with `automatic=true`, as a server whose account is on a call elsewhere does.
+/// The answer for the transcription notice check when none is owed, else null.
+http.Response? noticeNotOwed(http.Request request) =>
+    request.url.path == '/voice/transcription-notice'
+    ? http.Response(
+        '{"mode":"on_request","acknowledged":true}',
+        200,
+        headers: {'content-type': 'application/json'},
+      )
+    : null;
+
 http.Client voiceApi({
   int status = 200,
   bool canPublish = true,
@@ -85,6 +95,8 @@ http.Client voiceApi({
         200,
       );
     }
+    final notice = noticeNotOwed(request);
+    if (notice != null) return notice;
     if (!request.url.path.endsWith('/voice/token')) {
       return http.Response('{}', 404);
     }
