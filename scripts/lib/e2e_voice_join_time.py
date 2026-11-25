@@ -22,6 +22,7 @@ from e2e_voice import _tap_label, participants_with_mics
 STAGES = ("tokenStart", "tokenEnd", "wsStart", "wsOpen", "ice", "micRequested",
           "micOpened", "publishStart", "published", "firstPacket",
           "firstSamples")
+# Measured on wan70: p50 541 ms, cold first join 764 ms, ice 250 to 510 ms.
 TARGET_P50_MS = 1500
 # Extra profiles for this scenario; the SFU's egress is all netem can shape here.
 WAN_PROFILES = {"wan70": "delay 70ms 5ms"}
@@ -36,6 +37,16 @@ def percentile(values, pct):
     ordered = sorted(values)
     rank = max(1, math.ceil(pct / 100 * len(ordered)))
     return ordered[rank - 1]
+
+
+def p50_problem(runs):
+    """Why the p50 of click to first remote audio misses the target, or None."""
+    p50 = percentile([r["firstSamples"] for r in runs], 50)
+    if p50 is None:
+        return "no join reached first remote audio"
+    if p50 > TARGET_P50_MS:
+        return f"p50 click to first remote audio was {p50:.0f} ms, over the {TARGET_P50_MS} ms target"
+    return None
 
 
 def relative(marks):
@@ -142,3 +153,5 @@ def _measure(a, b, room_id, channel, runs_wanted):
     p50 = percentile([r["firstSamples"] for r in runs], 50)
     print(f"  p50 click to first remote audio: {p50:.0f} ms "
           f"(target {TARGET_P50_MS})")
+    problem = p50_problem(runs)
+    assert not problem, problem

@@ -27,6 +27,7 @@ import voice_corpus
 import voice_quality
 import voice_quality_dsp as dsp
 from e2e_voice import _tap_label
+from e2e_voice_thresholds import corpus_problems, quality_problems
 
 SECONDS = int(os.environ.get("E2E_VQ_SECONDS", "45"))
 SETTLE = 4
@@ -102,9 +103,10 @@ def score_mos(directory, script="voice_quality_mos.py"):
     python = shutil.which(named)
     if python is None:
         print("  MOS skipped: no python at", named)
-        return
+        return False
     here = os.path.dirname(os.path.abspath(__file__))
     subprocess.run([python, os.path.join(here, script), directory], check=True)
+    return True
 
 
 def capture_seconds(directory):
@@ -385,9 +387,10 @@ def a_scored_call(server, secret, admin_api, sign_in):
     print(f"  selected ICE pair: {pair}")
     if os.path.exists(os.path.join(directory, "clip-A.spans.json")):
         score_mos(directory, "voice_corpus_score.py")
-        return
+        return _assert_corpus_scored(directory, wanted)
     results = analyse_saved(directory)
-    score_mos(directory)
+    scored = score_mos(directory)
+    assert scored or not os.environ.get("E2E_VQ_REQUIRE_MOS"), "E2E_VQ_REQUIRE_MOS is set but no MOS python was found"
     with open(os.path.join(directory, RESULTS_FILE)) as fh:
         results = json.load(fh)
     for profile, sides in results.items():
@@ -396,11 +399,17 @@ def a_scored_call(server, secret, admin_api, sign_in):
                   f"{report['counts']} conceal "
                   f"{report['stats'].get('concealedSamples')} mos {report.get('mos')} "
                   f"lost {report['timing']['lost_s']}s step {report['timing']['max_step_ms']}ms")
-    clean = results.get("clean")
-    if clean:
-        for who, report in clean.items():
-            assert report["similarity"] > 0.6, \
-                f"{who}: the clean call scored {report['similarity']}"
+    found = quality_problems(results)
+    assert not found, "; ".join(found)
+
+
+def _assert_corpus_scored(directory, wanted):
+    """The corpus scorer's own output has to exist and score something; it is the only judge of a corpus reel."""
+    path = os.path.join(directory, "corpus.json")
+    assert os.path.exists(path), f"the corpus scorer wrote no {path}; it needs the venv named by E2E_VQ_MOS_PYTHON"
+    with open(path, encoding="utf-8") as fh:
+        found = corpus_problems(json.load(fh), wanted)
+    assert not found, "; ".join(found)
 
 
 def run_if_selected(server, secret, admin_api, sign_in):
