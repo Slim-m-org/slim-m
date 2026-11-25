@@ -36,6 +36,9 @@ class _NativeAttachmentVideoSource implements AttachmentVideoSource {
   bool isStale(api.SlimmApi apiClient) =>
       _openedToken != apiClient.session.tokens?.accessToken;
 
+  @override
+  void cancel() {}
+
   // Nothing was fetched or opened outside the player itself, which its own caller disposes.
   @override
   void dispose() {}

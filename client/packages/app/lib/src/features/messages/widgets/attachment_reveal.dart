@@ -199,6 +199,7 @@ class _AttachmentFirstFrameState extends State<AttachmentFirstFrame> {
       try {
         await checkDeclaredSize(
           buffer,
+          bytes: widget.bytes,
           maxPixels: declaredPixelCeiling(widget.bytes),
         );
       } catch (_) {
