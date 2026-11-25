@@ -57,7 +57,9 @@ One-time, and it needs a browser login, so it cannot be scripted from here.
 The steps:
 
 - Project name `slim-m` under the account that owns the package.
-- Chroots `fedora-43-x86_64`, `fedora-44-x86_64`, `fedora-rawhide-x86_64`, with "follow Fedora branching" on so a new Fedora release adds itself. That is exactly what `nc1107/sink` has enabled.
+- Chroots `fedora-43-x86_64`, `fedora-44-x86_64`, `fedora-45-x86_64`, `fedora-rawhide-x86_64`, with "follow Fedora branching" on so a new Fedora release adds itself. That is exactly what `nc1107/sink` has enabled.
+  Branching only follows from rawhide: until 2026-11-25 the project had neither rawhide nor the setting, so Fedora 45 got no chroot and its `dnf` skipped the repository without an error (`skip_if_unavailable`).
+  Check after each Fedora release with `dnf repoquery --refresh slim-m-client` on the new release, and `copr-cli modify nc1107/slim-m --chroot ...` (listing every chroot to keep) if one is missing.
 - Leave "enable internet access during builds" off. The spec is written for a network-free buildroot and turning it on would hide a broken `Source0` instead of failing on it.
 - The API token is generated at <https://copr.fedorainfracloud.org/api/> and becomes the `COPR_CONFIG` GitHub secret verbatim, the whole `[copr-cli]` block.
 
