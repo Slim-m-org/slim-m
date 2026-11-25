@@ -40,4 +40,35 @@ const List<WhatsNewEntry> whatsNewArchiveEntries11 = [
       ),
     ],
   ),
+  WhatsNewEntry(
+    version: '0.138.0',
+    headline: 'Connect things on the canvas, and calls that hold up better',
+    points: [
+      WhatsNewPoint(
+        'On the canvas you can draw connections between notes and shapes, '
+        'and they follow when you move things around.',
+      ),
+      WhatsNewPoint(
+        'Notes are edited right where they sit, and can have their own '
+        'colour, background and Markdown.',
+      ),
+      WhatsNewPoint(
+        'A voice channel\'s menu has Open canvas, so you can go straight to '
+        'its board.',
+      ),
+      WhatsNewPoint(
+        'A call on Windows follows your default speaker when it changes, '
+        'and on Android incoming calls ring over the lock screen and use '
+        'Bluetooth headsets.',
+      ),
+      WhatsNewPoint(
+        'After a dropped connection, open channels catch up on everything '
+        'they missed.',
+      ),
+      WhatsNewPoint(
+        'Plus: the last round of fixes from the pre-1.0 audit across '
+        'desktop windows, phone downloads, push and screen sharing.',
+      ),
+    ],
+  ),
 ];
