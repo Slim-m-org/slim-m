@@ -9,12 +9,14 @@ use tower::ServiceExt;
 
 use crate::support;
 use support::app::{json_body, request_authed};
+use support::canvas::BoardChannels;
 
 struct World {
     app: axum::Router,
     store: Store,
     pool: sqlx::SqlitePool,
     channel: ChannelId,
+    board: ChannelId,
     blocker: (UserId, String),
     bystander: String,
     leaver: UserId,
@@ -24,6 +26,7 @@ async fn world(store: Store, pool: sqlx::SqlitePool) -> World {
     let admin = store.create_account("root", "Root", "x").await.unwrap();
     store.bootstrap_deployment(admin.id).await.unwrap();
     let channel = store.list_channels().await.unwrap()[0].id;
+    let board = store.create_voice_with_canvas("board").await.unwrap().id;
     let blocker = store.create_account("ann", "Ann", "x").await.unwrap();
     let leaver = store.create_account("ben", "Ben", "x").await.unwrap();
     let token = |id| {
@@ -33,6 +36,7 @@ async fn world(store: Store, pool: sqlx::SqlitePool) -> World {
     World {
         app: support::app::builder(store.clone()).router(),
         channel,
+        board,
         blocker: (blocker.id, token(blocker.id).await),
         bystander: token(admin.id).await,
         leaver: leaver.id,
@@ -69,7 +73,7 @@ async fn message_author(w: &World, token: &str, id: MessageId) -> Value {
 async fn canvas_author(w: &World, token: &str, id: CanvasObjectId) -> Value {
     let uri = format!(
         "/channels/{}/canvas/objects?min_x=-10&min_y=-10&max_x=10&max_y=10",
-        w.channel
+        w.board
     );
     let view = get(&w.app, &uri, token).await;
     view["objects"]
@@ -90,7 +94,7 @@ async fn seed_content(w: &World) -> (MessageId, CanvasObjectId) {
     let object = CanvasObjectId::generate();
     w.store
         .place_canvas_object(
-            w.channel,
+            w.board,
             w.leaver,
             object,
             PlaceRequest {
