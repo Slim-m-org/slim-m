@@ -86,6 +86,7 @@ class SyncTestServer {
 
   final HttpServer _server;
   final _sockets = <WebSocket>[];
+  final _greeted = <WebSocket>{};
 
   /// The base URL a [SlimmApi] under test should be constructed with.
   Uri get baseUrl => Uri(scheme: 'http', host: '127.0.0.1', port: _server.port);
@@ -112,21 +113,29 @@ class SyncTestServer {
   Future<void> _accept(HttpRequest request) async {
     final socket = await WebSocketTransformer.upgrade(request);
     _sockets.add(socket);
-    socket.listen((raw) {
-      final frame = jsonDecode(raw as String) as Map<String, dynamic>;
-      // Only the handshake needs an answer; other frame types are fire-and-forget.
-      if (frame['type'] == 'hello') {
-        socket.add(
-          jsonEncode({'type': 'hello', 'protocol': api.protocolVersion}),
-        );
-      }
-    }, onDone: () => _sockets.remove(socket));
+    socket.listen(
+      (raw) {
+        final frame = jsonDecode(raw as String) as Map<String, dynamic>;
+        // Only the handshake needs an answer; other frame types are fire-and-forget.
+        if (frame['type'] == 'hello') {
+          _greeted.add(socket);
+          socket.add(
+            jsonEncode({'type': 'hello', 'protocol': api.protocolVersion}),
+          );
+        }
+      },
+      onDone: () {
+        _sockets.remove(socket);
+        _greeted.remove(socket);
+      },
+    );
   }
 
-  /// Sends one server event frame down every socket currently connected.
-  /// These tests hold exactly one client, so this is always "the" socket.
+  /// Sends one server event frame down every socket that has completed the
+  /// hello handshake, as a real server would; a frame ahead of the hello is
+  /// refused by the client. These tests hold exactly one client.
   void pushEvent(Map<String, dynamic> frame) {
-    for (final socket in _sockets) {
+    for (final socket in _greeted) {
       socket.add(jsonEncode(frame));
     }
   }
