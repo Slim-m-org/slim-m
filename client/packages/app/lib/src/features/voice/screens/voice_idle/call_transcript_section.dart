@@ -90,11 +90,12 @@ class _CallTranscriptSectionState extends ConsumerState<CallTranscriptSection> {
       confirmLabel: 'Delete transcript',
     );
     if (!confirmed || !mounted) return;
+    final container = ProviderScope.containerOf(context, listen: false);
     final controller = ref.read(
       callTranscriptProvider(widget.transcriptId).notifier,
     );
     if (await controller.delete()) {
-      ref.invalidate(voiceCallHistoryProvider(widget.channelId));
+      container.invalidate(voiceCallHistoryProvider(widget.channelId));
     }
   }
 

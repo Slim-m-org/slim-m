@@ -15,6 +15,7 @@ import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_screen.dart';
 import 'package:slimm_app/src/features/voice/widgets/transcription_notice.dart';
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_rtc/rtc.dart';
 
 import 'voice_controller_harness.dart';
 
@@ -40,12 +41,16 @@ class _Notice {
   final bool voiceCommands;
   final calls = <String>[];
 
+  /// While true the notice read answers 500.
+  bool failing = false;
+
   http.Client client() {
     final base = voiceApi();
     return MockClient((request) async {
       final path = request.url.path;
       if (path == '/voice/transcription-notice') {
         calls.add('GET');
+        if (failing) return http.Response('', 500);
         return http.Response(
           jsonEncode({
             'mode': mode,
@@ -173,6 +178,62 @@ void main() {
 
     expect(find.text(_title), findsNothing);
     expect(controller.state.channelId, 'channel-1');
+    await unmount(tester);
+  });
+
+  testWidgets('a notice that cannot be read blocks the join and offers retry', (
+    tester,
+  ) async {
+    final notice = _Notice(mode: 'always', acknowledged: false)..failing = true;
+    final controller = await open(tester, notice);
+    await settle(tester);
+
+    expect(controller.state.channelId, isNull);
+    expect(
+      find.text('Could not check the transcription notice.'),
+      findsOneWidget,
+    );
+    expect(find.text(_title), findsNothing);
+
+    notice.failing = false;
+    await tester.tap(find.text('Try again'));
+    await settle(tester);
+
+    expect(find.text(_title), findsOneWidget);
+    expect(controller.state.channelId, isNull);
+    await tester.tap(find.byKey(transcriptionNoticeJoinKey));
+    await settle(tester);
+    await settle(tester);
+    expect(controller.state.channelId, 'channel-1');
+    await unmount(tester);
+  });
+
+  testWidgets('switching from another call shows the notice before joining', (
+    tester,
+  ) async {
+    final notice = _Notice(mode: 'always', acknowledged: false);
+    tester.view.physicalSize = const Size(1000, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final session = FakeSession();
+    final controller = harness.controllerWith(session, notice.client());
+    await controller.join('channel-2');
+    session.emitState(VoiceSessionState.connected);
+    await tester.pumpWidget(_harness(harness.container));
+    await settle(tester);
+
+    expect(find.text('Switch to this call'), findsOneWidget);
+    await tester.tap(find.text('Switch to this call'));
+    await settle(tester);
+
+    expect(find.text(_title), findsOneWidget);
+    expect(controller.state.channelId, 'channel-2');
+    await tester.tap(find.byKey(transcriptionNoticeJoinKey));
+    await settle(tester);
+    session.emitState(VoiceSessionState.connected);
+    await settle(tester);
+    expect(controller.state.channelId, 'channel-1');
+    expect(notice.calls, ['GET', 'ACK']);
     await unmount(tester);
   });
 }

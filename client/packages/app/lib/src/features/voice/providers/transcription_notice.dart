@@ -13,15 +13,10 @@ class TranscriptionNoticeActions {
 
   final api.SlimmApi _api;
 
-  /// Whether the member still owes the notice. A notice that cannot be read
-  /// lets the join through; the call header's transcript mark still says the call is transcribed.
-  Future<bool> isDue() async => await dueNotice() != null;
-
-  /// The notice while it is owed, else null; [isDue] says why a failed read is null.
-  Future<api.TranscriptionNotice?> dueNotice() async {
+  /// Whether the member may still owe the notice; a notice that cannot be read counts as owed, so nothing joins unannounced.
+  Future<bool> isDue() async {
     try {
-      final notice = await _api.transcriptionNotice();
-      return notice.due ? notice : null;
+      return await dueNotice() != null;
     } on api.ApiException catch (error, stack) {
       api.AppLog.swallowed(
         api.LogTag.voice,
@@ -29,8 +24,14 @@ class TranscriptionNoticeActions {
         error,
         stack,
       );
-      return null;
+      return true;
     }
+  }
+
+  /// The notice while it is owed, else null; throws [api.ApiException] when it cannot be read.
+  Future<api.TranscriptionNotice?> dueNotice() async {
+    final notice = await _api.transcriptionNotice();
+    return notice.due ? notice : null;
   }
 
   /// Records the acknowledgement; a failure only means it asks again next time.
