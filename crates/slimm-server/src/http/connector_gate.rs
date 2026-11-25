@@ -138,6 +138,7 @@ mod tests {
             ("POST", "/reports"),
             ("GET", "/devices"),
             ("POST", "/me/avatar"),
+            ("GET", "/presence/canvas-viewers"),
             ("DELETE", "/push"),
             ("POST", "/space/themes"),
             ("DELETE", "/space/themes/{}"),

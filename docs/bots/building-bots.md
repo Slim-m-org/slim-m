@@ -142,6 +142,23 @@ Do not retry it: the board is off, and someone who manages channels can turn it 
 It needs `MANAGE_CANVAS` in that channel as well, and is refused while the board is on.
 Everyone connected receives the usual `canvas.cleared` frame.
 
+### Who has a board open
+
+```json
+{ "type": "canvas.viewer.changed", "channel_id": "...", "user_id": "...", "viewing": true }
+```
+
+Sent when a member starts or stops being shown as viewing a board: their first connection opens it, their last closes it, or they switch to or from Hidden.
+It reaches every connection that can view the channel while its board is open, whether or not that connection has the board open.
+Frames are batched, so at most one per member and board every half second.
+A Hidden member's arrivals and departures send nothing, and turning a board off sends no frame: read the `channel.updated` that says the canvas is off.
+Ignore a frame type you do not know.
+
+`GET /presence/canvas-viewers` answers `{ "channels": [ { "channel_id": "...", "viewers": [ { "user_id": "...", "since": 1764000000000 } ] } ] }`.
+It lists the open boards you can view that have anyone shown on them, each viewer ordered by `since`.
+You always see your own entry, Hidden or not.
+`/version` lists `canvas_viewers` in `capabilities` on a server that has it.
+
 ## Member join events
 
 ```json

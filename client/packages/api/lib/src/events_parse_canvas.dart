@@ -292,6 +292,15 @@ ServerEvent? _canvasEditFrame(Map<String, dynamic> decoded) {
         ranAt: (decoded['ran_at'] as num?)?.toInt() ?? 0,
         ranBy: decoded['ran_by'] as String?,
       ),
+    'canvas.viewer.changed'
+        when decoded['channel_id'] is String &&
+            decoded['user_id'] is String &&
+            decoded['viewing'] is bool =>
+      CanvasViewerChanged(
+        channelId: decoded['channel_id'] as String,
+        userId: decoded['user_id'] as String,
+        viewing: decoded['viewing'] as bool,
+      ),
     _ => null,
   };
 }

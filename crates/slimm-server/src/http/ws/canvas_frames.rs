@@ -37,6 +37,7 @@ pub(super) fn channel_id(event: &Event) -> Option<ChannelId> {
         Event::Canvas(CanvasEvent::MediaSlotChanged { channel_id, .. }) => *channel_id,
         Event::Canvas(CanvasEvent::ObjectLockChanged { channel_id, .. }) => *channel_id,
         Event::Canvas(CanvasEvent::TileSceneChanged { channel_id, .. }) => *channel_id,
+        Event::Canvas(CanvasEvent::ViewerChanged { channel_id, .. }) => *channel_id,
         _ => return None,
     })
 }
@@ -297,6 +298,15 @@ pub(super) fn to_frame(event: Event) -> Result<ServerFrame, Box<Event>> {
             output,
             ran_by: ran_by.map(|id| id.to_string()),
             ran_at,
+        }),
+        Event::Canvas(CanvasEvent::ViewerChanged {
+            channel_id,
+            user_id,
+            viewing,
+        }) => ServerFrame::CanvasViewerChanged(canvas_wire::ViewerChanged {
+            channel_id: channel_id.to_string(),
+            user_id: user_id.to_string(),
+            viewing,
         }),
         other => return Err(Box::new(other)),
     })

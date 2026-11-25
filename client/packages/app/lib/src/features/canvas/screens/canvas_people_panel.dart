@@ -30,7 +30,7 @@ class CanvasPerson {
   bool get isSelf => participant?.isLocal ?? false;
 }
 
-/// This device first, then the call with speakers ahead, then people who are only on the board.
+/// This device first, then the call with speakers ahead, then everyone with the board open by arrival, each once.
 List<CanvasPerson> canvasPeople({
   required List<VoiceParticipant> call,
   required List<CanvasFollowTarget> onCanvas,
@@ -159,7 +159,11 @@ class CanvasPersonRow extends StatelessWidget {
         'Muted',
       if (followed) 'Following',
     ];
-    final canFollow = session != null && !person.isSelf;
+    // A person in the call keeps the toggle; one who is only on the board needs a cursor to follow.
+    final canFollow =
+        session != null &&
+        !person.isSelf &&
+        (participant != null || session.isFollowable(person.id));
     return AppListRow(
       label: person.name,
       subtitle: state.isEmpty ? null : state.join(', '),

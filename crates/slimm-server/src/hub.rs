@@ -39,6 +39,7 @@ use tokio::sync::{OwnedSemaphorePermit, Semaphore, broadcast};
 
 use crate::ephemeral::EphemeralBudget;
 use crate::presence::PresenceTracker;
+use crate::presence::canvas_viewers::CanvasViewers;
 use crate::typing::TypingTracker;
 
 mod created_lookups;
@@ -104,6 +105,7 @@ pub struct Hub {
     max_connections: usize,
     presence: PresenceTracker,
     typing: TypingTracker,
+    canvas_viewers: CanvasViewers,
     ephemeral_budget: EphemeralBudget,
     permissions_epoch: Arc<AtomicU64>,
     blocks_epoch: Arc<AtomicU64>,
@@ -139,6 +141,7 @@ impl Hub {
             max_connections: MAX_CONNECTIONS,
             presence: PresenceTracker::new(),
             typing: TypingTracker::new(),
+            canvas_viewers: CanvasViewers::default(),
             ephemeral_budget: EphemeralBudget::default(),
             permissions_epoch: Arc::new(AtomicU64::new(0)),
             blocks_epoch: Arc::new(AtomicU64::new(0)),
@@ -332,6 +335,11 @@ impl Hub {
     /// Each sharer's last relayed drawing consent, which the stamp route checks.
     pub fn screen_consent(&self) -> &ScreenConsent {
         &self.screen_consent
+    }
+
+    /// Who has a board open, for the viewer roster (a cheap `Arc` clone).
+    pub fn canvas_viewers(&self) -> CanvasViewers {
+        self.canvas_viewers.clone()
     }
 
     /// The shared, cloneable typing tracker (a cheap `Arc` clone).

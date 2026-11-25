@@ -295,3 +295,32 @@ class PresenceStatus {
         devices: PresenceDevice.parseAll(json['devices']),
       );
 }
+
+/// One person shown as having a board open, and since when (ms since epoch).
+class CanvasViewer {
+  const CanvasViewer({required this.userId, required this.since});
+
+  factory CanvasViewer.fromJson(Map<String, dynamic> json) => CanvasViewer(
+        userId: json['user_id'] as String,
+        since: (json['since'] as num).toInt(),
+      );
+
+  final String userId;
+  final int since;
+}
+
+/// The people shown on one open board, earliest arrival first.
+class CanvasBoardViewers {
+  const CanvasBoardViewers({required this.channelId, required this.viewers});
+
+  factory CanvasBoardViewers.fromJson(Map<String, dynamic> json) =>
+      CanvasBoardViewers(
+        channelId: json['channel_id'] as String,
+        viewers: (json['viewers'] as List<dynamic>)
+            .map((v) => CanvasViewer.fromJson(v as Map<String, dynamic>))
+            .toList(growable: false),
+      );
+
+  final String channelId;
+  final List<CanvasViewer> viewers;
+}

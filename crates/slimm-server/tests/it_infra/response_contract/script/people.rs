@@ -32,6 +32,8 @@ pub(super) async fn profile_calls(c: &mut Contract, root: &str, admin_id: &str, 
         root,
     )
     .await;
+    c.get("listCanvasViewers", "/presence/canvas-viewers", root)
+        .await;
     c.json(
         "setPresenceVisibility",
         "PATCH",

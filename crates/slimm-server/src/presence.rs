@@ -37,6 +37,7 @@ mod devices;
 use devices::DeviceCounts;
 pub use devices::DeviceKind;
 
+pub mod canvas_viewers;
 pub mod presence_activity;
 pub mod typing;
 pub mod viewing;

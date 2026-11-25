@@ -58,6 +58,11 @@ impl PresenceGuard {
         }
     }
 
+    /// This connection's id in the viewing trackers and the board registry.
+    pub(super) fn connection(&self) -> u64 {
+        self.connection
+    }
+
     /// Records which channels this connection reports as open and focused.
     ///
     /// Unparseable ids are skipped and the list is capped: it only ever
@@ -84,6 +89,7 @@ impl Drop for PresenceGuard {
             .presence()
             .viewing()
             .forget_connection(self.user_id, self.connection);
+        self.hub.canvas_viewers().remove_connection(self.connection);
         if self.hub.presence().disconnect_as(self.user_id, self.kind) {
             self.hub.publish(Event::presence_changed(self.user_id));
         }

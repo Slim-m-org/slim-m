@@ -276,4 +276,13 @@ pub enum CanvasEvent {
         ran_by: Option<UserId>,
         ran_at: i64,
     },
+    /// A user started or stopped being shown as viewing a board, published by the viewer flush.
+    ///
+    /// Durable: a dropped stop would strand a ghost. Whether a Hidden user is shown is decided
+    /// before this is published, so delivery needs no visibility check.
+    ViewerChanged {
+        channel_id: ChannelId,
+        user_id: UserId,
+        viewing: bool,
+    },
 }

@@ -53,6 +53,7 @@ mod authorization_bits;
 mod call_mark_frames;
 mod canvas_frames;
 mod canvas_gate;
+mod canvas_surface;
 mod canvas_watch;
 mod canvas_wire;
 mod channel_frames;
@@ -215,7 +216,14 @@ async fn serve(
                                 presence_guard.set_viewing(&channel_ids, active);
                             }
                             Ok(ClientFrame::CanvasWatch { channel_ids }) => {
-                                canvas_watch.declare(&channel_ids);
+                                let env = canvas_watch::WatchEnv {
+                                    store: &state.store,
+                                    hub: &state.hub,
+                                    limiter: &state.limiter,
+                                    ctx: &ctx,
+                                    connection: presence_guard.connection(),
+                                };
+                                canvas_watch.declare(&env, &mut cache, &channel_ids).await;
                             }
                             Ok(ClientFrame::Typing { channel_id }) => {
                                 signals::handle_typing(

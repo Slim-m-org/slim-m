@@ -13,7 +13,7 @@ use super::permission_cache::PermissionCache;
 use super::signals;
 use super::tally_frames::ReactionCountDto;
 use crate::http::link_preview::LinkPreviews;
-use crate::hub::{Event, Hub, MessageEvent};
+use crate::hub::{CanvasEvent, Event, Hub, MessageEvent};
 use crate::ids::{ChannelId, MessageId, UserId};
 use crate::permissions::Permissions;
 use crate::store::{SessionContext, Store};
@@ -140,6 +140,13 @@ pub(super) async fn authorize_unstamped(
     }
     if !passes_presence_gates(store, hub, ctx, &event).await {
         return Authorization::Withhold;
+    }
+    if matches!(event, Event::Canvas(CanvasEvent::ViewerChanged { .. })) {
+        match super::canvas_surface::board_open(store, hub, cache, channel_id).await {
+            Some(true) => {}
+            Some(false) => return Authorization::Withhold,
+            None => return Authorization::Unknown,
+        }
     }
     channel_frame(store, hub, link_previews, ctx, cache, event).await
 }

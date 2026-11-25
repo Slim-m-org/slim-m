@@ -4,11 +4,24 @@
 
 use std::collections::HashSet;
 
-use crate::hub::{CanvasEvent, Event};
+use super::canvas_surface::may_view_open;
+use super::permission_cache::PermissionCache;
+use crate::hub::{CanvasEvent, Event, Hub};
 use crate::ids::{ChannelId, UserId};
+use crate::ratelimit::{Class, RateLimiter};
+use crate::store::{SessionContext, Store, now_ms};
 
 /// More than a person has open at once; the rest of a report is ignored.
 const MAX_WATCHED_CANVASES: usize = 8;
+
+/// What one declaration needs beyond the connection's own state.
+pub(super) struct WatchEnv<'a> {
+    pub(super) store: &'a Store,
+    pub(super) hub: &'a Hub,
+    pub(super) limiter: &'a RateLimiter,
+    pub(super) ctx: &'a SessionContext,
+    pub(super) connection: u64,
+}
 
 /// A connection's declared canvases. It starts undeclared and then delivers every
 /// channel, so a client that predates `canvas.watch` keeps today's behaviour.
@@ -18,16 +31,40 @@ pub(super) struct CanvasWatch {
 }
 
 impl CanvasWatch {
-    /// Replaces the report; an empty list declares that no canvas is open.
-    pub(super) fn declare(&mut self, channel_ids: &[String]) {
-        self.declared = Some(
-            channel_ids
-                .iter()
-                .take(MAX_WATCHED_CANVASES)
-                .filter_map(|raw| uuid::Uuid::parse_str(raw).ok())
-                .map(ChannelId)
-                .collect(),
-        );
+    /// Replaces the report and the connection's registered viewing.
+    ///
+    /// The pointer filter always takes the whole report. Removals always apply; an addition is
+    /// registered only when the user's declaration budget allows and the channel's board is open
+    /// to them, so a flood can neither plant viewers nor strand ghosts. Publishing is the flush's job.
+    pub(super) async fn declare(
+        &mut self,
+        env: &WatchEnv<'_>,
+        cache: &mut PermissionCache,
+        channel_ids: &[String],
+    ) {
+        let wanted: HashSet<ChannelId> = channel_ids
+            .iter()
+            .take(MAX_WATCHED_CANVASES)
+            .filter_map(|raw| uuid::Uuid::parse_str(raw).ok())
+            .map(ChannelId)
+            .collect();
+        let viewers = env.hub.canvas_viewers();
+        let registered = viewers.channels_of(env.connection);
+        let mut next: HashSet<ChannelId> = wanted.intersection(&registered).copied().collect();
+        let additions: Vec<ChannelId> = wanted.difference(&registered).copied().collect();
+        let allowed = !additions.is_empty()
+            && env
+                .limiter
+                .check(Class::CanvasWatch, &format!("u:{}", env.ctx.user_id));
+        if allowed {
+            for channel_id in additions {
+                if may_view_open(env.store, env.hub, env.ctx, cache, channel_id).await {
+                    next.insert(channel_id);
+                }
+            }
+        }
+        viewers.replace(env.ctx.user_id, env.connection, next, now_ms());
+        self.declared = Some(wanted);
     }
 
     /// Whether an ephemeral canvas frame is worth sending to this connection.

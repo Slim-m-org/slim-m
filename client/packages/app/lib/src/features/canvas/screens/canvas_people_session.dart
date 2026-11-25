@@ -3,9 +3,12 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import '../../members/providers/blocks_controller.dart';
+import '../providers/canvas_viewers.dart';
 import 'canvas_follow_targets.dart';
 import 'canvas_view_relay.dart';
 
@@ -17,11 +20,14 @@ class CanvasPeopleSession extends ChangeNotifier {
     required this.selfId,
     required this.viewMode,
     required this.onBringEveryone,
-  }) {
+    List<CanvasFollowTarget> viewers = const [],
+  }) : _viewers = viewers {
     cursors.addListener(_refresh);
     relay.following.addListener(_refresh);
     viewMode?.addListener(_refresh);
-    _onCanvas = _compute();
+    final cursorPeople = _cursorPeople();
+    _followable = {for (final t in cursorPeople) t.id};
+    _onCanvas = _compute(cursorPeople);
     _followed = relay.following.value;
     _canBringEveryone = !(viewMode?.personal ?? false);
   }
@@ -32,13 +38,24 @@ class CanvasPeopleSession extends ChangeNotifier {
   final CanvasViewMode? viewMode;
   final VoidCallback onBringEveryone;
 
+  List<CanvasFollowTarget> _viewers;
   List<CanvasFollowTarget> _onCanvas = const [];
+  Set<String> _followable = const {};
   String? _followed;
   bool _canBringEveryone = true;
   bool _disposed = false;
 
-  /// Everyone with a cursor on the board but this device, in a stable order.
+  /// Everyone with the board open, earliest first, then anyone with only a cursor on it; never this device.
   List<CanvasFollowTarget> get onCanvas => _onCanvas;
+
+  /// Whether following [userId] works from the board alone: they have a cursor on it.
+  bool isFollowable(String userId) => _followable.contains(userId);
+
+  /// Replaces who has the board open, from the roster.
+  void setViewers(List<CanvasFollowTarget> viewers) {
+    _viewers = viewers;
+    _refresh();
+  }
 
   String? get followed => _followed;
 
@@ -60,20 +77,38 @@ class CanvasPeopleSession extends ChangeNotifier {
 
   void stopFollowing() => relay.stopFollowing();
 
-  List<CanvasFollowTarget> _compute() => canvasFollowTargets(
+  List<CanvasFollowTarget> _cursorPeople() => canvasFollowTargets(
     cursors: cursors.all,
     participants: const [],
     selfId: selfId(),
   );
 
+  List<CanvasFollowTarget> _compute(List<CanvasFollowTarget> cursorPeople) {
+    final self = selfId();
+    final viewers = [
+      for (final v in _viewers)
+        if (v.id != self) v,
+    ];
+    final seen = {for (final v in viewers) v.id};
+    return [
+      ...viewers,
+      for (final t in cursorPeople)
+        if (!seen.contains(t.id)) t,
+    ];
+  }
+
   // Cursor frames arrive at pointer rate; only who is on the board matters here.
   void _refresh() {
     if (_disposed) return;
-    final people = _compute();
+    final cursorPeople = _cursorPeople();
+    final followable = {for (final t in cursorPeople) t.id};
+    final people = _compute(cursorPeople);
     final followed = relay.following.value;
     final canBring = !(viewMode?.personal ?? false);
     final same =
         canBring == _canBringEveryone &&
+        followable.length == _followable.length &&
+        followable.containsAll(_followable) &&
         followed == _followed &&
         people.length == _onCanvas.length &&
         [for (var i = 0; i < people.length; i++) i].every(
@@ -82,6 +117,7 @@ class CanvasPeopleSession extends ChangeNotifier {
               people[i].name == _onCanvas[i].name,
         );
     _onCanvas = people;
+    _followable = followable;
     _followed = followed;
     _canBringEveryone = canBring;
     if (!same) notifyListeners();
@@ -122,8 +158,8 @@ class CanvasPeopleScope extends InheritedNotifier<CanvasPeopleSession> {
       context.dependOnInheritedWidgetOfExactType<CanvasPeopleScope>()?.notifier;
 }
 
-/// Builds the session from the pane's relay and cursors, and keeps it in step with them.
-class CanvasPeopleHost extends StatefulWidget {
+/// Builds the session from the pane's relay and cursors, and keeps it in step with them and with who has the board open.
+class CanvasPeopleHost extends ConsumerStatefulWidget {
   const CanvasPeopleHost({
     super.key,
     required this.relay,
@@ -144,11 +180,14 @@ class CanvasPeopleHost extends StatefulWidget {
   final String? channelId;
 
   @override
-  State<CanvasPeopleHost> createState() => _CanvasPeopleHostState();
+  ConsumerState<CanvasPeopleHost> createState() => _CanvasPeopleHostState();
 }
 
-class _CanvasPeopleHostState extends State<CanvasPeopleHost> {
+class _CanvasPeopleHostState extends ConsumerState<CanvasPeopleHost> {
   CanvasPeopleSession? _session;
+  List<CanvasFollowTarget> _viewers = const [];
+  ProviderSubscription<List<CanvasViewerPerson>>? _people;
+  ProviderSubscription<CanvasViewersState>? _arrivals;
 
   CanvasPeopleSession? _build() {
     final relay = widget.relay;
@@ -160,18 +199,49 @@ class _CanvasPeopleHostState extends State<CanvasPeopleHost> {
       selfId: () => widget.selfId,
       viewMode: widget.viewMode,
       onBringEveryone: widget.onBringEveryone,
+      viewers: _viewers,
     );
+  }
+
+  void _listen() {
+    final channelId = widget.channelId;
+    _people?.close();
+    _arrivals?.close();
+    if (channelId == null) return;
+    _people = ref.listenManual(canvasViewerPeopleProvider(channelId), (
+      _,
+      next,
+    ) {
+      _viewers = [for (final p in next) CanvasFollowTarget(p.id, p.name)];
+      _session?.setViewers(_viewers);
+    }, fireImmediately: true);
+    _arrivals = ref.listenManual(canvasViewersProvider, (previous, next) {
+      if (previous == null || !previous.loaded) return;
+      final before = {for (final v in previous.of(channelId)) v.userId};
+      final blocked = ref.read(blocksProvider);
+      for (final v in next.of(channelId)) {
+        if (before.contains(v.userId) ||
+            v.userId == widget.selfId ||
+            blocked.contains(v.userId)) {
+          continue;
+        }
+        ref.read(canvasViewerArrivalProvider.notifier).state =
+            CanvasViewerArrival(channelId, v.userId);
+      }
+    });
   }
 
   @override
   void initState() {
     super.initState();
+    _listen();
     _session = _build();
   }
 
   @override
   void didUpdateWidget(covariant CanvasPeopleHost oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.channelId != widget.channelId) _listen();
     if (oldWidget.relay != widget.relay ||
         oldWidget.cursors != widget.cursors ||
         oldWidget.viewMode != widget.viewMode) {
@@ -182,6 +252,8 @@ class _CanvasPeopleHostState extends State<CanvasPeopleHost> {
 
   @override
   void dispose() {
+    _people?.close();
+    _arrivals?.close();
     _session?.dispose();
     super.dispose();
   }
