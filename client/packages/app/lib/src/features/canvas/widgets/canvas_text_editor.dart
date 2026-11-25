@@ -33,6 +33,7 @@ class CanvasTextEditor extends ConsumerStatefulWidget {
     required this.initial,
     required this.onSave,
     required this.onCancel,
+    required this.onEscape,
     this.objectId,
     this.anchor = Offset.zero,
   });
@@ -46,7 +47,12 @@ class CanvasTextEditor extends ConsumerStatefulWidget {
   final Offset anchor;
   final CanvasTextProps initial;
   final ValueChanged<CanvasTextProps> onSave;
+
+  /// An edit that ended with nothing to keep; the tool stays as it was.
   final VoidCallback onCancel;
+
+  /// Escape ended the edit.
+  final VoidCallback onEscape;
 
   @override
   ConsumerState<CanvasTextEditor> createState() => _CanvasTextEditorState();
@@ -107,6 +113,12 @@ class _CanvasTextEditorState extends ConsumerState<CanvasTextEditor> {
     if (_done) return;
     _done = true;
     widget.onCancel();
+  }
+
+  void _escape() {
+    if (_done) return;
+    _done = true;
+    widget.onEscape();
   }
 
   void _markFull() {
@@ -181,7 +193,7 @@ class _CanvasTextEditorState extends ConsumerState<CanvasTextEditor> {
                   _save,
               const SingleActivator(LogicalKeyboardKey.enter, meta: true):
                   _save,
-              const SingleActivator(LogicalKeyboardKey.escape): _cancel,
+              const SingleActivator(LogicalKeyboardKey.escape): _escape,
             },
             child: Semantics(
               label: 'Text box text',

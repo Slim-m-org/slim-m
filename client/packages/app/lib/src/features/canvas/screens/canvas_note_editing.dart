@@ -285,7 +285,8 @@ class CanvasNoteEditing {
               session: open,
               palette: canvasNotePalette(tokens),
               onCommit: (text) => unawaited(commit(text)),
-              onCancel: () {
+              onCancel: cancel,
+              onEscape: () {
                 cancel();
                 onEscaped();
               },

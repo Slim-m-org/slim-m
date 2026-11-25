@@ -18,6 +18,7 @@ import 'canvas_gesture_repro_support.dart';
 
 void main() {
   _buttons();
+  _clickOutOnEmptyDraft();
   for (final tool in [
     CanvasTool.pen,
     CanvasTool.eraser,
@@ -135,4 +136,32 @@ Future<FuzzRig> _arm(WidgetTester tester, CanvasTool tool) async {
   rig.container.read(armedStampProvider.notifier).arm(const EmojiStamp('x'));
   await key(tester, tool.shortcutKey);
   return rig;
+}
+
+void _clickOutOnEmptyDraft() {
+  for (final tool in [CanvasTool.note, CanvasTool.text]) {
+    testWidgets('saving an empty ${tool.name} draft keeps the tool armed', (
+      tester,
+    ) async {
+      final rig = await _arm(tester, tool);
+      final at = rig.boardOnScreen.center + const Offset(0, 250);
+      final pointer = await down(
+        tester,
+        at,
+        kind: PointerDeviceKind.mouse,
+        id: 40,
+      );
+      await lift(tester, pointer);
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(textInputHasFocus(), isTrue, reason: 'baseline: an edit is open');
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await key(tester, LogicalKeyboardKey.enter);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(textInputHasFocus(), isFalse, reason: 'the empty draft ended');
+      expect(rig.tool, tool);
+    });
+  }
 }

@@ -72,6 +72,7 @@ class CanvasTextTool {
   Widget? editor(
     String? editingId, {
     required VoidCallback onCancel,
+    required VoidCallback onEscape,
     required VoidCallback onEditClosed,
   }) {
     if (editingId != null) {
@@ -88,6 +89,7 @@ class CanvasTextTool {
         ),
         onSave: (props) => unawaited(_saveEdit(editingId, props, onEditClosed)),
         onCancel: onCancel,
+        onEscape: onEscape,
       );
     }
     final at = draft;
@@ -105,6 +107,7 @@ class CanvasTextTool {
           ),
       onSave: (props) => unawaited(_saveDraft(at, props)),
       onCancel: onCancel,
+      onEscape: onEscape,
     );
   }
 

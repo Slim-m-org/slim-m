@@ -348,7 +348,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
               // Only bound while there is something to escape from, so Escape keeps reaching whatever else would have handled it.
               if (_typing)
                 const SingleActivator(LogicalKeyboardKey.escape):
-                    _onNoteEditCancel
+                    _onNoteEditEscape
               else if (_tool != CanvasTool.pan)
                 const SingleActivator(LogicalKeyboardKey.escape): _onEscapeTool
               else if (fullscreen)

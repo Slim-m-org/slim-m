@@ -83,6 +83,7 @@ class CanvasNoteEditor extends StatefulWidget {
     required this.palette,
     required this.onCommit,
     required this.onCancel,
+    required this.onEscape,
     required this.onGone,
   });
 
@@ -90,7 +91,12 @@ class CanvasNoteEditor extends StatefulWidget {
   final CanvasNoteEditSession session;
   final NotePalette palette;
   final ValueChanged<String> onCommit;
+
+  /// An edit that ended with nothing to keep; the tool stays as it was.
   final VoidCallback onCancel;
+
+  /// Escape ended the edit.
+  final VoidCallback onEscape;
 
   /// The note was removed under the editor.
   final VoidCallback onGone;
@@ -226,6 +232,12 @@ class _CanvasNoteEditorState extends State<CanvasNoteEditor>
     widget.onCancel();
   }
 
+  void _escape() {
+    if (_done) return;
+    _done = true;
+    widget.onEscape();
+  }
+
   @override
   Widget build(BuildContext context) {
     final inset = MediaQuery.viewInsetsOf(context).bottom;
@@ -273,7 +285,7 @@ class _CanvasNoteEditorState extends State<CanvasNoteEditor>
                       controller: _session.controller,
                       focusNode: _session.focusNode,
                       onSave: _commit,
-                      onCancel: _cancel,
+                      onCancel: _escape,
                       hintText: canvasNoteFieldHint,
                       inPlaceStyle: TextStyle(
                         fontFamily: AppFonts.sans,

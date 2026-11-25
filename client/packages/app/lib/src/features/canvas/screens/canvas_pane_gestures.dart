@@ -189,6 +189,10 @@ extension _CanvasPaneGestures on _CanvasPaneState {
       _text.cancelDraft();
     });
     _boardFocusNode.requestFocus();
+  }
+
+  void _onNoteEditEscape() {
+    _onNoteEditCancel();
     _putToolDown();
   }
 
@@ -201,6 +205,7 @@ extension _CanvasPaneGestures on _CanvasPaneState {
   Widget? _textEditor() => _text.editor(
     _editingNoteId,
     onCancel: _onNoteEditCancel,
+    onEscape: _onNoteEditEscape,
     onEditClosed: () => _refresh(() => _editingNoteId = null),
   );
 
