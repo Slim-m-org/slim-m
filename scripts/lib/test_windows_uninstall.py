@@ -74,6 +74,16 @@ class RunningCopyIsClosedAfterConfirming(unittest.TestCase):
         self.assertRegex(close, r"while CheckForMutexes\('\{#AppMutexName\}'\)")
 
 
+class RunnerMarkersDoNotKeepTheFolder(unittest.TestCase):
+    def test_the_shortcut_repair_marker_is_deleted(self):
+        marker = re.search(
+            r'kRepairMarker\[\] = L"([^"]+)"',
+            (ROOT / "client/packages/app/windows/runner/app_identity.cpp").read_text(),
+        )
+        self.assertIsNotNone(marker)
+        self.assertIn(f"DeleteMatching('{marker.group(1)}')", routine("CurUninstallStepChanged"))
+
+
 class LauncherNoticeDoesNotKeepTheFolder(unittest.TestCase):
     def test_every_launcher_dotfile_is_deleted_before_the_folder_is_removed(self):
         steps = routine("CurUninstallStepChanged")

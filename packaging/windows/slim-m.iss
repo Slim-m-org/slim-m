@@ -195,6 +195,7 @@ begin
     DeleteMatching('.*.launcher');
     DeleteMatching('uninstall.ps1');
     DeleteMatching('running.pid');
+    DeleteMatching('shortcuts-repaired');
     DeleteMatching('.launcher.lock');
     DeleteMatching('.launcher-*');
     RemoveLoginStart;
