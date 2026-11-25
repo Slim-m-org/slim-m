@@ -159,6 +159,8 @@ Future<void> restoreSession(
     storedServerUrl = await keyStore.read(serverUrlHandle);
     stored = await keyStore.read(sessionTokenHandle);
     prefs = await container.read(preferencesProvider.future);
+    // A launch before first unlock can cache empty preferences; a retry must see the real file.
+    if (note.state != null) await prefs.reload();
   } catch (error, stack) {
     reportFailure(LogTag.auth, 'restore the saved sign-in', error, stack);
     // Locked storage (a phone woken before unlock, a keyring not yet open) is not a sign-out: keep everything and retry.

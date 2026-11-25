@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart';
+import 'package:slimm_app/src/providers/fresh_install.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_platform/testing.dart';
@@ -122,6 +123,37 @@ void main() {
       await Future<void>.delayed(_retry * 8);
 
       expect(container.read(sessionProvider).tokens!.accessToken, 'access-2');
+    },
+  );
+
+  test(
+    'a retry after a locked-device deferral re-reads the first-launch flag',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      final store = _LockableKeyStore()..locked = false;
+      await store.put(sessionTokenHandle, jsonEncode(_tokens.toJson()));
+      await store.put(serverUrlHandle, _serverUrl);
+      var unlocked = false;
+      final container = ProviderContainer(
+        overrides: [
+          keyStoreProvider.overrideWithValue(store),
+          firstLaunchEnvironmentProvider.overrideWithValue(
+            FirstLaunchEnvironment(
+              keychainOutlivesInstall: true,
+              protectedDataAvailable: () async => unlocked,
+            ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      await restoreSession(container, firstRetry: _retry);
+
+      SharedPreferences.setMockInitialValues({hasLaunchedBeforeKey: true});
+      unlocked = true;
+      await _waitFor(() => container.read(sessionProvider).isSignedIn);
+
+      expect(container.read(sessionProvider).isSignedIn, isTrue);
+      expect(await store.inner.read(sessionTokenHandle), isNotNull);
     },
   );
 

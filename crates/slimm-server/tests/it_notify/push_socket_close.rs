@@ -108,3 +108,35 @@ async fn a_second_open_socket_keeps_the_device_foreground() {
     })
     .await;
 }
+
+#[tokio::test]
+async fn a_socket_reopened_before_the_close_is_recorded_keeps_the_device_foreground() {
+    let (store, _guard) = support::new_store("slimm-push-socket-close-reopen").await;
+    let phone = registered_foreground_phone(&store).await;
+    let sockets = slimm_server::presence::DeviceSockets::default();
+    sockets.opened(phone.ctx.user_id, phone.ctx.device_id);
+    let closed_at = i64::MAX;
+
+    store
+        .report_socket_closed_unless_reopened(
+            &sockets,
+            phone.ctx.user_id,
+            phone.ctx.device_id,
+            closed_at,
+        )
+        .await
+        .unwrap();
+    assert_eq!(phone.lifecycle().await.as_deref(), Some("foreground"));
+
+    assert!(sockets.closed(phone.ctx.user_id, phone.ctx.device_id));
+    store
+        .report_socket_closed_unless_reopened(
+            &sockets,
+            phone.ctx.user_id,
+            phone.ctx.device_id,
+            closed_at,
+        )
+        .await
+        .unwrap();
+    assert_eq!(phone.lifecycle().await.as_deref(), Some("background"));
+}

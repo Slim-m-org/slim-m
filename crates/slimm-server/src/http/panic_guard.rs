@@ -80,9 +80,18 @@ where
     }
 }
 
+const JPEG_WORKER_PREFIX: &str = "worker thread for component";
+
 /// Whether a panic raised right now should end the process.
 pub fn panic_ends_process() -> bool {
-    !CONTAINED.get() && IN_REQUEST.try_with(|_| ()).is_err()
+    !CONTAINED.get() && !is_jpeg_decoder_worker() && IN_REQUEST.try_with(|_| ()).is_err()
+}
+
+/// jpeg-decoder runs its own scoped worker threads; their death reaches the contained caller.
+fn is_jpeg_decoder_worker() -> bool {
+    std::thread::current()
+        .name()
+        .is_some_and(|name| name.starts_with(JPEG_WORKER_PREFIX))
 }
 
 /// Keeps the default report, then aborts unless the panic is on a request task.

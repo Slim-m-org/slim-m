@@ -26,3 +26,19 @@ async fn only_the_contained_job_is_exempt_from_the_abort() {
     assert!(!inside, "a contained job's panic does not end the process");
     assert!(outside, "any other blocking job still does");
 }
+
+#[test]
+fn a_jpeg_decoder_worker_thread_panic_does_not_end_the_process() {
+    let worker = std::thread::Builder::new()
+        .name("worker thread for component 0".into())
+        .spawn(panic_guard::panic_ends_process)
+        .unwrap()
+        .join()
+        .unwrap();
+    let other = std::thread::spawn(panic_guard::panic_ends_process)
+        .join()
+        .unwrap();
+
+    assert!(!worker, "the decoder's worker thread is exempt");
+    assert!(other, "any other thread still ends the process");
+}

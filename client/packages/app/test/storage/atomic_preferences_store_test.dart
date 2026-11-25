@@ -35,6 +35,38 @@ void main() {
     expect(reads, isEmpty);
   });
 
+  test('a momentary sharing violation is retried, not surfaced', () async {
+    await store().setValue('String', noiseKey, 'strong');
+    var calls = 0;
+    final flaky = AtomicPreferencesStore(
+      directory: () async => dir,
+      retryDelay: Duration.zero,
+      readBytes: (file) {
+        if (++calls < 3) throw const FileSystemException('sharing violation');
+        return file.readAsBytes();
+      },
+    );
+
+    expect((await flaky.getAll())[noiseKey], 'strong');
+    expect(calls, 3);
+  });
+
+  test('a read that keeps failing propagates after bounded retries', () async {
+    await store().setValue('String', noiseKey, 'strong');
+    var calls = 0;
+    final broken = AtomicPreferencesStore(
+      directory: () async => dir,
+      retryDelay: Duration.zero,
+      readBytes: (file) {
+        calls++;
+        throw const FileSystemException('access denied');
+      },
+    );
+
+    await expectLater(broken.getAll(), throwsA(isA<FileSystemException>()));
+    expect(calls, 3);
+  });
+
   test('a file it wrote is read back by the stock plugin', () async {
     await store().setValue('String', noiseKey, 'strong');
 

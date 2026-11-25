@@ -363,7 +363,7 @@ classes! {
     ///
     /// Each accepted edit is announced to every connected client, and each of
     /// those answers with a profile fetch, so this sits well under
-    /// [`Class::Write`]. Burst eight covers filling in a profile in one sitting;
+    /// [`Class::Write`]. Burst sixteen covers filling in a profile and trying colour swatches in one sitting;
     /// a refill of one per five seconds bounds the sustained fan-out.
     ProfileEdit,
     /// A bot's watch-position tick (`POST /channels/{id}/watch-session/tick`).
@@ -461,7 +461,7 @@ impl Class {
             // See this variant's own doc comment for how these were sized.
             Class::PresenceActivity => (6.0, 1.0 / 5.0),
             // See this variant's own doc comment for how these were sized.
-            Class::ProfileEdit => (8.0, 1.0 / 5.0),
+            Class::ProfileEdit => (16.0, 1.0 / 5.0),
             // See this variant's own doc comment for how these were sized.
             Class::WatchTick => (4.0, 1.0 / 2.0),
             // See this variant's own doc comment for how these were sized.

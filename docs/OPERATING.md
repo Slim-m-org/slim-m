@@ -302,10 +302,10 @@ If it fails to load channels, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md#the-we
 
 ## Updating
 
-Take a backup, `git pull`, set `SLIMM_VERSION` in `.env` to the release you want if you pin, and run `docker compose up -d --remove-orphans`.
+Take a backup, `git pull`, set `SLIMM_VERSION` in `.env` to the release you want (compose refuses to start without it), and run `docker compose up -d --remove-orphans`.
 The compose files and the image go together, so a pinned old version also needs that release's tag checked out.
 A deployment from before 0.66.0 needs the `COMPOSE_FILE` line in `.env` to keep voice.
-Leaving it at `latest` follows whatever `main-builds` last published, which can be an unreleased server build.
+A deployment that relied on the old `latest` default must now set it once; `latest` still works but follows whatever `main-builds` last published, which can be an unreleased server build.
 Caddy, LiveKit and Litestream are pinned in `docker-compose.yml` and you bump those there.
 Rolling the image back is not enough on its own, because migrations are forward-only; you restore a database from before the upgrade and put `SLIMM_VERSION` back to match.
 [deploy/README.md](../deploy/README.md#upgrading) has the steps.

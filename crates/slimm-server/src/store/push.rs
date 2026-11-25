@@ -271,6 +271,21 @@ impl Store {
         Ok(())
     }
 
+    /// [`Self::report_socket_closed`], skipped when the device reopened a socket since.
+    pub async fn report_socket_closed_unless_reopened(
+        &self,
+        sockets: &crate::presence::DeviceSockets,
+        user_id: UserId,
+        device_id: DeviceId,
+        closed_at_ms: i64,
+    ) -> Result<(), PushError> {
+        if sockets.any_open(user_id, device_id) {
+            return Ok(());
+        }
+        self.report_socket_closed(user_id, device_id, closed_at_ms)
+            .await
+    }
+
     /// The push-capable devices for a set of users, used to fan a
     /// notification out to every recipient's registered devices. A device
     /// missing either its token or its public key is never returned: it

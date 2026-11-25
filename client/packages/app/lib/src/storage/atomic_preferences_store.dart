@@ -19,6 +19,7 @@ import 'package:shared_preferences_platform_interface/types.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 const _defaultPrefix = 'flutter.';
+const _readAttempts = 3;
 
 /// How a read of the preferences file went.
 enum PreferencesReadOutcome { restoredFromBackup, unrecoverable }
@@ -35,12 +36,17 @@ class AtomicPreferencesStore extends SharedPreferencesStorePlatform {
     Future<Directory> Function()? directory,
     this.fileName = 'shared_preferences',
     PreferencesReadReport? onRead,
+    Future<List<int>> Function(File file)? readBytes,
+    this.retryDelay = const Duration(milliseconds: 75),
   }) : _directory = directory ?? getApplicationSupportDirectory,
-       _onRead = onRead ?? _logRead;
+       _onRead = onRead ?? _logRead,
+       _readBytes = readBytes ?? ((file) => file.readAsBytes());
 
   final Future<Directory> Function() _directory;
   final String fileName;
   final PreferencesReadReport _onRead;
+  final Future<List<int>> Function(File file) _readBytes;
+  final Duration retryDelay;
   Future<void> _queue = Future.value();
   final _pending = <_PendingChange>[];
 
@@ -156,7 +162,7 @@ class AtomicPreferencesStore extends SharedPreferencesStorePlatform {
   Future<_Decoded> _decode(File file) async {
     final List<int> bytes;
     try {
-      bytes = await file.readAsBytes();
+      bytes = await _readWithRetry(file);
     } on PathNotFoundException {
       return const _Decoded(null, null, exists: false);
     }
@@ -174,6 +180,20 @@ class AtomicPreferencesStore extends SharedPreferencesStorePlatform {
       );
     }
     return const _Decoded(null, null, exists: true);
+  }
+
+  /// A sharing violation from antivirus or an indexer clears within moments.
+  Future<List<int>> _readWithRetry(File file) async {
+    for (var attempt = 1; ; attempt++) {
+      try {
+        return await _readBytes(file);
+      } on PathNotFoundException {
+        rethrow;
+      } on FileSystemException {
+        if (attempt >= _readAttempts) rethrow;
+        await Future<void>.delayed(retryDelay);
+      }
+    }
   }
 
   Future<void> _write(_Snapshot snapshot) async {

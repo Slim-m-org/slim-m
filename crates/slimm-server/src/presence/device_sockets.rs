@@ -22,6 +22,10 @@ impl DeviceSockets {
         *self.lock().entry((user_id, device)).or_default() += 1;
     }
 
+    pub fn any_open(&self, user_id: UserId, device: DeviceId) -> bool {
+        self.lock().contains_key(&(user_id, device))
+    }
+
     /// Records a close, returning whether it was the device's last open socket.
     pub fn closed(&self, user_id: UserId, device: DeviceId) -> bool {
         let mut open = self.lock();

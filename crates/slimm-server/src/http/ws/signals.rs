@@ -96,10 +96,11 @@ impl PresenceGuard {
             return;
         };
         let (store, user_id, device_id) = (self.store.clone(), self.user_id, self.device_id);
+        let sockets = viewing.sockets().clone();
         let closed_at = crate::store::now_ms();
         runtime.spawn(async move {
             if let Err(error) = store
-                .report_socket_closed(user_id, device_id, closed_at)
+                .report_socket_closed_unless_reopened(&sockets, user_id, device_id, closed_at)
                 .await
             {
                 tracing::warn!(

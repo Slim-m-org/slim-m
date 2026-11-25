@@ -832,7 +832,7 @@ docker compose run --rm --no-deps backup python3 /scripts/backup.py \
   --backup-root /backup --database-path /data/slimm.db \
   --media-dir /data/media --modules-dir /data/modules
 git pull
-# set SLIMM_VERSION in .env if you pin
+# set SLIMM_VERSION in .env to the release you run (required)
 docker compose up -d --remove-orphans
 ```
 

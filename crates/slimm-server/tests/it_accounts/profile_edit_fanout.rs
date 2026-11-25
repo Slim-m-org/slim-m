@@ -131,7 +131,7 @@ async fn a_burst_of_profile_edits_is_throttled_below_the_generic_write_budget() 
         }
     }
     assert!(
-        (8..=10).contains(&accepted),
+        (16..=18).contains(&accepted),
         "accepted {accepted} edits in one burst"
     );
 }

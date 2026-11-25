@@ -26,6 +26,15 @@ impl Measured {
     }
 }
 
+/// A file the connector deleted mid-walk costs nothing; only other errors fail the walk.
+fn tolerate_gone<T>(result: std::io::Result<T>) -> std::io::Result<Option<T>> {
+    match result {
+        Ok(value) => Ok(Some(value)),
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(err) => Err(err),
+    }
+}
+
 /// Sums `st_blocks * 512` under `root` without following links, counting a hard-linked file
 /// once, and stops as soon as the sum passes `limit` or the entry count passes [`MAX_ENTRIES`].
 pub fn allocated(root: &Path, limit: u64) -> std::io::Result<Measured> {
@@ -36,15 +45,25 @@ pub fn allocated(root: &Path, limit: u64) -> std::io::Result<Measured> {
     };
     let mut pending = vec![root.to_path_buf()];
     while let Some(dir) = pending.pop() {
-        let meta = std::fs::symlink_metadata(&dir)?;
+        let Some(meta) = tolerate_gone(std::fs::symlink_metadata(&dir))? else {
+            continue;
+        };
         found.bytes += meta.blocks() * BLOCK;
         found.entries += 1;
         if !meta.is_dir() {
             continue;
         }
-        for entry in std::fs::read_dir(&dir)? {
-            let path = entry?.path();
-            let meta = std::fs::symlink_metadata(&path)?;
+        let Some(listing) = tolerate_gone(std::fs::read_dir(&dir))? else {
+            continue;
+        };
+        for entry in listing {
+            let Some(entry) = tolerate_gone(entry)? else {
+                continue;
+            };
+            let path = entry.path();
+            let Some(meta) = tolerate_gone(std::fs::symlink_metadata(&path))? else {
+                continue;
+            };
             if meta.is_dir() {
                 pending.push(path);
                 continue;
@@ -124,6 +143,18 @@ mod tests {
         }
         let found = allocated(&root, 4096).unwrap();
         assert!(found.bytes > 4096 && found.entries < 34, "{found:?}");
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn an_entry_deleted_mid_walk_is_skipped_not_fatal() {
+        let gone = std::fs::symlink_metadata("/nonexistent-slimm-measure");
+        assert!(tolerate_gone(gone).unwrap().is_none());
+        let denied = Err::<(), _>(std::io::Error::from(std::io::ErrorKind::PermissionDenied));
+        assert!(tolerate_gone(denied).is_err());
+        let root = dir();
+        std::fs::write(root.join("kept"), b"x").unwrap();
+        assert_eq!(allocated(&root, u64::MAX).unwrap().entries, 2);
         std::fs::remove_dir_all(root).unwrap();
     }
 
