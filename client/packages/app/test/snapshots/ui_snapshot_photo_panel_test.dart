@@ -26,13 +26,16 @@ class _SwatchLibrary implements PhotoLibrary {
   Future<PhotoAccess> requestAccess() async => PhotoAccess.full;
   @override
   Future<List<RecentPhoto>> recent(int n) async => [
-    for (var i = 0; i < 30; i++) RecentPhoto('$i'),
+    for (var i = 0; i < 30; i++) RecentPhoto('$i', isVideo: i % 5 == 0),
   ];
   @override
   Future<Uint8List?> thumbnail(String id, int pixels) async =>
       swatches[int.parse(id) % swatches.length];
   @override
   Future<FileSource?> original(String id) async => null;
+  @override
+  Future<void> clearCache() async {}
+
   @override
   Future<void> manageLimited() async {}
 }
