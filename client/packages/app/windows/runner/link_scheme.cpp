@@ -13,6 +13,9 @@ namespace {
 constexpr wchar_t kSchemeKey[] = L"Software\\Classes\\slimm";
 constexpr wchar_t kCommandKey[] = L"Software\\Classes\\slimm\\shell\\open\\command";
 constexpr wchar_t kIconKey[] = L"Software\\Classes\\slimm\\DefaultIcon";
+// The activation GUID of WindowsInitializationSettings in local_notifications.dart.
+constexpr wchar_t kToastServerKey[] =
+    L"Software\\Classes\\CLSID\\{6F1D2B5E-3C0A-4E7B-9A52-5D8E1C4B7A31}\\LocalServer32";
 
 std::wstring ReadDefault(const wchar_t* subkey) {
   DWORD size = 0;
@@ -35,12 +38,19 @@ void Write(const wchar_t* subkey, const wchar_t* name,
                     static_cast<DWORD>((value.size() + 1) * sizeof(wchar_t)));
 }
 
+// A toast clicked while the app is not running starts this command, which is how the click reaches it.
+void RegisterToastServer(const std::wstring& handler) {
+  const std::wstring command = L"\"" + handler + L"\" -ToastActivated";
+  if (ReadDefault(kToastServerKey) != command) Write(kToastServerKey, nullptr, command);
+}
+
 }  // namespace
 
 void RegisterLinkScheme() {
   const std::wstring own = ExecutablePath();
   if (own.empty()) return;
   const std::wstring handler = slimm::LinkHandlerFor(own, IsFile);
+  RegisterToastServer(handler);
   const std::wstring command = slimm::OpenCommandFor(handler);
   if (ReadDefault(kCommandKey) == command) return;
   Write(kSchemeKey, nullptr, L"URL:slim-m");

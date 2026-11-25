@@ -26,6 +26,8 @@ export 'src/push_envelope.dart';
 export 'src/autostart.dart';
 export 'src/install_format.dart';
 export 'src/key_store.dart';
+export 'src/linux_desktop_bus_stub.dart'
+    if (dart.library.io) 'src/linux_desktop_bus_io.dart';
 export 'src/local_notifications.dart';
 export 'src/notification_tap_channel.dart';
 export 'src/now_playing.dart';

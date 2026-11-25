@@ -26,6 +26,7 @@ import 'popout/popout_windowing.dart' show NativeMainWindow;
 import 'providers/close_to_tray_preference.dart';
 import 'display_server.dart';
 import 'first_run_tray_notice.dart';
+import 'linux_window_presenter.dart';
 import 'second_instance_channel.dart';
 import 'splash_mapped_wait.dart';
 import 'startup_state.dart' show startupLeavingProvider;
@@ -51,6 +52,7 @@ class DesktopWindowShell {
     DesktopPlatform? chromePlatform,
     Future<Duration?> Function() splashMappedProbe = queryNativeWindowMapped,
     SecondInstanceChannel? secondInstances,
+    LinuxWindowPresenter? presenter,
     bool active = false,
     bool frameless = false,
     Future<void> Function() beforeExit = endShareAudioBeforeExit,
@@ -59,6 +61,7 @@ class DesktopWindowShell {
        _chromePlatform = chromePlatform,
        _splashMappedProbe = splashMappedProbe,
        _secondInstances = secondInstances ?? SecondInstanceChannel(),
+       _presenter = presenter ?? LinuxWindowPresenter(),
        _active = active,
        _framelessApplied = frameless,
        _beforeExit = beforeExit;
@@ -106,6 +109,7 @@ class DesktopWindowShell {
 
   final Future<Duration?> Function() _splashMappedProbe;
   final SecondInstanceChannel _secondInstances;
+  final LinuxWindowPresenter _presenter;
 
   /// The fullscreen holds taken on this window, shared by every video surface.
   final fullscreenHolds = FullscreenHolds();
@@ -360,7 +364,9 @@ class DesktopWindowShell {
   /// right after [applyInitialGeometry], before there is a [ProviderContainer],
   /// since a second launch can race the very start of this process.
   void registerSecondInstanceHandler() {
-    if (currentDesktopPlatform() == null) return;
+    final platform = currentDesktopPlatform();
+    if (platform == null) return;
+    if (platform == DesktopPlatform.linux) _presenter.start();
     _secondInstances.register(raise);
   }
 
@@ -373,12 +379,14 @@ class DesktopWindowShell {
   /// Brings the window forward for a notification click or a second launch.
   ///
   /// show() un-hides a tray-hidden window; restore() raises a minimised one.
+  /// On Linux the window is first presented under the banner's activation token, which Wayland needs.
   /// On Windows restore() also un-maximizes, and show() already brings the
   /// window forward there, so only a minimised window is restored.
   Future<void> raise() async {
     final platform = _chromePlatform ?? currentDesktopPlatform();
     if (currentDesktopPlatform() == null) return;
     try {
+      if (platform == DesktopPlatform.linux) await _presenter.present();
       await port.show();
       if (platform != DesktopPlatform.windows || await port.isMinimized()) {
         await port.restore();
