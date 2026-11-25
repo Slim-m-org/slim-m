@@ -85,14 +85,21 @@ pub(super) async fn delete_avatar(
     parts: Parts,
     State(state): State<AppState>,
 ) -> Result<StatusCode, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
+    enforce(&state, &parts, Some(&ctx), Class::ProfileEdit)?;
     let _guard = state.media.profile_guard().await;
+    let had_avatar = state
+        .store
+        .user_profile(ctx.user_id)
+        .await?
+        .is_some_and(|user| user.avatar_updated_at.is_some());
     state.store.clear_avatar(ctx.user_id).await?;
     if let Err(err) = state.media.delete_avatar(&ctx.user_id.to_string()).await {
         tracing::warn!(error = %err, "failed to delete a cleared avatar file");
     }
-    // Announced like an upload: removing a picture is as much a profile change as setting one.
-    state.hub.publish(Event::ProfileChanged(ctx.user_id));
+    // Only when a picture was there: clearing nothing changes nothing for anyone to refetch.
+    if had_avatar {
+        state.hub.publish(Event::ProfileChanged(ctx.user_id));
+    }
     Ok(StatusCode::NO_CONTENT)
 }
 

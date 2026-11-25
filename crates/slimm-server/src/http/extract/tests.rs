@@ -36,6 +36,7 @@ fn every_rate_limit_code_maps_to_its_own_class() {
         (super::LIVEKIT_WEBHOOK, Class::LiveKitWebhook),
         (super::INTERACTION, Class::Interaction),
         (super::PRESENCE_ACTIVITY, Class::PresenceActivity),
+        (super::PROFILE_EDIT, Class::ProfileEdit),
     ];
     let mut seen = std::collections::HashSet::new();
     for (code, class) in pairs {

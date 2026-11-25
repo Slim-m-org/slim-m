@@ -27,6 +27,7 @@ mod push_preview_migration;
 mod push_preview_without_text;
 mod push_relay_contract_fixture;
 mod push_relay_forbidden;
+mod push_socket_close;
 mod push_store;
 mod read_only_channel_push;
 mod role_mentions;

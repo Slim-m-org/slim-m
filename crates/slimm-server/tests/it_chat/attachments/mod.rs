@@ -18,6 +18,7 @@
 mod authorization;
 mod binding;
 mod compression;
+mod download_cap;
 mod filenames;
 mod fixtures;
 mod forward_links;

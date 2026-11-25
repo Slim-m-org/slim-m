@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 use super::AppState;
 use super::auth::validate_label;
 use super::error::ApiError;
-use super::extract::{AUTHED_READ, AuthedLimited, Json, Query, WRITE};
+use super::extract::{AUTHED_READ, AuthedLimited, Json, PROFILE_EDIT, Query};
 use super::messages::parse_uuid;
 use super::participant::require_not_timed_out;
 use super::user_avatars::{delete_avatar, get_avatar, upload_avatar};
@@ -373,7 +373,7 @@ async fn get_me(
 }
 
 async fn update_me(
-    AuthedLimited(ctx): AuthedLimited<WRITE>,
+    AuthedLimited(ctx): AuthedLimited<PROFILE_EDIT>,
     State(state): State<AppState>,
     Json(req): Json<UpdateMeRequest>,
 ) -> Result<Json<UserDto>, ApiError> {
@@ -406,6 +406,7 @@ async fn update_me(
         return Err(ApiError::BadRequest("nothing to update"));
     }
 
+    let before = state.store.user_profile(ctx.user_id).await?;
     let user = state
         .store
         .update_profile(
@@ -421,8 +422,10 @@ async fn update_me(
         )
         .await?
         .ok_or(ApiError::Unauthorized)?;
-    // Unconditional even on a no-op edit: this carries no ordering invariant a spurious publish could break.
-    state.hub.publish(Event::ProfileChanged(ctx.user_id));
+    // A no-op edit announces nothing: every connected client would refetch an unchanged profile.
+    if before.as_ref() != Some(&user) {
+        state.hub.publish(Event::ProfileChanged(ctx.user_id));
+    }
     Ok(Json(to_dto(&state.store, user).await?))
 }
 

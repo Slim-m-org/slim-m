@@ -58,9 +58,15 @@ pub struct ViewingTracker {
     reports: Arc<Mutex<HashMap<UserId, HashMap<u64, Report>>>>,
     active: Arc<Mutex<HashMap<UserId, HashMap<u64, Activity>>>>,
     next_connection: Arc<AtomicU64>,
+    sockets: super::DeviceSockets,
 }
 
 impl ViewingTracker {
+    /// The open-socket count per device.
+    pub fn sockets(&self) -> &super::DeviceSockets {
+        &self.sockets
+    }
+
     /// A fresh id for one live connection, to key its reports by.
     pub fn new_connection(&self) -> u64 {
         self.next_connection.fetch_add(1, Ordering::Relaxed)
