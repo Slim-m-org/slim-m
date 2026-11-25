@@ -107,6 +107,7 @@ import 'src/widgets/toast_overlay.dart';
 /// size. Waiting for the real first frame avoids that race entirely.
 Future<void> main([List<String> args = const []]) async {
   rememberLaunchArguments(args);
+  linuxSessionBusEnabled = isLinuxHost;
   final binding = WidgetsFlutterBinding.ensureInitialized();
   final shell = await startPlatform(binding);
 

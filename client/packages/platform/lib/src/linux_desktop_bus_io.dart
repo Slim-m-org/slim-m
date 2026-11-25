@@ -18,6 +18,12 @@ const _notificationsName = 'org.freedesktop.Notifications';
 /// How long a token stays good: a click's token arrives just before its action.
 const activationTokenLifetime = Duration(seconds: 10);
 
+/// Set once by `main.dart`; until then nothing here reaches the session bus, so a test never does.
+bool linuxSessionBusEnabled = false;
+
+/// Whether this process has opened the session bus for the launcher count.
+bool get linuxLauncherBusOpened => LinuxLauncherCount._bus != null;
+
 /// The Unity LauncherEntry count, which KDE and the GNOME dock show on the launcher icon.
 class LinuxLauncherCount {
   LinuxLauncherCount({Future<void> Function(int count)? emit})
@@ -40,7 +46,8 @@ class LinuxLauncherCount {
 
   static DBusClient? _bus;
 
-  static Future<void> _emitOnSessionBus(int count) {
+  static Future<void> _emitOnSessionBus(int count) async {
+    if (!linuxSessionBusEnabled) return;
     final bus = _bus ??= DBusClient.session();
     return bus.emitSignal(
       path: DBusObjectPath(_launcherPath),
@@ -93,6 +100,7 @@ class LinuxActivationToken {
   }
 
   static Stream<String> _serverTokens() {
+    if (!linuxSessionBusEnabled) return const Stream.empty();
     final bus = DBusClient.session();
     final signals = DBusRemoteObjectSignalStream(
       object: DBusRemoteObject(

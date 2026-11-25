@@ -9,6 +9,19 @@ import 'package:slimm_platform/src/linux_desktop_bus_io.dart';
 
 void main() {
   group('LinuxLauncherCount', () {
+    test('never opens the session bus until main enables it', () async {
+      await LinuxLauncherCount().set(5);
+
+      expect(linuxLauncherBusOpened, isFalse);
+    });
+
+    test('the default activation token source is silent until enabled',
+        () async {
+      final token = LinuxActivationToken()..listen();
+
+      expect(token.take(), isNull);
+    });
+
     test('emits a count once and again only when it changes', () async {
       final sent = <int>[];
       final count = LinuxLauncherCount(emit: (n) async => sent.add(n));
