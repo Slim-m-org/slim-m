@@ -4,6 +4,8 @@
 /// stopped when LiveKit lets it go, and a restart attaches again.
 library;
 
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import 'package:livekit_client/livekit_client.dart' as lk;
@@ -40,10 +42,12 @@ class _Chain {
       detached.add(processed);
 }
 
-WebCaptureProcessor _processor(_Chain chain) => WebCaptureProcessor(
+WebCaptureProcessor _processor(_Chain chain, {Stream<void>? failures}) =>
+    WebCaptureProcessor(
       name: 'slimm-capture-chain',
       attach: chain.attach,
       detach: chain.detach,
+      chainFailures: failures,
     );
 
 lk.AudioProcessorOptions _options(_Track track) =>
@@ -102,5 +106,39 @@ void main() {
 
     expect(chain.attached, [first, second]);
     expect(processor.processedTrack?.id, 'processed-2');
+  });
+
+  test('a chain that dies after attaching is released and the mic goes raw',
+      () async {
+    final chain = _Chain();
+    final failures = StreamController<void>.broadcast();
+    addTearDown(failures.close);
+    final processor = _processor(chain, failures: failures.stream);
+    final mic = _Track('mic');
+    await processor.init(_options(mic));
+    final processed = processor.processedTrack! as _Track;
+
+    failures.add(null);
+    await pumpEventQueue();
+
+    expect(processor.processedTrack, isNull);
+    expect(chain.detached, [processed]);
+    expect(processed.stopped, isTrue);
+    expect(mic.stopped, isFalse, reason: 'LiveKit owns the raw capture');
+  });
+
+  test('a failure after destroy does nothing', () async {
+    final chain = _Chain();
+    final failures = StreamController<void>.broadcast();
+    addTearDown(failures.close);
+    final processor = _processor(chain, failures: failures.stream);
+    await processor.init(_options(_Track('mic')));
+    await processor.destroy();
+    chain.detached.clear();
+
+    failures.add(null);
+    await pumpEventQueue();
+
+    expect(chain.detached, isEmpty);
   });
 }

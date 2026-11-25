@@ -11,13 +11,13 @@ import 'dart:io' show File;
 import 'dart:typed_data' show BytesBuilder;
 
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 import 'package:slimm_rtc/rtc.dart' show AudioDevice, pulseDevicePrefix;
 
+import 'blob_url_read.dart';
 import 'voice_recording.dart';
 
 const _sampleRate = 16000;
@@ -165,7 +165,7 @@ class RecordVoiceCapture implements VoiceCaptureBackend {
   }
 
   Future<Uint8List> _read(String path) async {
-    if (kIsWeb) return (await http.get(Uri.parse(path))).bodyBytes;
+    if (kIsWeb) return readAndRevokeBlobUrl(path);
     final file = File(path);
     final bytes = await file.readAsBytes();
     await file.delete();

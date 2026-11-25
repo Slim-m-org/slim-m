@@ -28,6 +28,7 @@ FakeSession? _lastSession;
 Future<({ProviderContainer container, FakeSession session})> _rig({
   bool? pauseSetting = true,
   bool desktop = true,
+  bool? phone,
   List<VoiceParticipant> who = const [],
 }) async {
   SharedPreferences.setMockInitialValues({
@@ -51,6 +52,7 @@ Future<({ProviderContainer container, FakeSession session})> _rig({
         ),
       ),
       pauseOnUnfocusedAppliesProvider.overrideWithValue(desktop),
+      mobileLifecycleHostProvider.overrideWithValue(phone ?? !desktop),
     ],
   );
   addTearDown(container.dispose);
@@ -330,6 +332,7 @@ void main() {
               (ref) => SharedPreferences.getInstance(),
             ),
             pauseOnUnfocusedAppliesProvider.overrideWithValue(false),
+            mobileLifecycleHostProvider.overrideWithValue(true),
           ],
         );
         addTearDown(c.dispose);
@@ -370,6 +373,36 @@ void main() {
       await tester.idle();
 
       expect(r.session.cameraToggles, [false]);
+    });
+
+    testWidgets('a hidden browser tab keeps its camera publishing', (
+      tester,
+    ) async {
+      addTearDown(
+        () => tester.binding.handleAppLifecycleStateChanged(
+          AppLifecycleState.resumed,
+        ),
+      );
+      final r = (await tester.runAsync(
+        () => _rig(desktop: false, phone: false),
+      ))!;
+      (r.container.read(voiceControllerProvider.notifier)
+              as FakeVoiceController)
+          .update((s) => s.copyWith(cameraEnabled: true));
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: r.container,
+          child: const SizedBox(),
+        ),
+      );
+      r.container.read(cameraBackgroundHostProvider);
+      await tester.pump();
+
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      await tester.idle();
+
+      expect(r.session.cameraToggles, isEmpty);
     });
 
     testWidgets('a connected call with no video mounted wants none', (
