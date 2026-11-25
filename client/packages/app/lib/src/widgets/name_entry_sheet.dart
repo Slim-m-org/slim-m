@@ -12,8 +12,9 @@ import 'package:slimm_design_system/design_system.dart';
 import '../api_failure.dart';
 import '../entity_name.dart';
 
-/// Thrown by a create step that made the thing but not everything around it;
-/// its message is shown as is and the sheet stays open for a retry.
+/// Thrown by a create step that made the thing but not everything around it,
+/// or that refused before making anything; its message is shown as is and the
+/// sheet stays open.
 class NameEntryPartialFailure implements Exception {
   const NameEntryPartialFailure(this.message);
 

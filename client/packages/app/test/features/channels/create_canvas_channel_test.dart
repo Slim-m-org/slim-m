@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/features/channels/providers/canvas_channels_supported.dart';
 import 'package:slimm_app/src/features/channels/widgets/create_channel_sheet.dart';
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/admin_providers.dart';
@@ -51,6 +52,7 @@ Future<_Opened> _open(
   required bool canvasChannels,
   String initialKind = 'text',
   int permissions = 0,
+  List<Override> extra = const [],
 }) async {
   final db = SlimmDatabase(NativeDatabase.memory());
   addTearDown(db.close);
@@ -80,6 +82,7 @@ Future<_Opened> _open(
         sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
         storeProvider.overrideWith((ref) async => MessageStore(db)),
         myPermissionsProvider.overrideWithValue(permissions),
+        ...extra,
         mockApiOverride((request) async {
           if (request.url.path == '/version') {
             return http.Response(
@@ -345,4 +348,32 @@ void main() {
       await _release(tester);
     },
   );
+
+  testWidgets('a canvas pick that loses its server support creates nothing', (
+    tester,
+  ) async {
+    final supported = StateProvider<bool>((ref) => true);
+    final o = await _open(
+      tester,
+      canvasChannels: true,
+      extra: [
+        canvasChannelsSupportedProvider.overrideWith(
+          (ref) => ref.watch(supported),
+        ),
+      ],
+    );
+    await _pick(tester, 'Canvas');
+    ProviderScope.containerOf(
+      tester.element(find.text('Create channel')),
+    ).read(supported.notifier).state = false;
+    await tester.tap(find.text('Create channel'));
+    await pumpFrames(tester, frames: 30);
+
+    expect(o.bodies, isEmpty);
+    expect(
+      find.text("This server doesn't support canvas channels."),
+      findsOneWidget,
+    );
+    await _release(tester);
+  });
 }
