@@ -130,6 +130,7 @@ class CanvasPaneBody extends StatefulWidget {
     this.onEditNote,
     this.onStyleNote,
     this.noteSpans,
+    this.textSpans,
     this.noteSpansRevision = 0,
     this.noteEditor,
     this.viewRelay,
@@ -203,6 +204,7 @@ class CanvasPaneBody extends StatefulWidget {
 
   /// Styles a note's text, and the revision that says when it changed.
   final NoteSpanBuilder? noteSpans;
+  final NoteSpanBuilder? textSpans;
   final int noteSpansRevision;
 
   /// The in-place note editor while one is open, drawn over the surface.

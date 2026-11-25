@@ -4,12 +4,15 @@
 ///
 /// Only spans are produced, since a painter cannot lay out a widget: blocks come from
 /// `canvas_note_blocks.dart`, and a link is a `NoteLinkSpan` the board answers a tap on.
-/// Space emoji images stay as the text typed; standard emoji are already glyphs.
+/// A Space emoji named by a known `:name:` is a placeholder the painter fills with its bitmap; standard emoji are already glyphs.
 library;
+
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_voice_canvas/voice_canvas.dart' show NoteLinkSpan;
+import 'package:slimm_voice_canvas/voice_canvas.dart'
+    show NoteEmojiMark, NoteLinkSpan;
 
 import '../../messages/widgets/message_inline.dart';
 
@@ -22,6 +25,9 @@ class NoteSpanStyle {
     required this.mentionFill,
     required this.linkInk,
     this.mentionNames = const {},
+    this.customEmoji = const {},
+    this.emojiImage,
+    this.emojiRevision = 0,
   });
 
   final Set<String> knownUsernames;
@@ -32,6 +38,15 @@ class NoteSpanStyle {
   final Color mentionFill;
   final Color linkInk;
 
+  /// Lower-case custom emoji name to emoji id: what `:name:` resolves through.
+  final Map<String, String> customEmoji;
+
+  /// The bitmap of the emoji [id], or null while it loads.
+  final ui.Image? Function(String id)? emojiImage;
+
+  /// Bumped whenever a bitmap arrives, so a laid-out note draws it.
+  final int emojiRevision;
+
   /// Changes whenever the spans for the same text would differ.
   int get revision => Object.hash(
     Object.hashAllUnordered(knownUsernames),
@@ -41,6 +56,8 @@ class NoteSpanStyle {
     mentionInk,
     mentionFill,
     linkInk,
+    Object.hashAllUnordered(customEmoji.keys),
+    emojiRevision,
   );
 }
 
@@ -67,7 +84,7 @@ InlineSpan _span(InlineNode node, NoteSpanStyle style) => switch (node) {
     style,
     '$noteChannelLinkPrefix$channelId',
   ),
-  InlineEmoji(:final raw) => TextSpan(text: raw),
+  InlineEmoji(:final raw) => emojiSpan(raw, style),
   InlineLink(:final url) => _link(url, style, url),
   InlineMessageLink(:final raw) => _link('message link', style, raw),
   InlineBold(:final children) => TextSpan(
@@ -84,6 +101,17 @@ InlineSpan _span(InlineNode node, NoteSpanStyle style) => switch (node) {
   ),
   InlineSpoiler(:final children) => TextSpan(children: _spans(children, style)),
 };
+
+/// A known custom `:name:` as its placeholder; anything else stays the text typed.
+InlineSpan emojiSpan(String raw, NoteSpanStyle style) {
+  final name = raw.substring(1, raw.length - 1).toLowerCase();
+  final id = style.customEmoji[name];
+  if (id == null) return TextSpan(text: raw);
+  return WidgetSpan(
+    alignment: PlaceholderAlignment.middle,
+    child: NoteEmojiMark(name: name, image: style.emojiImage?.call(id)),
+  );
+}
 
 InlineSpan _mention(String raw, NoteSpanStyle style) {
   final name = raw.substring(1).toLowerCase();

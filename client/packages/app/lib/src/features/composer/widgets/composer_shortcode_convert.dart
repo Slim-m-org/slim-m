@@ -126,6 +126,44 @@ List<String> spaceShortcodesIn(String text, Set<String> spaceNames) {
   return found;
 }
 
+/// A `:name:` in a text that names one of the deployment's custom emoji.
+typedef CustomEmojiRange = ({int start, int end, String name, String id});
+
+final RegExp _shortcode = RegExp(r':[A-Za-z0-9_]{1,32}:');
+
+/// Every `:name:` in [text] that [index] (lowercase name to emoji id) knows, left to right, none inside code.
+///
+/// The one reading of a shortcode that a note, a text box and a draft share, so an unknown name stays plain text everywhere.
+List<CustomEmojiRange> customEmojiRangesIn(
+  String text,
+  Map<String, String> index,
+) {
+  if (index.isEmpty || !text.contains(':')) return const [];
+  final found = <CustomEmojiRange>[];
+  for (final match in _shortcode.allMatches(text)) {
+    final name = match.group(0)!.substring(1, match.end - match.start - 1);
+    final id = index[name.toLowerCase()];
+    if (id != null && !_insideCode(text, match.start)) {
+      found.add((
+        start: match.start,
+        end: match.end,
+        name: name.toLowerCase(),
+        id: id,
+      ));
+    }
+  }
+  return found;
+}
+
+/// [text] with each custom `:Name:` written as its lowercase `:name:`, the form every client resolves the same way.
+String canonicalCustomEmojiText(String text, Map<String, String> index) {
+  var out = text;
+  for (final range in customEmojiRangesIn(text, index).reversed) {
+    out = out.replaceRange(range.start, range.end, ':${range.name}:');
+  }
+  return out;
+}
+
 bool _isSpace(String ch) => ch == ' ' || ch == '\n' || ch == '\t';
 
 /// Whether [offset] sits inside an inline code span on its line or a fence

@@ -16,6 +16,9 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 import '../../../providers/dock_reservation.dart';
 import '../providers/canvas_pen_style.dart';
 import '../providers/canvas_text_props.dart';
+import '../../composer/widgets/composer_shortcode_convert.dart';
+import '../../emoji/providers/emoji_catalog_provider.dart';
+import 'canvas_inline_emoji_controller.dart';
 import 'canvas_selection_bar.dart';
 import 'canvas_text_content.dart';
 import 'canvas_text_style_options.dart';
@@ -50,8 +53,10 @@ class CanvasTextEditor extends ConsumerStatefulWidget {
 }
 
 class _CanvasTextEditorState extends ConsumerState<CanvasTextEditor> {
-  late final _controller = TextEditingController(text: widget.initial.text)
-    ..selection = TextSelection.collapsed(offset: widget.initial.text.length);
+  late final _controller = InlineEmojiController(
+    text: widget.initial.text,
+    index: () => ref.read(customEmojiIndexProvider),
+  )..selection = TextSelection.collapsed(offset: widget.initial.text.length);
   late final _focus = FocusNode()..addListener(_onFocusChange);
   late String _size = widget.initial.size;
   late String _colorKey = widget.initial.colorKey;
@@ -86,7 +91,11 @@ class _CanvasTextEditorState extends ConsumerState<CanvasTextEditor> {
   void _save() {
     if (_done) return;
     _done = true;
-    final next = _props.copyWith(text: _controller.text.trim());
+    final text = canonicalCustomEmojiText(
+      _controller.text.trim(),
+      ref.read(customEmojiIndexProvider),
+    );
+    final next = _props.copyWith(text: text);
     if (next.text.isEmpty || next == widget.initial) {
       widget.onCancel();
     } else {
@@ -237,13 +246,17 @@ class _CanvasTextEditorState extends ConsumerState<CanvasTextEditor> {
         container: true,
         label: 'Text style',
         child: CanvasSelectionBar(
-          entries: canvasTextStyleOptions(
+          colour: canvasTextBarColour(context, _colorKey),
+          colourLabel: 'Text colour',
+          colourEntries: canvasTextColourEntries(
             context: context,
             ref: ref,
-            size: _size,
             colorKey: _colorKey,
-            onSize: (size) => _restyle(() => _size = size),
             onColour: (colorKey) => _restyle(() => _colorKey = colorKey),
+          ),
+          size: canvasTextSizeEntry(
+            _size,
+            (size) => _restyle(() => _size = size),
           ),
           groupId: canvasTextTapGroup,
         ),

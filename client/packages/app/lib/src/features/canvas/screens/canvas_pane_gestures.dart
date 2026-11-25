@@ -230,6 +230,9 @@ extension _CanvasPaneGestures on _CanvasPaneState {
       mentionFill: tokens.accentSoft,
       linkInk: tokens.accent,
       mentionNames: ref.watch(mentionNamesProvider),
+      customEmoji: ref.watch(customEmojiIndexProvider),
+      emojiImage: ref.read(canvasNoteEmojiImagesProvider.notifier).imageOf,
+      emojiRevision: ref.watch(canvasNoteEmojiImagesProvider).length,
     );
   }
 

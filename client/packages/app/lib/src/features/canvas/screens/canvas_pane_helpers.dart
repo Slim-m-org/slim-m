@@ -115,6 +115,10 @@ extension _CanvasPaneHelpers on _CanvasPaneState {
     return builder;
   }
 
+  /// How the board draws a text box's text: plain, with custom emoji in place.
+  NoteSpanBuilder _useTextSpans(NoteSpanStyle style) =>
+      (text, base) => buildTextBoxSpans(text, base, style);
+
   CanvasStampPlacement get _stampPlacement =>
       _stampPlacementHelper ??= CanvasStampPlacement(
         placement: () => _quickPlacement,

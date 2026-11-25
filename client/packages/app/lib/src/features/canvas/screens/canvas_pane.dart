@@ -59,6 +59,9 @@ import '../widgets/armed_pen.dart';
 import '../widgets/canvas_clear_scope.dart' show CanvasScopedClear;
 import '../widgets/canvas_note_blocks.dart';
 import '../widgets/canvas_note_spans.dart';
+import '../widgets/canvas_text_spans.dart';
+import '../providers/canvas_note_emoji_images.dart';
+import '../../emoji/providers/emoji_catalog_provider.dart';
 import 'canvas_text_tool.dart';
 import '../../members/providers/member_presence.dart' show membersProvider;
 import '../../members/providers/mention_names.dart' show mentionNamesProvider;
@@ -411,6 +414,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
               onEditNote: _onEditNote,
               onStyleNote: _notes.focusBar,
               noteSpans: _useNoteSpans(noteSpanStyle),
+              textSpans: _useTextSpans(noteSpanStyle),
               noteSpansRevision: noteSpanStyle.revision,
               noteEditor: _notes.overlay(
                 tokens: Theme.of(context).extension<AppTokens>()!,

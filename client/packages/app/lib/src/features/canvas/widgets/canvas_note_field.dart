@@ -297,6 +297,7 @@ class _CanvasNoteFieldState extends ConsumerState<CanvasNoteField> {
     return ComposerShortcodes(
       controller: widget.controller,
       expand: true,
+      showPreview: false,
       child: CallbackShortcuts(
         bindings: _bindings(),
         child: Semantics(

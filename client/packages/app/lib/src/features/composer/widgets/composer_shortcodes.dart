@@ -20,6 +20,7 @@ class ComposerShortcodes extends ConsumerStatefulWidget {
     required this.controller,
     required this.child,
     this.expand = false,
+    this.showPreview = true,
   });
 
   final TextEditingController controller;
@@ -27,6 +28,9 @@ class ComposerShortcodes extends ConsumerStatefulWidget {
 
   /// Fills the height it is given, for a field that is the box it sits in.
   final bool expand;
+
+  /// False where the emoji is drawn in place, such as a canvas note.
+  final bool showPreview;
 
   @override
   ConsumerState<ComposerShortcodes> createState() => _ComposerShortcodesState();
@@ -133,7 +137,9 @@ class _ComposerShortcodesState extends ConsumerState<ComposerShortcodes> {
   @override
   Widget build(BuildContext context) {
     final index = ref.watch(customEmojiIndexProvider);
-    final names = _previewNames.where(index.containsKey).toList();
+    final names = widget.showPreview
+        ? _previewNames.where(index.containsKey).toList()
+        : const <String>[];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: widget.expand ? MainAxisSize.max : MainAxisSize.min,

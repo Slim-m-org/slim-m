@@ -114,6 +114,7 @@ extension _CanvasPaneBodyBuilders on _CanvasPaneBodyState {
       truncated: widget.truncated,
       noteEditor: widget.noteEditor,
       noteSpans: widget.noteSpans,
+      textSpans: widget.textSpans,
       noteSpansRevision: widget.noteSpansRevision,
       pen: widget.pen,
       remoteDrafts: widget.remoteDrafts,
