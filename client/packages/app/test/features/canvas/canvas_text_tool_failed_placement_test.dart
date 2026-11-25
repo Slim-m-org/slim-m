@@ -99,7 +99,7 @@ void main() {
         timedOutUntil: () => null,
       );
       final messages = <String>[];
-      final offer = api.CanvasTileOffer(moduleId: 'm', tile: 't');
+      const offer = api.CanvasTileOffer(moduleId: 'm', tile: 't');
 
       unawaited(placement.placeModuleTile(Offset.zero, offer, onError: (_) {}));
       final second = await placement.placeModuleTile(

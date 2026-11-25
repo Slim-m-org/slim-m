@@ -97,8 +97,9 @@ _Following? _resolveFollowing(
   final tokens = Theme.of(context).extension<AppTokens>()!;
   final id = session.followed;
   final held = session.followedName;
-  if (followed != null)
+  if (followed != null) {
     session.rememberFollowedName(followed.id, followed.name);
+  }
   if (followed == null && id != null && held != null) {
     // Their cursor goes with a pointer off the board or a lost window focus, while their view keeps arriving.
     if (session.relay.heardWithin(id, followIdleGrace)) {
