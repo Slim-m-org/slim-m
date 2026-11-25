@@ -66,8 +66,6 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      # libsecret-1-dev is here because flutter_secure_storage's Linux plugin
-      # will not even configure without it. Why that is unavoidable: docs/ci.md.
       - name: linux build deps
         uses: ./.github/actions/linux-build-deps
 

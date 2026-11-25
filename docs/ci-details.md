@@ -966,10 +966,9 @@ The flatpak manifest is no longer a skeleton; see `packaging/flatpak/README.md` 
 
 `GPG_PRIVATE_KEY` and `GPG_PASSPHRASE` are optional here too, for signing the checksums only.
 
-The job installs `libsecret-1-dev` as a system build dependency.
-`flutter_secure_storage` is a normal pub dependency of the platform package, used on iOS and Android (see `persistent_key_store.dart`), and pub has no per-target scoping that would keep its Linux plugin `flutter_secure_storage_linux` out of a Linux build's dependency graph.
-That plugin's CMake config hard-requires `libsecret-1-dev` to even configure, regardless of whether the app ever calls into it on this platform.
-Installing the one system package is simpler to maintain than splitting the platform package apart just to keep Linux out of that graph.
+The job needs no `libsecret-1-dev`.
+`flutter_secure_storage` is a pub dependency of the platform package, used on iOS and Android (see `persistent_key_store.dart`), and pub has no per-target scoping, so the workspace `pubspec.yaml` overrides `flutter_secure_storage_linux` with the empty package in `client/third_party/`.
+Linux keeps its sign-in in a file (decision 0042), and the bundle links no libsecret.
 
 ### copr
 

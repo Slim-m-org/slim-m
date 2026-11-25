@@ -16,7 +16,7 @@
 # `lib<name>_plugin.so`, so a newly added plugin needs no edit here. The
 # hand-kept list this replaces went stale the moment audioplayers landed and
 # shipped a 0.31.0 rpm that required a library it contained but never advertised.
-# System libraries the bundle genuinely needs (gstreamer, gtk, libsecret) are
+# System libraries the bundle genuinely needs (gstreamer, gtk) are
 # deliberately still resolved, so this must not become a by-path exclusion.
 %global __provides_exclude_from ^%{bundledir}/.*\\.so$
 %global __requires_exclude ^lib(flutter_linux_gtk|webrtc)\\.so|^lib.*_plugin\\.so
@@ -86,18 +86,17 @@ Requires:       pulseaudio-utils
 # for GTK and GStreamer, but they are named explicitly as a fallback, and
 # because a plain mpv-libs install (no -devel) ships only the versioned
 # `libmpv.so.2`, never the unversioned name upstream's own install docs quote.
+# Stock Fedora 44 ships mpv-libs in its own repos (no RPM Fusion needed), checked with dnf in a fedora:44 container.
 Requires:       libmpv.so.2()(64bit)
 Requires:       libepoxy.so.0()(64bit)
 
 # Services rather than libraries, and each backs one feature rather than the app:
-# no portal means no screen share, no secret service means no remembered sign-in.
+# no portal means no screen share.
 Recommends:     xdg-desktop-portal
 # Loaded with dlopen: lets the screen overlay sit above other windows on Wayland (decision 0096).
 Recommends:     gtk-layer-shell
 # Loaded with dlopen: the in-app YouTube player; without it a video opens in the browser (decision 0128).
 Recommends:     webkit2gtk4.1
-# kf6-kwallet's ksecretd serves the same org.freedesktop.secrets libsecret wants.
-Recommends:     (gnome-keyring or kf6-kwallet)
 
 %description
 The slim-m desktop client: text channels, voice, screen share and direct
@@ -106,8 +105,8 @@ you were invited to. One deployment is one community.
 
 This package repackages the official Linux release rather than building from
 source. The Flutter engine, the WebRTC library and the app's plugins ship
-inside it, the way upstream builds them; GTK, audio, graphics and the secret
-service come from the system.
+inside it, the way upstream builds them; GTK, audio and graphics come from
+the system.
 
 %prep
 %setup -q -n %{name}-%{version}

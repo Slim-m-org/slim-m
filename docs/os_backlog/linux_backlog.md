@@ -79,13 +79,14 @@ Fixed by adding `AppFonts.emoji` to `fontFamilyFallback` on the theme and on `Ap
 Verified by rendering the same string through the real engine three ways, not by reasoning about it.
 *The rule to keep*: any place that renders untrusted or user-supplied emoji text needs the emoji font in its fallback chain explicitly; do not assume the system default resolves to the colour face.
 
+**Superseded: the rpm now recommends no keyring at all, because Linux keeps its sign-in in a file and the bundle links no libsecret. What follows is the earlier entry.**
 **The rpm's `Recommends` line pulled a redundant, unnecessary keyring daemon onto every KDE install, and the fix generalizes to any secret-service consumer.**
 `CLAUDE.md`: the packaged rpm named `gnome-keyring` as a `Recommends`, which is not what `libsecret` (which `flutter_secure_storage_linux` uses) actually needs; it needs anything implementing the `org.freedesktop.secrets` D-Bus API, and `kf6-kwallet` (already present on the project's own KDE Plasma target, via `ksecretd`/`org.kde.secretservicecompat.service`) already provides it.
 Fixed as a boolean dependency naming both (`gnome-keyring` or `kf6-kwallet`), since Fedora has no virtual "provides" for the capability itself.
 *The rule to keep*: when a Linux package needs a secret-service backend, depend on the capability by listing every known provider, never on one desktop environment's specific daemon.
 
-**`libsecret-1-dev` and GTK are real build-time system dependencies for the Linux desktop build, confirmed by the CI job that installs them.**
-`main-builds.yml`'s `linux-client` job installs `clang cmake ninja-build pkg-config libgtk-3-dev libsecret-1-dev` before building; this is the authoritative, tested list of system packages a Linux build needs beyond Flutter itself.
+**GTK is a real build-time system dependency for the Linux desktop build, confirmed by the CI job that installs it (`libsecret-1-dev` is no longer one).**
+`main-builds.yml`'s `linux-client` job installs `clang cmake ninja-build pkg-config libgtk-3-dev` before building; this is the authoritative, tested list of system packages a Linux build needs beyond Flutter itself.
 
 **The launcher icon lost its lattice detail below 32px, and the fix is a threshold, not a redraw.**
 `CLAUDE.md`: below 32px the icon rendered `icon-master-small.svg`, a lone square with no lattice, so a launcher entry did not read as this app's mark at small sizes; small sizes now draw the same full mark at 78% of the tile rather than 60%.
@@ -103,7 +104,7 @@ Recorded here because it is exactly the kind of platform-rendering detail (icon 
 ~~*Worth flagging as a process gap, not a code bug*: the Linux build is real and gated, but later than a PR reviewer would likely assume from `client-ci.yml`'s green check alone.~~
 **Closed, struck 2026-08-11: `client-ci.yml` carries a "linux compiles" step running `flutter build linux --release` on every pull request, and uploads the resulting bundle as an artifact.**
 So a PR that breaks the Linux desktop compile is now caught before merge rather than immediately after, and the process gap this entry named is gone.
-Its own apt list is the current authoritative one and has grown past the entry above it: `clang cmake ninja-build pkg-config libgtk-3-dev libsecret-1-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libayatana-appindicator3-dev`, where the gstreamer pair arrived with `audioplayers_linux` and the indicator package with the tray icon.
+Its own apt list is the current authoritative one and has grown past the entry above it: `clang cmake ninja-build pkg-config libgtk-3-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libayatana-appindicator3-dev`, where the gstreamer pair arrived with `audioplayers_linux` and the indicator package with the tray icon.
 
 ## Suspected
 
