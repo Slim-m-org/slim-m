@@ -21,4 +21,11 @@ bool isDroppedFolder(DropItem item) {
 }
 
 /// Whether [item] names something other than a local file, such as a web address.
-bool isDroppedAddress(DropItem item) => item.path.contains('://');
+///
+/// Web drops carry `blob:` object URLs for real files, so the web never counts.
+bool isDroppedAddress(DropItem item) => isAddressPath(item.path, web: kIsWeb);
+
+/// The path test behind [isDroppedAddress], with the platform passed in.
+@visibleForTesting
+bool isAddressPath(String path, {required bool web}) =>
+    !web && path.contains('://');
