@@ -71,4 +71,28 @@ const List<WhatsNewEntry> whatsNewArchiveEntries11 = [
       ),
     ],
   ),
+  WhatsNewEntry(
+    version: '0.139.0',
+    headline: 'Canvas channels',
+    points: [
+      WhatsNewPoint(
+        'There is a new kind of channel next to text and voice: a canvas '
+        'channel, where the board comes first and chat sits to the side. '
+        'It can have its own voice call too.',
+      ),
+      WhatsNewPoint(
+        'You can see who has a board open, with their pictures in the '
+        'top bar and a line when someone arrives.',
+      ),
+      WhatsNewPoint(
+        'The canvas on a voice channel is now a setting. New voice channels '
+        'start with it off, and turning it off only hides the board.',
+        warn: true,
+      ),
+      WhatsNewPoint(
+        "A voice channel's canvas can be exported into a new canvas channel "
+        'from the canvas menu.',
+      ),
+    ],
+  ),
 ];
