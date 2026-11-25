@@ -13,6 +13,7 @@ import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/sync/providers/sync_failure.dart';
 import 'package:slimm_app/src/sync/providers/sync_frame_queue.dart';
 
+import '../support/quick_reconnect.dart';
 import '../support/sync_harness.dart';
 import '../support/sync_live_rig.dart';
 
@@ -160,20 +161,24 @@ void main() {
     final previous = heldFrameCap;
     heldFrameCap = 0;
     addTearDown(() => heldFrameCap = previous);
-    var syncCalls = 0;
+    var attempts = 0;
+    int? attemptsAtFirstOffline;
     final rig = await SyncLiveRig.build(
-      (r) => r.on('POST', '/sync', (_) async {
-        syncCalls++;
-        await Future<void>.delayed(const Duration(milliseconds: 150));
-        return _page(const []);
-      }),
+      (r) => r
+        ..on('POST', '/auth/ws-ticket', (_) {
+          attempts++;
+          return jsonResponse({'ticket': 'tix', 'expires_at': 0});
+        })
+        ..on('POST', '/sync', (_) async {
+          await Future<void>.delayed(const Duration(milliseconds: 150));
+          return _page(const []);
+        }),
       seeded: [rigMessage('m1', 1, 'msg 1')],
+      overrides: [quickReconnect],
     );
-    final statuses = <String>[];
-    rig.container.listen(
-      syncControllerProvider,
-      (_, next) => statuses.add(next.name),
-    );
+    rig.container.listen(syncControllerProvider, (_, next) {
+      if (next.name == 'offline') attemptsAtFirstOffline ??= attempts;
+    });
     final flood = Timer.periodic(
       const Duration(milliseconds: 20),
       (_) => rig.server.pushEvent(_created(2)),
@@ -182,14 +187,11 @@ void main() {
     rig.signIn();
 
     await rig.waitFor(
-      () =>
-          syncCalls > maxQuickOverflowRestarts * 2 &&
-          rig.status.name == 'offline',
+      () => rig.container.read(syncFailureProvider) != null,
       ms: 15000,
     );
 
-    expect(rig.container.read(syncFailureProvider), isNotNull);
-    expect(syncCalls, greaterThan(maxQuickOverflowRestarts));
+    expect(attemptsAtFirstOffline, maxQuickOverflowRestarts + 1);
   });
 
   test('a live message that skips a seq is not applied, and a reconcile '
