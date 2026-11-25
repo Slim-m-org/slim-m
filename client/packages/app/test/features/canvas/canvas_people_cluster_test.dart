@@ -2,6 +2,8 @@
 /// Decision 0086: everyone in the call is overlapping avatars at the canvas corner that open a list, each row opening the menu a call tile has.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -200,6 +202,25 @@ void main() {
     expect(find.byType(CanvasPeopleSheet), findsOneWidget);
     expect(_row('BOB'), findsOneWidget);
   });
+
+  testWidgets(
+    'the phone sheet keeps the channel, so another call is not listed',
+    (tester) async {
+      await _pump(
+        tester,
+        [_person('me', local: true), _person('bob')],
+        width: 390,
+        viewedChannel: 'a',
+        callChannel: 'b',
+      );
+      final context = tester.element(find.byType(CanvasPeopleCluster));
+      unawaited(showCanvasPeopleSheet(context));
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(find.byType(CanvasPeopleSheet), findsOneWidget);
+      expect(find.text('BOB'), findsNothing);
+    },
+  );
 
   testWidgets('a poor connection marks that person, and only them', (
     tester,
