@@ -17,6 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../providers/admin_providers.dart' show roleLadderProvider;
 import '../providers/member_presence.dart';
 import '../providers/module_badges.dart';
 import '../providers/member_selection.dart';
@@ -156,7 +157,11 @@ class MemberRow extends ConsumerWidget {
     final (selecting, selected) = ref.watch(
       memberSelectionProvider.select((s) => (s.active, s.contains(profile.id))),
     );
-    final selectable = selecting && !isSelf;
+    // The server refuses a batch holding anyone the viewer does not outrank, so such a row cannot be ticked.
+    final outranked = ref.watch(
+      roleLadderProvider.select((ladder) => !ladder.outranks(profile)),
+    );
+    final selectable = selecting && !isSelf && !outranked;
 
     void open() => unawaited(
       showMemberProfile(context, profile: displayed, channelId: channelId),

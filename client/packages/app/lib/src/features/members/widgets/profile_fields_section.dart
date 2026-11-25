@@ -35,17 +35,26 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
   final _about = TextEditingController();
   final _pronounsFocus = FocusNode();
   final _aboutFocus = FocusNode();
+  late final ProviderContainer _container;
   bool _seeded = false;
+  bool _leaving = false;
 
   @override
   void initState() {
     super.initState();
+    _container = ProviderScope.containerOf(context, listen: false);
     _pronounsFocus.addListener(() => _onBlur(_pronounsFocus, _savePronouns));
     _aboutFocus.addListener(() => _onBlur(_aboutFocus, _saveAbout));
   }
 
   @override
   void dispose() {
+    // Disposing a focused node never notifies it, so an edit still in a focused field would be lost.
+    if (_seeded) {
+      _leaving = true;
+      unawaited(_savePronouns());
+      unawaited(_saveAbout());
+    }
     _pronounsFocus.dispose();
     _aboutFocus.dispose();
     _pronouns.dispose();
@@ -83,10 +92,10 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
     final text = _pronouns.text.trim();
     if (text == _savedPronouns) return;
     if (hidesTextOutsideEmoji(text)) {
-      setState(() => _pronounsError = hiddenCharactersRefusal);
+      if (!_leaving) setState(() => _pronounsError = hiddenCharactersRefusal);
       return;
     }
-    final container = ProviderScope.containerOf(context, listen: false);
+    final container = _container;
     try {
       await container.read(memberActionsProvider).updateMe(pronouns: text);
       _savedPronouns = text;
@@ -106,10 +115,10 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
     final text = _about.text.trim();
     if (text == _savedAbout) return;
     if (hidesTextOutsideEmoji(text.replaceAll('\n', ''))) {
-      setState(() => _aboutError = hiddenCharactersRefusal);
+      if (!_leaving) setState(() => _aboutError = hiddenCharactersRefusal);
       return;
     }
-    final container = ProviderScope.containerOf(context, listen: false);
+    final container = _container;
     try {
       await container.read(memberActionsProvider).updateMe(about: text);
       _savedAbout = text;

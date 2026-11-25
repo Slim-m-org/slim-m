@@ -6,6 +6,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -112,5 +113,23 @@ void main() {
       tester.widget<AnimatedScale>(find.byType(AnimatedScale)).duration,
       AppMotion.fast,
     );
+  });
+
+  testWidgets('Tab reaches the avatar and Enter opens the status menu', (
+    tester,
+  ) async {
+    await _pump(tester, reduceMotion: false);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+    final focused = FocusManager.instance.primaryFocus!.context!;
+    expect(
+      focused.findAncestorWidgetOfExactType<FocusableTapTarget>(),
+      isNotNull,
+    );
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Online'), findsOneWidget);
   });
 }

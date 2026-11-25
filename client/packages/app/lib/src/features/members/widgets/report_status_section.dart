@@ -76,6 +76,7 @@ class _FiledReportRowState extends ConsumerState<_FiledReportRow> {
   api.MyReportStatus? _status;
   String? _error;
   bool _loading = true;
+  bool _retryable = false;
 
   @override
   void initState() {
@@ -84,6 +85,12 @@ class _FiledReportRowState extends ConsumerState<_FiledReportRow> {
   }
 
   Future<void> _load() async {
+    if (_error != null || !_loading) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       final status = await ref
           .read(memberActionsProvider)
@@ -104,6 +111,7 @@ class _FiledReportRowState extends ConsumerState<_FiledReportRow> {
       if (!mounted) return;
       setState(() {
         _loading = false;
+        _retryable = false;
         _error = 'No longer available.';
       });
     } on api.ApiException catch (e, stack) {
@@ -111,6 +119,7 @@ class _FiledReportRowState extends ConsumerState<_FiledReportRow> {
       if (!mounted) return;
       setState(() {
         _loading = false;
+        _retryable = true;
         _error = describeApiFailure('check that report', e);
       });
     }
@@ -128,9 +137,9 @@ class _FiledReportRowState extends ConsumerState<_FiledReportRow> {
     if (_error case final error?) {
       return Padding(
         padding: const EdgeInsets.all(AppSpacing.s16),
-        child: Text(
-          error,
-          style: AppText.caption.copyWith(color: tokens.textSecondary),
+        child: AppErrorState(
+          message: error,
+          onRetry: _retryable ? () => unawaited(_load()) : null,
         ),
       );
     }
@@ -174,7 +183,7 @@ class _CheckByIdSectionState extends ConsumerState<_CheckByIdSection> {
 
   Future<void> _check() async {
     final reportId = _idController.text.trim();
-    if (reportId.isEmpty) return;
+    if (_busy || reportId.isEmpty) return;
     setState(() {
       _busy = true;
       _result = null;

@@ -135,11 +135,29 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
   }
 
   Future<void> _chooseBanner() async {
-    final file = await ref.read(
-      attachmentPickerProvider(AttachmentSource.photoLibrary),
-    )();
-    if (file == null || !mounted) return;
-    await _setBanner(await file.readAsBytes());
+    final bytes = await _pickBytes('pick a banner photo');
+    if (bytes != null) await _setBanner(bytes);
+  }
+
+  /// The picked photo's bytes, or null after a cancel or a failure that has been shown.
+  Future<Uint8List?> _pickBytes(String whatFailed) async {
+    try {
+      final file = await ref.read(
+        attachmentPickerProvider(AttachmentSource.photoLibrary),
+      )();
+      if (file == null) return null;
+      final bytes = await file.readAsBytes();
+      if (!mounted) return null;
+      if (!await canDecodeImage(bytes)) {
+        setActionError(unreadableImageMessage);
+        return null;
+      }
+      return bytes;
+    } catch (e, stack) {
+      api.reportFailure(api.LogTag.media, whatFailed, e, stack);
+      setActionError('Could not open that photo.');
+      return null;
+    }
   }
 
   /// A picked or dropped banner, shrunk to fit the server's cap.
@@ -149,6 +167,7 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
       maxEdge: _bannerMaxEdge,
       maxBytes: _bannerMaxBytes,
     );
+    if (!mounted) return;
     await _run(
       'upload the banner',
       () => ref.read(memberActionsProvider).uploadSpaceBanner(bytes),
@@ -156,11 +175,8 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
   }
 
   Future<void> _chooseIcon() async {
-    final file = await ref.read(
-      attachmentPickerProvider(AttachmentSource.photoLibrary),
-    )();
-    if (file == null || !mounted) return;
-    await _setIcon(await file.readAsBytes());
+    final bytes = await _pickBytes('pick an icon photo');
+    if (bytes != null) await _setIcon(bytes);
   }
 
   /// A picked or dropped icon: cropped square, then minified to fit.
