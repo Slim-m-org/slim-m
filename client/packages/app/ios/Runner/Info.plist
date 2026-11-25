@@ -92,6 +92,8 @@
 	     regardless, so App Store review needs this string either way. -->
 	<key>NSFaceIDUsageDescription</key>
 	<string>slim-m uses Face ID to confirm it is you before opening the app, if you turn that on in Settings.</string>
+	<key>PHPhotoLibraryPreventAutomaticLimitedAccessAlert</key>
+	<true/>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>slim-m opens your photo library when you attach an image to a message.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>

@@ -61,7 +61,8 @@ import UserNotifications
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    requestPushAuthorization(application)
+    installNotificationTapObserver()
+    registerIfAlreadyAuthorized(application)
     startVoipRegistration()
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
@@ -222,28 +223,24 @@ import UserNotifications
     }
 
     voiceCallChannel?.attach(to: messenger)
-    installNotificationTapObserver()
   }
 
-  /// Chains a tap observer in front of whatever already holds the notification
-  /// delegate, after plugin registration so that whoever claimed it is
-  /// captured and kept.
+  /// Takes the notification delegate slot during launch: iOS hands a cold
+  /// launch tap to whatever holds it when `didFinishLaunching` returns, so
+  /// waiting for the engine would lose that tap.
   ///
-  /// Chained rather than overridden: `FlutterAppDelegate` implements this
-  /// callback but declares it in no public header, so Swift cannot see it to
-  /// override it and cannot reach `super` to forward it either. Shadowing it
-  /// would silently drop the plugin fan-out that firebase_messaging's own
-  /// notification handling rides on. `UNUserNotificationCenterDelegate` is
-  /// ordinary public API, so a chain needs none of that.
+  /// Never re-taken or chained to a later claimant. firebase_messaging sees
+  /// this observer as the existing delegate, keeps it as its original and
+  /// forwards to it, so setting `next` to firebase would make the two call
+  /// each other until the stack overflows.
   private func installNotificationTapObserver() {
-    let center = UNUserNotificationCenter.current()
-    let observer = NotificationTapObserver(next: center.delegate) { [weak self] channelId in
+    let observer = NotificationTapObserver(next: nil) { [weak self] channelId in
       self?.deliverTap(channelId)
     }
     // The delegate property is weak, so this reference is what keeps the
     // observer alive.
     notificationTapObserver = observer
-    center.delegate = observer
+    UNUserNotificationCenter.current().delegate = observer
   }
 
   /// Held as well as sent: on a cold launch the engine exists before Dart has
@@ -261,6 +258,8 @@ import UserNotifications
       result(cachedError)
     case "getVoipToken":
       result(cachedVoipTokenHex)
+    case "requestAuthorization":
+      requestPushAuthorization(UIApplication.shared) { result(nil) }
     case "resetRegistration":
       resetRemoteRegistration(UIApplication.shared)
       result(nil)
@@ -288,21 +287,39 @@ import UserNotifications
   /// trade happens once rather than on every launch.
   private static let tokenRefreshedKey = "slimm.push.tokenRefreshed.v1"
 
-  private func requestPushAuthorization(_ application: UIApplication) {
+  /// Launch never prompts: before sign-in the person has no context for the
+  /// system alert, and a reflexive decline cannot be undone from the app. A
+  /// returning install that already answered still registers for its token.
+  private func registerIfAlreadyAuthorized(_ application: UIApplication) {
+    UNUserNotificationCenter.current().getNotificationSettings { settings in
+      guard settings.authorizationStatus != .notDetermined else { return }
+      DispatchQueue.main.async { self.registerForRemoteNotificationsOnce(application) }
+    }
+  }
+
+  /// Asked for by Dart once signed in. Answers after the person has chosen.
+  private func requestPushAuthorization(
+    _ application: UIApplication, completion: @escaping () -> Void
+  ) {
     UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in
       // A device token is worth having even if the user declines the alert:
       // the relay still needs it to seal envelopes, and a later notification
       // service extension can act on a silent push without alert permission.
       DispatchQueue.main.async {
-        // Pre-v120 installs could hold a token APNs accepts but never delivers.
-        let defaults = UserDefaults.standard
-        if defaults.bool(forKey: AppDelegate.tokenRefreshedKey) {
-          application.registerForRemoteNotifications()
-        } else {
-          defaults.set(true, forKey: AppDelegate.tokenRefreshedKey)
-          self.resetRemoteRegistration(application)
-        }
+        self.registerForRemoteNotificationsOnce(application)
+        completion()
       }
+    }
+  }
+
+  private func registerForRemoteNotificationsOnce(_ application: UIApplication) {
+    // Pre-v120 installs could hold a token APNs accepts but never delivers.
+    let defaults = UserDefaults.standard
+    if defaults.bool(forKey: AppDelegate.tokenRefreshedKey) {
+      application.registerForRemoteNotifications()
+    } else {
+      defaults.set(true, forKey: AppDelegate.tokenRefreshedKey)
+      resetRemoteRegistration(application)
     }
   }
 

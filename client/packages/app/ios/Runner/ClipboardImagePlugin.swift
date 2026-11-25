@@ -23,6 +23,9 @@ enum ClipboardImagePlugin {
 
   static func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     switch call.method {
+    case "setImagePasteActive":
+      SlimmSetImagePasteActive(call.arguments as? Bool ?? false)
+      result(nil)
     case "hasImage":
       result(UIPasteboard.general.hasImages)
     case "readImage":

@@ -61,13 +61,20 @@
 @end
 
 static void (^sOnImage)(NSData *pngData);
+/// Main thread only. True while Dart has a paste handler registered, so every other text field keeps the stock paste.
+static BOOL sImagePasteActive = NO;
+
+void SlimmSetImagePasteActive(BOOL active) {
+  sImagePasteActive = active;
+}
 
 @implementation SlimmPasteDonor
 
 - (BOOL)slimm_canPerformAction:(SEL)action withSender:(id)sender {
   // `hasImages` is UIPasteboard's own metadata check, one of the reads Apple
   // documents as exempt from the "Allow Paste?" consent prompt.
-  if (action == @selector(paste:) && [UIPasteboard generalPasteboard].hasImages) {
+  if (sImagePasteActive && action == @selector(paste:) &&
+      [UIPasteboard generalPasteboard].hasImages) {
     return YES;
   }
   // After the swap this calls the ORIGINAL implementation (see the exchange
@@ -78,7 +85,7 @@ static void (^sOnImage)(NSData *pngData);
 - (void)slimm_paste:(id)sender {
   UIPasteboard *pasteboard = [UIPasteboard generalPasteboard];
   // Text wins if both are present, matching the platform's own default.
-  if (pasteboard.string == nil && pasteboard.hasImages) {
+  if (sImagePasteActive && pasteboard.string == nil && pasteboard.hasImages) {
     // iOS itself dispatched this `paste:` call, so this read of the
     // pasteboard's actual value - the kind that would otherwise raise the
     // consent prompt - is exempt: it happens inside that same dispatch,
