@@ -23,6 +23,7 @@
 
 # The slim-m server: REST API plus its WebSocket event stream.
 {$SLIMM_API_DOMAIN} {
+	header Strict-Transport-Security "max-age=31536000"
 	reverse_proxy server:8080
 }
 

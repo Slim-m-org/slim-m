@@ -233,6 +233,9 @@ pub(crate) const SCREEN_STAMP: u8 = 20;
 /// A watch-together session update or tick; see [`Class::WatchTick`].
 pub(crate) const WATCH_TICK: u8 = 21;
 
+/// Editing the caller's own profile; see [`Class::ProfileEdit`].
+pub(crate) const PROFILE_EDIT: u8 = 22;
+
 /// Panics on an unknown code rather than falling back.
 ///
 /// It used to end `_ => Class::Refresh`, which meant a new code compiled clean
@@ -264,6 +267,7 @@ fn class_of(code: u8) -> Class {
         CANVAS_BATCH => Class::CanvasBatch,
         SCREEN_STAMP => Class::ScreenStamp,
         WATCH_TICK => Class::WatchTick,
+        PROFILE_EDIT => Class::ProfileEdit,
         other => unreachable!("no rate-limit class for code {other}"),
     }
 }

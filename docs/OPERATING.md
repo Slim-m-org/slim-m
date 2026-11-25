@@ -33,7 +33,7 @@ To set one of those you need a compose override file that adds it to the `server
 | `SLIMM_LOG_DIR` | a `logs` directory beside the database | Where the rotating log files go. | no, the image keeps them in `/data/logs` |
 | `SLIMM_LOG_KEEP_DAYS` | `14` | A log file this many days old is deleted. | yes |
 | `SLIMM_LOG_MAX_BYTES` | `268435456` (256 MiB) | Most bytes all log files hold together; the oldest goes first. `0` writes no files, stdout only. | yes |
-| `SLIMM_TRUST_PROXY_HOPS` | `0` | How many reverse proxies in front of the server may be believed about a caller's address, for rate limiting. | yes, defaults to 1 for Caddy |
+| `SLIMM_TRUST_PROXY_HOPS` | `0` | How many reverse proxies in front of the server may be believed about a caller's address, for rate limiting. | yes, defaults to 1 for Caddy; 2 behind a CDN or tunnel that Caddy is told to trust, [deploy/README.md](../deploy/README.md#behind-a-cdn-or-a-tunnel) |
 | `SLIMM_TRUSTED_PROXIES` | loopback and the private ranges | Comma-separated IPs or CIDRs of the peers whose `X-Forwarded-For` is believed at all; a `!` entry excludes a range, for example `!10.213.254.0/24`. A forwarded header from any other peer is ignored and the caller is keyed by its own address. A malformed entry stops startup. The connectors overlay excludes the connector egress network. | yes |
 | `SLIMM_CORS_ALLOWED_ORIGINS` | unset, no CORS | Comma-separated browser origins allowed cross-origin. `*` and malformed entries stop startup. | yes |
 | `SLIMM_MIN_CLIENT_VERSION` | unset, no floor | Oldest client version still served, as `X.Y.Z`. Older clients are stopped and offered an update. Empty is read as unset. | yes |
@@ -302,10 +302,10 @@ If it fails to load channels, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md#the-we
 
 ## Updating
 
-Take a backup, `git pull`, set `SLIMM_VERSION` in `.env` to the release you want if you pin, and run `docker compose up -d --remove-orphans`.
+Take a backup, `git pull`, set `SLIMM_VERSION` in `.env` to the release you want (compose refuses to start without it), and run `docker compose up -d --remove-orphans`.
 The compose files and the image go together, so a pinned old version also needs that release's tag checked out.
 A deployment from before 0.66.0 needs the `COMPOSE_FILE` line in `.env` to keep voice.
-Leaving it at `latest` follows whatever `main-builds` last published, which can be an unreleased server build.
+A deployment that relied on the old `latest` default must now set it once; `latest` still works but follows whatever `main-builds` last published, which can be an unreleased server build.
 Caddy, LiveKit and Litestream are pinned in `docker-compose.yml` and you bump those there.
 Rolling the image back is not enough on its own, because migrations are forward-only; you restore a database from before the upgrade and put `SLIMM_VERSION` back to match.
 [deploy/README.md](../deploy/README.md#upgrading) has the steps.

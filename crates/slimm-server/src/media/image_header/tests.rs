@@ -264,3 +264,36 @@ async fn a_gif_file_is_walked_past_any_probe() {
     assert_eq!(refused, None);
     assert_eq!(read.map(|h| (h.width, h.animated)), Some((64, true)));
 }
+
+fn frame(marker: u8, sampling: &[u8]) -> Vec<u8> {
+    let len = 8 + 3 * sampling.len() as u16;
+    let mut out = vec![0xFF, 0xD8, 0xFF, marker];
+    out.extend_from_slice(&len.to_be_bytes());
+    out.extend_from_slice(&[8, 0, 16, 0, 16, sampling.len() as u8]);
+    for (id, hv) in sampling.iter().enumerate() {
+        out.extend_from_slice(&[id as u8 + 1, *hv, 0]);
+    }
+    out
+}
+
+#[test]
+fn a_progressive_frame_costs_two_bytes_a_sample_of_every_component() {
+    assert_eq!(
+        jpeg_coefficient_bytes_per_pixel(&frame(0xC2, &[0x11, 0x11, 0x11])),
+        6
+    );
+    assert_eq!(
+        jpeg_coefficient_bytes_per_pixel(&frame(0xC2, &[0x22, 0x11, 0x11])),
+        3
+    );
+    assert_eq!(jpeg_coefficient_bytes_per_pixel(&frame(0xC2, &[0x11])), 2);
+}
+
+#[test]
+fn a_baseline_frame_holds_no_coefficients() {
+    assert_eq!(
+        jpeg_coefficient_bytes_per_pixel(&frame(0xC0, &[0x11, 0x11, 0x11])),
+        0
+    );
+    assert_eq!(jpeg_coefficient_bytes_per_pixel(b"not a jpeg"), 0);
+}

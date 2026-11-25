@@ -36,6 +36,7 @@ mod bot_ui;
 mod bots;
 pub mod build_id;
 mod canvas;
+mod download_slots;
 mod proxy_hint;
 mod storage_room;
 pub mod uplink_test;

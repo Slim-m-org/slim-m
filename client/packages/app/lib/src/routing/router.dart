@@ -88,8 +88,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   // Read, not watched: the listenable below already follows every change, and a rebuild would replace the router.
   final session = ref.read(sessionProvider);
 
-  // Read, not watched: main() awaits restoreSession before the router is
-  // built, so a remembered server is already in place by this point.
+  // Read, not watched: the router only builds once startup has restored the remembered server.
   String signedOutHome() => ref.read(chosenServerProvider) == null
       ? Routes.onboarding
       : Routes.signIn;

@@ -34,7 +34,7 @@ client/packages/app/lib/src/features/channels/providers/pins_controller.dart 1
 client/packages/app/lib/src/push/providers/push_controller.dart 4
 client/packages/app/lib/src/features/voice/providers/voice_controller.dart 2
 client/packages/app/lib/src/routing/modal_page.dart 3
-client/packages/app/lib/src/routing/router.dart 5
+client/packages/app/lib/src/routing/router.dart 4
 client/packages/app/lib/src/features/settings/screens/admin/invite_role_grant_picker.dart 1
 client/packages/app/lib/src/features/channels/screens/channel_screen.dart 3
 client/packages/app/lib/src/screens/home_shell.dart 2
@@ -220,7 +220,7 @@ crates/slimm-server/tests/it_infra/safety.rs 3
 crates/slimm-server/tests/it_infra/token_sweep.rs 1
 crates/slimm-server/tests/it_realtime/typing.rs 6
 docker-compose.voice.yml 8
-docker-compose.yml 13
+docker-compose.yml 12
 scripts/check-dart-licenses.py 1
 scripts/check-ios-nse-wired.sh 7
 scripts/lib/e2e_api.py 1

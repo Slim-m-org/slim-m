@@ -24,11 +24,11 @@ use serde::Deserialize;
 
 use super::AppState;
 use super::error::ApiError;
-use super::extract::{ASSET, AuthedLimited, Json, Query, UPLOAD};
+use super::extract::{ASSET, AuthedLimited, Json, Query, UPLOAD, user_limit_key};
 use super::message_dto::AttachmentDto;
 use super::storage_room::{reserve_room, room_for};
 use crate::media::{self, StreamError};
-use crate::store::AttachmentSummary;
+use crate::store::{AttachmentSummary, SessionContext};
 
 /// A fetched attachment's bytes never change (they are keyed by their own
 /// content hash), so a client may cache one forever.
@@ -275,6 +275,18 @@ async fn fetch(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Response, ApiError> {
+    let slot = super::download_slots::take(&state.limiter, &user_limit_key(ctx.user_id))?;
+    let response = fetch_attachment(&ctx, attachment_id, params, &headers, &state).await?;
+    Ok(super::download_slots::hold_until_sent(slot, response))
+}
+
+async fn fetch_attachment(
+    ctx: &SessionContext,
+    attachment_id: String,
+    params: FetchParams,
+    headers: &HeaderMap,
+    state: &AppState,
+) -> Result<Response, ApiError> {
     let sha256 = media::from_hex(&attachment_id)
         .filter(|bytes| bytes.len() == 32)
         .ok_or(ApiError::BadRequest("invalid attachment id"))?;
@@ -287,12 +299,8 @@ async fn fetch(
         .store
         .can_fetch_attachment(ctx.user_id, &sha256)
         .await?
-        || super::screen_stamps::stamp_access::may_fetch_stamp_picture(
-            &state,
-            ctx.user_id,
-            &sha256,
-        )
-        .await;
+        || super::screen_stamps::stamp_access::may_fetch_stamp_picture(state, ctx.user_id, &sha256)
+            .await;
     if !allowed {
         // 404, not 403, and the difference is the whole point. An attachment id
         // is the content's sha256, so anyone holding a candidate file can
@@ -315,11 +323,11 @@ async fn fetch(
         .unwrap_or_else(|| NEUTRAL_FILENAME.to_owned());
     if params.original == Some(true) {
         return super::attachment_original::serve(
-            &state,
+            state,
             &attachment_id,
             &sha256,
             &meta.filename,
-            &headers,
+            headers,
         )
         .await;
     }
@@ -332,7 +340,7 @@ async fn fetch(
                 width,
                 still: params.still == Some(true),
             },
-            &headers,
+            headers,
         )
         .await
     {

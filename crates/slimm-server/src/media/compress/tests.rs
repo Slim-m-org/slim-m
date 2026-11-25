@@ -406,3 +406,30 @@ fn a_webp_without_metadata_is_left_as_it_is() {
     let source = webp_with(&[riff_chunk(b"VP8L", &[0x2F, 0, 0, 0, 0])]);
     assert!(container_strip::strip(Kind::Webp, &source, Metadata::RemoveAll).is_none());
 }
+
+fn candidate(kind: Kind, width: u32, height: u32, coefficients: u64) -> Candidate {
+    Candidate {
+        kind,
+        width,
+        height,
+        coefficient_bytes_per_pixel: coefficients,
+    }
+}
+
+#[test]
+fn a_progressive_jpeg_reserves_its_whole_frame_coefficients() {
+    let settings = &DEFAULT_SETTINGS;
+    let baseline = peak_bytes(candidate(Kind::Jpeg, 8192, 16384, 0), 1 << 20, settings);
+    let progressive = peak_bytes(candidate(Kind::Jpeg, 8192, 16384, 6), 1 << 20, settings);
+
+    assert_eq!(progressive - baseline, 8192 * 16384 * 6);
+}
+
+#[test]
+fn a_png_converted_without_shrinking_reserves_a_full_size_output() {
+    let settings = &DEFAULT_SETTINGS;
+    let wide = candidate(Kind::Png, 8000, 6000, 0);
+    let floor = 8000 * 6000 * (OTHER_BYTES_PER_PIXEL + RESIZED_BYTES_PER_PIXEL);
+
+    assert!(peak_bytes(wide, 0, settings) >= floor);
+}

@@ -10,7 +10,9 @@ use image::metadata::Orientation;
 use image::{DynamicImage, ExtendedColorType, ImageDecoder, ImageReader, Limits};
 
 use super::compress::{decode_reduced_jpeg, jpeg_scale_divisor};
-use super::image_header::{ImageHeader, gif_canvas, inspect, jpeg_is_progressive};
+use super::image_header::{
+    ImageHeader, gif_canvas, inspect, jpeg_coefficient_bytes_per_pixel, jpeg_is_progressive,
+};
 use super::preview::BUCKETS;
 use super::preview_scale::fit;
 
@@ -67,6 +69,8 @@ pub(super) struct Plan {
     header: ImageHeader,
     len: u64,
     divisor: u32,
+    /// Per-pixel cost of the whole-frame coefficients a progressive JPEG makes the decoder hold.
+    coefficient_bytes_per_pixel: u64,
 }
 
 impl Plan {
@@ -79,7 +83,7 @@ impl Plan {
         } else {
             pixels * PREVIEW_BYTES_PER_PIXEL
         };
-        self.len + raster + PREVIEW_FIXED_BYTES
+        self.len + raster + pixels * self.coefficient_bytes_per_pixel + PREVIEW_FIXED_BYTES
     }
 }
 
@@ -118,6 +122,7 @@ pub(super) fn plan(variant: Variant, probe: &[u8], len: u64) -> Option<Plan> {
         header,
         len,
         divisor,
+        coefficient_bytes_per_pixel: jpeg_coefficient_bytes_per_pixel(probe),
     })
 }
 
@@ -404,6 +409,15 @@ mod tests {
         let probe = jpeg_header(0xC2, 12_000, 9_000);
 
         assert!(plan(Variant::Preview, &probe, 30 << 20).is_none());
+    }
+
+    #[test]
+    fn a_progressive_photo_reserves_its_whole_frame_coefficients() {
+        let baseline = plan(Variant::Preview, &jpeg_header(0xC0, 6_000, 6_000), 1 << 20).unwrap();
+        let progressive =
+            plan(Variant::Preview, &jpeg_header(0xC2, 6_000, 6_000), 1 << 20).unwrap();
+
+        assert_eq!(progressive.estimate() - baseline.estimate(), 36_000_000 * 2);
     }
 
     #[test]

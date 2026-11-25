@@ -6,6 +6,8 @@
 //! anything that moves, or that no decoder here handles, is left alone. The
 //! caller stores the result only when [`compress`] returns one.
 
+use super::image_header;
+
 mod classify;
 mod container_strip;
 mod decode;
@@ -147,6 +149,7 @@ pub fn decode_reduced_jpeg(
         kind: Kind::Jpeg,
         width,
         height,
+        coefficient_bytes_per_pixel: 0,
     };
     let decoded = decode::decode(candidate, bytes, long_edge)?;
     Some((decoded.image, decoded.orientation))
@@ -158,6 +161,8 @@ pub struct Candidate {
     pub kind: Kind,
     pub width: u32,
     pub height: u32,
+    /// What a progressive JPEG's whole-frame coefficients cost per pixel; 0 for any other file.
+    pub coefficient_bytes_per_pixel: u64,
 }
 
 impl Candidate {
@@ -186,6 +191,11 @@ pub fn inspect(kind: Kind, bytes: &[u8]) -> Option<Candidate> {
         kind,
         width: w,
         height: h,
+        coefficient_bytes_per_pixel: if kind == Kind::Jpeg {
+            image_header::jpeg_coefficient_bytes_per_pixel(bytes)
+        } else {
+            0
+        },
     })
 }
 
@@ -236,7 +246,9 @@ pub fn strip_only(kind: Kind, bytes: &[u8], metadata: Metadata) -> Option<Compre
 
 /// The most memory compressing this file can hold at once, in bytes: the
 /// source, the decoded pixels (reduced when a JPEG is decoded at a smaller
-/// DCT scale), the resized pixels and a fixed allowance for codec state.
+/// DCT scale), the resized pixels (full size for PNG, BMP and TIFF, which end up
+/// as an unshrunk PNG), a progressive JPEG's whole-frame coefficients and a fixed
+/// allowance for codec state.
 /// Per-pixel factors come from measured peaks in docs/research/media-compression.md.
 pub fn peak_bytes(candidate: Candidate, source_len: u64, settings: &Settings) -> u64 {
     let (w, h) = (u64::from(candidate.width), u64::from(candidate.height));
@@ -248,7 +260,8 @@ pub fn peak_bytes(candidate: Candidate, source_len: u64, settings: &Settings) ->
         1
     };
     let decoded_px = (w / divisor).max(1) * (h / divisor).max(1);
-    let out_px = if edge > cap {
+    let resized = edge > cap && matches!(candidate.kind, Kind::Jpeg | Kind::Heic | Kind::Webp);
+    let out_px = if resized {
         (w * cap / edge).max(1) * (h * cap / edge).max(1)
     } else {
         decoded_px
@@ -258,7 +271,11 @@ pub fn peak_bytes(candidate: Candidate, source_len: u64, settings: &Settings) ->
         Kind::Heic => HEIC_BYTES_PER_PIXEL,
         _ => OTHER_BYTES_PER_PIXEL,
     };
-    source_len + decoded_px * per_decoded_pixel + out_px * RESIZED_BYTES_PER_PIXEL + FIXED_BYTES
+    source_len
+        + decoded_px * per_decoded_pixel
+        + out_px * RESIZED_BYTES_PER_PIXEL
+        + candidate.pixels() * candidate.coefficient_bytes_per_pixel
+        + FIXED_BYTES
 }
 
 const JPEG_BYTES_PER_PIXEL: u64 = 5;

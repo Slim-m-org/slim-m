@@ -5,9 +5,13 @@
 //! is dropped after [`HEADER_READ_TIMEOUT`], which on HTTP/1 also bounds how
 //! long a keep-alive connection may sit idle between requests. Request bodies,
 //! response bodies and upgraded WebSockets are outside that timer, so a large
-//! upload or a long-lived socket is never cut by it. Live connections are
+//! upload or a long-lived socket is never cut by it. A peer that stops reading
+//! a response is dropped after [`WRITE_STALL_TIMEOUT`] without progress, which
+//! frees the file handle a streamed download holds. Live connections are
 //! capped at [`MAX_CONNECTIONS`]; past it the loop stops accepting and the
 //! kernel backlog holds new peers until a slot frees.
+
+mod write_stall;
 
 use std::convert::Infallible;
 use std::future::Future;
@@ -25,10 +29,14 @@ use hyper_util::service::TowerToHyperService;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{Semaphore, watch};
 use tower::ServiceExt;
+use write_stall::WriteStall;
 
 /// How long a peer has to deliver a request head; it also closes idle keep-alive
 /// sockets, so it stays above proxy upstream idle times (Traefik 90 s) to avoid 502s.
 pub const HEADER_READ_TIMEOUT: Duration = Duration::from_secs(150);
+
+/// How long a response write may make no progress before the connection is dropped.
+pub const WRITE_STALL_TIMEOUT: Duration = Duration::from_secs(60);
 
 /// The most connections served at once.
 pub const MAX_CONNECTIONS: usize = 8192;
@@ -38,24 +46,40 @@ pub async fn serve(
     listener: TcpListener,
     app: Router,
     shutdown: impl Future<Output = ()>,
+    max_connections: usize,
 ) -> std::io::Result<()> {
     serve_with_limits(
         listener,
         app,
         shutdown,
-        HEADER_READ_TIMEOUT,
-        MAX_CONNECTIONS,
+        Limits {
+            header_timeout: HEADER_READ_TIMEOUT,
+            write_timeout: WRITE_STALL_TIMEOUT,
+            max_connections,
+        },
     )
     .await
+}
+
+/// The timeouts and connection cap one accept loop runs under.
+#[derive(Clone, Copy)]
+pub(crate) struct Limits {
+    pub(crate) header_timeout: Duration,
+    pub(crate) write_timeout: Duration,
+    pub(crate) max_connections: usize,
 }
 
 pub(crate) async fn serve_with_limits(
     listener: TcpListener,
     app: Router,
     shutdown: impl Future<Output = ()>,
-    header_timeout: Duration,
-    max_connections: usize,
+    limits: Limits,
 ) -> std::io::Result<()> {
+    let Limits {
+        header_timeout,
+        write_timeout,
+        max_connections,
+    } = limits;
     let slots = Arc::new(Semaphore::new(max_connections));
     let (stopping, _) = watch::channel(false);
     tokio::pin!(shutdown);
@@ -79,7 +103,8 @@ pub(crate) async fn serve_with_limits(
         let app = app.clone();
         tokio::spawn(async move {
             let _slot = permit;
-            let served = serve_connection(stream, peer, app, header_timeout, stopping);
+            let served =
+                serve_connection(stream, peer, app, (header_timeout, write_timeout), stopping);
             if let Err(error) = served.await {
                 tracing::debug!(%error, %peer, "connection ended with an error");
             }
@@ -95,7 +120,7 @@ async fn serve_connection(
     stream: TcpStream,
     peer: SocketAddr,
     app: Router,
-    header_timeout: Duration,
+    (header_timeout, write_timeout): (Duration, Duration),
     mut stopping: watch::Receiver<bool>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let service = app.map_request(move |mut request: Request<Incoming>| {
@@ -106,7 +131,10 @@ async fn serve_connection(
     let connection = http1::Builder::new()
         .timer(TokioTimer::new())
         .header_read_timeout(header_timeout)
-        .serve_connection(TokioIo::new(stream), service)
+        .serve_connection(
+            TokioIo::new(WriteStall::new(stream, write_timeout)),
+            service,
+        )
         .with_upgrades();
     tokio::pin!(connection);
     loop {
@@ -125,6 +153,15 @@ mod tests {
     use super::*;
 
     async fn start(header_timeout: Duration, max: usize) -> SocketAddr {
+        start_with(Limits {
+            header_timeout,
+            write_timeout: Duration::from_secs(60),
+            max_connections: max,
+        })
+        .await
+    }
+
+    async fn start_with(limits: Limits) -> SocketAddr {
         let app = Router::new()
             .route("/ok", get(|| async { "ok" }))
             .route("/ws", get(socket))
@@ -132,6 +169,7 @@ mod tests {
                 "/peer",
                 get(|ConnectInfo(peer): ConnectInfo<SocketAddr>| async move { peer.to_string() }),
             )
+            .route("/endless", get(endless))
             .route(
                 "/echo",
                 post(|body: String| async move { body.len().to_string() }),
@@ -140,9 +178,16 @@ mod tests {
         let addr = listener.local_addr().unwrap();
         tokio::spawn(async move {
             let never = std::future::pending::<()>();
-            let _ = serve_with_limits(listener, app, never, header_timeout, max).await;
+            let _ = serve_with_limits(listener, app, never, limits).await;
         });
         addr
+    }
+
+    async fn endless() -> axum::response::Response {
+        let chunks = futures_util::stream::repeat_with(|| {
+            Ok::<_, std::convert::Infallible>(axum::body::Bytes::from(vec![0u8; 64 * 1024]))
+        });
+        axum::response::Response::new(axum::body::Body::from_stream(chunks))
     }
 
     async fn socket(upgrade: axum::extract::WebSocketUpgrade) -> axum::response::Response {
@@ -235,5 +280,23 @@ mod tests {
             .await
             .unwrap();
         assert!(read_to_end(&mut peer).await.contains("127.0.0.1:"));
+    }
+
+    #[tokio::test]
+    async fn a_reader_that_stops_reading_a_download_is_dropped() {
+        let addr = start_with(Limits {
+            header_timeout: Duration::from_secs(30),
+            write_timeout: Duration::from_millis(300),
+            max_connections: 8,
+        })
+        .await;
+        let mut stalled = TcpStream::connect(addr).await.unwrap();
+        stalled
+            .write_all(b"GET /endless HTTP/1.1\r\nHost: x\r\n\r\n")
+            .await
+            .unwrap();
+        tokio::time::sleep(Duration::from_secs(1)).await;
+        let ended = tokio::time::timeout(Duration::from_secs(10), read_to_end(&mut stalled)).await;
+        assert!(ended.is_ok(), "the stalled download was never cut off");
     }
 }

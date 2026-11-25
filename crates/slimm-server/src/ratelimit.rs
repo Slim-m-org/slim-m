@@ -26,6 +26,7 @@ mod class;
 mod class_label;
 mod peek;
 mod proxy_trust;
+pub mod streams;
 pub use class::Class;
 pub use proxy_trust::{DEFAULT_TRUSTED_PROXIES, ProxyTrust};
 
@@ -81,6 +82,7 @@ pub struct RateLimiter {
     state: Arc<Mutex<State>>,
     trusted_hops: usize,
     proxies: ProxyTrust,
+    streams: streams::StreamSlots,
 }
 
 impl Default for RateLimiter {
@@ -112,7 +114,13 @@ impl RateLimiter {
             })),
             trusted_hops,
             proxies,
+            streams: streams::StreamSlots::default(),
         }
+    }
+
+    /// Takes one of `cap` open-stream slots for `key`, or `None` while it holds that many.
+    pub fn open_stream(&self, key: &str, cap: usize) -> Option<streams::StreamPermit> {
+        self.streams.acquire(key, cap)
     }
 
     /// How many proxies in front of this server may be believed about who the

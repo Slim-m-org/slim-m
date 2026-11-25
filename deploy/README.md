@@ -27,6 +27,7 @@ Three ways through it, in the order most people should try them:
 
 - **Dynamic DNS**, if you have a real public IP that simply changes. Your router or a client updates the A record; everything else in this document works unchanged.
 - **A tunnel** (Cloudflare Tunnel, Tailscale Funnel, or similar), if you have no forwardable port at all. The tunnel terminates TLS and reaches your host outbound, so Caddy's certificate step becomes the tunnel's job rather than yours.
+  Tell Caddy to trust the tunnel, or every caller shares one sign-in rate limit: [Behind a CDN or a tunnel](#behind-a-cdn-or-a-tunnel).
 - **LAN only**, deliberately. Everything works between devices on your own network and nothing reaches it from outside, which is a real answer for a household.
 
 **The catch worth knowing before you pick a tunnel.** An HTTP tunnel carries signalling and text, and it does not carry WebRTC media, which is UDP.
@@ -66,12 +67,15 @@ Phones need a little care here, so it is worth reading before you pick plain htt
 git clone https://github.com/Slim-m-org/slim-m.git
 cd slim-m
 cp deploy/.env.example .env
-# edit .env: SLIMM_API_DOMAIN and ACME_EMAIL. That is all that is required.
+# edit .env: SLIMM_VERSION, SLIMM_API_DOMAIN and ACME_EMAIL. That is all that is required.
 docker compose up -d
 ```
 
 On a machine with the images already pulled this is healthy in about ten seconds; the first pull adds a minute or so.
 If `docker` asks for `sudo`, add yourself to the `docker` group and sign in again.
+
+Caddy sends `Strict-Transport-Security` with a one-year `max-age` and no `includeSubDomains`, so a browser that has seen the domain once refuses plain `http://` for it.
+Do not serve the same name over plain http afterwards, and add `includeSubDomains` yourself only if every subdomain is https too.
 
 ## Claim it, before you tell anyone the address
 
@@ -151,10 +155,11 @@ docker compose -f docker-compose.yml -f docker-compose.voice.yml up -d
 Once the overlay is in play the three LiveKit settings are required and Compose refuses to start until they are set, naming the missing one.
 That is deliberate: half-configured voice that comes up and then fails at call time is worse than not starting.
 
-The server image tracks the rolling `latest` tag.
-Set `SLIMM_VERSION` in `.env` to a published release (see the [releases page](https://github.com/Slim-m-org/slim-m/releases)) to freeze it on a specific version instead.
-If you do pin, bump it on every upgrade rather than leaving it: a stale tag is a server that predates every security fix since, and this file itself once shipped pinned to the very first release.
+`SLIMM_VERSION` in `.env` is required and has no default: set it to a published release (see the [releases page](https://github.com/Slim-m-org/slim-m/releases)).
+A default of the rolling `latest` tag would let a plain `docker compose pull` run an unreleased build, or step across a migration without notice.
+Bump it on every upgrade rather than leaving it: a stale tag is a server that predates every security fix since.
 `SLIMM_VERSION` is read from `.env`, so pinning never means editing `docker-compose.yml`.
+`SLIMM_API_DOMAIN` and `ACME_EMAIL` are required the same way, and `docker compose` names the one that is missing instead of leaving Caddy to fail on an empty value.
 
 `LIVEKIT_API_KEY` and `LIVEKIT_API_SECRET` have no defaults, on purpose.
 They authorize minting a room token, so a placeholder default would be a publicly known credential on a publicly reachable SFU.
@@ -394,6 +399,16 @@ Both sides of each mapping follow the variable, so changing it in `.env` is enou
 
 The `livekit` service carries a Docker `HEALTHCHECK` too, same as the server and Caddy: a plain `GET /` against its own signaling port, which LiveKit answers `OK` to with no auth needed.
 `docker compose ps` reports its real state, so a LiveKit that starts and then crashloops shows `unhealthy` there rather than looking identical to a working one - see "Monitoring" below for the incident this closes.
+
+### TURN does not relay to your LAN
+
+A call member holds TURN credentials, so the question is whether they can make the relay send UDP to a private address: your router, another container, a host on the LAN.
+The pinned LiveKit refuses.
+Against the pinned image, `CreatePermission` for `192.168.1.1`, `172.17.0.1`, `10.0.0.1` and `127.0.0.1` all answered 403, while a public peer was accepted.
+It does this by default, so the shipped config needs no egress rule.
+Two things undo it: listing a private range under `turn.allow_restricted_peer_cidrs`, which you should not do, and moving to a LiveKit release that behaves differently.
+Check after bumping the image by asking a TURN client for a permission on a private peer; a 403 is the answer you want.
+If you ever must run a build that relays to private peers, block it on the host with a `DOCKER-USER` rule dropping UDP from the relay port range to the private ranges, or add them to `turn.deny_peer_cidrs`.
 
 ### TURN/TLS needs 443 and a router that splits it by name
 
@@ -652,8 +667,8 @@ The fix is to tell the server how many proxies you run:
 SLIMM_TRUST_PROXY_HOPS=1
 ```
 
-Behind the Caddy in this directory that is `1`.
-Add one for each additional proxy in front of it - a CDN in front of Caddy makes it `2`.
+Behind the Caddy in this directory, with nothing in front of it, that is `1`.
+Behind a CDN or a tunnel it is `2`, but only with the extra step in the next section: the number alone does not do it.
 
 **Leave it unset if the server is exposed directly**, and do not guess.
 The two ways of getting it wrong are not equally bad.
@@ -668,6 +683,27 @@ The header is read from the right, which is what makes a correct setting safe.
 A proxy appends the address it saw, so the rightmost entry is the one your own proxy wrote; a caller can prepend as much as they like and never reach it.
 
 Caddy has no built-in per-IP rate limiting, so this cannot be solved in the Caddyfile instead - that needs a third-party module and a custom Caddy build.
+
+### Behind a CDN or a tunnel
+
+Caddy ignores a `X-Forwarded-For` it receives from a peer it has not been told to trust, and sends the server only the address it saw itself.
+So with a CDN (Cloudflare proxied DNS, say) or a tunnel (Cloudflare Tunnel) in front of Caddy and nothing else changed, the server sees the CDN's address for every caller, and `SLIMM_TRUST_PROXY_HOPS=2` does not help: every unauthenticated caller is still in one bucket.
+Tell Caddy which peers to trust, in the global block at the top of `deploy/Caddyfile`:
+
+```
+{
+	email {$ACME_EMAIL}
+	servers {
+		trusted_proxies static 173.245.48.0/20 103.21.244.0/22
+	}
+}
+```
+
+List the ranges your CDN publishes (Cloudflare keeps its own at `cloudflare.com/ips`), or for a tunnel the address range of the network `cloudflared` reaches Caddy from, such as the compose network.
+List only those: anything you trust here can set the address the server rate limits on, so a range wider than the CDN or tunnel reopens the bypass.
+Then set `SLIMM_TRUST_PROXY_HOPS=2`, because Caddy now forwards `<caller>, <the CDN or tunnel>` and the server reads from the right.
+With two callers behind the same CDN, each lands in its own bucket; this was checked against a live Caddy and server, and with the Caddyfile left alone both callers shared one.
+`client_ip_headers CF-Connecting-IP` is not needed: the server reads `X-Forwarded-For` only.
 
 ## Moderating a member, and what "remove from Space" really is
 
@@ -784,7 +820,7 @@ The continuous `main` and `latest` tags of `slim-m-server` are not signed; only 
 
 ## Upgrading
 
-The server image is `${SLIMM_VERSION:-latest}` in `docker-compose.yml`, so upgrading or pinning it is bumping `SLIMM_VERSION` in `.env`, never editing `docker-compose.yml` itself (see the note above).
+The server image is `${SLIMM_VERSION}` in `docker-compose.yml`, so upgrading or pinning it is bumping `SLIMM_VERSION` in `.env`, never editing `docker-compose.yml` itself (see the note above).
 Caddy, LiveKit, and Litestream are hardcoded tags in `docker-compose.yml`; bump those directly and run `docker compose up -d` again.
 Newer patches are at hub.docker.com for Caddy and Litestream and at github.com/livekit/livekit/releases for LiveKit.
 The named volumes (`slimm_data`, `caddy_data`, `caddy_config`, `slimm_backups` and the rest) are untouched by an image swap.
@@ -796,7 +832,7 @@ docker compose run --rm --no-deps backup python3 /scripts/backup.py \
   --backup-root /backup --database-path /data/slimm.db \
   --media-dir /data/media --modules-dir /data/modules
 git pull
-# set SLIMM_VERSION in .env if you pin
+# set SLIMM_VERSION in .env to the release you run (required)
 docker compose up -d --remove-orphans
 ```
 
