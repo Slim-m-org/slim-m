@@ -31,9 +31,13 @@ import '../providers/share_zoom_controller.dart';
 import '../../../widgets/double_click_detector.dart';
 import 'fullscreen_share_annotate.dart';
 import 'fullscreen_video_controls.dart';
+import 'call_stage_layout.dart' show defaultDockClearance;
 import 'share_zoom_view.dart';
 import 'stream_volume_pill.dart';
 import 'stream_controls_reveal.dart';
+
+/// How far above the foot the share's own controls sit: the call dock and its margin, plus a gap.
+const double _aboveDock = defaultDockClearance + AppSpacing.s20;
 
 /// Which live view a tile was showing when it was expanded.
 enum FullscreenVideoKind { camera, screenShare }
@@ -193,7 +197,7 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
                     AppSpacing.s8 + inset.left,
                     AppSpacing.s8,
                     AppSpacing.s8 + inset.right,
-                    96 + inset.bottom,
+                    _aboveDock + inset.bottom,
                   ),
                   child: controller.screenShareViewFor(widget.identity),
                 ))
@@ -234,7 +238,7 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
               sharerId: annotated.identity,
               sharerName: annotated.name,
               zoom: _zoom,
-              toolbarBottom: 96 + inset.bottom,
+              toolbarBottom: _aboveDock + inset.bottom,
             ),
           Positioned(
             top: 0,

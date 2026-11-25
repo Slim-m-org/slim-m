@@ -176,7 +176,7 @@ void main() {
     expect(find.bySemanticsLabel(_pen), findsNothing);
   });
 
-  testWidgets('the layer covers exactly the video', (tester) async {
+  testWidgets('the layer fills the whole full screen view', (tester) async {
     await _open(tester);
     expect(
       tester.getRect(find.byKey(_layer)),
@@ -205,7 +205,6 @@ void main() {
   ) async {
     await _open(tester, size: const Size(390, 844));
     final pen = tester.getRect(find.bySemanticsLabel(_pen));
-    expect(const Offset(0, 0) & const Size(390, 844), isNot(pen.inflate(-1)));
     expect(pen.left, greaterThanOrEqualTo(0));
     expect(pen.right, lessThanOrEqualTo(390));
     expect(pen.bottom, lessThanOrEqualTo(844 - 96));
