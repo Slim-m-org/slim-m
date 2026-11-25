@@ -275,6 +275,7 @@ class _CanvasTextEditorState extends ConsumerState<CanvasTextEditor> {
             (size) => _restyle(() => _size = size),
           ),
           groupId: canvasTextTapGroup,
+          onClosed: _focus.requestFocus,
         ),
       ),
     );

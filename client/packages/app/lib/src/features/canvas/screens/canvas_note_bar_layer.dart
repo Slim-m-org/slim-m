@@ -160,6 +160,7 @@ class CanvasNoteBarLayer extends ConsumerWidget {
       ),
       size: canvasNoteSizeEntry(style, change),
       groupId: canvasNoteTapGroup,
+      onClosed: session?.focusNode.requestFocus,
     );
   }
 }

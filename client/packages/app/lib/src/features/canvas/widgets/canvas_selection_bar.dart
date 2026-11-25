@@ -28,6 +28,7 @@ class CanvasSelectionBar extends StatelessWidget {
     required this.colourEntries,
     required this.size,
     this.groupId,
+    this.onClosed,
   });
 
   /// The colour the button shows for what the object has now.
@@ -40,6 +41,9 @@ class CanvasSelectionBar extends StatelessWidget {
 
   /// The text field's tap region group, so a tap on the bar or its popover is not an outside tap that ends the edit.
   final Object? groupId;
+
+  /// Runs when the colour menu or sheet closes however it ends, so a caller typing can take the keyboard back.
+  final VoidCallback? onClosed;
 
   @override
   Widget build(BuildContext context) {
@@ -66,6 +70,7 @@ class CanvasSelectionBar extends StatelessWidget {
               label: colourLabel,
               entries: colourEntries,
               groupId: groupId,
+              onClosed: onClosed,
             ),
             AppSegmentedControl.inline(
               options: size.options,
@@ -93,12 +98,14 @@ class _ColourButton extends StatefulWidget {
     required this.label,
     required this.entries,
     required this.groupId,
+    required this.onClosed,
   });
 
   final Color colour;
   final String label;
   final List<ControlOptionEntry> entries;
   final Object? groupId;
+  final VoidCallback? onClosed;
 
   @override
   State<_ColourButton> createState() => _ColourButtonState();
@@ -155,6 +162,9 @@ class _ColourButtonState extends State<_ColourButton> {
       enableLongPress: false,
       menuWidth: 248,
       tapRegionGroupId: widget.groupId,
+      onVisibilityChanged: (open) {
+        if (!open) widget.onClosed?.call();
+      },
       itemsBuilder: _items,
       sheetSemanticLabel: widget.label,
       child: Tooltip(
