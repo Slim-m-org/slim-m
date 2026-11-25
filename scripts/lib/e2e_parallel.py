@@ -133,6 +133,8 @@ def merge(shards, names):
         done = {row["name"]: row for row in read_results(env) or []}
         for name in assigned:
             row = done.get(name)
+            if row and row.get("skipped"):
+                continue
             rows.append((name, index, False, 0.0) if row is None
                         else (name, index, row["ok"], row["seconds"]))
     order = {name: i for i, name in enumerate(names)}
@@ -184,6 +186,9 @@ def main(argv=None):
 
     only = [o for o in os.environ.get("E2E_ONLY", "").split("|") if o]
     names = planned_names(e2e_run.scenario_names(), only, bool(os.environ.get("E2E_PAR_OPT_IN")))
+    if not names:
+        print("FAIL: the filter selects no scenario, so there is nothing to run")
+        return 2
     count = parse_shards(args.shards)
     chunks = e2e_groups.deal(names, count)
     durations = e2e_groups.load_durations()

@@ -13,7 +13,6 @@ import os
 import sys
 import tempfile
 import time
-import traceback
 
 import e2e_accounts
 import e2e_admin
@@ -44,6 +43,7 @@ import e2e_message_menu
 import e2e_reconcile
 import e2e_replies
 import e2e_settings
+from e2e_verdict import run_selected, selected, verdict  # noqa: F401
 import e2e_coverage
 import e2e_sweep
 import e2e_threads
@@ -497,13 +497,6 @@ def scenario_names():
     return [name for name, _ in scenarios(None, None, None, None, None, None, None)]
 
 
-def selected(name, only, exact):
-    """Whether [name] runs: an exact list wins, then name fragments, else all."""
-    if exact is not None:
-        return name in exact
-    return not only or any(o in name for o in only)
-
-
 def main():
     server, room_id, secret = sys.argv[1], sys.argv[2], sys.argv[3]
     # One name fragment, or several split by |.
@@ -531,31 +524,16 @@ def main():
     sign_in(a, server, "alice", secret)
     sign_in(b, server, "bob", secret)
 
-    failures = []
-    results = []
-    for name, run in scenarios(a, b, admin, member, room_id, server, secret):
-        if not selected(name, only, exact):
-            continue
-        print(f"\n== {name} ==")
-        began = time.time()
-        try:
-            # Every scenario starts from the channel list, so one that ends on
-            # a settings screen cannot strand the next one somewhere it cannot
-            # see the rail.
-            go_home(a)
-            go_home(b)
-            run()
-            took = time.time() - began
-            results.append({"name": name, "ok": True, "seconds": round(took, 1)})
-            print(f"  ({took:.0f}s)")
-        except Exception:
-            results.append({"name": name, "ok": False,
-                            "seconds": round(time.time() - began, 1)})
-            # Kept going rather than stopped: one broken scenario should not
-            # hide the state of every one after it, and the run still fails.
-            failures.append(name)
-            traceback.print_exc()
-            print(f"  FAILED: {name}")
+    def prepare():
+        # Every scenario starts from the channel list, so one that ends on
+        # a settings screen cannot strand the next one somewhere it cannot
+        # see the rail.
+        go_home(a)
+        go_home(b)
+
+    results = run_selected(
+        scenarios(a, b, admin, member, room_id, server, secret), only, exact, prepare)
+    failures = [r["name"] for r in results if r["ok"] is False]
 
     write_results(results)
     print("\n== what this run actually touched ==")
@@ -565,12 +543,10 @@ def main():
         "E2E_SCHEMA", "schema/openapi.yaml"))
 
     print()
-    if failures:
-        print(f"FAIL: {len(failures)} scenario(s) failed")
-        for name in failures:
-            print(f"  - {name}")
-        raise SystemExit(1)
-    print("PASS: every scenario, checked against the server as well as the UI.")
+    code, message = verdict(results)
+    print(message)
+    if code:
+        raise SystemExit(code)
 
 
 if __name__ == "__main__":

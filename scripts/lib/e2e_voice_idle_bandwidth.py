@@ -18,6 +18,7 @@ import e2e_voice_desktop as desktop
 import e2e_xp as xp
 import make_speech_clip as speech
 import voice_quality_dsp as dsp
+from e2e_skip import Skip
 
 WINDOW_S = int(os.environ.get("E2E_IDLE_SECONDS", "60"))
 ROOM_NOISE_DBFS = -66.0
@@ -130,5 +131,5 @@ def run(server, secret, admin_api, sign_in):
 def run_if_selected(server, secret, admin_api, sign_in):
     if "voice idle bandwidth" not in os.environ.get("E2E_ONLY", ""):
         print("  skipped: set E2E_ONLY='voice idle bandwidth' to run it")
-        return
+        raise Skip
     run(server, secret, admin_api, sign_in)

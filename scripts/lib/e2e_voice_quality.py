@@ -27,6 +27,7 @@ import voice_corpus
 import voice_quality
 import voice_quality_dsp as dsp
 from e2e_voice import _tap_label
+from e2e_skip import Skip
 
 SECONDS = int(os.environ.get("E2E_VQ_SECONDS", "45"))
 SETTLE = 4
@@ -407,5 +408,5 @@ def run_if_selected(server, secret, admin_api, sign_in):
     """Long and network-impairing, so only a run that names it takes part."""
     if "voice quality" not in os.environ.get("E2E_ONLY", ""):
         print("  skipped: set E2E_ONLY='voice quality' to run it")
-        return
+        raise Skip
     a_scored_call(server, secret, admin_api, sign_in)

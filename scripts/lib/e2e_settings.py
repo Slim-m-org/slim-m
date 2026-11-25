@@ -71,26 +71,30 @@ def change_status(client, api):
     settings carried a duplicate of it until 2026-09-10 and no longer does, so
     this leaves settings first - the scenario before it ends up inside them.
     """
-    if not client.find(L.CHANGE_STATUS):
-        client.click(L.BACK_TO_CHANNELS, settle=3)
-    client.click(L.CHANGE_STATUS, settle=2)
-    client.wait_for(L.DND)
-    client.click(L.DND, settle=3)
-    # The footer's own line: the presence word for the state just chosen.
-    client.wait_for('do not disturb')
+    try:
+        if not client.find(L.CHANGE_STATUS):
+            client.click(L.BACK_TO_CHANNELS, settle=3)
+        client.click(L.CHANGE_STATUS, settle=2)
+        client.wait_for(L.DND)
+        client.click(L.DND, settle=3)
+        # The footer's own line: the presence word for the state just chosen.
+        client.wait_for('do not disturb')
 
-    me_id = api.me()['id']
-    deadline = time.time() + 20
-    status = None
-    while time.time() < deadline:
-        rows = api.call('GET', f'/presence?ids={me_id}')
-        row = next((r for r in rows if r['user_id'] == me_id), None)
-        status = row['status'] if row else None
-        if status == 'dnd':
-            break
-        time.sleep(0.25)
-    assert status == 'dnd', f'the server still reports status {status!r}'
-    print('  status changed to do-not-disturb, and the server agrees')
+        me_id = api.me()['id']
+        deadline = time.time() + 20
+        status = None
+        while time.time() < deadline:
+            rows = api.call('GET', f'/presence?ids={me_id}')
+            row = next((r for r in rows if r['user_id'] == me_id), None)
+            status = row['status'] if row else None
+            if status == 'dnd':
+                break
+            time.sleep(0.25)
+        assert status == 'dnd', f'the server still reports status {status!r}'
+        print('  status changed to do-not-disturb, and the server agrees')
+    finally:
+        # Later scenarios run as this account and must not inherit do not disturb.
+        api.call('PATCH', '/presence', {'visibility': 'online'})
 
 
 def upload_avatar(client, api, path):

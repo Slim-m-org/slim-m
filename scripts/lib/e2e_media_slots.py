@@ -163,8 +163,7 @@ def move_converges_and_persists(a, b, admin_api, channel_id, room_id):
         c.wait_for("Canvas,")
     a.click(CAMERA_ON, settle=3)
     a.wait_for(ALICE_SELF_LABEL, timeout=30)
-    # Leaving the call resets the tile, so the cold reopen is held to where it stood after the rejoin.
-    b_rejoined = b.wait_for(ALICE_REMOTE_LABEL, timeout=30)
+    b.wait_for(ALICE_REMOTE_LABEL, timeout=30)
     print("  the tile reappeared for both after leaving and rejoining "
           "the call")
 
@@ -172,12 +171,16 @@ def move_converges_and_persists(a, b, admin_api, channel_id, room_id):
     b.wait_for(L.MUTE)
     b.click(L.OPEN_CANVAS)
     reopened = b.wait_for(ALICE_REMOTE_LABEL, timeout=30)
-    rx, ry = reopened["x"] - b_rejoined["x"], reopened["y"] - b_rejoined["y"]
+    slot = _wait_for_slot(admin_api, channel_id, alice_id)
+    want_x, want_y = e2e_board_frame.board_point(
+        b, (slot["x"] + slot["w"] / 2, slot["y"] + slot["h"] / 2))
+    rx, ry = reopened["x"] - want_x, reopened["y"] - want_y
     assert abs(rx) < 15 and abs(ry) < 15, \
-        f"b's freshly reopened canvas, with no local cache left, landed " \
-        f"at a different spot than the server holds: dx={rx} dy={ry}"
+        f"b's freshly reopened canvas, with no local cache left, put the tile " \
+        f"away from the server's slot ({slot['x']:.0f}, {slot['y']:.0f}): " \
+        f"dx={rx:.0f} dy={ry:.0f}"
     print("  and a cold reopen - a brand new local cache, fetched fresh "
-          "from the server - still finds it exactly where it was left")
+          "from the server - still finds it where the server holds it")
 
     b.click(L.CLOSE_CANVAS)
     print("  b's canvas is closed, so the next scenario (leaving) finds "

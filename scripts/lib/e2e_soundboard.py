@@ -65,6 +65,14 @@ def _plays(client):
     return json.loads(client.ev(_PLAYS) or "[]")
 
 
+def _plays_stay_at(client, count, seconds):
+    """Fails if [client] plays another clip at any sample over [seconds]."""
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline:
+        assert len(_plays(client)) == count, f"{client.name} played a clip it should not have"
+        time.sleep(0.25)
+
+
 def _wait_for_plays(client, count, timeout=PLAY_TIMEOUT):
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
@@ -124,8 +132,7 @@ def clip_plays_for_everyone_in_the_call(a, b, admin, member, room_id):
         before_b, before_a = len(_plays(b)), len(_plays(a))
         _play_from_the_dock(a)
         _wait_for_plays(a, before_a + 1)
-        time.sleep(2)
-        assert len(_plays(b)) == before_b, "a deafened bob still played the clip"
+        _plays_stay_at(b, before_b, 3)
         print("  deafened, bob plays nothing while alice still hears her clip")
         b.click("Undeafen", settle=1)
 
