@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The browser has no file path to stream to; it buffers and downloads at the end.
+/// The browser has no file path to stream to; a large file downloads from a link, a small save buffers.
 library;
 
 import 'dart:js_interop';
@@ -10,7 +10,7 @@ import 'package:web/web.dart' as web;
 import 'download_target.dart';
 
 Future<DownloadTarget?> openPlatformDownloadTarget(String filename) async =>
-    BrowserDownloadTarget(filename, _download);
+    BrowserDownloadTarget(filename, _download, _downloadLink);
 
 void _download(Uint8List bytes, String filename) {
   final blob = web.Blob([bytes.toJS].toJS);
@@ -24,4 +24,11 @@ void _download(Uint8List bytes, String filename) {
     const Duration(seconds: 30),
     () => web.URL.revokeObjectURL(url),
   );
+}
+
+void _downloadLink(Uri link, String filename) {
+  web.HTMLAnchorElement()
+    ..href = link.toString()
+    ..download = filename
+    ..click();
 }

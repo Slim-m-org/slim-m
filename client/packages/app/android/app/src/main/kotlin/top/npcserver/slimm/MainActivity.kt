@@ -61,6 +61,7 @@ class MainActivity : FlutterFragmentActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         ClipboardImageChannel(applicationContext).attach(flutterEngine.dartExecutor.binaryMessenger)
+        FileExportChannel(applicationContext).attach(flutterEngine.dartExecutor.binaryMessenger)
         shareIntake.attach(flutterEngine.dartExecutor.binaryMessenger)
         pictureInPicture.attach(flutterEngine.dartExecutor.binaryMessenger)
         // The Play build has no install permission and Play updates it, so it leaves the sideload updater out.

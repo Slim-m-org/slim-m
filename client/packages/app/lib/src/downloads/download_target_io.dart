@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Desktop saves straight into the Downloads folder; phones buffer for their own save flow.
+/// Desktop saves straight into the Downloads folder; phones stream to the app cache for their own save flow.
 library;
 
 import 'dart:io';
@@ -10,12 +10,21 @@ import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'download_target.dart';
+import 'download_target_phone.dart';
+import 'phone_file_saver.dart';
 import 'safe_file_name.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 const Duration _staleAfter = Duration(days: 1);
 
 Future<DownloadTarget?> openPlatformDownloadTarget(String filename) async {
+  if (Platform.isAndroid || Platform.isIOS) {
+    return PhoneDownloadTarget.open(
+      filename,
+      cache: await PhoneDownloadTarget.appCache(),
+      saver: platformPhoneFileSaver(),
+    );
+  }
   if (!(Platform.isLinux || Platform.isWindows || Platform.isMacOS)) {
     return MemoryDownloadTarget(filename);
   }
