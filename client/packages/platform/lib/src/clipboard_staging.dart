@@ -8,6 +8,7 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 import 'safe_file_name.dart';
 
@@ -53,12 +54,22 @@ Future<void> _sweepOthers(Directory root, {required Directory keep}) async {
       if (entry.path == keep.path) continue;
       try {
         await entry.delete(recursive: true);
-      } on FileSystemException {
-        // Another program still holds it; the next copy sweeps it.
+      } on FileSystemException catch (error, stack) {
+        AppLog.swallowed(
+          LogTag.media,
+          'A staged clipboard copy is still in use; the next copy sweeps it',
+          error,
+          stack,
+        );
       }
     }
-  } on FileSystemException {
-    // Nothing to sweep.
+  } on FileSystemException catch (error, stack) {
+    AppLog.swallowed(
+      LogTag.media,
+      'Could not list the staged clipboard copies',
+      error,
+      stack,
+    );
   }
 }
 
