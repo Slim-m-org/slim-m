@@ -262,14 +262,16 @@ void main() {
     final bound = c.source.binds.length;
     expect(c.source.binds.last, hasLength(4));
     await c.voice.leave();
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump();
     expect(c.source.binds.length, bound);
   });
 
   testWidgets('a call shortcut outside a call does nothing', (tester) async {
     final c = await connect(tester);
     await c.voice.leave();
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump();
     await global(
       tester,
       c.source,
@@ -290,10 +292,12 @@ void main() {
     final before = source.binds.length;
     source.probeResult = const GlobalHotkeyAvailability.available('ok');
     c.session.emitState(VoiceSessionState.connecting);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump();
     expect(source.binds.length, before);
     c.session.emitState(VoiceSessionState.connected);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump();
     expect(source.binds.length, greaterThan(before));
     expect(harness.container.read(globalHotkeysProvider)!.available, isTrue);
     await c.voice.leave();
