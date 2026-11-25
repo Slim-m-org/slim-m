@@ -82,6 +82,22 @@ void main() {
     expect(port.lastSize, isNotNull);
   });
 
+  testWidgets('a login launch on Windows never shows the window', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final port = FakeDesktopWindowPort();
+    final shell = shellFor(port, chrome: DesktopPlatform.windows);
+
+    await _settle(
+      tester,
+      shell.prepareHandoff(_container(), startHidden: true),
+    );
+    await _settle(tester, shell.revealAfterHandoff(startHidden: true));
+
+    expect(port.showCalls, 0);
+  });
+
   testWidgets('elsewhere the handoff still hides the window first', (
     tester,
   ) async {

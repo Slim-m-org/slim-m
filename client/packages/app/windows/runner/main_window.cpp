@@ -9,6 +9,7 @@
 #include <flutter/standard_method_codec.h>
 
 #include <cstdint>
+#include <cwchar>
 #include <memory>
 #include <optional>
 #include <string>
@@ -54,6 +55,15 @@ bool g_revealed = false;
 bool g_shown = false;
 HBRUSH g_background = nullptr;
 
+constexpr wchar_t kLoginArgument[] = L"--autostart";
+
+/// A sign-in launch goes to the tray, so its window is never shown at all.
+bool LaunchedAtLogin() {
+  static const bool login =
+      std::wcsstr(::GetCommandLineW(), kLoginArgument) != nullptr;
+  return login;
+}
+
 /// Paints what a resize exposes before Flutter draws it in the app's own
 /// background, not the white Windows uses when a window has no brush.
 void SetBackground(int64_t argb) {
@@ -78,13 +88,27 @@ void ShowMainWindow() {
   ::SetForegroundWindow(g_window);
 }
 
+/// Lets later shows through without showing now, for a login launch that
+/// stays in the tray until the user opens it.
+void ReleaseFirstShowHeld() {
+  if (g_shown || g_window == nullptr) return;
+  g_shown = true;
+  ::KillTimer(g_window, kRevealTimer);
+}
+
 /// Shows the window once the next frame is drawn, so what appears is a
 /// painted frame at the window's current size, never an empty one.
 void RequestReveal() {
   if (g_revealed) return;
   g_revealed = true;
   if (g_window == nullptr) return;
-  g_engine->SetNextFrameCallback([] { ShowMainWindow(); });
+  g_engine->SetNextFrameCallback([] {
+    if (LaunchedAtLogin()) {
+      ReleaseFirstShowHeld();
+    } else {
+      ShowMainWindow();
+    }
+  });
   ::SetTimer(g_window, kRevealTimer, kFrameDeadlineMs, nullptr);
   const HWND content =
       ::FindWindowExW(g_window, nullptr, L"FLUTTERVIEW", nullptr);
@@ -102,6 +126,8 @@ void HoldFirstShow(LPARAM lparam) {
   // A hidden window must not take activation either, or the launch's foreground right is spent on it.
   change->flags = (change->flags & ~static_cast<UINT>(SWP_SHOWWINDOW)) |
                   SWP_NOACTIVATE;
+  // The engine's one first show is dropped, so a login launch lets later shows through.
+  if (LaunchedAtLogin()) ReleaseFirstShowHeld();
 }
 
 std::optional<LRESULT> HandleTopLevelMessage(HWND window, UINT message,
@@ -115,7 +141,11 @@ std::optional<LRESULT> HandleTopLevelMessage(HWND window, UINT message,
   if (!is_main) return HandlePopOutMessage(window, message, wparam, lparam);
   if (message == WM_TIMER && wparam == kRevealTimer) {
     g_revealed = true;
-    ShowMainWindow();
+    if (LaunchedAtLogin()) {
+      ReleaseFirstShowHeld();
+    } else {
+      ShowMainWindow();
+    }
     return 0;
   }
   if (message == WM_COPYDATA && OnForwardedLink(lparam)) return TRUE;
