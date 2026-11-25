@@ -12,6 +12,7 @@ mod classify;
 mod container_strip;
 mod decode;
 mod exif;
+mod heic_strip;
 mod jpeg_out;
 mod jpeg_segments;
 mod png_opt;
