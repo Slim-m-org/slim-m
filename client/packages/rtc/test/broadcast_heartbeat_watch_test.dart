@@ -71,4 +71,46 @@ void main() {
       watch.dispose();
     });
   });
+
+  test('a poll right after the app was suspended proves nothing', () {
+    fakeAsync((async) {
+      var now = DateTime(2026);
+      final watch = BroadcastHeartbeatWatch(
+        silence: () async => reported,
+        onLost: () => lost++,
+        clock: () => now,
+      )..broadcastChanged(broadcasting: true);
+      now = now.add(const Duration(minutes: 1));
+      reported = const Duration(minutes: 1);
+
+      async.elapse(const Duration(seconds: 3));
+      expect(lost, 0, reason: 'the queued beat has not arrived yet');
+
+      reported = Duration.zero;
+      now = now.add(const Duration(seconds: 3));
+      async.elapse(const Duration(seconds: 3));
+      expect(lost, 0);
+      watch.dispose();
+    });
+  });
+
+  test('silence that outlasts the skipped poll is still lost', () {
+    fakeAsync((async) {
+      var now = DateTime(2026);
+      final watch = BroadcastHeartbeatWatch(
+        silence: () async => reported,
+        onLost: () => lost++,
+        clock: () => now,
+      )..broadcastChanged(broadcasting: true);
+      now = now.add(const Duration(minutes: 1));
+      reported = const Duration(minutes: 1);
+      async.elapse(const Duration(seconds: 3));
+
+      now = now.add(const Duration(seconds: 3));
+      async.elapse(const Duration(seconds: 3));
+
+      expect(lost, 1);
+      watch.dispose();
+    });
+  });
 }

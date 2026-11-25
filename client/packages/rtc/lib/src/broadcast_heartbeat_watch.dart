@@ -24,6 +24,7 @@ class BroadcastHeartbeatWatch {
 
   Timer? _timer;
   DateTime? _startedAt;
+  DateTime? _lastPollAt;
   bool _polling = false;
 
   void broadcastChanged({required bool broadcasting}) {
@@ -31,6 +32,7 @@ class BroadcastHeartbeatWatch {
     _timer = null;
     if (!broadcasting) return;
     _startedAt = _clock();
+    _lastPollAt = _startedAt;
     _timer = Timer.periodic(pollEvery, (_) => unawaited(poll()));
   }
 
@@ -39,6 +41,11 @@ class BroadcastHeartbeatWatch {
     if (_timer == null || startedAt == null || _polling) return;
     _polling = true;
     try {
+      // After a suspension the beats queued meanwhile are not delivered yet, so this poll proves nothing.
+      final polledAt = _clock();
+      final stalled = polledAt.difference(_lastPollAt ?? startedAt) > tolerance;
+      _lastPollAt = polledAt;
+      if (stalled) return;
       final reported = await silence();
       final sinceStart = _clock().difference(startedAt);
       // A beat older than this broadcast belongs to a previous one.
