@@ -54,6 +54,9 @@ Root: HKCU; Subkey: "Software\Classes\slimm"; ValueType: string; ValueData: "URL
 Root: HKCU; Subkey: "Software\Classes\slimm"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""
 Root: HKCU; Subkey: "Software\Classes\slimm\DefaultIcon"; ValueType: string; ValueData: "{app}\slim-m.exe,0"
 Root: HKCU; Subkey: "Software\Classes\slimm\shell\open\command"; ValueType: string; ValueData: """{app}\slim-m.exe"" ""%1"""
+; A toast clicked after the app quit starts it through this server (its CLSID is WindowsInitializationSettings.guid in local_notifications.dart), and the app then reads the click that launched it.
+Root: HKCU; Subkey: "Software\Classes\CLSID\{{6F1D2B5E-3C0A-4E7B-9A52-5D8E1C4B7A31}\LocalServer32"; ValueType: string; ValueData: """{app}\slim-m.exe"" -ToastActivated"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\CLSID\{{6F1D2B5E-3C0A-4E7B-9A52-5D8E1C4B7A31}"; Flags: uninsdeletekey dontcreatekey
 ; The app registers its notification identity when it first shows a toast, and Windows keeps that id's notification settings; neither is created here, both go on uninstall.
 Root: HKCU; Subkey: "Software\Classes\AppUserModelId\top.npcserver.slimm"; Flags: uninsdeletekey dontcreatekey
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Notifications\Settings\top.npcserver.slimm"; Flags: uninsdeletekey dontcreatekey

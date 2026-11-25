@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Keeps the iPhone icon badge, the Windows taskbar button's overlay and a
-/// browser tab's title count equal to the channels the rail shows as unread.
+/// Keeps the iPhone icon badge, the Windows taskbar button's overlay, the
+/// Linux launcher entry and a browser tab's title count equal to the
+/// channels the rail shows as unread.
 ///
 /// The notification service extension raises the badge when a push arrives
 /// while the app is away; this corrects it whenever the app sees read state
@@ -21,6 +22,11 @@ final appBadgeChannelProvider = Provider<AppBadgeChannel>(
 /// The browser tab's title and favicon, inert outside a browser.
 final browserAttentionProvider = Provider<BrowserAttention>(
   (ref) => BrowserAttention(),
+);
+
+/// The launcher entry's unread count on Linux, inert elsewhere.
+final linuxLauncherCountProvider = Provider<LinuxLauncherCount>(
+  (ref) => LinuxLauncherCount(),
 );
 
 /// False when iOS Settings has Badges off for this app, so badge writes do nothing.
@@ -44,6 +50,7 @@ final appBadgeSyncProvider = Provider<void>((ref) {
     ref.read(appBadgeChannelProvider).sync(count: count, readChannelIds: read);
     ref.read(taskbarAttentionProvider).setBadge(count);
     ref.read(browserAttentionProvider).setUnread(count);
+    if (isLinuxHost) ref.read(linuxLauncherCountProvider).set(count);
   });
 });
 
