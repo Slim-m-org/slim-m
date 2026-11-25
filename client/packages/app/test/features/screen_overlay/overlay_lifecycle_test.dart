@@ -98,8 +98,12 @@ void main() {
       _settle(async);
       final resent = rig.overlay.panels.skip(refused).whereType<OverlayPanel>();
       expect(resent, isNotEmpty);
-      final web = resent.last.rows.firstWhere((r) => r.id == 'web');
-      expect(web.avatar, isNotNull, reason: 'the picture was never delivered');
+      final carried = resent.expand((p) => p.rows).where((r) => r.id == 'web');
+      expect(
+        carried.any((r) => r.avatar != null),
+        isTrue,
+        reason: 'the picture was never delivered',
+      );
     });
   });
 

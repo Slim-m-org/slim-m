@@ -94,10 +94,14 @@ class CallOverlayPanelSync {
   Future<void> _send(OverlayPanel panel) async {
     final generation = _generation;
     final pending = <String, String>{};
-    final shown = await _window.panel(_picturesOnce(panel, pending));
-    if (!shown || generation != _generation) return;
+    final outgoing = _picturesOnce(panel, pending);
     _last = panel;
     _avatarsSent.addAll(pending);
+    if (await _window.panel(outgoing) || generation != _generation) return;
+    if (_last == panel) _last = null;
+    pending.forEach((id, key) {
+      if (_avatarsSent[id] == key) _avatarsSent.remove(id);
+    });
   }
 
   /// Follows the shown people's pictures, so one arriving or changing repaints the panel.
