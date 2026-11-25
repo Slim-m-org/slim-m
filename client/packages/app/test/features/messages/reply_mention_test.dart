@@ -257,7 +257,7 @@ void main() {
     testWidgets('writes the @name in the mention colour', (tester) async {
       await tester.pumpWidget(_row(mentionsMe: true, parentAuthor: 'me'));
       final tokens = Theme.of(
-        tester.element(find.byType(MessageRow)),
+        tester.element(find.byKey(ReplyQuote.quoteKey)),
       ).extension<AppTokens>()!;
 
       final name = tester.widget<RichText>(

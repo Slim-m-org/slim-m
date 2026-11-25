@@ -55,7 +55,7 @@ Rect _noteOnScreen(WidgetTester tester, String id) {
     (b.y - camera.y) * camera.zoom,
     b.w * camera.zoom,
     b.h * camera.zoom,
-  ).shift(tester.getTopLeft(find.byType(CanvasSurface)));
+  ).shift(screenFor(tester, Offset.zero));
 }
 
 /// The bar sits a gap above the note, or a gap below it when there is no room above, and over the note's width.
@@ -138,8 +138,7 @@ void main() {
     await _pane(tester, withNote: false, tool: 'Pen');
     await tester.tap(find.bySemanticsLabel('Note'));
     await tester.pump();
-    final from =
-        tester.getTopLeft(find.byType(CanvasSurface)) + const Offset(300, 250);
+    final from = screenFor(tester, Offset.zero) + const Offset(300, 250);
     final drag = await tester.startGesture(from, kind: PointerDeviceKind.mouse);
     await drag.moveBy(const Offset(60, 40));
     await drag.moveBy(const Offset(120, 90));
@@ -181,8 +180,7 @@ void main() {
     await _pane(tester, withNote: false, tool: 'Pen');
     await tester.tap(find.bySemanticsLabel('Note'));
     await tester.pump();
-    final from =
-        tester.getTopLeft(find.byType(CanvasSurface)) + const Offset(300, 250);
+    final from = screenFor(tester, Offset.zero) + const Offset(300, 250);
     final drag = await tester.startGesture(from, kind: PointerDeviceKind.mouse);
     await drag.moveBy(const Offset(120, 80));
     await tester.pump();

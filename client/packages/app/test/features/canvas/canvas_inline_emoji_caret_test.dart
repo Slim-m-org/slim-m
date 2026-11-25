@@ -19,6 +19,7 @@ final _png = Uint8List.fromList(
   ),
 );
 
+const _fieldKey = Key('emoji-field');
 const _blobby = ':blobby:';
 
 Future<InlineEmojiController> _field(WidgetTester tester, String text) async {
@@ -33,7 +34,11 @@ Future<InlineEmojiController> _field(WidgetTester tester, String text) async {
       child: MaterialApp(
         theme: buildTheme(Brightness.light, AppTokens.light),
         home: Scaffold(
-          body: TextField(controller: controller, autofocus: true),
+          body: TextField(
+            key: _fieldKey,
+            controller: controller,
+            autofocus: true,
+          ),
         ),
       ),
     ),
@@ -134,7 +139,7 @@ void main() {
     );
     await tester.pump();
 
-    expect(_widgetSpans(controller, tester.element(find.byType(TextField))), 1);
+    expect(_widgetSpans(controller, tester.element(find.byKey(_fieldKey))), 1);
   });
 
   testWidgets('an emoji the keyboard is composing inside is left as text', (
@@ -146,6 +151,6 @@ void main() {
     );
     await tester.pump();
 
-    expect(_widgetSpans(controller, tester.element(find.byType(TextField))), 0);
+    expect(_widgetSpans(controller, tester.element(find.byKey(_fieldKey))), 0);
   });
 }
