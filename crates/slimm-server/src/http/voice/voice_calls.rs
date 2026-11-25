@@ -101,6 +101,8 @@ async fn list(
     };
 
     let transcripts = visible_transcripts(&state, ctx.user_id, channel_id).await?;
+    // A hidden board reports no activity and no objects, so the history says nothing about it (decision 0139).
+    let canvas_open = state.store.channel_canvas_open(channel_id).await?;
     let mut calls = Vec::new();
     for call in segment(&events, &present)
         .into_iter()
@@ -108,10 +110,16 @@ async fn list(
         .take(limit)
     {
         let end = call.ended_at.unwrap_or_else(crate::store::now_ms);
-        let canvas = state
-            .store
-            .canvas_activity_between(channel_id, call.started_at, end)
-            .await?
+        let activity = match canvas_open {
+            true => {
+                state
+                    .store
+                    .canvas_activity_between(channel_id, call.started_at, end)
+                    .await?
+            }
+            false => Vec::new(),
+        };
+        let canvas = activity
             .into_iter()
             .filter(|a| !hidden.contains(&a.user_id))
             .map(|a| CanvasDto {
@@ -143,7 +151,10 @@ async fn list(
     }
     Ok(Json(CallsDto {
         retention_days: CALL_HISTORY_RETENTION_DAYS,
-        canvas_object_count: state.store.canvas_object_count(channel_id).await?,
+        canvas_object_count: match canvas_open {
+            true => state.store.canvas_object_count(channel_id).await?,
+            false => 0,
+        },
         calls,
     }))
 }

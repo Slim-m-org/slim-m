@@ -232,7 +232,26 @@ pub(super) fn place_error_api(error: PlaceError) -> ApiError {
     }
 }
 
-/// The caller's permissions in this channel when they can see it, else `Forbidden`: reading
+/// The refusal every board route gives a channel whose board is off (decision 0139).
+///
+/// 403, not 409, so a shipped client's board read stops at "not available" instead of retrying.
+pub(in crate::http) fn canvas_off() -> ApiError {
+    ApiError::Coded {
+        status: axum::http::StatusCode::FORBIDDEN,
+        message: "the canvas is off in this channel",
+        code: "canvas_off",
+    }
+}
+
+/// Refuses a channel with no open board; run after the view check so a hidden channel answers the plain 403.
+async fn require_open_surface(state: &AppState, channel_id: ChannelId) -> Result<(), ApiError> {
+    match state.store.channel_canvas_open(channel_id).await? {
+        true => Ok(()),
+        false => Err(canvas_off()),
+    }
+}
+
+/// The caller's permissions in this channel when they can see it and its board is open, else the refusal: reading
 /// needs only `VIEW_CHANNEL`, so a member without `USE_CANVAS` spectates (decision 0127).
 pub(super) async fn canvas_read_access(
     state: &AppState,
@@ -246,10 +265,11 @@ pub(super) async fn canvas_read_access(
     if !permissions.contains(Permissions::VIEW_CHANNEL) {
         return Err(ApiError::Forbidden);
     }
+    require_open_surface(state, channel_id).await?;
     Ok(permissions)
 }
 
-/// The caller's permissions in this channel when they hold the view and draw bits, else `Forbidden`.
+/// The caller's permissions in this channel when they hold the view and draw bits on an open board, else the refusal.
 ///
 /// One per-channel evaluation in which a missing channel grants nothing, so it looks like a forbidden one.
 pub(super) async fn canvas_access(
@@ -261,7 +281,11 @@ pub(super) async fn canvas_access(
         .store
         .permissions_in_channel(user_id, channel_id)
         .await?;
-    if !permissions.contains(Permissions::VIEW_CHANNEL.union(Permissions::USE_CANVAS)) {
+    if !permissions.contains(Permissions::VIEW_CHANNEL) {
+        return Err(ApiError::Forbidden);
+    }
+    require_open_surface(state, channel_id).await?;
+    if !permissions.contains(Permissions::USE_CANVAS) {
         return Err(ApiError::Forbidden);
     }
     Ok(permissions)
@@ -274,6 +298,27 @@ pub(in crate::http) async fn ensure_may_draw(
     channel_id: ChannelId,
 ) -> Result<Permissions, ApiError> {
     let permissions = canvas_access(state, user_id, channel_id).await?;
+    if state.store.timed_out_until(user_id).await?.is_some() {
+        return Err(ApiError::Forbidden);
+    }
+    Ok(permissions)
+}
+
+/// Whether the caller may mark a shared screen: the draw bits and no timeout, on any channel with a call, whether or not its board is open.
+///
+/// Screen stamps (decision 0121) are not board routes, so the surface gate does not apply.
+pub(in crate::http) async fn ensure_may_mark_screen(
+    state: &AppState,
+    user_id: crate::ids::UserId,
+    channel_id: ChannelId,
+) -> Result<Permissions, ApiError> {
+    let permissions = state
+        .store
+        .permissions_in_channel(user_id, channel_id)
+        .await?;
+    if !permissions.contains(Permissions::VIEW_CHANNEL.union(Permissions::USE_CANVAS)) {
+        return Err(ApiError::Forbidden);
+    }
     if state.store.timed_out_until(user_id).await?.is_some() {
         return Err(ApiError::Forbidden);
     }

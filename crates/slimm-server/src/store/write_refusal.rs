@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! The facts `http::write_refusal` reads to say why a write was refused.
 
+use super::DM_CHANNEL_KIND;
 use super::Store;
-use super::dms::DM_CHANNEL_KIND;
 use crate::ids::{ChannelId, UserId};
 
 impl Store {

@@ -19,7 +19,7 @@ use crate::support::canvas::CanvasReads;
 async fn a_page_stops_early_once_place_props_cross_the_byte_budget() {
     let (store, _guard) = new_store().await;
     let author = store.create_user("ann", "Ann").await.unwrap().id;
-    let channel = store.create_channel("canvas", "voice").await.unwrap().id;
+    let channel = store.create_channel("canvas", "canvas").await.unwrap().id;
 
     // Comfortably past MAX_PROPS_BYTES (4 KiB) each, so well under 140 crosses CANVAS_OP_PAGE_BYTES.
     let placed_count = 140;
@@ -53,7 +53,7 @@ async fn a_page_stops_early_once_place_props_cross_the_byte_budget() {
 async fn an_edit_is_budgeted_by_the_props_a_reader_is_served() {
     let (store, _guard) = new_store().await;
     let author = store.create_user("ann", "Ann").await.unwrap().id;
-    let channel = store.create_channel("canvas", "voice").await.unwrap().id;
+    let channel = store.create_channel("canvas", "canvas").await.unwrap().id;
     let mut notes = Vec::new();
     for _ in 0..150 {
         let note = CanvasObjectId::generate();
@@ -122,7 +122,7 @@ async fn an_edit_is_budgeted_by_the_props_a_reader_is_served() {
 async fn a_restore_that_would_blow_the_page_budget_pages_rather_than_bundles() {
     let (store, pool, _guard) = new_store_and_pool().await;
     let author = store.create_user("ann", "Ann").await.unwrap().id;
-    let channel = store.create_channel("canvas", "voice").await.unwrap().id;
+    let channel = store.create_channel("canvas", "canvas").await.unwrap().id;
     let target_op = seed_remove_op(&pool, channel, author, 1).await;
     let touched_count = seed_restore_op(&pool, channel, author, 2, target_op, 15_000).await;
     advance_canvas_counter(&pool, channel, 3).await;
@@ -164,7 +164,7 @@ async fn a_restore_that_would_blow_the_page_budget_pages_rather_than_bundles() {
 async fn several_large_restores_do_not_compound_in_one_page() {
     let (store, pool, _guard) = new_store_and_pool().await;
     let author = store.create_user("ann", "Ann").await.unwrap().id;
-    let channel = store.create_channel("canvas", "voice").await.unwrap().id;
+    let channel = store.create_channel("canvas", "canvas").await.unwrap().id;
     let target_op = seed_remove_op(&pool, channel, author, 1).await;
     seed_restore_op(&pool, channel, author, 2, target_op, 15_000).await;
     seed_restore_op(&pool, channel, author, 3, target_op, 15_000).await;
@@ -308,7 +308,7 @@ async fn advance_canvas_counter(pool: &sqlx::SqlitePool, channel: ChannelId, nex
 async fn a_clear_writes_no_target_rows_and_costs_nothing_in_the_page_budget() {
     let (store, pool, _guard) = new_store_and_pool().await;
     let author = store.create_user("ann", "Ann").await.unwrap().id;
-    let channel = store.create_channel("canvas", "voice").await.unwrap().id;
+    let channel = store.create_channel("canvas", "canvas").await.unwrap().id;
 
     // Comfortably past what CANVAS_OP_TARGET_BYTES_ESTIMATE would need to blow the budget alone.
     let touched = 15_000;
@@ -364,7 +364,7 @@ async fn a_page_of_edits_stops_at_the_byte_budget() {
 
     let (store, _guard) = new_store().await;
     let author = store.create_user("ann", "Ann").await.unwrap().id;
-    let channel = store.create_channel("canvas", "voice").await.unwrap().id;
+    let channel = store.create_channel("canvas", "canvas").await.unwrap().id;
     let note = slimm_server::ids::CanvasObjectId::generate();
     let request = slimm_server::store::PlaceRequest {
         kind: "note",

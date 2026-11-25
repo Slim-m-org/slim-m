@@ -17,7 +17,7 @@ async fn reading_the_ops_feed_needs_only_the_view_bit() {
         .await
         .unwrap();
     let app = app(store.clone());
-    let channel = store.create_channel("canvas", "voice").await.unwrap().id;
+    let channel = store.create_channel("canvas", "canvas").await.unwrap().id;
 
     let (token, _) = register(&store, "ann").await;
     let (status, body) = get_ops(&app, channel, &token, "after_seq=0").await;
@@ -97,7 +97,7 @@ async fn the_feed_names_who_drew_but_not_who_removed() {
     let (root, root_id) = register(&store, "root").await;
     store.assign_role(root_id, mods).await.unwrap();
     let (bystander, _) = crate::canvas_ops::fixtures::member(&store, "bystander").await;
-    let channel = store.create_channel("canvas", "voice").await.unwrap().id;
+    let channel = store.create_channel("canvas", "canvas").await.unwrap().id;
     let app = app(store.clone());
 
     let object = id();

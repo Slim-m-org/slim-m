@@ -7,6 +7,7 @@
 use serde_json::json;
 use uuid::Uuid;
 
+use super::content_channel_kinds::canvas_kind_calls;
 use super::read_state::read_state;
 use super::{
     PNG, THUMBS_UP, canvas_more_calls, media_slot_calls, object_lock_calls, overwrite_calls,
@@ -158,11 +159,12 @@ pub(super) async fn channel_calls(c: &mut Contract, root: &str, bob_id: &str) ->
 
     role_calls(c, root, bob_id).await;
 
+    let board = canvas_kind_calls(c, root).await;
     let first_stroke = c
         .json(
             "placeCanvasObject",
             "POST",
-            &format!("/channels/{channel}/canvas/objects"),
+            &format!("/channels/{board}/canvas/objects"),
             root,
             json!({
                 "id": Uuid::now_v7().to_string(),
@@ -177,7 +179,7 @@ pub(super) async fn channel_calls(c: &mut Contract, root: &str, bob_id: &str) ->
     c.json(
         "placeCanvasObject",
         "POST",
-        &format!("/channels/{channel}/canvas/objects"),
+        &format!("/channels/{board}/canvas/objects"),
         root,
         json!({
             "id": Uuid::now_v7().to_string(),
@@ -190,7 +192,7 @@ pub(super) async fn channel_calls(c: &mut Contract, root: &str, bob_id: &str) ->
     c.json(
         "placeCanvasObjects",
         "POST",
-        &format!("/channels/{channel}/canvas/objects/batch"),
+        &format!("/channels/{board}/canvas/objects/batch"),
         root,
         json!({ "objects": [{
             "id": Uuid::now_v7().to_string(),
@@ -204,7 +206,7 @@ pub(super) async fn channel_calls(c: &mut Contract, root: &str, bob_id: &str) ->
         .json(
             "submitCanvasOp",
             "POST",
-            &format!("/channels/{channel}/canvas/ops"),
+            &format!("/channels/{board}/canvas/ops"),
             root,
             json!({
                 "id": Uuid::now_v7().to_string(),
@@ -219,7 +221,7 @@ pub(super) async fn channel_calls(c: &mut Contract, root: &str, bob_id: &str) ->
     c.json(
         "submitCanvasOp",
         "POST",
-        &format!("/channels/{channel}/canvas/ops"),
+        &format!("/channels/{board}/canvas/ops"),
         root,
         json!({
             "id": Uuid::now_v7().to_string(),
@@ -243,7 +245,7 @@ pub(super) async fn channel_calls(c: &mut Contract, root: &str, bob_id: &str) ->
     c.json(
         "placeCanvasObject",
         "POST",
-        &format!("/channels/{channel}/canvas/objects"),
+        &format!("/channels/{board}/canvas/objects"),
         root,
         json!({
             "id": Uuid::now_v7().to_string(),
@@ -257,7 +259,7 @@ pub(super) async fn channel_calls(c: &mut Contract, root: &str, bob_id: &str) ->
     c.json(
         "submitCanvasOp",
         "POST",
-        &format!("/channels/{channel}/canvas/ops"),
+        &format!("/channels/{board}/canvas/ops"),
         root,
         json!({
             "id": Uuid::now_v7().to_string(),
@@ -271,7 +273,7 @@ pub(super) async fn channel_calls(c: &mut Contract, root: &str, bob_id: &str) ->
     c.json(
         "submitCanvasOp",
         "POST",
-        &format!("/channels/{channel}/canvas/ops"),
+        &format!("/channels/{board}/canvas/ops"),
         root,
         json!({
             "id": Uuid::now_v7().to_string(),
@@ -284,20 +286,20 @@ pub(super) async fn channel_calls(c: &mut Contract, root: &str, bob_id: &str) ->
     // Both objects live again, so this page still carries what it had before.
     c.get(
         "listCanvasViewport",
-        &format!("/channels/{channel}/canvas/objects?min_x=0&min_y=0&max_x=1920&max_y=1080"),
+        &format!("/channels/{board}/canvas/objects?min_x=0&min_y=0&max_x=1920&max_y=1080"),
         root,
     )
     .await;
     // Covers place, remove, restore, a second place (the image), move, and reorder.
     c.get(
         "listCanvasOps",
-        &format!("/channels/{channel}/canvas/ops?after_seq=0"),
+        &format!("/channels/{board}/canvas/ops?after_seq=0"),
         root,
     )
     .await;
-    media_slot_calls(c, root, &channel, bob_id).await;
-    object_lock_calls(c, root, &channel).await;
-    canvas_more_calls(c, root, &channel).await;
+    media_slot_calls(c, root, &board, bob_id).await;
+    object_lock_calls(c, root, &board).await;
+    canvas_more_calls(c, root, &board).await;
 
     overwrite_calls(c, root, bob_id, &channel).await;
 

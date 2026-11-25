@@ -37,7 +37,7 @@
 
 use super::super::{PlaceError, Store};
 use super::canvas_audit::record_canvas_audit;
-use super::canvas_clear::apply_clear;
+use super::canvas_clear::{ClearInTx, clear_in_tx};
 use super::canvas_edges::record_cascades;
 use super::canvas_edit::apply_edit;
 use super::canvas_ops_apply::{
@@ -55,7 +55,7 @@ const TARGET_ROW_INSERT_BATCH: usize = 500;
 
 /// Writes one `canvas_op_targets` row per id in `touched_ids`, batched rather
 /// than one round trip per row - see [`TARGET_ROW_INSERT_BATCH`].
-async fn insert_targets_batch(
+pub(super) async fn insert_targets_batch(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     channel_id: ChannelId,
     seq: i64,
@@ -287,11 +287,8 @@ impl Store {
         let mut reorder_z: Option<i64> = None;
         // Only a fresh, effective `edit` sets this.
         let mut edit_props: Option<String> = None;
-        // Edges a fresh `remove` or `clear` took with it, recorded once the op has a seq.
+        // Edges a fresh `remove` took with it, recorded once the op has a seq.
         let mut cascaded_ids: Vec<CanvasObjectId> = Vec::new();
-        // Only a fresh, effective `clear` sets these.
-        let mut clear_scope: Option<ClearScope> = None;
-        let mut spared_ids: Vec<CanvasObjectId> = Vec::new();
         let (kind, affected, touched_ids, bound_seq) = match request {
             CanvasOpRequest::Remove(object_ids) => {
                 apply_remove(
@@ -310,13 +307,18 @@ impl Store {
                     tx.commit().await?;
                     return Err(SubmitOpError::NotAuthorized);
                 }
-                let outcome = apply_clear(&mut tx, channel_id, before_seq, &scope, now).await?;
-                let touched = outcome.cleared;
-                spared_ids = outcome.spared;
-                cascaded_ids = outcome.cascaded;
-                let affected = touched.len() as i64;
-                clear_scope = Some(scope);
-                ("clear", affected, touched, Some(before_seq))
+                let params = ClearInTx {
+                    channel_id,
+                    actor_id,
+                    op_id,
+                    before_seq,
+                    scope: &scope,
+                    spare_locks: true,
+                    now,
+                };
+                let submitted = clear_in_tx(&mut tx, params).await?;
+                tx.commit().await?;
+                return Ok(submitted);
             }
             CanvasOpRequest::Restore { target_op } => {
                 target_op_for_row = Some(target_op);
@@ -400,9 +402,6 @@ impl Store {
             Some((x, y, w, h)) => (Some(x), Some(y), Some(w), Some(h)),
             None => (None, None, None, None),
         };
-        let clear_kinds = clear_scope.as_ref().and_then(ClearScope::kinds_json);
-        let clear_author_id = clear_scope.as_ref().and_then(|scope| scope.author_id);
-        let clear_affected = (kind == "clear").then_some(affected);
         sqlx::query!(
             r#"INSERT INTO canvas_ops
                    (channel_id, seq, id, kind, actor_id, bound_seq, target_op,
@@ -422,21 +421,15 @@ impl Store {
             move_h,
             reorder_z,
             edit_props,
-            clear_kinds,
-            clear_author_id,
-            clear_affected,
+            None::<String>,
+            None::<UserId>,
+            None::<i64>,
             now
         )
         .execute(&mut *tx)
         .await?;
 
-        // A clear's target rows name the locked objects it spared, so a replay keeps them.
-        let target_ids = if kind == "clear" {
-            &spared_ids
-        } else {
-            &touched_ids
-        };
-        insert_targets_batch(&mut tx, channel_id, seq, target_ids).await?;
+        insert_targets_batch(&mut tx, channel_id, seq, &touched_ids).await?;
         record_cascades(&mut tx, channel_id, seq, &cascaded_ids).await?;
         record_canvas_audit(&mut tx, channel_id, actor_id, kind, &touched_ids, now).await?;
 
@@ -450,9 +443,9 @@ impl Store {
             created_at: now,
             fresh: true,
             touched_ids,
-            cleared_before_seq: bound_seq,
-            cleared_scope: clear_scope,
-            spared_ids,
+            cleared_before_seq: None,
+            cleared_scope: None,
+            spared_ids: Vec::new(),
             moved_to: move_bounds,
             reordered_to: reorder_z,
             edited_props: edit_props,

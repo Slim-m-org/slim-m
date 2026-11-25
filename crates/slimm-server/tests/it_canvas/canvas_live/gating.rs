@@ -27,7 +27,7 @@ async fn a_spectator_receives_a_canvas_frame_and_a_member_who_cannot_see_the_cha
     let state = support::app::state(store.clone());
     let (alice_access, alice_ticket, alice) = user_ticket(&store, "alice").await;
     store.bootstrap_deployment(alice).await.unwrap();
-    let channel = store.list_channels().await.unwrap()[0].id;
+    let channel = store.create_channel("board", "canvas").await.unwrap().id;
 
     let (_carol_access, carol_ticket, carol) = user_ticket(&store, "carol").await;
     store
@@ -76,7 +76,7 @@ async fn a_spectator_receives_a_removal_a_clear_a_restore_a_move_and_a_reorder()
     let state = support::app::state(store.clone());
     let (alice_access, alice_ticket, alice) = user_ticket(&store, "alice").await;
     store.bootstrap_deployment(alice).await.unwrap();
-    let channel = store.list_channels().await.unwrap()[0].id;
+    let channel = store.create_channel("board", "canvas").await.unwrap().id;
 
     let (_carol_access, carol_ticket, carol) = user_ticket(&store, "carol").await;
     store
@@ -214,7 +214,7 @@ async fn an_edited_note_reaches_the_channel_with_its_new_props() {
     let state = support::app::state(store.clone());
     let (alice_access, alice_ticket, alice) = user_ticket(&store, "alice").await;
     store.bootstrap_deployment(alice).await.unwrap();
-    let channel = store.list_channels().await.unwrap()[0].id;
+    let channel = store.create_channel("board", "canvas").await.unwrap().id;
     let (_carol_access, carol_ticket, carol) = user_ticket(&store, "carol").await;
     store
         .set_member_overwrite(channel, carol, Permissions::NONE, Permissions::USE_CANVAS)

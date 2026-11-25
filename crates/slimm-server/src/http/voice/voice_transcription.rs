@@ -154,7 +154,7 @@ async fn ensure_always_for(state: &AppState, channel: ChannelId, joiner: Option<
 async fn is_community_voice(state: &AppState, channel: ChannelId) -> bool {
     matches!(
         state.store.channel(channel).await,
-        Ok(Some(c)) if c.kind == "voice" && c.parent_message_id.is_none()
+        Ok(Some(c)) if c.hosts_call()
     )
 }
 

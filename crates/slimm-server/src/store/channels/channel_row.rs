@@ -20,6 +20,8 @@ pub(in crate::store) struct ChannelRow {
     pub created_at: i64,
     pub slow_mode_seconds: i64,
     pub join_muted: bool,
+    pub canvas_enabled: bool,
+    pub voice_enabled: bool,
     pub default_notification: String,
     pub creates_rooms: bool,
     pub user_limit: i64,
@@ -31,7 +33,7 @@ pub(in crate::store) struct ChannelRow {
 /// The unqualified column list for a raw `SELECT` that builds [`ChannelRow`]s.
 pub(in crate::store) const CHANNEL_COLUMNS: &str = "id, name, kind, topic, position, \
     parent_message_id, category_id, created_at, slow_mode_seconds, join_muted, \
-    default_notification, creates_rooms, user_limit, room_owner_id, room_lobby_id, room_locked";
+    canvas_enabled, voice_enabled, default_notification, creates_rooms, user_limit, room_owner_id, room_lobby_id, room_locked";
 
 impl From<ChannelRow> for Channel {
     fn from(row: ChannelRow) -> Self {
@@ -46,6 +48,8 @@ impl From<ChannelRow> for Channel {
             created_at: row.created_at,
             slow_mode_seconds: row.slow_mode_seconds,
             join_muted: row.join_muted,
+            canvas_enabled: row.canvas_enabled,
+            voice_enabled: row.voice_enabled,
             default_notification: NotificationPreference::parse(&row.default_notification)
                 .unwrap_or_default(),
             room: ChannelRoom {

@@ -73,7 +73,7 @@ impl World {
                     .id,
             );
         }
-        let channel = store.list_channels().await.unwrap()[0].id;
+        let channel = store.create_channel("board", "canvas").await.unwrap().id;
         if cfg.cap != 20_000 {
             store.set_canvas_object_cap(cfg.cap).await.unwrap();
         }

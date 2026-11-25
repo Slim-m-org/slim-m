@@ -25,7 +25,7 @@ struct World {
 async fn world() -> World {
     let (store, guard) = support::new_store("slimm-canvas-state-version").await;
     let admin = support::app::register_account(&store, "alice").await;
-    let channel = store.list_channels().await.unwrap()[0].id;
+    let channel = store.create_channel("board", "canvas").await.unwrap().id;
     let object = CanvasObjectId(Uuid::now_v7());
     store
         .place_canvas_object(

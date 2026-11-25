@@ -9,7 +9,9 @@
 use sqlx::SqliteExecutor;
 
 use super::super::permissions::{everyone_role_id, set_overwrite};
-use super::super::{Channel, Store, now_ms};
+use super::super::{
+    CANVAS_CHANNEL_KIND, Channel, Store, TEXT_CHANNEL_KIND, VOICE_CHANNEL_KIND, now_ms,
+};
 use super::channel_row::ChannelRow;
 use crate::ids::{ChannelCategoryId, ChannelId, UserId};
 use crate::notifications::NotificationPreference;
@@ -77,6 +79,10 @@ pub struct CreatedChannel {
 pub struct ChannelDefaults {
     pub join_muted: bool,
     pub creates_rooms: bool,
+    /// Voice channels: the call has a board.
+    pub canvas_enabled: bool,
+    /// Canvas channels: the board has a call.
+    pub voice_enabled: bool,
     pub notification: NotificationPreference,
 }
 
@@ -101,8 +107,10 @@ impl Store {
         // Probes including a deleted row; see this function's doc for why.
         if let Some(existing) = fetch_channel_by_id(&mut *tx, id).await? {
             tx.commit().await?;
-            let creatable_kind = matches!(existing.kind.as_str(), "text" | "voice")
-                && existing.parent_message_id.is_none();
+            let creatable_kind = matches!(
+                existing.kind.as_str(),
+                TEXT_CHANNEL_KIND | VOICE_CHANNEL_KIND | CANVAS_CHANNEL_KIND
+            ) && existing.parent_message_id.is_none();
             if !creatable_kind {
                 return Err(CreateChannelError::IdConflict);
             }
@@ -138,8 +146,8 @@ impl Store {
 
         let default_notification = defaults.notification.as_str();
         sqlx::query!(
-            "INSERT INTO channels (id, name, kind, position, created_at, category_id, join_muted, default_notification, creates_rooms) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO channels (id, name, kind, position, created_at, category_id, join_muted, default_notification, creates_rooms, canvas_enabled, voice_enabled) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             id,
             name,
             kind,
@@ -148,7 +156,9 @@ impl Store {
             category_id,
             defaults.join_muted,
             default_notification,
-            defaults.creates_rooms
+            defaults.creates_rooms,
+            defaults.canvas_enabled,
+            defaults.voice_enabled
         )
         .execute(&mut *tx)
         .await?;
@@ -204,6 +214,8 @@ impl Store {
                 // The column default; a fresh channel has no slow mode set yet.
                 slow_mode_seconds: 0,
                 join_muted: defaults.join_muted,
+                canvas_enabled: defaults.canvas_enabled,
+                voice_enabled: defaults.voice_enabled,
                 default_notification: defaults.notification,
                 room: super::super::ChannelRoom {
                     creates_rooms: defaults.creates_rooms,
@@ -280,6 +292,8 @@ where
                   created_at AS "created_at!",
                   slow_mode_seconds AS "slow_mode_seconds!: i64",
                   join_muted AS "join_muted!: bool",
+                  canvas_enabled AS "canvas_enabled!: bool",
+                  voice_enabled AS "voice_enabled!: bool",
                   default_notification AS "default_notification!",
                   creates_rooms AS "creates_rooms!: bool",
                   user_limit AS "user_limit!: i64",

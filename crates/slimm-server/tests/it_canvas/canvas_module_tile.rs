@@ -21,6 +21,7 @@ use uuid::Uuid;
 
 use crate::support;
 use support::app::{json_body, json_body_or_null};
+use support::canvas::BoardChannels;
 use support::wasm_fixtures::{canned_raw_wasm, echo_request_wasm, sha256_hex};
 use support::ws::{
     Client, assert_no_frame_of_type, connect, read_frame_of_type, serve, user_ticket,
@@ -108,7 +109,7 @@ async fn rig(name: &str, wasm: Vec<u8>) -> Rig {
         )
         .await
         .unwrap();
-    let channel = store.create_channel("hangout", "voice").await.unwrap().id;
+    let channel = store.create_channel("hangout", "canvas").await.unwrap().id;
     let players = store
         .create_role("players", Permissions::NONE, false)
         .await
@@ -410,6 +411,42 @@ async fn a_tile_that_asks_is_redrawn_by_the_host_for_every_viewer() {
         "a redraw runs as the last presser"
     );
     assert_eq!(a, b);
+}
+
+/// A hidden board runs no module hosts, and its tiles are redrawn again once it reopens (decision 0139).
+#[tokio::test]
+async fn a_hidden_boards_tile_is_not_redrawn_until_the_board_reopens() {
+    let mut r = rig("slimm-canvas-module-tile-hidden", canned_raw_wasm(LIVE)).await;
+    r.channel = r.store.create_voice_with_canvas("call").await.unwrap().id;
+    let object = r.place_tile(&r.alice).await;
+    assert_eq!(r.press(&r.bob, &object, "").await.0, StatusCode::OK);
+    let due = |r: &Rig| {
+        let store = r.store.clone();
+        async move {
+            store
+                .due_canvas_tile_refreshes(i64::MAX, 10)
+                .await
+                .unwrap()
+                .len()
+        }
+    };
+    assert_eq!(due(&r).await, 1);
+
+    let set = |on: bool| {
+        let store = r.store.clone();
+        let channel = r.channel;
+        async move {
+            let patch = slimm_server::store::ChannelPatch {
+                canvas_enabled: Some(on),
+                ..Default::default()
+            };
+            store.update_channel_settings(channel, patch).await.unwrap();
+        }
+    };
+    set(false).await;
+    assert_eq!(due(&r).await, 0, "a closed board is skipped");
+    set(true).await;
+    assert_eq!(due(&r).await, 1);
 }
 
 fn now_ms() -> i64 {

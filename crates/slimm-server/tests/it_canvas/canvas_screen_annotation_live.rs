@@ -110,6 +110,33 @@ async fn a_viewers_stroke_reaches_the_sharer_in_normalised_coordinates() {
     assert_eq!(frame["ended"], false);
 }
 
+/// An annotation is not a board route: it works in a voice channel whose canvas is off (decision 0139).
+#[tokio::test]
+async fn a_viewers_stroke_reaches_the_sharer_while_the_channels_canvas_is_off() {
+    let (store, _guard) = support::new_store("slimm-screen-annotation-off").await;
+    let (alice_ticket, alice_id) = user_ticket_and_id(&store, "alice").await;
+    store.bootstrap_deployment(alice_id).await.unwrap();
+    let lounge = store.create_channel("lounge", "voice").await.unwrap();
+    assert!(!lounge.canvas_open());
+    let (bob_ticket, bob_id) = user_ticket_and_id(&store, "bob").await;
+
+    let (addr, _state, _room) = serve_with_call(&store, &[alice_id, bob_id]).await;
+    let mut alice_ws = connect(addr, &alice_ticket).await;
+    let mut bob_ws = connect(addr, &bob_ticket).await;
+
+    send_stroke(
+        &mut bob_ws,
+        lounge.id,
+        alice_id,
+        json!([0.25, 0.5, 0.75, 0.5]),
+    )
+    .await;
+
+    let frame = read_frame_of_type(&mut alice_ws, KIND).await;
+    assert_eq!(frame["user_id"], bob_id.to_string());
+    assert_eq!(frame["kind"], "stroke");
+}
+
 #[tokio::test]
 async fn consent_from_the_sharer_is_relayed_with_the_screen_shape() {
     let (store, _guard) = support::new_store("slimm-screen-annotation").await;

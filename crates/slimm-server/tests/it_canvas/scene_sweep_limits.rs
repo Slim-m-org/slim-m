@@ -86,7 +86,7 @@ async fn a_shared_scene_is_stored_with_its_sweeps_inside_the_ceilings() {
     )
     .await
     .unwrap();
-    let channel = s.create_channel("general", "text").await.unwrap();
+    let channel = s.create_channel("general", "canvas").await.unwrap();
     let user = s.create_user("orin", "Orin").await.unwrap();
     let role = s
         .create_role("clock-players", Permissions::NONE, false)

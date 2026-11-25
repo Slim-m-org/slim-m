@@ -30,9 +30,7 @@ use crate::ids::{ChannelId, UserId};
 use crate::notifications::NotificationPreference;
 use crate::permissions::Permissions;
 
-use super::{Channel, Store, User, now_ms};
-
-pub(crate) const DM_CHANNEL_KIND: &str = "dm";
+use super::{Channel, DM_CHANNEL_KIND, Store, User, now_ms};
 
 /// Everything a DM participant can ever do inside it. Deliberately narrower
 /// than [`Permissions::ALL`]: there is no moderation and no roles, only a
@@ -144,6 +142,8 @@ pub(super) fn new_dm_channel(id: ChannelId, name: String, created_at: i64) -> Ch
         // Never read: a DM has no slow-mode setter of its own.
         slow_mode_seconds: 0,
         join_muted: false,
+        canvas_enabled: false,
+        voice_enabled: false,
         default_notification: NotificationPreference::default(),
         room: super::ChannelRoom::default(),
     }

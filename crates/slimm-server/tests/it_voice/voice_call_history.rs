@@ -14,6 +14,7 @@ use slimm_server::voice::VoiceService;
 use tower::ServiceExt;
 
 use crate::support;
+use support::canvas::BoardChannels;
 use support::livekit_webhook::webhook_request;
 
 const API_KEY: &str = "APItestkey";
@@ -60,7 +61,7 @@ async fn world(prefix: &str) -> World {
     let app = support::app::builder(store.clone()).voice(voice).router();
     let owner = session(&store, "owner").await;
     let kiki = session(&store, "kiki").await;
-    let channel = store.create_channel("voice", "voice").await.unwrap();
+    let channel = store.create_voice_with_canvas("voice").await.unwrap();
     World {
         app,
         store,
@@ -278,6 +279,46 @@ async fn what_landed_on_the_canvas_during_a_call_is_part_of_it() {
     assert_eq!(canvas[0]["count"], 3);
     assert_eq!(canvas[0]["user_id"], json!(w.kiki.1));
     assert_eq!(body["canvas_object_count"], 3);
+}
+
+/// A hidden board says nothing about itself in the history (decision 0139).
+#[tokio::test]
+async fn a_closed_board_reports_no_canvas_activity_and_no_objects() {
+    let w = world("slimm-call-history-canvas-off").await;
+    let channel = ChannelId(w.channel.parse().unwrap());
+    let kiki = UserId(w.kiki.1.parse().unwrap());
+    w.joined_earlier(&w.kiki.1).await;
+    w.store
+        .place_canvas_object(
+            channel,
+            kiki,
+            CanvasObjectId::generate(),
+            PlaceRequest {
+                kind: "stroke",
+                bounds: (0.0, 0.0, 1.0, 1.0),
+                props: "{}",
+                attachment: None,
+            },
+        )
+        .await
+        .expect("placed");
+    tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    w.deliver("participant_left", &w.kiki.1).await;
+    w.store
+        .update_channel_settings(
+            channel,
+            slimm_server::store::ChannelPatch {
+                canvas_enabled: Some(false),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap()
+        .unwrap();
+
+    let body = w.calls_once(&w.owner.0, 2).await;
+    assert_eq!(body["calls"][0]["canvas"], json!([]), "{body}");
+    assert_eq!(body["canvas_object_count"], 0);
 }
 
 #[tokio::test]

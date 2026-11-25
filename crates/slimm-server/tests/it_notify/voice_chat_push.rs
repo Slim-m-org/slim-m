@@ -17,6 +17,7 @@ struct World {
     member: UserId,
     text: ChannelId,
     voice: ChannelId,
+    canvas: ChannelId,
     _guard: support::TestDbGuard,
 }
 
@@ -39,12 +40,14 @@ async fn world(name: &str) -> World {
         .unwrap();
     let text = store.list_channels().await.unwrap()[0].id;
     let voice = store.create_channel("hangout", "voice").await.unwrap().id;
+    let canvas = store.create_channel("studio", "canvas").await.unwrap().id;
     World {
         store,
         author,
         member,
         text,
         voice,
+        canvas,
         _guard: guard,
     }
 }
@@ -83,6 +86,17 @@ async fn a_voice_chat_wakes_a_member_only_for_a_mention() {
 
     assert!(!w.wakes(w.voice, "plain").await);
     assert!(w.wakes(w.voice, "hey @bob").await);
+}
+
+/// A canvas channel's chat is secondary to its board, so it notifies like a call's chat (decision 0139).
+#[tokio::test]
+async fn a_canvas_chat_wakes_a_member_only_for_a_mention() {
+    let w = world("slimm-canvas-chat-push-default").await;
+    assert!(!w.wakes(w.canvas, "plain").await);
+    assert!(w.wakes(w.canvas, "hey @bob").await);
+
+    w.own_choice(w.canvas, Level::Everything).await;
+    assert!(w.wakes(w.canvas, "plain").await, "raisable per member");
 }
 
 #[tokio::test]

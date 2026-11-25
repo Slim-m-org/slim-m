@@ -69,7 +69,7 @@ pub(super) async fn handle_canvas_screen_annotation(
         ctx,
         cache,
         event.channel_id,
-        Frame::Ink,
+        Frame::ScreenInk,
     )
     .await
     {

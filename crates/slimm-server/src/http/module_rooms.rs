@@ -24,6 +24,7 @@ use crate::ids::{ChannelId, UserId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 use crate::store::InstalledModule;
+use crate::store::{CANVAS_CHANNEL_KIND, TEXT_CHANNEL_KIND, VOICE_CHANNEL_KIND};
 
 mod contract;
 mod lifecycle;
@@ -125,8 +126,9 @@ async fn place(
         return Err(ApiError::Forbidden);
     }
     let kind = match state.store.channel(channel).await?.map(|c| c.kind) {
-        Some(kind) if kind == "voice" => RoomKind::Voice,
-        Some(kind) if kind == "text" => RoomKind::Channel,
+        Some(kind) if kind == VOICE_CHANNEL_KIND => RoomKind::Voice,
+        // A canvas channel is a channel room whatever its call toggle says, so a room never changes kind (decision 0139).
+        Some(kind) if kind == TEXT_CHANNEL_KIND || kind == CANVAS_CHANNEL_KIND => RoomKind::Channel,
         _ => return Err(ApiError::NotFound("channel not found")),
     };
     Ok((Place { channel, kind }, permissions))

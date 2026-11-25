@@ -57,7 +57,7 @@ async fn a_viewer_with_both_bits_receives_the_preview() {
     let (store, _guard) = support::new_store("slimm-canvas-object-preview-live").await;
     let (alice_ticket, alice_id) = user_ticket_and_id(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
-    let channel = store.list_channels().await.unwrap()[0].id;
+    let channel = store.create_channel("board", "canvas").await.unwrap().id;
     let (bob_ticket, _bob_id) = user_ticket_and_id(&store, "bob").await;
 
     let state = support::app::builder(store.clone()).hub(Hub::new()).build();
@@ -89,7 +89,7 @@ async fn a_spectator_without_use_canvas_still_sees_a_preview() {
     let (store, _guard) = support::new_store("slimm-canvas-object-preview-live").await;
     let (alice_ticket, alice_id) = user_ticket_and_id(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
-    let channel = store.list_channels().await.unwrap()[0].id;
+    let channel = store.create_channel("board", "canvas").await.unwrap().id;
 
     let (carol_ticket, carol_id) = user_ticket_and_id(&store, "carol").await;
     store
@@ -129,7 +129,7 @@ async fn a_hidden_users_preview_reaches_a_viewer_of_the_same_canvas() {
     let (store, _guard) = support::new_store("slimm-canvas-object-preview-live").await;
     let (alice_ticket, alice_id) = user_ticket_and_id(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
-    let channel = store.list_channels().await.unwrap()[0].id;
+    let channel = store.create_channel("board", "canvas").await.unwrap().id;
     store
         .set_presence_visibility(alice_id, Visibility::Hidden)
         .await
@@ -163,7 +163,7 @@ async fn an_out_of_bounds_preview_is_dropped() {
     let (store, _guard) = support::new_store("slimm-canvas-object-preview-live").await;
     let (alice_ticket, alice_id) = user_ticket_and_id(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
-    let channel = store.list_channels().await.unwrap()[0].id;
+    let channel = store.create_channel("board", "canvas").await.unwrap().id;
     let (bob_ticket, _bob_id) = user_ticket_and_id(&store, "bob").await;
 
     let state = support::app::builder(store.clone()).hub(Hub::new()).build();
@@ -202,7 +202,7 @@ async fn object_preview_frames_are_rate_limited() {
     let mut channel_ids = Vec::new();
     for i in 0..60 {
         let channel = store
-            .create_channel(&format!("canvas-object-preview-rl-{i}"), "text")
+            .create_channel(&format!("canvas-object-preview-rl-{i}"), "canvas")
             .await
             .unwrap();
         channel_ids.push(channel.id.to_string());
@@ -237,7 +237,7 @@ async fn a_timed_out_member_cannot_send_a_preview() {
     let (store, _guard) = support::new_store("slimm-canvas-object-preview-live").await;
     let (alice_ticket, alice_id) = user_ticket_and_id(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
-    let channel = store.list_channels().await.unwrap()[0].id;
+    let channel = store.create_channel("board", "canvas").await.unwrap().id;
     let (bob_ticket, bob_id) = user_ticket_and_id(&store, "bob").await;
 
     let until = std::time::SystemTime::now()
@@ -268,7 +268,7 @@ async fn an_oversize_preview_box_is_dropped() {
     let (store, _guard) = support::new_store("slimm-canvas-object-preview-live").await;
     let (alice_ticket, alice_id) = user_ticket_and_id(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
-    let channel = store.list_channels().await.unwrap()[0].id;
+    let channel = store.create_channel("board", "canvas").await.unwrap().id;
     let (bob_ticket, _bob_id) = user_ticket_and_id(&store, "bob").await;
 
     let state = support::app::builder(store.clone()).hub(Hub::new()).build();
@@ -323,7 +323,7 @@ async fn a_member_cannot_preview_another_members_object() {
     let (store, _guard) = support::new_store("slimm-canvas-object-preview-live").await;
     let (alice_ticket, alice_id) = user_ticket_and_id(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
-    let channel = store.list_channels().await.unwrap()[0].id;
+    let channel = store.create_channel("board", "canvas").await.unwrap().id;
     let (bob_ticket, bob_id) = user_ticket_and_id(&store, "bob").await;
 
     let object_id = CanvasObjectId::generate();
@@ -374,7 +374,7 @@ async fn a_canvas_manager_can_preview_another_members_object() {
     let (store, _guard) = support::new_store("slimm-canvas-object-preview-live").await;
     let (alice_ticket, alice_id) = user_ticket_and_id(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
-    let channel = store.list_channels().await.unwrap()[0].id;
+    let channel = store.create_channel("board", "canvas").await.unwrap().id;
     let (bob_ticket, bob_id) = user_ticket_and_id(&store, "bob").await;
     let theirs = slimm_server::ids::CanvasObjectId::generate();
     let request = slimm_server::store::PlaceRequest {

@@ -13,6 +13,7 @@ use super::{Channel, Store, now_ms};
 use crate::ids::ChannelId;
 
 pub(super) mod channel_create;
+pub(super) mod channel_discard;
 pub(super) mod channel_notification_prefs;
 pub(super) mod channel_order;
 pub(super) mod channel_restricted;
@@ -50,6 +51,8 @@ impl Store {
                       created_at AS "created_at!",
                       slow_mode_seconds AS "slow_mode_seconds!: i64",
                       join_muted AS "join_muted!: bool",
+                      canvas_enabled AS "canvas_enabled!: bool",
+                      voice_enabled AS "voice_enabled!: bool",
                       default_notification AS "default_notification!",
                       creates_rooms AS "creates_rooms!: bool",
                       user_limit AS "user_limit!: i64",
@@ -91,7 +94,19 @@ impl Store {
         let Some(channel) = self.permission_channel(channel).await? else {
             return Ok(false);
         };
-        Ok(channel.kind != super::dms::DM_CHANNEL_KIND)
+        Ok(channel.kind != super::DM_CHANNEL_KIND)
+    }
+
+    /// Whether the channel is live and has an open board now: [`Channel::canvas_open`] in SQL, for the routes that cannot afford the row.
+    pub async fn channel_canvas_open(&self, id: ChannelId) -> anyhow::Result<bool> {
+        let sql = format!(
+            "SELECT EXISTS(SELECT 1 FROM channels c WHERE c.id = ? AND c.deleted_at IS NULL AND {})",
+            super::CANVAS_OPEN_SQL
+        );
+        Ok(sqlx::query_scalar(sqlx::AssertSqlSafe(sql))
+            .bind(id)
+            .fetch_one(&self.pool)
+            .await?)
     }
 
     /// Fetches a channel by id whether or not it is deleted. The delete

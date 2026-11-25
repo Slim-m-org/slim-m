@@ -23,7 +23,6 @@ use crate::permissions::Permissions;
 use crate::store::{Interaction, InteractionInput, InteractionKind, VisibleBotUi, now_ms};
 
 const BODY_LIMIT: usize = 16 * 1024;
-const VOICE_CHANNEL_KIND: &str = "voice";
 
 pub fn routes() -> Router<AppState> {
     Router::new()
@@ -231,7 +230,7 @@ async fn require_in_call(
         .channel(channel_id)
         .await?
         .ok_or(ApiError::NotFound("entry not found"))?;
-    if channel.kind != VOICE_CHANNEL_KIND || !state.voice.has_heartbeat(user_id, channel_id) {
+    if !channel.hosts_call() || !state.voice.has_heartbeat(user_id, channel_id) {
         return Err(ApiError::Forbidden);
     }
     Ok(())

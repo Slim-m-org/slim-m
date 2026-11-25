@@ -14819,7 +14819,11 @@ components:
             caller did not write. `on_call_elsewhere` on a 409 from
             `mintVoiceToken` asked with `automatic=true`. `connector_runtime_unavailable`
             on a 503 from the Dock's host-run routes: the connector runtime
-            is down or could not act, so retry once it is back. A channel the caller cannot see, or one that does
+            is down or could not act, so retry once it is back. `canvas_off` on a
+            403 from any board route of a channel whose board is off: a voice
+            channel with its canvas turned off, a text channel or a thread.
+            A client treats it as "no board here" and does not retry. A
+            channel the caller cannot see, or one that does
             not exist, still answers the bare 403 with no code. Absent on every
             other error; read an unknown value as a refusal for another reason.
         timed_out_until:
@@ -14990,6 +14994,16 @@ components:
             only the style keys that changed. A client hides the note style
             bar when it is false or absent, as it is on servers older than
             this field.
+        canvas_channels:
+          type: boolean
+          description: >
+            Whether the server has canvas channels: the `canvas` channel
+            kind, `canvas_enabled` and `voice_enabled` on a channel,
+            `discard_canvas` on `updateChannel`, and a `canvas_off` refusal
+            from every board route of a channel whose board is off. A client
+            hides the Canvas option in the create sheet and the canvas and
+            call settings when it is false or absent, as it is on servers
+            older than this field.
         canvas_scoped_clear:
           type: boolean
           description: >
@@ -15015,7 +15029,7 @@ components:
           type: array
           items:
             type: string
-            enum: [block, report, webhooks, upload_sessions, screen_stamps, username_check]
+            enum: [block, report, webhooks, upload_sessions, screen_stamps, username_check, canvas_viewers, canvas_export]
           description: >
             The optional features this build serves, read off the router at
             runtime rather than declared, so the list cannot drift from what
@@ -15026,6 +15040,10 @@ components:
             (`POST /webhooks/{webhookId}/{token}`) - a client uses it to
             decide whether the webhook admin surface is worth showing; minting
             and rotating one is `createWebhook` and `rotateWebhook`.
+            `canvas_viewers` and `canvas_export` mean the route that lists who
+            is viewing each open board, and the one that copies a canvas into
+            a new canvas channel, are served; each appears only once its route
+            exists.
 
 
             slim-m's safety model is manual reporting plus blocking and
@@ -19660,7 +19678,9 @@ components:
           type: string
         kind:
           type: string
-          enum: [text, voice]
+          enum: [text, voice, canvas]
+          description: >
+            A client must read a kind it does not know as `text`.
         topic:
           type: [string, "null"]
           maxLength: 256
@@ -19718,6 +19738,22 @@ components:
             SPEAK overwrites are what restrict who may speak. Set with
             `updateChannel` or at `createChannel`. Absent on servers older
             than this field, which a client must treat as false.
+        canvas_enabled:
+          type: boolean
+          description: >
+            Whether this channel has a board now: true for a canvas channel
+            and a direct message, the stored setting for a voice channel,
+            false for a text channel and a thread. The same for every reader.
+            Absent on servers older than canvas channels, which a client
+            reads as true for voice and direct messages and false for text.
+        voice_enabled:
+          type: boolean
+          description: >
+            Whether this channel has a call: true for a voice channel and a
+            direct message, the stored setting for a canvas channel, false for
+            a text channel and a thread. The same for every reader. Absent on
+            servers older than canvas channels, which a client reads as true
+            for voice and direct messages and false for text.
         default_notification:
           type: string
           enum: [everything, mentions, nothing]
@@ -19725,8 +19761,8 @@ components:
             What members with no choice of their own for this channel get.
             A member's own choice wins, and a default can only narrow their
             account preference. Absent on older servers, which a client must
-            treat as `everything`. A voice channel's chat is never louder
-            than `mentions` for such a member, whatever this says.
+            treat as `everything`. A voice or canvas channel's chat is never
+            louder than `mentions` for such a member, whatever this says.
         creates_rooms:
           type: boolean
           description: >
@@ -19807,7 +19843,7 @@ components:
           type: string
         kind:
           type: string
-          enum: [text, voice]
+          enum: [text, voice, canvas]
         position:
           type: integer
           format: int64
@@ -19822,6 +19858,16 @@ components:
         restricted:
           type: boolean
           description: Whether `@everyone` itself lacks VIEW_CHANNEL here.
+        canvas_enabled:
+          type: boolean
+          description: >
+            Whether the channel has a board now, as on `Channel`. Absent on
+            servers older than canvas channels.
+        voice_enabled:
+          type: boolean
+          description: >
+            Whether the channel has a call, as on `Channel`. Absent on
+            servers older than canvas channels.
     ChannelCategory:
       type: object
       required: [id, name, position, created_at]
@@ -19964,7 +20010,7 @@ components:
             already stored with one is still listed and can be edited.
         kind:
           type: string
-          enum: [text, voice]
+          enum: [text, voice, canvas]
           default: text
         category_id:
           type: [string, "null"]
@@ -20000,6 +20046,17 @@ components:
             True creates a voice lobby that makes each person who opens it a
             temporary room (decision 0065). Absent or false creates a plain
             channel. Refused on a text channel.
+        canvas_enabled:
+          type: boolean
+          description: >
+            A voice channel's board. Absent means on, so a client that never
+            heard of this keeps today's channel; the app's create sheet always
+            sends it. `true` is refused on any other kind.
+        voice_enabled:
+          type: boolean
+          description: >
+            A canvas channel's call. Absent means off. `true` is refused on
+            any other kind.
         default_notification:
           type: string
           enum: [everything, mentions, nothing]
@@ -20011,7 +20068,8 @@ components:
       type: object
       description: >
         At least one of `name`, `topic`, `slow_mode_seconds` and
-        `join_muted` must be present; a request with none of them is a 400. Each is independent:
+        `join_muted` (or one of `canvas_enabled`, `voice_enabled`,
+        `discard_canvas`) must be present; a request with none of them is a 400. Each is independent:
         sending only one leaves the others untouched.
       properties:
         name:
@@ -20051,6 +20109,26 @@ components:
           type: integer
           format: int64
           description: Caps a voice channel's call, 0 to 99; 0 removes the limit.
+        canvas_enabled:
+          type: boolean
+          description: >
+            Turns a voice channel's board on or off, a lobby's rooms
+            included. Off hides the board and deletes nothing. Refused on any
+            other kind, whatever the value.
+        voice_enabled:
+          type: boolean
+          description: >
+            Turns a canvas channel's call on or off. Off ends the call.
+            Refused on any other kind, whatever the value.
+        discard_canvas:
+          type: boolean
+          description: >
+            `true` removes everything on a voice channel's hidden board,
+            locked objects included, in the same transaction as the rest of
+            the update, and publishes a `canvas.cleared` frame. Needs
+            `MANAGE_CANVAS` in the channel as well as the channel manager
+            bar. Refused on any other kind, and on a board that is on after
+            the update. `false` counts as absent.
 
     UpdateVoiceRoomRequest:
       type: object

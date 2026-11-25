@@ -354,7 +354,7 @@ fn parse_edit(params: SubmitOpParams) -> Result<CanvasOpRequest, ApiError> {
     Ok(CanvasOpRequest::Edit { object_id, props })
 }
 
-pub(super) fn publish(
+pub(in crate::http) fn publish(
     state: &AppState,
     channel_id: ChannelId,
     op_id: CanvasOpId,

@@ -198,6 +198,8 @@ impl Store {
                 // Never read: a thread has no slow-mode setter of its own.
                 slow_mode_seconds: 0,
                 join_muted: false,
+                canvas_enabled: false,
+                voice_enabled: false,
                 default_notification: NotificationPreference::default(),
                 room: super::ChannelRoom::default(),
             },

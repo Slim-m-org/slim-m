@@ -3,7 +3,19 @@
 
 use crate::ids::{ChannelCategoryId, ChannelId, MessageId, Seq, UserId};
 
-/// A channel (a text or voice room).
+/// The `kind` of an ordinary text channel.
+pub(crate) const TEXT_CHANNEL_KIND: &str = "text";
+/// The `kind` of a voice channel.
+pub(crate) const VOICE_CHANNEL_KIND: &str = "voice";
+/// The `kind` of a canvas channel (decision 0139).
+pub(crate) const CANVAS_CHANNEL_KIND: &str = "canvas";
+/// The `kind` of a direct message.
+pub(crate) const DM_CHANNEL_KIND: &str = "dm";
+
+/// The SQL form of [`Channel::canvas_open`] over a `channels` row aliased `c`, pinned to it by a unit test.
+pub(crate) const CANVAS_OPEN_SQL: &str = "(c.parent_message_id IS NULL AND (c.kind IN ('canvas', 'dm') OR (c.kind = 'voice' AND c.canvas_enabled = 1)))";
+
+/// A channel (a text, voice, canvas or direct-message room).
 #[derive(Debug, Clone)]
 pub struct Channel {
     pub id: ChannelId,
@@ -42,11 +54,43 @@ pub struct Channel {
     /// default, not a lock: SPEAK overwrites are what restrict speaking. See
     /// [`crate::store::Store::update_channel_settings`].
     pub join_muted: bool,
+    /// Voice channels only: whether the call has a board. The stored flag; read [`Channel::canvas_open`].
+    pub canvas_enabled: bool,
+    /// Canvas channels only: whether the board has a call. The stored flag; read [`Channel::hosts_call`].
+    pub voice_enabled: bool,
     /// What members with no choice of their own for this channel get; see
     /// `docs/decisions/0049-notification-override-badge.md`.
     pub default_notification: crate::notifications::NotificationPreference,
     /// Temporary voice rooms and the user limit; see decision 0065.
     pub room: ChannelRoom,
+}
+
+impl Channel {
+    /// Whether this channel has a board now: a canvas channel or DM, or a voice channel with its canvas on, and never a thread.
+    pub fn canvas_open(&self) -> bool {
+        self.parent_message_id.is_none()
+            && match self.kind.as_str() {
+                CANVAS_CHANNEL_KIND | DM_CHANNEL_KIND => true,
+                VOICE_CHANNEL_KIND => self.canvas_enabled,
+                _ => false,
+            }
+    }
+
+    /// Whether this channel has a call a member can join: a voice channel, or a canvas channel with its call on, and never a thread. A DM has its own call rule.
+    pub fn hosts_call(&self) -> bool {
+        self.parent_message_id.is_none()
+            && match self.kind.as_str() {
+                VOICE_CHANNEL_KIND => true,
+                CANVAS_CHANNEL_KIND => self.voice_enabled,
+                _ => false,
+            }
+    }
+
+    /// Whether the channel is of a kind that can ever host a call, whatever its toggle says; moderation reaches it either way.
+    pub fn call_kind(&self) -> bool {
+        self.parent_message_id.is_none()
+            && matches!(self.kind.as_str(), VOICE_CHANNEL_KIND | CANVAS_CHANNEL_KIND)
+    }
 }
 
 /// A voice channel's room settings (decision 0065): all off for every other
@@ -162,4 +206,96 @@ pub struct Message {
     /// later edit or delete of the parent is never something a reply's own
     /// row could go stale about.
     pub reply_to_id: Option<MessageId>,
+}
+
+#[cfg(test)]
+mod tests {
+    use sqlx::{Connection, SqliteConnection};
+
+    use super::*;
+    use crate::ids::{ChannelId, MessageId};
+
+    fn channel(kind: &str, canvas_enabled: bool, thread: bool) -> Channel {
+        Channel {
+            id: ChannelId::generate(),
+            name: "c".to_owned(),
+            kind: kind.to_owned(),
+            topic: None,
+            position: 0,
+            parent_message_id: thread.then(MessageId::generate),
+            category_id: None,
+            created_at: 0,
+            slow_mode_seconds: 0,
+            join_muted: false,
+            canvas_enabled,
+            voice_enabled: false,
+            default_notification: Default::default(),
+            room: ChannelRoom::default(),
+        }
+    }
+
+    /// The SQL fragment and the Rust predicate are two copies of one rule, so every combination must agree.
+    #[tokio::test]
+    async fn the_sql_fragment_agrees_with_the_predicate_for_every_combination() {
+        let mut conn = SqliteConnection::connect("sqlite::memory:").await.unwrap();
+        sqlx::query("CREATE TABLE channels (n INTEGER, kind TEXT, canvas_enabled INTEGER, parent_message_id BLOB)")
+            .execute(&mut conn)
+            .await
+            .unwrap();
+        let mut expected = Vec::new();
+        for (n, (kind, enabled, thread)) in every_combination().into_iter().enumerate() {
+            let row = channel(kind, enabled, thread);
+            sqlx::query("INSERT INTO channels VALUES (?, ?, ?, ?)")
+                .bind(n as i64)
+                .bind(kind)
+                .bind(enabled)
+                .bind(row.parent_message_id)
+                .execute(&mut conn)
+                .await
+                .unwrap();
+            expected.push((n as i64, row.canvas_open()));
+        }
+        let sql = format!("SELECT c.n FROM channels c WHERE {CANVAS_OPEN_SQL} ORDER BY c.n");
+        let open: Vec<i64> = sqlx::query_scalar(sqlx::AssertSqlSafe(sql))
+            .fetch_all(&mut conn)
+            .await
+            .unwrap();
+        let from_predicate: Vec<i64> = expected
+            .iter()
+            .filter(|(_, open)| *open)
+            .map(|(n, _)| *n)
+            .collect();
+        assert_eq!(open, from_predicate);
+        assert!(!open.is_empty() && open.len() < expected.len());
+    }
+
+    fn every_combination() -> Vec<(&'static str, bool, bool)> {
+        let mut all = Vec::new();
+        for kind in [
+            TEXT_CHANNEL_KIND,
+            VOICE_CHANNEL_KIND,
+            CANVAS_CHANNEL_KIND,
+            DM_CHANNEL_KIND,
+            "unknown",
+        ] {
+            for enabled in [false, true] {
+                for thread in [false, true] {
+                    all.push((kind, enabled, thread));
+                }
+            }
+        }
+        all
+    }
+
+    #[test]
+    fn a_call_follows_the_kind_and_its_toggle() {
+        let mut board = channel(CANVAS_CHANNEL_KIND, false, false);
+        assert!(!board.hosts_call());
+        board.voice_enabled = true;
+        assert!(board.hosts_call());
+        assert!(channel(VOICE_CHANNEL_KIND, false, false).hosts_call());
+        assert!(!channel(VOICE_CHANNEL_KIND, false, true).hosts_call());
+        assert!(!channel(TEXT_CHANNEL_KIND, true, false).hosts_call());
+        assert!(!channel(DM_CHANNEL_KIND, true, false).hosts_call());
+    }
 }
