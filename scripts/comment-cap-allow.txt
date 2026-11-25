@@ -237,7 +237,6 @@ scripts/lib/e2e_voice.py 3
 client/packages/app/android/app/build.gradle.kts 6
 client/packages/app/android/build.gradle.kts 1
 client/packages/app/android/settings.gradle.kts 1
-client/packages/app/ios/BroadcastExtension/Atomic.swift 1
 client/packages/app/ios/BroadcastExtension/DarwinNotificationCenter.swift 1
 client/packages/app/ios/BroadcastExtension/SampleHandler.swift 1
 client/packages/app/ios/BroadcastExtension/SampleUploader.swift 1

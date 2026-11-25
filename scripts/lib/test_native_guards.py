@@ -26,6 +26,17 @@ class BroadcastUploader(unittest.TestCase):
         self.assertLess(body.index("prepare(sample"), body.index("isReady = false"))
 
 
+    def test_the_frame_hand_off_runs_on_the_serial_queue(self):
+        body = body_of(swift("BroadcastExtension/SampleUploader.swift"), "func send(sample")
+        self.assertLess(body.index("serialQueue.sync"), body.index("dataToSend ="))
+
+    def test_frames_are_downscaled_and_compressed_before_upload(self):
+        source = swift("BroadcastExtension/SampleUploader.swift")
+        self.assertIn("transformed(by:", source)
+        self.assertNotIn("quality: 1.0", source)
+        self.assertNotRegex(source, r"CompressionQuality as CIImageRepresentationOption:\s*1\.0")
+
+
 class BroadcastHandler(unittest.TestCase):
     def setUp(self):
         self.handler = swift("BroadcastExtension/SampleHandler.swift")
@@ -33,6 +44,10 @@ class BroadcastHandler(unittest.TestCase):
     def test_finishing_the_broadcast_stops_the_socket_poll(self):
         body = body_of(self.handler, "func broadcastFinished()")
         self.assertIn("connectTimer?.cancel()", body)
+
+    def test_the_heartbeat_runs_for_the_broadcast_and_stops_with_it(self):
+        self.assertIn("startHeartbeat()", body_of(self.handler, "func broadcastStarted("))
+        self.assertIn("heartbeatTimer?.cancel()", body_of(self.handler, "func broadcastFinished()"))
 
     def test_the_socket_poll_gives_up_with_a_readable_error(self):
         body = body_of(self.handler, "func openConnection()")
