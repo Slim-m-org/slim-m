@@ -10,6 +10,7 @@ import 'package:slimm_rtc/rtc.dart';
 import '../widgets/canvas_pill_surface.dart';
 import 'canvas_follow_targets.dart';
 import 'canvas_people_session.dart';
+import 'canvas_view_relay.dart';
 
 /// The width of the outline; wide enough to read as a state, thin enough to cover no ink.
 const double canvasFollowOutlineWidth = 3;
@@ -93,11 +94,22 @@ _Following? _resolveFollowing(
     selfId: session.selfId(),
   );
   final followed = targets.where((t) => t.id == session.followed).firstOrNull;
+  final tokens = Theme.of(context).extension<AppTokens>()!;
+  final id = session.followed;
+  final held = session.followedName;
+  if (followed != null)
+    session.rememberFollowedName(followed.id, followed.name);
+  if (followed == null && id != null && held != null) {
+    // Their cursor goes with a pointer off the board or a lost window focus, while their view keeps arriving.
+    if (session.relay.heardWithin(id, followIdleGrace)) {
+      session.recheckAfter(followIdleGrace);
+      return (name: held, color: session.followedColor ?? tokens.accentFill);
+    }
+  }
   if (followed == null) {
     _dropFollowedWhoLeft(context, session);
     return null;
   }
-  final tokens = Theme.of(context).extension<AppTokens>()!;
   return (
     name: followed.name,
     color: session.followedColor ?? tokens.accentFill,

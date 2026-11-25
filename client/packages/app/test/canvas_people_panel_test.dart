@@ -32,6 +32,7 @@ class _Rig {
       showView: (_) {},
       isBlocked: (_) => false,
       selfId: () => 'me',
+      clock: () => now,
     );
     cursors = CanvasCursors();
     addTearDown(relay.dispose);
@@ -43,6 +44,7 @@ class _Rig {
   late final CanvasViewRelay relay;
   late final CanvasCursors cursors;
   int brought = 0;
+  var now = DateTime(2026, 11, 25, 12);
 
   void cursor(String id, double x) =>
       cursors.upsert(id: id, x: x, y: 0, label: id, colorIndex: 0);
@@ -156,6 +158,32 @@ void main() {
 
     expect(rig.relay.following.value, isNull);
     expect(find.byKey(followOutlineKey), findsNothing);
+  });
+
+  testWidgets('a followed person whose cursor went idle is kept while their '
+      'view arrives, then let go', (tester) async {
+    final rig = _Rig(tester)..cursor('amy', 1);
+    await rig.pump();
+    rig.relay.follow('amy');
+    await tester.pump();
+    rig.relay.applyRemote(
+      'amy',
+      const Rect.fromLTWH(0, 0, 500, 500),
+      summon: false,
+    );
+
+    rig.cursors.remove('amy');
+    await tester.pump();
+    await tester.pump();
+
+    expect(rig.relay.following.value, 'amy');
+    expect(find.text('Following amy'), findsOneWidget);
+
+    rig.now = rig.now.add(followIdleGrace + const Duration(seconds: 1));
+    await tester.pump(followIdleGrace + const Duration(seconds: 1));
+    await tester.pump();
+
+    expect(rig.relay.following.value, isNull);
   });
 
   testWidgets('Bring everyone to me asks first', (tester) async {
