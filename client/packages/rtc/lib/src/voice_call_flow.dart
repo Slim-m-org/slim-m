@@ -447,11 +447,12 @@ class VoiceCallFlow {
     _core.share.watch.stop();
     // Awaited before the room disconnects below: the SFU has no bearing on iOS.
     await _step(_core.share.control.stopActiveBroadcast);
-    await _step(_core.share.control.dispose);
     if (leaving != null) {
       await _step(() => leaving.disconnect().timeout(kLeaveGoodbyeWait));
       await _step(leaving.dispose);
     }
+    // After the disconnect, so winding share audio down never keeps the microphone live.
+    await _step(_core.share.control.dispose);
     // The disconnect stops only published tracks.
     await _releaseCapture(videos);
   }

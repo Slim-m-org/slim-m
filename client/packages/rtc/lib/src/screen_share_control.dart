@@ -92,14 +92,18 @@ class ScreenShareControl {
   }
 
   /// Whether the share may carry audio: false when the call's own playout could not be kept out of it.
-  Future<bool> _beginAudio() async {
+  Future<bool> _beginAudio(int stopsAtStart) async {
     final isolation = _isolation;
     if (isolation == null || !isolation.supported) return true;
     if (await isolation.begin()) return true;
+    if (stopsAtStart != _stops) return false;
     AppLog.warning(LogTag.voice, shareAudioOffNote);
     shareAudioNote.value = shareAudioOffNote;
     return false;
   }
+
+  /// How many stops [setEnabled] has been asked for; a start that sees it move was cancelled.
+  int _stops = 0;
 
   /// The iOS hand-off in progress, if a share is still waiting on the system
   /// picker. Held so a second call - a rapid re-tap, or disabling while
@@ -126,6 +130,8 @@ class ScreenShareControl {
     required void Function(Object? error) onSettled,
   }) async {
     if (enabled) _startsInFlight++;
+    if (!enabled) _stops++;
+    final stopsAtStart = _stops;
     shareAudioNote.value = null;
     try {
       await _cancelHandoff();
@@ -144,8 +150,13 @@ class ScreenShareControl {
           onSettled: onSettled,
         );
       }
-      final withAudio =
-          enabled && includeAudio ? await _beginAudio() : includeAudio;
+      final withAudio = enabled && includeAudio
+          ? await _beginAudio(stopsAtStart)
+          : includeAudio;
+      if (enabled && stopsAtStart != _stops) {
+        await _isolation?.end();
+        return ScreenShareOutcome.stopped;
+      }
       try {
         await publish(
           enabled,
