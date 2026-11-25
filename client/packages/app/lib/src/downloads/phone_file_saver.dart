@@ -8,16 +8,10 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 
-import 'download_target_phone.dart';
-
 /// Asks the activity to copy a file to a document the user picked, without reading it into Dart.
 const MethodChannel _fileExportChannel = MethodChannel(
   'top.npcserver.slimm/file_export',
 );
-
-/// The save step for this phone; Android and iOS only.
-PhoneFileSaver platformPhoneFileSaver() =>
-    Platform.isIOS ? shareFileSaver : documentFileSaver;
 
 /// Android: the picker creates an empty document, then the platform copies the file into it.
 Future<bool> documentFileSaver(File file, String filename) async {

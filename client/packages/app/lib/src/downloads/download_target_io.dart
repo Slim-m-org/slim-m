@@ -22,7 +22,7 @@ Future<DownloadTarget?> openPlatformDownloadTarget(String filename) async {
     return PhoneDownloadTarget.open(
       filename,
       cache: await PhoneDownloadTarget.appCache(),
-      saver: platformPhoneFileSaver(),
+      saver: Platform.isIOS ? shareFileSaver : documentFileSaver,
     );
   }
   if (!(Platform.isLinux || Platform.isWindows || Platform.isMacOS)) {
