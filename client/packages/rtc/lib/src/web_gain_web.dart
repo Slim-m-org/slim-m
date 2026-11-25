@@ -11,6 +11,7 @@ library;
 import 'dart:js_interop';
 
 import 'audio_gain.dart';
+import 'capture_chain_guard.dart' show contextNeedsResume, elementShouldBeMuted;
 import 'gain_graph_registry.dart';
 import 'soft_limit.dart';
 
@@ -21,6 +22,8 @@ external _Document get _document;
 
 extension type _Document._(JSObject _) implements JSObject {
   external _AudioElement? getElementById(String id);
+  external void addEventListener(String type, JSFunction listener);
+  external void removeEventListener(String type, JSFunction listener);
 }
 
 extension type _AudioElement._(JSObject _) implements JSObject {
@@ -37,6 +40,8 @@ extension type _AudioContext._(JSObject _) implements JSObject {
   external _ShaperNode createWaveShaper();
   external JSPromise<JSAny?> resume();
   external JSPromise<JSAny?> close();
+  external String get state;
+  external set onstatechange(JSFunction? handler);
 }
 
 extension type _Node._(JSObject _) implements JSObject {
@@ -69,7 +74,62 @@ class _Graph {
 
 _AudioContext? _context;
 
-_AudioContext get _ctx => _context ??= _AudioContext();
+_AudioContext get _ctx => _context ??= _openContext();
+
+_AudioContext _openContext() {
+  final context = _AudioContext()..onstatechange = _onContextState.toJS;
+  for (final event in _wakeEvents) {
+    _document.addEventListener(event, _onWake);
+  }
+  return context;
+}
+
+/// A context made outside a gesture, or interrupted by a call or a lock screen, stays quiet until one of these.
+const _wakeEvents = ['visibilitychange', 'pointerdown', 'keydown'];
+
+final JSFunction _onWake = ((JSAny? _) => _resumeContext()).toJS;
+
+void _onContextState(JSAny? _) {
+  _syncMute();
+  _resumeContext();
+}
+
+/// The element stays audible whenever the context cannot be, so a context that will not run never means silence.
+void _syncMute() {
+  final muted = elementShouldBeMuted(
+    _context?.state ?? 'closed',
+    resuming: _resuming,
+  );
+  for (final graph in _registry.graphs) {
+    graph.element.muted = muted;
+  }
+}
+
+bool _resuming = false;
+
+/// Long enough for a context to start on its own; Safari leaves a resume pending when it will not.
+const _resumeWait = Duration(seconds: 2);
+
+void _resumeContext() {
+  final context = _context;
+  if (context == null) return;
+  if (!contextNeedsResume(context.state, inUse: true)) {
+    _syncMute();
+    return;
+  }
+  if (_resuming) return;
+  _resuming = true;
+  _syncMute();
+  void settled() {
+    _resuming = false;
+    _syncMute();
+  }
+
+  context.resume().toDart.timeout(_resumeWait).then<void>(
+        (_) => settled(),
+        onError: (Object _) => settled(),
+      );
+}
 
 // The shaper spans the loudest volume, so its input gain is divided by this.
 const double _range = kMaxParticipantVolume;
@@ -115,7 +175,7 @@ final _registry = GainGraphRegistry<_Graph>(
   setGain: (graph, gain) {
     graph.gain.gain.value = shaperInputGain(gain, range: _range);
     graph.limiter.curve = limiterNeeded(gain) ? _limiterCurve : null;
-    _ctx.resume();
+    _resumeContext();
   },
 );
 
@@ -126,6 +186,11 @@ Object? applyWebGain(String trackCid, double gain) =>
 /// next call builds afresh.
 void _releaseAllGraphs() {
   _registry.releaseAll();
+  _resuming = false;
+  for (final event in _wakeEvents) {
+    _document.removeEventListener(event, _onWake);
+  }
+  _context?.onstatechange = null;
   _context?.close();
   _context = null;
 }

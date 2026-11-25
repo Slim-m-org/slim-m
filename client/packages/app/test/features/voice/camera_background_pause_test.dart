@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/voice/providers/camera_background_pause.dart';
 import 'package:slimm_app/src/features/voice/providers/video_pause.dart';
+import 'package:slimm_app/src/providers/app_lifecycle.dart';
 
 class _Camera {
   bool on = true;
@@ -82,11 +83,13 @@ void main() {
     ProviderContainer container({
       required bool previewPaused,
       required bool desktop,
+      bool? phone,
     }) {
       final c = ProviderContainer(
         overrides: [
           localPreviewPausedProvider.overrideWithValue(previewPaused),
           pauseOnUnfocusedAppliesProvider.overrideWithValue(desktop),
+          mobileLifecycleHostProvider.overrideWithValue(phone ?? !desktop),
         ],
       );
       addTearDown(c.dispose);
@@ -100,6 +103,11 @@ void main() {
 
     test('a minimised desktop keeps publishing', () {
       final c = container(previewPaused: true, desktop: true);
+      expect(c.read(cameraBackgroundPausedProvider), isFalse);
+    });
+
+    test('a hidden browser tab keeps publishing', () {
+      final c = container(previewPaused: true, desktop: false, phone: false);
       expect(c.read(cameraBackgroundPausedProvider), isFalse);
     });
 

@@ -25,6 +25,8 @@ class GainGraphRegistry<G> {
 
   final Map<String, G> _graphs = {};
 
+  Iterable<G> get graphs => _graphs.values;
+
   /// Sets the gain on [id], returning why it could not or null on success.
   ///
   /// Unity releases the graph, which hands playback back to the element and
