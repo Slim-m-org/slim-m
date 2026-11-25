@@ -3,6 +3,8 @@
 /// See docs/decisions/0068-multiple-servers-in-one-app.md.
 library;
 
+import '../../../ids.dart';
+
 /// The database file the pre-accounts install already used, kept by the
 /// account that migrates from it so no cache is copied or lost.
 const legacyDatabaseFile = 'slimm.sqlite';
@@ -16,21 +18,10 @@ String originOf(Uri server) {
 /// The key-store handle an account's session is stored under.
 String sessionHandleFor(String origin) => 'session:$origin';
 
-/// A stable, filesystem-safe database name for an origin other than the legacy one.
+/// A fresh, filesystem-safe database name for a newly added account.
 ///
-/// Two 32-bit hashes rather than one 64-bit: dart2js cannot hold a 64-bit integer exactly.
-String databaseFileFor(String origin) {
-  var low = 5381;
-  var high = 0x811c9dc5;
-  for (final unit in origin.codeUnits) {
-    low = ((low * 33) ^ unit) & 0xFFFFFFFF;
-    high = ((high * 31) ^ unit) & 0xFFFFFFFF;
-  }
-  final name = '${_hex(high)}${_hex(low)}';
-  return 'slimm-$name.sqlite';
-}
-
-String _hex(int value) => value.toRadixString(16).padLeft(8, '0');
+/// Random rather than derived from the origin, so no two servers can be made to share a file.
+String newDatabaseFile() => 'slimm-${newAccountDatabaseId()}.sqlite';
 
 class Account {
   const Account({
@@ -44,7 +35,7 @@ class Account {
     return Account(
       origin: origin,
       serverUrl: server,
-      dbFile: dbFile ?? databaseFileFor(origin),
+      dbFile: dbFile ?? newDatabaseFile(),
     );
   }
 

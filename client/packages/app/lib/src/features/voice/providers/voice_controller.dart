@@ -307,7 +307,10 @@ class VoiceController extends StateNotifier<VoiceState> {
     }
     // Before the token round trip, so a muted join that fails there is retried muted.
     if (muted) state = _joinMuted.showMuted(state);
-    if (callStarts) await _ref.read(callStartYieldsProvider).callStarting();
+    if (callStarts) {
+      await leaveOtherAccountCalls(_ref);
+      await _ref.read(callStartYieldsProvider).callStarting();
+    }
     // Awaited before the connect, so no ring is still sounding when the call takes the audio session.
     await _ref.read(soundSessionReleaseProvider)();
     if (superseded()) return;

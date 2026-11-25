@@ -10,6 +10,8 @@
 /// so in the debug log.
 library;
 
+import 'dart:async';
+
 import '../features/canvas/providers/canvas_recent_colours.dart';
 import '../features/canvas/providers/canvas_tools_hidden.dart';
 import '../features/settings/providers/background_from_theme.dart';
@@ -106,16 +108,37 @@ Future<void> resyncSharedPreferences(ProviderContainer container) {
   ]);
 }
 
-/// Re-reads the device-wide voice preferences into a container that has not
-/// loaded them, unless it is in a call, where a restore would change a live one.
+/// Re-reads the device-wide voice preferences into a container that has not loaded them.
+///
+/// In a call a restore would change a live one, so it waits for the call to end instead.
 Future<void> resyncVoiceDevicePreferences(ProviderContainer container) async {
-  final flags = container.read(voiceFlagsProvider);
-  if (flags.state == VoiceSessionState.connected || flags.rejoining) return;
+  if (_inCall(container.read(voiceFlagsProvider))) {
+    _resyncAfterCall(container);
+    return;
+  }
   final voice = container.read(voiceControllerProvider.notifier);
   await Future.wait([
     for (final entry in _voiceDeviceRestores(voice).entries)
       restoreOrDefault(container, entry.key, entry.value),
   ]);
+}
+
+bool _inCall(VoiceFlags flags) =>
+    flags.state == VoiceSessionState.connected || flags.rejoining;
+
+final _waitingForCall = Expando<ProviderSubscription<VoiceFlags>>();
+
+void _resyncAfterCall(ProviderContainer container) {
+  if (_waitingForCall[container] != null) return;
+  _waitingForCall[container] = container.listen<VoiceFlags>(
+    voiceFlagsProvider,
+    (_, flags) {
+      if (_inCall(flags)) return;
+      _waitingForCall[container]?.close();
+      _waitingForCall[container] = null;
+      unawaited(resyncVoiceDevicePreferences(container));
+    },
+  );
 }
 
 /// Starts the voice restores that startup and an account switch both run.

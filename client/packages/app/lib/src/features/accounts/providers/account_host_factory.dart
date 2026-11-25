@@ -65,6 +65,7 @@ AccountHost createAccountHost(DesktopWindowShell shell, Uri official) {
   );
   host = AccountHost(
     store: accounts,
+    crossTab: crossTab,
     createContainer: (slot) => ProviderContainer(
       overrides: [
         debugLogSinkProvider.overrideWithValue(debugLogs),
