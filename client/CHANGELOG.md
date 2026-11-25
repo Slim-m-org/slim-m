@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.139.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.138.0...client-v0.139.0) (2026-11-25)
+
+
+### Features
+
+* canvas channels, the canvas as a voice channel setting, viewer presence and export ([#2494](https://github.com/Slim-m-org/slim-m/issues/2494)) ([d3366ba](https://github.com/Slim-m-org/slim-m/commit/d3366bac4d65123eb626b8ecfcc4c9aeda8341ce))
+
 ## [0.138.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.137.0...client-v0.138.0) (2026-11-25)
 
 
