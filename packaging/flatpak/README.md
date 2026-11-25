@@ -163,6 +163,7 @@ So the runtime stays as it is and the gap stays documented here.
 
 The Linux client keeps its sign-in in an owner-only file (decision 0042), so the manifest holds no Secret Service grant and the bundle links no libsecret.
 It also holds no `org.kde.KWin` grant on purpose: a client that can talk to KWin can load a script into the compositor, which is a way out of the sandbox.
+The owner confirmed this on 2026-11-25, so the call overlay's keep-above does not hold in the flatpak on KDE: it behaves like a normal window there. Use the rpm, or a KDE window rule with "Keep above other windows", to keep it on top.
 The pop-out's keep-above and above-full-screen rule are therefore off in the flatpak, and a pop-out behaves like any other window there.
 
 The manifest's own inline comments carry the reasoning for each non-obvious `finish-args` entry.
