@@ -9,6 +9,7 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
@@ -16,6 +17,7 @@ import 'package:slimm_platform/platform.dart';
 
 import '../desktop/desktop_window_port.dart';
 import '../desktop/desktop_window_shell.dart';
+import 'browser_window_events.dart';
 
 /// Whether this build runs on a phone, where an embedder that has not yet
 /// reported a state means a background launch rather than a window waiting to
@@ -211,7 +213,7 @@ final appLifecycleProvider =
       final port = ref.read(desktopWindowShellProvider).port;
       return AppLifecycleNotifier(
         mobile: ref.watch(mobileLifecycleHostProvider),
-        windowEvents: port.events,
+        windowEvents: kIsWeb ? browserWindowEvents() : port.events,
         inTray: () => port.hiddenByApp,
         suspended: () => port.suspendedByCompositor,
         stillMinimized: port.isMinimized,
