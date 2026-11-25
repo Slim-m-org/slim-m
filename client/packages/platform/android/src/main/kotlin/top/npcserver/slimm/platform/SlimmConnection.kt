@@ -9,24 +9,10 @@ import android.telecom.TelecomManager
 import androidx.core.app.NotificationManagerCompat
 
 /**
- * One in-flight incoming call reported to `android.telecom`.
- *
- * There is no RTC session behind this connection - the same honest limit
- * [CallActionReceiver]'s own doc comment already states for Decline - so
- * this class exists only to give the *ringing* phase proper Telecom
- * treatment (audio focus and routing, Bluetooth, Do Not Disturb, the
- * system's own ongoing-call bookkeeping) while the notification is on
- * screen, and to keep that bookkeeping in sync with whatever
- * [CallActionReceiver] or Telecom itself decides next.
- *
- * Answering ends this connection immediately rather than leaving it
- * reported as active: there is no bridge yet from the in-app voice session
- * back to a Telecom connection (that would need `VoiceController` wired the
- * same way `CallLifecycleChannel` already wires iOS's CallKit), and a
- * connection left "active" with nothing that will ever end it would show a
- * ghost ongoing call in the system's own UI forever - worse than the plain
- * notification this replaces. Reporting the ringing phase is the whole,
- * honest scope of this class.
+ * One incoming ring reported to `android.telecom`, ended by whichever comes first: an answer, a
+ * decline, the caller giving up, or the ring timeout. The call itself, once joined, is
+ * [SlimmOngoingConnection]; answering ends this ring because the notification already hands the
+ * answer to the app.
  */
 class SlimmConnection(
     private val context: Context,
@@ -48,22 +34,19 @@ class SlimmConnection(
     }
 
     /**
-     * The call was answered - either [CallActionReceiver]'s own Answer
-     * action calling this directly, or Telecom itself driving it (a paired
-     * Bluetooth headset's own answer button, say). Both paths need the same
-     * three things: Telecom told the call connected, then immediately ended
-     * (see the class doc for why), and the app opened, since there is
-     * nothing further either path could do.
+     * Telecom answered the ring itself (a paired headset's answer button, say). The app is
+     * opened with the answered extra, so the same path the notification's Answer takes joins it.
      */
     override fun onAnswer() {
         setActive()
         end(DisconnectCause.LOCAL)
-        context.startActivity(IncomingCallNotifier.openAppIntent(context))
+        context.startActivity(IncomingCallNotifier.answerIntent(context, callId))
     }
 
-    /** [CallActionReceiver]'s own Decline action, or Telecom driving a reject directly, converge on the same state transition. */
+    /** The notification's Decline, or Telecom driving a reject, both converge here and tell Dart. */
     override fun onReject() {
         end(DisconnectCause.REJECTED)
+        CallEvents.emit(context, CallEvent.DECLINED, callId)
     }
 
     /** Telecom ending this call through any path neither of the above already covers. */
@@ -76,12 +59,25 @@ class SlimmConnection(
         end(DisconnectCause.MISSED)
     }
 
-    private fun end(reason: Int) {
+    /** The app took over the answer, so Telecom is done with this ring without opening anything. */
+    fun endAnswered() {
+        end(DisconnectCause.LOCAL)
+    }
+
+    /** Replaced by a repeat push for the same call: the notification now belongs to the new connection. */
+    fun endReplaced() {
+        end(DisconnectCause.CANCELED, cancelNotification = false)
+    }
+
+    private fun end(reason: Int, cancelNotification: Boolean = true) {
         setDisconnected(DisconnectCause(reason))
         destroy()
-        registry.remove(callId)
-        NotificationManagerCompat.from(context)
-            .cancel(IncomingCallNotifier.notificationIdFor(callId))
+        registry.remove(callId, this)
+        if (cancelNotification) {
+            NotificationManagerCompat.from(context)
+                .cancel(IncomingCallNotifier.notificationIdFor(callId))
+            IncomingRings.finish(callId)
+        }
     }
 
     companion object {
@@ -89,13 +85,7 @@ class SlimmConnection(
         const val EXTRA_CALLER_NAME = "top.npcserver.slimm.extra.CALLER_NAME"
         private const val ADDRESS_SCHEME = "slimm-call"
 
-        /**
-         * Reachable from [CallActionReceiver], the only other class that
-         * needs to drive a live connection's state from outside Telecom's
-         * own callbacks. A plain in-memory map, scoped to this process: a
-         * call notification and its Telecom connection cannot outlive the
-         * process either, since nothing here persists across a restart.
-         */
+        /** Ringing connections by call id, in this process only: a ring cannot outlive it. */
         val registry = mutableMapOf<String, SlimmConnection>()
     }
 }

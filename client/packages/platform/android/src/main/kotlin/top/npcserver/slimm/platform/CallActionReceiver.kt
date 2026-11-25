@@ -7,23 +7,11 @@ import android.content.Intent
 import androidx.core.app.NotificationManagerCompat
 
 /**
- * Handles the incoming-call notification's Answer and Decline actions.
+ * Handles the incoming-call notification's Decline action.
  *
- * The notification is cancelled unconditionally here regardless of which
- * action fired or whether a [SlimmConnection] is still reachable, since
- * that is the one thing that must always happen. Driving the connection
- * itself, when one is still in [SlimmConnection.registry], reuses its own
- * [SlimmConnection.onAnswer]/[SlimmConnection.onReject] rather than
- * duplicating what those already do (state transition, ending the
- * connection, and - for Answer - opening the app): a call reported to
- * Telecom is answered or declined exactly once, from whichever surface the
- * user actually used.
- *
- * A missing connection - `addNewIncomingCall` never reached
- * [SlimmConnectionService], or the process restarted and lost the
- * in-memory registry - is not a dropped call: Decline still has nothing
- * further to do once the notification is gone, and Answer still opens the
- * app directly, the same fallback this receiver has always had.
+ * Answer is an activity intent on the notification itself, since Android 12 blocks an activity
+ * started from a receiver. The notification is cancelled here whatever else happens, and the
+ * decline is handed to [IncomingRings] so Dart tells the server.
  */
 class CallActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -31,21 +19,11 @@ class CallActionReceiver : BroadcastReceiver() {
         if (notificationId != -1) {
             NotificationManagerCompat.from(context).cancel(notificationId)
         }
-        val connection = intent.getStringExtra(EXTRA_CALL_ID)?.let { SlimmConnection.registry[it] }
-        when (intent.action) {
-            ACTION_ANSWER -> {
-                if (connection != null) {
-                    connection.onAnswer()
-                } else {
-                    context.startActivity(IncomingCallNotifier.openAppIntent(context))
-                }
-            }
-            ACTION_DECLINE -> connection?.onReject()
-        }
+        val callId = intent.getStringExtra(EXTRA_CALL_ID) ?: return
+        if (intent.action == ACTION_DECLINE) IncomingRings.declined(context, callId)
     }
 
     companion object {
-        const val ACTION_ANSWER = "top.npcserver.slimm.action.ANSWER_CALL"
         const val ACTION_DECLINE = "top.npcserver.slimm.action.DECLINE_CALL"
         const val EXTRA_NOTIFICATION_ID = "notification_id"
         const val EXTRA_CALL_ID = "call_id"

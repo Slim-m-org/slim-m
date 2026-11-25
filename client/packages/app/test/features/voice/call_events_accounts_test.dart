@@ -51,7 +51,7 @@ void main() {
       extraOverrides: [
         liveEventsProvider.overrideWithValue(live.stream),
         callKitIncomingChannelProvider.overrideWith((ref) {
-          final channel = CallKitIncomingChannel(isIOS: true);
+          final channel = CallKitIncomingChannel(enabled: true);
           ref.onDispose(channel.dispose);
           return channel;
         }),

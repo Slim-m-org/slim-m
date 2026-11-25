@@ -29,9 +29,7 @@ import androidx.core.app.Person
  * Telecom does not draw one on a self-managed app's behalf - so
  * [reportToTelecom] only ever affects audio focus and routing, and the
  * system's own call bookkeeping (Bluetooth, Do Not Disturb, the ongoing-
- * call indicator), never what answer/decline look like. See
- * [SlimmConnection]'s own doc for why answering ends the Telecom call
- * immediately rather than leaving it "active" indefinitely.
+ * call indicator), never what answer/decline look like.
  */
 class IncomingCallNotifier(private val context: Context) {
     /**
@@ -47,11 +45,7 @@ class IncomingCallNotifier(private val context: Context) {
         val notificationId = notificationIdFor(callId)
         val person = Person.Builder().setName(callerName).build()
         val openApp = openAppPendingIntent(notificationId)
-        val answerIntent = actionPendingIntent(
-            notificationId,
-            callId,
-            CallActionReceiver.ACTION_ANSWER,
-        )
+        val answerIntent = answerPendingIntent(notificationId, callId)
         val declineIntent = actionPendingIntent(
             notificationId,
             callId,
@@ -84,6 +78,7 @@ class IncomingCallNotifier(private val context: Context) {
             // POST_NOTIFICATIONS denied (API 33+); nothing else to do here.
         }
 
+        IncomingRings.begin(context, callId)
         reportToTelecom(callId, callerName)
     }
 
@@ -97,6 +92,7 @@ class IncomingCallNotifier(private val context: Context) {
         for (connection in SlimmConnection.registry.values.toList()) {
             connection.endAsMissed()
         }
+        IncomingRings.finishAll()
         val manager =
             context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
                 ?: return
@@ -140,16 +136,12 @@ class IncomingCallNotifier(private val context: Context) {
     private fun reportToTelecom(callId: String, callerName: String) {
         val telecomManager =
             context.getSystemService(Context.TELECOM_SERVICE) as? TelecomManager ?: return
-        val handle = phoneAccountHandle(context)
-        val account = PhoneAccount.builder(handle, CONTENT_TEXT)
-            .setCapabilities(PhoneAccount.CAPABILITY_SELF_MANAGED)
-            .build()
+        val handle = registerAccount(context, telecomManager)
         val extras = Bundle().apply {
             putString(SlimmConnection.EXTRA_CALL_ID, callId)
             putString(SlimmConnection.EXTRA_CALLER_NAME, callerName)
         }
         try {
-            telecomManager.registerPhoneAccount(account)
             telecomManager.addNewIncomingCall(handle, extras)
         } catch (_: SecurityException) {
             // MANAGE_OWN_CALLS refused, or the account isn't enabled yet.
@@ -175,6 +167,15 @@ class IncomingCallNotifier(private val context: Context) {
         )
     }
 
+    /** Its own request code, or it would be folded into the open-app intent, which differs only by extras. */
+    private fun answerPendingIntent(notificationId: Int, callId: String): PendingIntent =
+        PendingIntent.getActivity(
+            context,
+            notificationId xor ANSWER_REQUEST_SALT,
+            answerIntent(context, callId),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+
     private fun openAppPendingIntent(requestCode: Int): PendingIntent =
         PendingIntent.getActivity(
             context,
@@ -197,8 +198,9 @@ class IncomingCallNotifier(private val context: Context) {
         private const val CHANNEL_NAME = "Calls"
         private const val CONTENT_TEXT = "slim-m"
 
-        /** Matches the server's `RING_TIMEOUT` (`voice/ring.rs`), so a ring whose end push never arrives still stops. */
-        private const val RING_TIMEOUT_MS = 30_000L
+        private const val RING_TIMEOUT_MS = IncomingRings.RING_TIMEOUT_MS
+        private const val ANSWER_REQUEST_SALT = 0x414E53
+        const val EXTRA_ANSWERED_CALL_ID = "top.npcserver.slimm.extra.ANSWERED_CALL_ID"
         private const val PHONE_ACCOUNT_ID = "slimm_calls"
 
         /** Stable across a repeat push for the same call; see the class doc. */
@@ -216,12 +218,23 @@ class IncomingCallNotifier(private val context: Context) {
             )
 
         /**
-         * What a tap on this notification, an answered CallStyle action, or
-         * a Telecom-driven answer all resolve to: opening the app itself.
-         * There is no RTC session to join from here (see [SlimmConnection]'s
-         * own doc), so opening the app is the entire answer, on every path
-         * that can trigger it.
+         * Registers the one self-managed account (re-registering the same handle is an update, not an
+         * error) and returns its handle.
          */
+        fun registerAccount(context: Context, telecom: TelecomManager): PhoneAccountHandle {
+            val handle = phoneAccountHandle(context)
+            val account = PhoneAccount.builder(handle, CONTENT_TEXT)
+                .setCapabilities(PhoneAccount.CAPABILITY_SELF_MANAGED)
+                .build()
+            try {
+                telecom.registerPhoneAccount(account)
+            } catch (_: SecurityException) {
+                // MANAGE_OWN_CALLS refused; the callers' own best-effort handling covers the rest.
+            }
+            return handle
+        }
+
+        /** What a tap on the notification resolves to: opening the app itself. */
         fun openAppIntent(context: Context): Intent {
             val launchIntent =
                 context.packageManager.getLaunchIntentForPackage(context.packageName)
@@ -229,5 +242,9 @@ class IncomingCallNotifier(private val context: Context) {
             launchIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             return launchIntent
         }
+
+        /** The Answer action: the app opens and reads [EXTRA_ANSWERED_CALL_ID] to join the call. */
+        fun answerIntent(context: Context, callId: String): Intent =
+            openAppIntent(context).putExtra(EXTRA_ANSWERED_CALL_ID, callId)
     }
 }

@@ -18,7 +18,6 @@
             android:name=".CallActionReceiver"
             android:exported="false">
             <intent-filter>
-                <action android:name="top.npcserver.slimm.action.ANSWER_CALL"/>
                 <action android:name="top.npcserver.slimm.action.DECLINE_CALL"/>
             </intent-filter>
         </receiver>
