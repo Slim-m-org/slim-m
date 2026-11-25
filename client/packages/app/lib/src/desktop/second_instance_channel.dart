@@ -6,6 +6,7 @@ import 'dart:async';
 
 import 'package:flutter/services.dart'
     show MethodCall, MethodChannel, MissingPluginException;
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// Receives the runners' `focus` call: the Linux GtkApplication re-entering
 /// `activate`, or the Windows runner's named mutex. The Windows runner also
@@ -55,8 +56,9 @@ class SecondInstanceChannel {
         final uri = Uri.tryParse(link);
         if (uri != null && uri.scheme == 'slimm') _links.add(uri);
       }
-    } on MissingPluginException {
+    } on MissingPluginException catch (error, stack) {
       // Linux and the older Windows runners have no queue to ask.
+      AppLog.swallowed(LogTag.platform, 'No held links to take', error, stack);
     }
   }
 }
