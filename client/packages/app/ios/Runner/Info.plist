@@ -148,6 +148,18 @@
 				<string>slimm</string>
 			</array>
 		</dict>
+		<dict>
+			<!-- Opened by the share extension to bring the app forward once a
+			     share is waiting in the App Group; carries no data of its own. -->
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>CFBundleURLName</key>
+			<string>top.npcserver.slimm.share</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>slimm-share</string>
+			</array>
+		</dict>
 	</array>
 </dict>
 </plist>

@@ -41,6 +41,7 @@ import UserNotifications
   private var notificationTapObserver: NotificationTapObserver?
   private var broadcastChannel: FlutterMethodChannel?
   private var appBadgeChannel: FlutterMethodChannel?
+  private var shareIntakeChannel: FlutterMethodChannel?
   private var protectedDataChannel: FlutterMethodChannel?
   private var holdMusicChannel: FlutterMethodChannel?
   private var soundClipChannel: FlutterMethodChannel?
@@ -187,6 +188,13 @@ import UserNotifications
       AppBadgeChannel.handle(call, result: result)
     }
     appBadgeChannel = appBadge
+
+    let shareIntake = FlutterMethodChannel(name: ShareIntakeChannel.name, binaryMessenger: messenger)
+    shareIntake.setMethodCallHandler { call, result in
+      ShareIntakeChannel.handle(call, result: result)
+    }
+    ShareIntakeChannel.announceArrivals(on: shareIntake)
+    shareIntakeChannel = shareIntake
 
     let protectedData = FlutterMethodChannel(
       name: ProtectedDataChannel.name, binaryMessenger: messenger)

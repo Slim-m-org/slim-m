@@ -54,6 +54,14 @@
 		7A11C0DE000B000000000013 /* BadgeCountTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE000B000000000002 /* BadgeCountTests.swift */; };
 		7A11C0DE000B0000000000F2 /* RoutePickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE000B0000000000F1 /* RoutePickerView.swift */; };
 		7A11C0DE000B000000000014 /* AppBadgeChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE000B000000000003 /* AppBadgeChannel.swift */; };
+		7A11C0DE000C000000000015 /* ShareIntakeChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE000C00000000000B /* ShareIntakeChannel.swift */; };
+		7A11C0DE000C000000000014 /* ShareIntakeRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE000C000000000003 /* ShareIntakeRules.swift */; };
+		7A11C0DE000C000000000011 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE000C000000000001 /* ShareViewController.swift */; };
+		7A11C0DE000C000000000012 /* ShareIntakeWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE000C000000000002 /* ShareIntakeWriter.swift */; };
+		7A11C0DE000C000000000013 /* ShareIntakeRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE000C000000000003 /* ShareIntakeRules.swift */; };
+		7A11C0DE000C000000000016 /* ShareIntakeRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE000C000000000003 /* ShareIntakeRules.swift */; };
+		7A11C0DE000C000000000017 /* ShareIntakeRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE000C00000000000D /* ShareIntakeRulesTests.swift */; };
+		7A11C0DE000C000000000018 /* ShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 7A11C0DE000C00000000000A /* ShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		7A11C0DE000B000000000091 /* ProtectedDataChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE000B000000000090 /* ProtectedDataChannel.swift */; };
 		7A11C0DE000B0000000000F4 /* SoundClipChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE000B0000000000F3 /* SoundClipChannel.swift */; };
 		7A11C0DE000B000000000015 /* HoldMusicChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE000B000000000004 /* HoldMusicChannel.swift */; };
@@ -92,6 +100,13 @@
 			remoteGlobalIDString = 7A11C0DE0006000000000041;
 			remoteInfo = NotificationService;
 		};
+		7A11C0DE000C000000000051 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 97C146E61CF9000F007C117D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 7A11C0DE000C000000000041;
+			remoteInfo = ShareExtension;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -113,6 +128,7 @@
 			files = (
 				7A11C0DE0002000000000017 /* BroadcastExtension.appex in Embed Foundation Extensions */,
 				7A11C0DE0006000000000018 /* NotificationService.appex in Embed Foundation Extensions */,
+				7A11C0DE000C000000000018 /* ShareExtension.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -181,6 +197,14 @@
 		7A11C0DE0008000000000004 /* group_message.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "../../../../assets/audio/notifications/group_message.wav"; sourceTree = "<group>"; };
 		7A11C0DE0008000000000008 /* mention.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "../../../../assets/audio/notifications/mention.wav"; sourceTree = "<group>"; };
 		7A11C0DE000A000000000001 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		7A11C0DE000C000000000001 /* ShareViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
+		7A11C0DE000C000000000002 /* ShareIntakeWriter.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ShareIntakeWriter.swift; sourceTree = "<group>"; };
+		7A11C0DE000C000000000003 /* ShareIntakeRules.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ShareIntakeRules.swift; sourceTree = "<group>"; };
+		7A11C0DE000C000000000004 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		7A11C0DE000C000000000005 /* ShareExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ShareExtension.entitlements; sourceTree = "<group>"; };
+		7A11C0DE000C00000000000A /* ShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		7A11C0DE000C00000000000B /* ShareIntakeChannel.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ShareIntakeChannel.swift; sourceTree = "<group>"; };
+		7A11C0DE000C00000000000D /* ShareIntakeRulesTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ShareIntakeRulesTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -206,6 +230,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		7A11C0DE000C000000000033 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -218,6 +249,7 @@
 				7A11C0DE000600000000000C /* push_envelope_cases.json */,
 				7A11C0DE000600000000000E /* NotificationSoundTests.swift */,
 				7A11C0DE000B000000000002 /* BadgeCountTests.swift */,
+				7A11C0DE000C00000000000D /* ShareIntakeRulesTests.swift */,
 			);
 			path = RunnerTests;
 			sourceTree = "<group>";
@@ -265,6 +297,18 @@
 			path = NotificationService;
 			sourceTree = "<group>";
 		};
+		7A11C0DE000C000000000031 /* ShareExtension */ = {
+			isa = PBXGroup;
+			children = (
+				7A11C0DE000C000000000001 /* ShareViewController.swift */,
+				7A11C0DE000C000000000002 /* ShareIntakeWriter.swift */,
+				7A11C0DE000C000000000003 /* ShareIntakeRules.swift */,
+				7A11C0DE000C000000000004 /* Info.plist */,
+				7A11C0DE000C000000000005 /* ShareExtension.entitlements */,
+			);
+			path = ShareExtension;
+			sourceTree = "<group>";
+		};
 		9740EEB11CF90186004384FC /* Flutter */ = {
 			isa = PBXGroup;
 			children = (
@@ -286,6 +330,7 @@
 				331C8082294A63A400263BE5 /* RunnerTests */,
 				7A11C0DE0002000000000021 /* BroadcastExtension */,
 				7A11C0DE0006000000000031 /* NotificationService */,
+				7A11C0DE000C000000000031 /* ShareExtension */,
 				7A11C0DE0008000000000001 /* Audio */,
 			);
 			sourceTree = "<group>";
@@ -297,6 +342,7 @@
 				331C8081294A63A400263BE5 /* RunnerTests.xctest */,
 				7A11C0DE0002000000000009 /* BroadcastExtension.appex */,
 				7A11C0DE000600000000000A /* NotificationService.appex */,
+				7A11C0DE000C00000000000A /* ShareExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -321,6 +367,7 @@
 				7A11C0DE0003000000000001 /* VoiceCallReporter.swift */,
 				7A11C0DE000200000000000A /* BroadcastChannel.swift */,
 				7A11C0DE000B000000000003 /* AppBadgeChannel.swift */,
+				7A11C0DE000C00000000000B /* ShareIntakeChannel.swift */,
 				7A11C0DE000B000000000090 /* ProtectedDataChannel.swift */,
 				7A11C0DE000B0000000000F1 /* RoutePickerView.swift */,
 				7A11C0DE000B000000000004 /* HoldMusicChannel.swift */,
@@ -369,6 +416,7 @@
 			dependencies = (
 				7A11C0DE0002000000000052 /* PBXTargetDependency */,
 				7A11C0DE0006000000000052 /* PBXTargetDependency */,
+				7A11C0DE000C000000000052 /* PBXTargetDependency */,
 			);
 			name = Runner;
 			packageProductDependencies = (
@@ -412,6 +460,23 @@
 			productReference = 7A11C0DE000600000000000A /* NotificationService.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		7A11C0DE000C000000000041 /* ShareExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7A11C0DE000C000000000042 /* Build configuration list for PBXNativeTarget "ShareExtension" */;
+			buildPhases = (
+				7A11C0DE000C000000000032 /* Sources */,
+				7A11C0DE000C000000000033 /* Frameworks */,
+				7A11C0DE000C000000000034 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ShareExtension;
+			productName = ShareExtension;
+			productReference = 7A11C0DE000C00000000000A /* ShareExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -436,6 +501,9 @@
 					7A11C0DE0006000000000041 = {
 						CreatedOnToolsVersion = 15.0;
 					};
+					7A11C0DE000C000000000041 = {
+						CreatedOnToolsVersion = 15.0;
+					};
 				};
 			};
 			buildConfigurationList = 97C146E91CF9000F007C117D /* Build configuration list for PBXProject "Runner" */;
@@ -458,6 +526,7 @@
 				331C8080294A63A400263BE5 /* RunnerTests */,
 				7A11C0DE0002000000000041 /* BroadcastExtension */,
 				7A11C0DE0006000000000041 /* NotificationService */,
+				7A11C0DE000C000000000041 /* ShareExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -495,6 +564,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		7A11C0DE0006000000000034 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7A11C0DE000C000000000034 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -554,6 +630,8 @@
 				7A11C0DE0006000000000029 /* NotificationSoundTests.swift in Sources */,
 				7A11C0DE000B000000000012 /* BadgeCount.swift in Sources */,
 				7A11C0DE000B000000000013 /* BadgeCountTests.swift in Sources */,
+				7A11C0DE000C000000000016 /* ShareIntakeRules.swift in Sources */,
+				7A11C0DE000C000000000017 /* ShareIntakeRulesTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -583,6 +661,8 @@
 				7A11C0DE00AD000000000004 /* Salsa20.swift in Sources */,
 				7A11C0DE00AD000000000005 /* Poly1305.swift in Sources */,
 				7A11C0DE00AD000000000006 /* BadgeCount.swift in Sources */,
+				7A11C0DE000C000000000015 /* ShareIntakeChannel.swift in Sources */,
+				7A11C0DE000C000000000014 /* ShareIntakeRules.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -614,6 +694,16 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		7A11C0DE000C000000000032 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7A11C0DE000C000000000011 /* ShareViewController.swift in Sources */,
+				7A11C0DE000C000000000012 /* ShareIntakeWriter.swift in Sources */,
+				7A11C0DE000C000000000013 /* ShareIntakeRules.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -631,6 +721,11 @@
 			isa = PBXTargetDependency;
 			target = 7A11C0DE0006000000000041 /* NotificationService */;
 			targetProxy = 7A11C0DE0006000000000051 /* PBXContainerItemProxy */;
+		};
+		7A11C0DE000C000000000052 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 7A11C0DE000C000000000041 /* ShareExtension */;
+			targetProxy = 7A11C0DE000C000000000051 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -1110,6 +1205,91 @@
 			};
 			name = Profile;
 		};
+		7A11C0DE000C000000000043 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 9740EEB21CF90195004384FC /* Debug.xcconfig */;
+			buildSettings = {
+				/* An app extension must not carry a Frameworks directory: the
+				   store refuses the bundle with error 90206. The containing app
+				   embeds the Swift runtime for both. */
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
+				CODE_SIGN_ENTITLEMENTS = ShareExtension/ShareExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				DEVELOPMENT_TEAM = 76S78SUWVM;
+				INFOPLIST_FILE = ShareExtension/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = top.npcserver.slimm.ShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		7A11C0DE000C000000000044 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 7AFA3C8E1D35360C0083082E /* Release.xcconfig */;
+			buildSettings = {
+				/* An app extension must not carry a Frameworks directory: the
+				   store refuses the bundle with error 90206. The containing app
+				   embeds the Swift runtime for both. */
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
+				CODE_SIGN_ENTITLEMENTS = ShareExtension/ShareExtension.entitlements;
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution";
+				CODE_SIGN_STYLE = Manual;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				DEVELOPMENT_TEAM = 76S78SUWVM;
+				INFOPLIST_FILE = ShareExtension/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = top.npcserver.slimm.ShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "slim-m Share Extension App Store";
+				SKIP_INSTALL = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		7A11C0DE000C000000000045 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 7AFA3C8E1D35360C0083082E /* Release.xcconfig */;
+			buildSettings = {
+				/* An app extension must not carry a Frameworks directory: the
+				   store refuses the bundle with error 90206. The containing app
+				   embeds the Swift runtime for both. */
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
+				CODE_SIGN_ENTITLEMENTS = ShareExtension/ShareExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				DEVELOPMENT_TEAM = 76S78SUWVM;
+				INFOPLIST_FILE = ShareExtension/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = top.npcserver.slimm.ShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Profile;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -1159,6 +1339,16 @@
 				7A11C0DE0006000000000043 /* Debug */,
 				7A11C0DE0006000000000044 /* Release */,
 				7A11C0DE0006000000000045 /* Profile */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		7A11C0DE000C000000000042 /* Build configuration list for PBXNativeTarget "ShareExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7A11C0DE000C000000000043 /* Debug */,
+				7A11C0DE000C000000000044 /* Release */,
+				7A11C0DE000C000000000045 /* Profile */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

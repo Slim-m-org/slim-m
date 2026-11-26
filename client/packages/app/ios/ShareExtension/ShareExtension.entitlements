@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- The shared items are copied into this container for the app to
+	     collect, since the extension's own files die with its process. Must
+	     match Runner/Runner.entitlements and ShareIntakeRules.swift; the
+	     hygiene workflow gates all three. -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.top.npcserver.slimm</string>
+	</array>
+</dict>
+</plist>

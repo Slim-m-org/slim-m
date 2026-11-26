@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Where shares come from: Android's share sheet, through
-/// `ShareIntakeChannel.kt`, and nowhere on the other platforms.
+/// Where shares come from: Android's share sheet through
+/// `ShareIntakeChannel.kt`, iOS's through the share extension and
+/// `ShareIntakeChannel.swift`, and nowhere on the other platforms.
 ///
-/// The native side copies each shared `content://` file into the app cache
-/// before answering, because the grant behind the URI ends with the intent.
+/// Both native sides copy each shared file into app-owned storage before
+/// answering, because the grant behind it ends with the intent or the extension.
 library;
 
 import 'dart:async';
@@ -11,7 +12,7 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
-import 'package:slimm_platform/platform.dart' show isAndroidHost;
+import 'package:slimm_platform/platform.dart' show isAndroidHost, isIOSHost;
 
 import 'incoming_share.dart';
 
@@ -65,7 +66,11 @@ class NoShareSource implements ShareSource {
   Future<IncomingShare?> take() async => null;
 }
 
-/// Overridden in tests; the real source exists on Android only.
+/// The source for a host: the two phones have a share sheet, the rest nothing.
+ShareSource shareSourceFor({required bool isAndroid, required bool isIOS}) =>
+    isAndroid || isIOS ? ChannelShareSource() : const NoShareSource();
+
+/// Overridden in tests; the real source exists on Android and iOS only.
 final shareSourceProvider = Provider<ShareSource>(
-  (ref) => isAndroidHost ? ChannelShareSource() : const NoShareSource(),
+  (ref) => shareSourceFor(isAndroid: isAndroidHost, isIOS: isIOSHost),
 );
