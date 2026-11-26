@@ -17,7 +17,6 @@ import '../../modules/providers/module_panels.dart';
 import '../../modules/providers/app_launch.dart';
 import '../../../routing/breakpoints.dart';
 import '../providers/slash_command.dart';
-import '../providers/tts_speak.dart';
 import '../../channels/providers/slow_mode_controller.dart';
 import '../../messages/providers/typing_controller.dart';
 import '../../messages/widgets/attachment_picker.dart';
@@ -185,6 +184,7 @@ class _ComposerState extends ConsumerState<Composer> {
     _focus.addListener(_handleFocusChange);
     _focusRegistration.bind(ref, _focus, isMounted: () => mounted);
     _rebindDropTarget();
+    _commands.watchFailures(ref, widget.channelId, _reportCommandError);
   }
 
   @override
@@ -202,6 +202,7 @@ class _ComposerState extends ConsumerState<Composer> {
       });
       _autocomplete.resetSelection();
       _rebindDropTarget();
+      _commands.watchFailures(ref, widget.channelId, _reportCommandError);
     }
   }
 
@@ -220,6 +221,7 @@ class _ComposerState extends ConsumerState<Composer> {
   void dispose() {
     _focusRegistration.release(_focus);
     _drop.release();
+    _commands.dispose();
     widget.controller.removeListener(_handleChange);
     _focus.removeListener(_handleFocusChange);
     widget.clipboardPasteStop(_actions.handlePastedImage);
@@ -380,10 +382,6 @@ class _ComposerState extends ConsumerState<Composer> {
   @override
   Widget build(BuildContext context) {
     final touch = AppTouchTargets.of(context);
-    ref.listen(
-      ttsFailedProvider(widget.channelId),
-      (_, _) => _reportCommandError("Couldn't speak that line."),
-    );
     // In build because both sources are watched and can arrive late.
     _slashCommands = ref.watch(slashCommandProvider).valueOrNull ?? const [];
     _apps = ref.watch(appLaunchProvider).valueOrNull ?? const [];

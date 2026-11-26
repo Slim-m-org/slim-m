@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' show App, SlashCommand;
 
 import '../../../ids.dart';
+import '../providers/tts_speak.dart';
 import 'composer_gif_command.dart';
 import 'composer_slash.dart';
 import 'composer_tts_command.dart';
@@ -19,6 +20,16 @@ class ComposerCommandRun {
 
   /// True while a command awaits its result, so a second send cannot rerun it.
   bool running = false;
+  final _failures = TtsFailureWatch();
+
+  /// Reports through [fail] when a `/tts` line typed in [channelId] failed after it was accepted.
+  void watchFailures(
+    WidgetRef ref,
+    String channelId,
+    void Function(String message) fail,
+  ) => _failures.bind(ref, channelId, () => fail("Couldn't speak that line."));
+
+  void dispose() => _failures.release();
 
   /// Handles the command typed in [controller], if it is one. True when the
   /// send is finished here; false when the text is an ordinary message, which
