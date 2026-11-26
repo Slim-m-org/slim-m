@@ -7,6 +7,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
@@ -90,8 +91,9 @@ class ReactionsRow extends StatefulWidget {
   /// is an overlay rather than reserving the space: reserving it would buy
   /// back exactly the cost this avoided.
   ///
-  /// Sits where the column puts it, with no pull toward the body above, so
-  /// the gap over the chips and the gap under them are the same step.
+  /// Pulled tight against the body above by [AppSpacing.s4], the closest step
+  /// to the few pixels of line-height leftover a real phone showed at a flush
+  /// 0. The row's own box is that much shorter, so no dead space is left below.
   @override
   State<ReactionsRow> createState() => _ReactionsRowState();
 }
@@ -166,32 +168,78 @@ class _ReactionsRowState extends State<ReactionsRow> {
     if (live.isEmpty && _exiting.isEmpty) return const SizedBox.shrink();
 
     return SelectionContainer.disabled(
-      child: Wrap(
-        spacing: _reactionChipSpacing,
-        runSpacing: _reactionChipSpacing,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          // Keyed by emoji: an arriving chip pops once, and never replays.
-          for (final emoji in _order)
-            if (live[emoji] case final reaction?)
-              _ChipPop(
-                key: ValueKey('reaction-$emoji'),
-                child: _chip(reaction, exiting: false),
-              )
-            else if (_exiting[emoji] case final reaction?)
-              _ChipExit(
-                key: ValueKey('reaction-exit-$emoji'),
-                onDone: () {
-                  if (!mounted) return;
-                  setState(() {
-                    _exiting.remove(emoji);
-                    _order = [..._order]..remove(emoji);
-                  });
-                },
-                child: _chip(reaction, exiting: true),
-              ),
-        ],
+      child: _PullUp(
+        by: AppSpacing.s4,
+        child: Wrap(
+          spacing: _reactionChipSpacing,
+          runSpacing: _reactionChipSpacing,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            // Keyed by emoji: an arriving chip pops once, and never replays.
+            for (final emoji in _order)
+              if (live[emoji] case final reaction?)
+                _ChipPop(
+                  key: ValueKey('reaction-$emoji'),
+                  child: _chip(reaction, exiting: false),
+                )
+              else if (_exiting[emoji] case final reaction?)
+                _ChipExit(
+                  key: ValueKey('reaction-exit-$emoji'),
+                  onDone: () {
+                    if (!mounted) return;
+                    setState(() {
+                      _exiting.remove(emoji);
+                      _order = [..._order]..remove(emoji);
+                    });
+                  },
+                  child: _chip(reaction, exiting: true),
+                ),
+          ],
+        ),
       ),
+    );
+  }
+}
+
+/// Paints [child] [by] above where it was laid out and reports a box [by]
+/// shorter, so the pull is not paid for as dead space under the child.
+class _PullUp extends SingleChildRenderObjectWidget {
+  const _PullUp({required this.by, required super.child});
+
+  final double by;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) => _RenderPullUp(by);
+
+  @override
+  void updateRenderObject(BuildContext context, _RenderPullUp renderObject) {
+    renderObject.by = by;
+  }
+}
+
+class _RenderPullUp extends RenderShiftedBox {
+  _RenderPullUp(this._by) : super(null);
+
+  double _by;
+
+  set by(double value) {
+    if (value == _by) return;
+    _by = value;
+    markNeedsLayout();
+  }
+
+  @override
+  void performLayout() {
+    final child = this.child;
+    if (child == null) {
+      size = constraints.smallest;
+      return;
+    }
+    child.layout(constraints, parentUsesSize: true);
+    final pull = _by.clamp(0.0, child.size.height);
+    (child.parentData! as BoxParentData).offset = Offset(0, -pull);
+    size = constraints.constrain(
+      Size(child.size.width, child.size.height - pull),
     );
   }
 }

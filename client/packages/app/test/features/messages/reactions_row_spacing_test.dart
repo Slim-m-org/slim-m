@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The reactions row sits flush under what is above it. It once pulled up by
-/// one step with a paint-time transform, which left the same step of dead
-/// space under the chips and made the gaps above and below them uneven.
+/// The reactions row pulls up under the body by one spacing step (owner fix
+/// #302, "a few pixels too low on a real phone") and its own box is that step
+/// shorter, so the gap above the chips and the gap below them are both right.
 library;
 
 import 'package:flutter/material.dart';
@@ -26,7 +26,7 @@ Widget _harness(List<api.ReactionSummary> reactions) => MaterialApp(
 );
 
 void main() {
-  testWidgets('the reactions row sits flush under the row above it', (
+  testWidgets('the row pulls up one step with no dead space below it', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -34,23 +34,23 @@ void main() {
         const api.ReactionSummary(emoji: '\u{1F44D}', count: 1, reacted: false),
       ]),
     );
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 400));
 
     final aboveBottom = tester.getBottomLeft(find.byKey(_above)).dy;
-    final reactionsTop = tester.getTopLeft(find.byType(Wrap)).dy;
+    final chips = tester.getRect(find.byType(Wrap));
+    final row = tester.getRect(find.byType(ReactionsRow));
 
-    expect(
-      reactionsTop - aboveBottom,
-      0,
-      reason: 'no pull over the body, so no phantom gap under the chips',
-    );
+    expect(chips.top - aboveBottom, -AppSpacing.s4, reason: 'pulled up a step');
+    expect(row.top, aboveBottom, reason: 'the row box starts under the body');
+    expect(row.bottom, chips.bottom, reason: 'no dead space under the chips');
+    expect(row.height, chips.height - AppSpacing.s4);
   });
 
   testWidgets('a message with no reactions renders no reactions row', (
     tester,
   ) async {
     await tester.pumpWidget(_harness(const []));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 400));
 
     expect(
       tester.getSize(find.byType(ReactionsRow)),

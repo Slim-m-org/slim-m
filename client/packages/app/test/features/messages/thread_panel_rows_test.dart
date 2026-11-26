@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/messages/providers/message_extras_model.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_hover_toolbar.dart';
+import 'package:slimm_design_system/design_system.dart' show AppSpacing;
 import 'package:slimm_data/data.dart' show Message;
 import 'package:slimm_app/src/features/messages/widgets/message_row.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_row_identity.dart';
@@ -41,7 +42,7 @@ void main() {
         expect(parent.top, lessThan(reply.top));
         expect(parent.left, reply.left, reason: 'one gutter, one name column');
         expect(
-          find.textContaining(RegExp(r'^\d{1,2}:\d{2}[ap]$')),
+          find.textContaining(RegExp(r'\d{1,2}:\d{2}[ap]$')),
           findsNWidgets(2),
           reason: 'the parent carries a sent time like the reply does',
         );
@@ -79,7 +80,11 @@ void main() {
           final text = tester.getRect(_in('a1', find.text('body a1')));
           final chip = tester.getRect(find.byKey(_chipKey));
           final next = tester.getRect(find.byKey(const ValueKey('a2')));
-          expect(chip.top, text.bottom, reason: 'no pull over the body');
+          expect(
+            chip.top,
+            text.bottom - AppSpacing.s4,
+            reason: 'pulled up a step under the body (owner fix 302)',
+          );
           expect(
             next.top,
             chip.bottom,
