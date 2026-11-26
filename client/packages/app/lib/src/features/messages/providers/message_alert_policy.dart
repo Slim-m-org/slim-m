@@ -109,10 +109,7 @@ class MessageAlertPolicy {
     final mentionsSelf = !isDm && message.mentionsMe;
 
     final overrides = _ref.read(channelNotificationOverridesProvider);
-    final parentId = await _parentChannelId(
-      channel?.parentMessageId,
-      message.channelId,
-    );
+    final parentId = await _parentChannelId(channel, message.channelId);
     final preference =
         overrides.overrideFor(message.channelId) ??
         (parentId == null ? null : overrides.overrideFor(parentId)) ??
@@ -171,12 +168,11 @@ class MessageAlertPolicy {
   }
 
   /// A thread's parent channel, null for any other channel or when the parent
-  /// cannot be found (the thread then follows the account).
-  Future<String?> _parentChannelId(
-    String? parentMessageId,
-    String channelId,
-  ) async {
-    if (parentMessageId == null) return null;
+  /// cannot be found (the thread then follows the account). A thread is never
+  /// listed, so this device usually holds no row for it; the server then says
+  /// whether the id is one.
+  Future<String?> _parentChannelId(Channel? channel, String channelId) async {
+    if (channel != null && channel.parentMessageId == null) return null;
     if (!_parentChannels.containsKey(channelId)) {
       try {
         final parent = await _ref.read(apiProvider).getThreadParent(channelId);
