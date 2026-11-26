@@ -59,9 +59,15 @@ void main() {
       );
       expect(
         find.byIcon(AppIcons.canvas),
-        findsOneWidget,
-        reason: 'canvas appears once, not in both rows',
+        findsNothing,
+        reason:
+            'the canvas entry is in the dock\'s More menu, in no header row',
       );
+      await tester.tap(find.bySemanticsLabel('More'));
+      await tester.pumpAndSettle();
+      expect(find.text('Open canvas'), findsOneWidget);
+      await tester.tapAt(const Offset(5, 5));
+      await tester.pumpAndSettle();
       for (final label in [
         'Toggle text chat',
         'Search messages',
