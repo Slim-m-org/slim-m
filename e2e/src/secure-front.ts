@@ -39,14 +39,14 @@ function selfSignedCertificate(): { key: string; cert: string } {
     'openssl',
     ['req', '-x509', '-newkey', 'ec', '-pkeyopt', 'ec_paramgen_curve:prime256v1', '-nodes', '-days', '2',
       '-subj', '/CN=localhost', '-addext', 'subjectAltName=DNS:localhost,IP:127.0.0.1', '-keyout', keyFile, '-out', certFile],
-    { stdio: 'ignore' },
+    { stdio: 'ignore', env: { PATH: '/usr/bin:/bin' } },
   );
   return { key: readFileSync(keyFile, 'utf8'), cert: readFileSync(certFile, 'utf8') };
 }
 
 /** Whether the web build, rather than the API, answers this path. */
 export function isWebPath(requestUrl: string, bundle: string): boolean {
-  const pathname = decodeURIComponent(new URL(requestUrl, 'http://front').pathname);
+  const pathname = decodeURIComponent(new URL(requestUrl, 'https://front').pathname);
   if (pathname === '/' || pathname.startsWith('/__e2e/')) return true;
   const file = path.resolve(bundle, `.${pathname}`);
   return file.startsWith(bundle + path.sep) && existsSync(file) && statSync(file).isFile();

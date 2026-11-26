@@ -35,7 +35,7 @@ RUN case "$TARGETARCH" in \
       arm64) arch=aarch64; sum=fea0fd2d87c54dbc7078d0f878289f404bd4d6eea6e7444a77835d1537ab88eb ;; \
       *) echo "no Piper build for $TARGETARCH" >&2; exit 1 ;; \
     esac \
-    && curl -fsSL --retry 3 -o /tmp/piper.tar.gz "https://github.com/rhasspy/piper/releases/download/2023.11.14-2/piper_linux_${arch}.tar.gz" \
+    && curl -fsSL --proto '=https' --tlsv1.2 --retry 3 -o /tmp/piper.tar.gz "https://github.com/rhasspy/piper/releases/download/2023.11.14-2/piper_linux_${arch}.tar.gz" \
     && echo "$sum  /tmp/piper.tar.gz" | sha256sum -c - \
     && tar -xzf /tmp/piper.tar.gz -C /opt \
     && rm /tmp/piper.tar.gz
