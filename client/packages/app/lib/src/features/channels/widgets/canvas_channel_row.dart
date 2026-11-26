@@ -20,7 +20,7 @@ import '../../voice/providers/voice_flags.dart';
 import '../../voice/providers/voice_roster.dart';
 import '../providers/channel_notification_overrides_controller.dart';
 import 'channel_kind_icon.dart';
-import 'channel_rail_channel_rows.dart' show voiceRosterAsParticipant;
+import 'channel_rail_channel_rows.dart' show railUnjoinedParticipantsProvider;
 import 'rail_call_length.dart';
 import 'rail_participant_drag.dart';
 import 'rail_voice_participants.dart';
@@ -68,12 +68,7 @@ class CanvasChannelRow extends ConsumerWidget {
   List<VoiceParticipant> _call(WidgetRef ref, {required bool inCall}) {
     if (!channel.hostsCall) return const [];
     if (inCall) return ref.watch(voiceParticipantsProvider);
-    return ref
-            .watch(voiceRosterProvider(channel.id))
-            .valueOrNull
-            ?.map(voiceRosterAsParticipant)
-            .toList(growable: false) ??
-        const [];
+    return ref.watch(railUnjoinedParticipantsProvider(channel.id));
   }
 
   @override

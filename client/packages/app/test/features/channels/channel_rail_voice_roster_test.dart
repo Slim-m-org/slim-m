@@ -185,7 +185,11 @@ void main() {
               return http.Response(
                 jsonEncode({
                   'participants': [
-                    {'user_id': 'u-me', 'display_name': 'Me'},
+                    {
+                      'user_id': 'u-me',
+                      'display_name': 'Me',
+                      'this_device': true,
+                    },
                   ],
                 }),
                 200,
@@ -208,6 +212,42 @@ void main() {
             'own stale entry must not be read as though it were',
       );
       expect(find.byType(UserAvatar), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'this account in the call on another device is listed, marked as elsewhere, '
+    'while this device has no call of its own',
+    (tester) async {
+      await tester.pumpWidget(
+        _harness(
+          httpClient: MockClient((request) async {
+            if (request.url.path == _rosterPath) {
+              return http.Response(
+                jsonEncode({
+                  'participants': [
+                    {
+                      'user_id': 'u-me',
+                      'display_name': 'Me',
+                      'this_device': false,
+                    },
+                    {'user_id': 'u-alice', 'display_name': 'Alice'},
+                  ],
+                }),
+                200,
+              );
+            }
+            return http.Response('', 404);
+          }),
+          voice: const VoiceState(),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.text('Me'), findsOneWidget);
+      expect(find.text('Alice'), findsOneWidget);
+      expect(find.byIcon(AppIcons.deviceLaptop), findsOneWidget);
     },
   );
 
