@@ -163,4 +163,38 @@ const List<WhatsNewEntry> whatsNewArchiveEntries11 = [
       ),
     ],
   ),
+  WhatsNewEntry(
+    version: '0.141.0',
+    headline:
+        'Pick many on the canvas, /tts, and quieter, smarter notifications',
+    points: [
+      WhatsNewPoint(
+        'On the canvas, drag a box or Ctrl+click to pick several things, '
+        'then move, align or delete them together. Double-click empty '
+        'board to start a text card.',
+      ),
+      WhatsNewPoint('Type /tts in a call to have a line read out to everyone.'),
+      WhatsNewPoint(
+        'Replies in a thread you started or joined now notify you like a '
+        'mention.',
+      ),
+      WhatsNewPoint(
+        'Read a message on one device and its notification and badge clear '
+        'on your others.',
+      ),
+      WhatsNewPoint('Your own speaking ring lights up as soon as you talk.'),
+      WhatsNewPoint(
+        'In quick search, Enter opens the top result; Shift+Enter shows '
+        'every message match.',
+      ),
+      WhatsNewPoint(
+        'On Android, attaching a photo opens the system photo picker with '
+        'your newest photos first.',
+      ),
+      WhatsNewPoint(
+        'If the server is busy when you sign in, you get a clear busy '
+        'message and a retry.',
+      ),
+    ],
+  ),
 ];
