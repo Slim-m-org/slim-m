@@ -24,7 +24,7 @@ An earlier meter fell 1.5 dB a frame from its last peak, which kept the bar over
 The settings bar fills in the accent colour while the gate is open and in a neutral one while it is closed, because the hold keeps the gate open for 300 ms after the bar drops below the line.
 With Strong on, the gate also reads rnnoise's speech probability: it opens at once when speech is likely (above 0.6) and the level is over the threshold, otherwise only after the level stays 15 dB over the threshold for two frames, so a single keyboard click does not open it; the hold drops to 100 ms when speech is unlikely.
 The app reads both through `getInputGate` (`InputGateMonitor` in `slimm_rtc`), at 50 ms while a meter is on screen and slower, or not at all, otherwise (see Resource use).
-While it reads at the display rate the local speaking ring follows that voice state directly; otherwise it follows the SFU like the remote rings.
+While the mic is open it is read at least every 100 ms, and the local speaking ring follows that voice state directly; the SFU's flag lags it and only matters for the remote rings.
 
 ## Settings
 
@@ -222,12 +222,10 @@ It must not go through a derived `Provider`: those refresh on a frame, and frame
 | --- | --- | --- | --- |
 | Out-of-call preview capture, loopback peers and `getInputGate` poll (`MicPreview`) | a screen holds it, its route is shown, no call is connecting or connected, app resumed | 50 ms; also kept running under a covered route and, minimised, until the next frame | 50 ms; closed (OS mic indicator off) on blur, minimise, background, a covered route, a call, or leaving the screen |
 | In-call gate poll, a meter mounted and shown | dock level bar (mic on), Voice settings meter, setup meter, app resumed | 50 ms always | 50 ms |
-| In-call gate poll, nothing displayed, mic open | a call is connected, unmuted | 50 ms always | 2 s (only feeds the quiet log line) |
-| In-call gate poll, nothing displayed, Strong on | same | 50 ms | 1 s (the inactive note needs 2 s of polls) |
-| In-call gate poll, nothing displayed, automatic sensitivity on | same | 50 ms | 200 ms (the estimator weights each reading by the time it covers) |
+| In-call gate poll, nothing displayed, mic open | a call is connected, unmuted | 50 ms always | 100 ms (your own speaking ring, the quiet log line, the Strong note and automatic sensitivity all read it) |
 | In-call gate poll, nothing displayed, mic muted or closed | a call is connected | 50 ms always | none: no reading has a consumer (the quiet note and the Strong note only watch an open mic) |
 | Sender level poll for the quiet log line (hosts without the gate) | a call is connected | 1 s | 2 s |
-| Local speaking ring from the gate | the gate is read at the display rate | always during a call | only then; otherwise the SFU's flag, which lags about half a second |
+| Local speaking ring from the gate | the mic is open in a call | always during a call | whenever the gate is read at 50 or 100 ms, so while the mic is open; measured onset to ring 90 ms median with no meter shown, against 194 ms from the SFU's flag on loopback (e2e `own_ring`) |
 | Speaking ring pulse (`UserAvatar`) | the avatar is speaking and the app is resumed | ran while the window was unfocused | frozen on blur |
 
 Platform channel calls to `getInputGate` per second, counted in a session test at the real 50 ms display interval (the Dart side only; a native CPU figure was not taken, see below):

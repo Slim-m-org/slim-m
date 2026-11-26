@@ -69,6 +69,7 @@ import e2e_voice_noise
 import e2e_voice_noise_chain
 import e2e_call_restore
 import e2e_voice_activity
+import e2e_voice_own_ring
 import e2e_voice_desktop
 import e2e_voice_desktop_volume
 import e2e_voice_encode
@@ -388,6 +389,9 @@ def scenarios(a, b, admin, member, room_id, server, secret):
         ("voice: the speaking ring lights for a soft voice you can hear",
          lambda: e2e_voice_activity.ring_follows_a_soft_voice(
              a, server, secret, admin, sign_in, room_id)),
+        ("voice: your own speaking ring lights within a fraction of a second of speech starting",
+         lambda: e2e_voice_own_ring.own_ring_lights_promptly(
+             server, secret, sign_in, admin)),
         ("voice: a listener's volume slider scales the sound, to silence, and "
          "survives rejoining",
          lambda: e2e_voice_volume.individual_volume_scales_the_sound(
