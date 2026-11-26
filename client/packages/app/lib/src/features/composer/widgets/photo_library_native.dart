@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// [PhotoLibrary] over `photo_manager`, for iOS and Android only.
+/// [PhotoLibrary] over `photo_manager`, for iOS only.
 library;
 
 import 'dart:io';
@@ -8,19 +8,13 @@ import 'package:flutter/foundation.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:slimm_api/api.dart' as api;
 
-import '../../../desktop/self_update/play_install.dart' show playBuild;
 import 'file_source_io.dart';
 import 'photo_library.dart';
 import 'staged_attachment_model.dart';
 
-/// Null in the Play build, whose bundle drops the photo permissions the strip needs (decision 0025).
-PhotoLibrary? createPhotoLibrary({bool isPlayBuild = playBuild}) {
-  if (isPlayBuild) return null;
-  final phone =
-      defaultTargetPlatform == TargetPlatform.iOS ||
-      defaultTargetPlatform == TargetPlatform.android;
-  return phone ? _PluginPhotoLibrary() : null;
-}
+/// Only iOS has a strip; every Android entry opens the one system photo picker, with no photo permission.
+PhotoLibrary? createPhotoLibrary() =>
+    defaultTargetPlatform == TargetPlatform.iOS ? _PluginPhotoLibrary() : null;
 
 class _PluginPhotoLibrary implements PhotoLibrary {
   final Map<String, AssetEntity> _assets = {};

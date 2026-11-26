@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart';
+import 'package:slimm_app/src/features/messages/widgets/system_photo_picker.dart';
 import 'package:slimm_app/src/features/members/widgets/banner_settings_row.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -56,6 +57,7 @@ Future<List<String>> _open(
   final requests = <String>[];
   final container = ProviderContainer(
     overrides: [
+      systemPhotoPickerAvailableProvider.overrideWithValue(false),
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
       mockApiOverride((request) async {

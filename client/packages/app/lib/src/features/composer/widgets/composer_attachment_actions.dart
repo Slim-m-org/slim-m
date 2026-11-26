@@ -117,7 +117,7 @@ class ComposerAttachmentActions {
   Future<void> pickAttachment(AttachmentSource source) {
     setError(null);
     return runAttachmentPick(
-      pick: ref.read(attachmentPickerProvider(source)),
+      pick: ref.read(attachmentBatchPickerProvider(source)),
       focus: focus,
       isMounted: isMounted,
       onPickerFailed: () => setError('Could not open the file picker.'),
