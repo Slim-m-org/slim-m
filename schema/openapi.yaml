@@ -22978,6 +22978,12 @@ components:
           items:
             $ref: "#/components/schemas/Attachment"
           description: The parent message's attachments; empty for a deleted parent or no parent.
+        parent_created_at:
+          type: [integer, "null"]
+          format: int64
+          description: >-
+            When the server stored the parent message, in epoch milliseconds
+            like `Message.created_at`. Null for a deleted parent or no parent.
 
     ThreadListItem:
       description: >-

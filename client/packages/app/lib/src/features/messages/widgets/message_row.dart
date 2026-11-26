@@ -26,6 +26,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../settings/providers/display_density.dart';
 import '../providers/author_is_bot.dart';
 import '../providers/message_extras.dart' show MessageExtras;
+import '../providers/viewer_mention.dart';
 import '../providers/voice_transcripts.dart';
 import '../../../providers/providers.dart' show sessionProvider;
 import '../../../routing/breakpoints.dart';
@@ -71,6 +72,7 @@ class MessageRow extends ConsumerWidget {
     this.replyTo,
     this.replyParentAdjacent = false,
     this.groupContinues = false,
+    this.inThread = false,
   });
 
   final Message message;
@@ -135,6 +137,10 @@ class MessageRow extends ConsumerWidget {
   /// marker runs on to it instead of ending here.
   final bool groupContinues;
 
+  /// True inside a thread panel, where every message already answers the one
+  /// conversation: replies draw no quote and a reply alone does not band the row.
+  final bool inThread;
+
   bool get _unsent => message.pending || message.failed;
 
   /// Exposed so a test can find the hover/menu-open background fill without
@@ -160,6 +166,10 @@ class MessageRow extends ConsumerWidget {
         marked && !_unsent && !editing && message.content.isNotEmpty;
     final quote = _replyQuote(ref);
     final copyText = _copyText(ref);
+    final pinging = _pinging(
+      ref.watch(sessionProvider.select((s) => s.tokens?.userId)),
+      ref.watch(viewerMentionTargetsProvider),
+    );
     return HoverReveal(
       enterDelay: kRowHoverIntent,
       calmWhileScrolling: true,
@@ -173,6 +183,7 @@ class MessageRow extends ConsumerWidget {
           marker: marker,
           headMarker: headMarker,
           quote: quote,
+          pinging: pinging,
           inlineTime: inlineTime,
           hovered: hovered,
           menuOpen: menuOpen,
@@ -200,6 +211,7 @@ class MessageRow extends ConsumerWidget {
       parent: replyTo,
       authorIsBot: ref.watch(authorIsBotProvider(message.authorId)),
       parentAdjacent: replyParentAdjacent,
+      inThread: inThread,
     );
     if (!shown) return null;
     final selfId = ref.watch(sessionProvider.select((s) => s.tokens?.userId));
@@ -212,6 +224,16 @@ class MessageRow extends ConsumerWidget {
       pinged:
           extras.mentionsMe && parentAuthor != null && parentAuthor == selfId,
     );
+  }
+
+  /// Whether the row wears the mention band; in a thread a bare reply to the viewer is not one.
+  bool _pinging(String? selfId, ViewerMentionTargets viewer) {
+    if (!extras.mentionsMe) return false;
+    final bareReply =
+        inThread &&
+        replyTo?.authorId == selfId &&
+        !contentMentionsViewer(message.content, viewer);
+    return !bareReply;
   }
 
   /// The message's text, or for a voice message the words it was heard saying.
@@ -276,7 +298,9 @@ class MessageRow extends ConsumerWidget {
                 lastInGroup: !groupContinues,
               ),
             DecoratedBox(
-              decoration: BoxDecoration(border: _edgeBorder(v.tokens)),
+              decoration: BoxDecoration(
+                border: _edgeBorder(v.tokens, pinging: v.pinging),
+              ),
               child: Padding(
                 // Top-only: a bottom inset here doubled the next row's top inset.
                 padding: EdgeInsets.fromLTRB(
@@ -303,15 +327,15 @@ class MessageRow extends ConsumerWidget {
 
   Color _fillColor(_RowView v) {
     if (_lit(v)) return v.tokens.rowHoverFill;
-    if (extras.mentionsMe) return v.tokens.mentionRowFill;
+    if (v.pinging) return v.tokens.mentionRowFill;
     return Colors.transparent;
   }
 
-  Border _edgeBorder(AppTokens tokens) {
+  Border _edgeBorder(AppTokens tokens, {required bool pinging}) {
     if (message.failed) {
       return Border(left: BorderSide(color: tokens.dangerBorder, width: 2));
     }
-    if (extras.mentionsMe) {
+    if (pinging) {
       return Border(left: BorderSide(color: tokens.mentionRowBar, width: 2));
     }
     return const Border();
@@ -393,6 +417,7 @@ class _RowView {
     required this.marker,
     required this.headMarker,
     required this.quote,
+    required this.pinging,
     required this.inlineTime,
     required this.hovered,
     required this.menuOpen,
@@ -409,6 +434,7 @@ class _RowView {
 
   /// The reply's context line, when this row draws one above its avatar.
   final ReplyQuote? quote;
+  final bool pinging;
   final bool inlineTime;
   final bool hovered;
   final bool menuOpen;

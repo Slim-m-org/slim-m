@@ -362,7 +362,7 @@ client/packages/app/test/features/emoji/composer_emoji_browse_test.dart 20 3
 client/packages/app/test/features/emoji/composer_emoji_keyboard_test.dart 3 0
 client/packages/app/test/features/emoji/composer_emoji_test.dart 8 9
 client/packages/app/test/features/emoji/composer_shortcode_test.dart 16 0
-client/packages/app/test/features/emoji/custom_emoji_image_test.dart 7 11
+client/packages/app/test/features/emoji/custom_emoji_image_test.dart 6 8
 client/packages/app/test/features/emoji/emoji_name_hover_test.dart 2 0
 client/packages/app/test/features/emoji/emoji_picker_accessibility_test.dart 1 0
 client/packages/app/test/features/emoji/emoji_picker_arrow_scroll_test.dart 4 1
@@ -394,7 +394,7 @@ client/packages/app/test/features/members/edit_display_name_sheet_test.dart 10 3
 client/packages/app/test/features/members/home_shell_dm_member_pane_test.dart 3 0
 client/packages/app/test/features/members/home_shell_medium_members_test.dart 3 1
 client/packages/app/test/features/members/invite_friend_test.dart 0 8
-client/packages/app/test/features/members/invite_landing_section_test.dart 7 9
+client/packages/app/test/features/members/invite_landing_section_test.dart 7 8
 client/packages/app/test/features/members/member_card_banner_test.dart 1 0
 client/packages/app/test/features/members/member_card_message_test.dart 0 1
 client/packages/app/test/features/members/member_handle_line_test.dart 1 0
@@ -748,7 +748,7 @@ client/packages/app/test/features/settings/welcome_section_test.dart 2 5
 client/packages/app/test/features/voice/audio_device_section_listing_test.dart 0 1
 client/packages/app/test/features/voice/bot_call_controls_test.dart 8 4
 client/packages/app/test/features/voice/call_dock_accent_test.dart 2 0
-client/packages/app/test/features/voice/call_dock_options_menus_test.dart 9 5
+client/packages/app/test/features/voice/call_dock_options_menus_test.dart 8 5
 client/packages/app/test/features/voice/call_header_and_alone_test.dart 12 0
 client/packages/app/test/features/voice/call_keyboard_pill_test.dart 5 0
 client/packages/app/test/features/voice/call_mini_player_reach_test.dart 3 0
@@ -822,10 +822,8 @@ client/packages/app/test/features/voice/voice_call_controls_focus_test.dart 0 1
 client/packages/app/test/features/voice/voice_call_controls_share_after_end_test.dart 0 2
 client/packages/app/test/features/voice/voice_call_controls_share_audio_test.dart 0 1
 client/packages/app/test/features/voice/voice_call_controls_test.dart 4 10
-client/packages/app/test/features/voice/voice_call_dock_music_toggle_test.dart 0 3
-client/packages/app/test/features/voice/voice_call_dock_phone_solo_test.dart 3 0
+client/packages/app/test/features/voice/voice_call_dock_music_toggle_test.dart 0 2
 client/packages/app/test/features/voice/voice_call_dock_slide_test.dart 0 4
-client/packages/app/test/features/voice/voice_call_dock_switch_camera_fit_test.dart 2 0
 client/packages/app/test/features/voice/voice_channel_idle_test.dart 5 2
 client/packages/app/test/features/voice/voice_channel_row_rejoin_test.dart 0 4
 client/packages/app/test/features/voice/voice_connecting_test.dart 4 0
@@ -939,7 +937,6 @@ client/packages/app/test/support/module_scene_fixtures.dart 2 2
 client/packages/app/test/support/semantics_audit.dart 5 0
 client/packages/app/test/ui_overlay_snapshot_menus_test.dart 2 3
 client/packages/app/test/ui_snapshot_call_header_test.dart 3 0
-client/packages/app/test/voice_call_dock_test.dart 5 0
 client/packages/app/test/voice_channel_one_header_test.dart 2 1
 client/packages/app/test/whats_new/release_notes_test.dart 4 2
 client/packages/app/test/whats_new/sheet_content_sizing_test.dart 0 1

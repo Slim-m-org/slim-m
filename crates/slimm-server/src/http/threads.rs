@@ -118,6 +118,8 @@ struct ThreadParentDto {
     /// The parent message's attachments, so the thread panel shows what the
     /// thread is about; empty for a deleted parent.
     parent_attachments: Vec<AttachmentDto>,
+    /// When the server stored the parent message, in the same epoch milliseconds as `Message::created_at`.
+    parent_created_at: Option<i64>,
 }
 
 impl ThreadParentDto {
@@ -130,6 +132,7 @@ impl ThreadParentDto {
         parent_author_id: None,
         parent_author_display_name: None,
         parent_attachments: Vec::new(),
+        parent_created_at: None,
     };
 }
 
@@ -170,6 +173,7 @@ async fn thread_parent(
         .await?
         .map(|c| c.name);
     let message = state.store.message(parent.parent_message_id).await?;
+    let parent_created_at = message.as_ref().map(|m| m.created_at);
     let (parent_content, parent_deleted, parent_author_id, parent_author_display_name) =
         match message {
             Some(m) => (
@@ -202,6 +206,7 @@ async fn thread_parent(
         parent_author_id,
         parent_author_display_name,
         parent_attachments,
+        parent_created_at,
     }))
 }
 

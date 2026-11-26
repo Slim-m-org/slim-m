@@ -129,7 +129,7 @@ void main() {
       'Pan': 'Pan (H)',
       'Eraser': 'Eraser (E)',
       'Mute': 'Mute',
-      'Close canvas': 'Close canvas',
+      'More': 'More',
     };
     for (final control in cases.entries) {
       expect(await tabTo(tester, control.key), isTrue, reason: control.key);

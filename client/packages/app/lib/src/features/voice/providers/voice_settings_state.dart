@@ -26,6 +26,7 @@ class VoiceSettingsState {
     this.cameraOnJoin = false,
     this.mirrorSelfView = true,
     this.showCaptions = false,
+    this.dockPinned = const [],
     this.pushToTalkEnabled = false,
     this.pushToTalkKey = kDefaultPushToTalkKey,
     this.voiceActivitySensitivity = 100.0,
@@ -79,6 +80,9 @@ class VoiceSettingsState {
 
   /// Whether a transcribed call shows what is said under the stage. Off until chosen on this device.
   final bool showCaptions;
+
+  /// Ids of the call dock's More items this device keeps in the dock itself.
+  final List<String> dockPinned;
 
   /// Whether holding [pushToTalkKey] unmutes for the hold and re-mutes on
   /// release; see `push_to_talk_listener.dart`. Off by default and desktop
@@ -163,6 +167,7 @@ class VoiceSettingsState {
     bool? cameraOnJoin,
     bool? mirrorSelfView,
     bool? showCaptions,
+    List<String>? dockPinned,
     bool? pushToTalkEnabled,
     LogicalKeyboardKey? pushToTalkKey,
     double? voiceActivitySensitivity,
@@ -196,6 +201,7 @@ class VoiceSettingsState {
     cameraOnJoin: cameraOnJoin ?? this.cameraOnJoin,
     mirrorSelfView: mirrorSelfView ?? this.mirrorSelfView,
     showCaptions: showCaptions ?? this.showCaptions,
+    dockPinned: dockPinned ?? this.dockPinned,
     pushToTalkEnabled: pushToTalkEnabled ?? this.pushToTalkEnabled,
     pushToTalkKey: pushToTalkKey ?? this.pushToTalkKey,
     voiceActivitySensitivity:

@@ -40,6 +40,7 @@ import time
 
 import e2e_board_frame
 import e2e_labels as L
+import e2e_voice_ui as ui
 from e2e_voice import _click_channel_row, participants_with_mics
 
 # canvas_presence_layer.dart's own `_semanticLabel`; only a live camera or share has a tile (decision 0086).
@@ -167,7 +168,7 @@ def move_converges_and_persists(a, b, admin_api, channel_id, room_id):
     print("  the tile reappeared for both after leaving and rejoining "
           "the call")
 
-    b.click(L.CLOSE_CANVAS)
+    ui.close_canvas(b)
     b.wait_for(L.MUTE)
     b.click(L.OPEN_CANVAS)
     reopened = b.wait_for(ALICE_REMOTE_LABEL, timeout=30)
@@ -182,6 +183,6 @@ def move_converges_and_persists(a, b, admin_api, channel_id, room_id):
     print("  and a cold reopen - a brand new local cache, fetched fresh "
           "from the server - still finds it where the server holds it")
 
-    b.click(L.CLOSE_CANVAS)
+    ui.close_canvas(b)
     print("  b's canvas is closed, so the next scenario (leaving) finds "
           "the plain call screen it expects")

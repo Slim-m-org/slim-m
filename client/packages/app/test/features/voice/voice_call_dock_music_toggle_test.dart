@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The call dock's "music while alone" button: shown only while you are the
-/// sole participant, and it flips the persisted setting Voice settings owns.
+/// The call dock's "music while alone" controls: offered only while you are the
+/// sole participant, in More until pinned, and they flip the persisted setting Voice settings owns.
 library;
 
 import 'package:flutter/widgets.dart';
@@ -59,8 +59,11 @@ Future<ProviderContainer> _pump(
   String? canvasChannelId,
   VoiceFlags voice = _connected,
   List<Override> overrides = const [],
+  List<String> pinned = const [],
 }) async {
-  SharedPreferences.setMockInitialValues({});
+  SharedPreferences.setMockInitialValues({
+    if (pinned.isNotEmpty) 'slimm.voice.dock_pinned': pinned,
+  });
   _player.calls.clear();
   // The window width is what keeps music in the dock (under 600) or moves it to the badge.
   tester.view.physicalSize = Size(width, 800);
@@ -80,11 +83,17 @@ Future<ProviderContainer> _pump(
   );
 }
 
-/// The music is either its own button or, on a dock too narrow for one, rows in the mic's long-press menu.
+Future<void> _openMore(WidgetTester tester) async {
+  // The card grows to a second row first; the tap must land once it has.
+  await tester.pump(const Duration(milliseconds: 400));
+  await tester.tap(find.bySemanticsLabel('More'));
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 300));
+}
+
+/// The music is rows in the More menu, until the person pins it to the dock.
 Future<void> _expectMusicReachable(WidgetTester tester) async {
-  if (find.bySemanticsLabel(_off).evaluate().isNotEmpty) return;
-  await tester.longPress(find.bySemanticsLabel(RegExp('^Mute')));
-  await tester.pumpAndSettle();
+  await _openMore(tester);
   expect(find.text('Play music'), findsOneWidget);
 }
 
@@ -95,25 +104,26 @@ void _expectNoDockMusic(WidgetTester tester) {
 }
 
 void main() {
-  testWidgets('alone, the dock offers the music toggle and it persists', (
+  testWidgets('alone, More offers the music toggle and it persists', (
     tester,
   ) async {
     final container = await _pump(tester);
     container.read(voiceSettingsControllerProvider);
 
-    expect(find.bySemanticsLabel(_off), findsOneWidget);
-    await tester.tap(find.bySemanticsLabel(_off));
+    expect(find.bySemanticsLabel(_off), findsNothing, reason: 'not in the row');
+    await _openMore(tester);
+    await tester.tap(find.text('Play music'));
     await tester.pump();
 
     expect(
       container.read(voiceSettingsControllerProvider).holdMusicEnabled,
       isTrue,
     );
-    expect(find.bySemanticsLabel(_on), findsOneWidget);
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getBool('slimm.voice.hold_music_enabled'), isTrue);
 
-    await tester.tap(find.bySemanticsLabel(_on));
+    await _openMore(tester);
+    await tester.tap(find.text('Pause music'));
     await tester.pump();
     expect(
       container.read(voiceSettingsControllerProvider).holdMusicEnabled,
@@ -121,15 +131,30 @@ void main() {
     );
   });
 
+  testWidgets('a pinned music button sits in the row and persists', (
+    tester,
+  ) async {
+    final container = await _pump(tester, pinned: ['music']);
+    container.read(voiceSettingsControllerProvider);
+    await tester.pump();
+
+    await tester.tap(find.bySemanticsLabel(_off));
+    await tester.pump();
+    expect(
+      container.read(voiceSettingsControllerProvider).holdMusicEnabled,
+      isTrue,
+    );
+    expect(find.bySemanticsLabel(_on), findsOneWidget);
+  });
+
   testWidgets('it disappears when someone else joins', (tester) async {
     final container = await _pump(tester);
-    expect(find.bySemanticsLabel(_off), findsOneWidget);
+    expect(find.bySemanticsLabel('More'), findsOneWidget);
 
     container.read(_roster.notifier).state = [_p('me', local: true), _p('you')];
     await tester.pump();
 
-    expect(find.bySemanticsLabel(_off), findsNothing);
-    expect(find.bySemanticsLabel(_on), findsNothing);
+    expect(find.bySemanticsLabel('More'), findsNothing);
   });
 
   testWidgets('at 360 with no canvas the row still folds', (tester) async {
@@ -182,22 +207,38 @@ void main() {
   }
 
   for (final width in [320.0, 390.0]) {
-    testWidgets(
-      'at $width the extras spill into a row above instead of overflowing',
-      (tester) async {
-        await _pump(tester, width: width, touch: true, canvasChannelId: 'c1');
+    testWidgets('at $width the extras sit in More instead of overflowing', (
+      tester,
+    ) async {
+      await _pump(tester, width: width, touch: true, canvasChannelId: 'c1');
 
-        expect(tester.takeException(), isNull);
-        expect(find.bySemanticsLabel(_off), findsOneWidget);
-        expect(find.bySemanticsLabel('Open canvas'), findsOneWidget);
-      },
-    );
+      expect(tester.takeException(), isNull);
+      await _openMore(tester);
+      expect(find.text('Play music'), findsOneWidget);
+      expect(find.text('Open canvas'), findsOneWidget);
+    });
   }
 
-  testWidgets('the music options pick a style, turning music on with it', (
+  testWidgets('the music rows pick a style, turning music on with it', (
     tester,
   ) async {
     final container = await _pump(tester);
+    container.read(voiceSettingsControllerProvider);
+    await tester.pump();
+
+    await _openMore(tester);
+    await tester.tap(find.text('Jazz'));
+    await tester.pump();
+
+    final settings = container.read(voiceSettingsControllerProvider);
+    expect(settings.holdMusicTrack, LoungeTrack.jazz);
+    expect(settings.holdMusicEnabled, isTrue);
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString('slimm.voice.hold_music_track'), 'jazz');
+  });
+
+  testWidgets('a pinned music button keeps its own style menu', (tester) async {
+    final container = await _pump(tester, pinned: ['music']);
     container.read(voiceSettingsControllerProvider);
     await tester.pump();
 
@@ -206,41 +247,41 @@ void main() {
     expect(find.text('STYLE'), findsOneWidget);
     await tester.tap(find.text('Jazz'));
     await tester.pumpAndSettle();
-
-    final settings = container.read(voiceSettingsControllerProvider);
-    expect(settings.holdMusicTrack, LoungeTrack.jazz);
-    expect(settings.holdMusicEnabled, isTrue);
-    final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getString('slimm.voice.hold_music_track'), 'jazz');
     expect(find.bySemanticsLabel('Pause music (Jazz)'), findsOneWidget);
-  });
-
-  testWidgets('the soundboard beside the music button draws its own icon', (
-    tester,
-  ) async {
-    await _pump(
-      tester,
-      width: 590,
-      voice: const VoiceFlags(
-        state: VoiceSessionState.connected,
-        channelId: 'c1',
-      ),
-      overrides: [
-        myChannelPermissionsProvider(
-          'c1',
-        ).overrideWithValue(Perm.connect | Perm.speak | Perm.useSoundboard),
-      ],
+    expect(
+      container.read(voiceSettingsControllerProvider).holdMusicTrack,
+      LoungeTrack.jazz,
     );
-
-    IconData? iconOf(String tooltip) => tester
-        .widget<Icon>(
-          find.descendant(
-            of: find.byTooltip(tooltip),
-            matching: find.bySubtype<Icon>(),
-          ),
-        )
-        .icon;
-    expect(find.bySemanticsLabel(_off), findsOneWidget);
-    expect(iconOf('Soundboard'), isNot(iconOf(_off)));
   });
+
+  testWidgets(
+    'a pinned soundboard beside the music button draws its own icon',
+    (tester) async {
+      await _pump(
+        tester,
+        width: 590,
+        pinned: ['music', 'soundboard'],
+        voice: const VoiceFlags(
+          state: VoiceSessionState.connected,
+          channelId: 'c1',
+        ),
+        overrides: [
+          myChannelPermissionsProvider(
+            'c1',
+          ).overrideWithValue(Perm.connect | Perm.speak | Perm.useSoundboard),
+        ],
+      );
+
+      IconData? iconOf(String tooltip) => tester
+          .widget<Icon>(
+            find.descendant(
+              of: find.byTooltip(tooltip),
+              matching: find.bySubtype<Icon>(),
+            ),
+          )
+          .icon;
+      expect(find.bySemanticsLabel(_off), findsOneWidget);
+      expect(iconOf('Soundboard'), isNot(iconOf(_off)));
+    },
+  );
 }

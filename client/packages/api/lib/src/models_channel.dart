@@ -255,6 +255,7 @@ class ThreadParent {
     this.parentAuthorId,
     this.parentAuthorDisplayName,
     this.parentAttachments = const [],
+    this.parentCreatedAt,
   });
 
   final String? parentChannelId;
@@ -277,6 +278,9 @@ class ThreadParent {
   /// The parent message's attachments; empty for a deleted parent.
   final List<Attachment> parentAttachments;
 
+  /// When the server stored the parent, in epoch milliseconds; null for a deleted parent or an older server.
+  final int? parentCreatedAt;
+
   bool get isThread => parentChannelId != null;
 
   factory ThreadParent.fromJson(Map<String, dynamic> json) => ThreadParent(
@@ -293,6 +297,7 @@ class ThreadParent {
           for (final raw in json['parent_attachments'] as List<dynamic>? ?? [])
             Attachment.fromJson(raw as Map<String, dynamic>),
         ],
+        parentCreatedAt: (json['parent_created_at'] as num?)?.toInt(),
       );
 }
 

@@ -49,8 +49,7 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../providers/armed_stamp.dart' show canvasStampsSupportedProvider;
 import '../../voice/widgets/bot_call_controls.dart';
-import '../../voice/widgets/captions_button.dart' show canUseCaptions;
-import '../../voice/widgets/soundboard_button.dart' show canUseSoundboard;
+import '../../voice/widgets/dock_item.dart';
 import '../../voice/widgets/call_leave_button.dart';
 import '../../voice/screens/dock_solo_controls.dart';
 import '../../voice/widgets/voice_call_controls.dart';
@@ -58,6 +57,7 @@ import '../../voice/providers/voice_controller.dart';
 import '../../voice/providers/voice_flags.dart';
 import '../../../widgets/floating_dock_card.dart';
 import '../providers/canvas_edge_style.dart';
+import '../providers/canvas_toggle_refocus.dart';
 import 'canvas_compact_dock.dart';
 import 'canvas_dock_toggle.dart';
 import 'canvas_dock_group.dart';
@@ -200,9 +200,9 @@ CallDockData? callDockDataFor(
 
 /// Measured at desktop density (every pane the non-compact dock draws is in a
 /// window of at least [kCompactWidth], so never touch density): the one-row
-/// card is at most 773dp, with the widest case being one armed options caret.
+/// card is at most 789dp, with the widest case being one armed options caret.
 /// Anything narrower takes two rows.
-const _oneRowMinWidth = 774.0;
+const _oneRowMinWidth = 790.0;
 
 /// Measured the same way: one tool button and the gap before it, for each of the stamp and connect tools the server offers.
 const _optionalToolExtent = 34.0;
@@ -271,32 +271,51 @@ class CanvasCallDock extends ConsumerWidget {
         ),
       );
     }
-    final alone = soloMusicInDock(context, ref);
-    final soundboard = canUseSoundboard(ref, call.voice.channelId);
-    final captions = canUseCaptions(ref, call.voice.channelId);
     final stamp =
         (ref.watch(canvasStampsSupportedProvider) ? _optionalToolExtent : 0) +
         (ref.watch(canvasEdgesSupportedProvider) ? _optionalToolExtent : 0);
+    final toggle = _toggle(
+      canvas,
+      ref.read(canvasToggleRefocusProvider.notifier),
+    );
+    final inline = dockInlineCount(
+      context,
+      ref,
+      CallRowOptions(
+        width: 0,
+        controller: call.controller,
+        voice: call.voice,
+        toggle: toggle,
+      ),
+    );
+    // The baseline row holds one optional button, More; each pinned one widens it.
     final extra =
-        (alone ? dockExtraExtent(context) : 0.0) +
-        (soundboard ? dockButtonExtent(context) : 0.0) +
-        (captions ? 2 * dockButtonExtent(context) : 0.0) +
+        (inline.count > 1 ? inline.count - 1 : 0) * dockButtonExtent(context) +
+        (inline.musicCaret
+            ? dockExtraExtent(context) - dockButtonExtent(context)
+            : 0.0) +
         stamp;
     return LayoutBuilder(
       key: const ValueKey('call-and-canvas'),
       builder: (context, constraints) {
         final width = constraints.maxWidth;
-        final callFits = callRowFitsFor(
-          context,
-          ref,
-          CallRowOptions(
-            width: width,
-            controller: call.controller,
-            voice: call.voice,
-          ),
-          extraCount: alone ? 2 : 1,
-          musicCaret: alone,
-        );
+        final callFits =
+            callRowFitFor(
+              context,
+              ref,
+              CallRowOptions(
+                width: width,
+                controller: call.controller,
+                voice: call.voice,
+                toggle: toggle,
+              ),
+              extras: dockExtras(
+                ref,
+                alone: soloMusicInDock(context, ref),
+                toggle: toggle,
+              ),
+            ) !=
+            DockFit.tight;
         final layout = width >= _oneRowMinWidth + extra
             ? _DockLayout.oneRow
             : width >= _twoRowMinWidth + stamp && callFits
@@ -304,7 +323,10 @@ class CanvasCallDock extends ConsumerWidget {
             : _DockLayout.stacked;
         return FloatingDockCard(
           trailing: leave,
-          rows: [?bots, ..._dockRows(ref, canvas, call, layout, alone)],
+          rows: [
+            ?bots,
+            ..._dockRows(context, ref, canvas, call, layout, width),
+          ],
         );
       },
     );
@@ -322,11 +344,12 @@ class CanvasCallDock extends ConsumerWidget {
   /// the overflow and the canvas toggle share the row beneath.
   /// Tools and call controls in one row, two rows, or stacked, by available width.
   List<Widget> _dockRows(
+    BuildContext context,
     WidgetRef ref,
     CanvasDockData canvas,
     CallDockData call,
     _DockLayout layout,
-    bool alone,
+    double width,
   ) {
     if (layout == _DockLayout.oneRow) {
       return [
@@ -334,8 +357,16 @@ class CanvasCallDock extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Flexible(child: CanvasDockToolsRow(canvas: canvas)),
-            const CanvasDockGroupDivider(),
-            _callRow(call, toggle: _toggle(canvas), alone: alone),
+            const CanvasDockSectionDivider(),
+            _callRow(
+              context,
+              ref,
+              call,
+              toggle: _toggle(
+                canvas,
+                ref.read(canvasToggleRefocusProvider.notifier),
+              ),
+            ),
           ],
         ),
       ];
@@ -343,17 +374,33 @@ class CanvasCallDock extends ConsumerWidget {
     if (layout == _DockLayout.twoRows) {
       return [
         CanvasDockToolsRow(canvas: canvas),
-        _callRow(call, toggle: _toggle(canvas), alone: alone),
+        ...callRowsWithExtras(
+          context,
+          ref,
+          CallRowOptions(
+            width: width,
+            controller: call.controller,
+            voice: call.voice,
+            toggle: _toggle(
+              canvas,
+              ref.read(canvasToggleRefocusProvider.notifier),
+            ),
+            hints: false,
+          ),
+        ),
       ];
     }
     return [
       ..._stackedCanvasRows(canvas),
-      ...tightCallRows(
+      ...callRowsWithExtras(
+        context,
         ref,
-        controller: call.controller,
-        voice: call.voice,
-        extra: dockExtras(alone: alone),
-        hints: false,
+        CallRowOptions(
+          width: width,
+          controller: call.controller,
+          voice: call.voice,
+          hints: false,
+        ),
       ),
     ];
   }
@@ -373,30 +420,38 @@ class CanvasCallDock extends ConsumerWidget {
   }
 
   static Widget _callRow(
+    BuildContext context,
+    WidgetRef ref,
     CallDockData call, {
-    Widget? toggle,
-    bool alone = false,
+    DockItem? toggle,
   }) => CallControls(
     controller: call.controller,
     voice: call.voice,
     hints: false,
-    extraControl: dockExtras(alone: alone, toggle: toggle),
+    extras: dockExtras(
+      ref,
+      alone: soloMusicInDock(context, ref),
+      toggle: toggle,
+    ),
   );
 
-  static Widget? _toggle(CanvasDockData canvas) {
+  static DockItem? _toggle(
+    CanvasDockData canvas, [
+    StateController<bool>? refocus,
+  ]) {
     if (canvas.fullscreen) {
-      return CanvasDockExitFullscreen(onPressed: canvas.onToggleFullscreen);
+      return exitFullscreenItem(canvas.onToggleFullscreen);
     }
     final close = canvas.onClose;
     return close == null
         ? null
-        : CanvasDockToggle(open: true, onPressed: close);
+        : canvasToggleItem(open: true, onPressed: close, refocus: refocus);
   }
 
   static List<Widget> _toggleAfterGap(CanvasDockData canvas) => [
     if (_toggle(canvas) case final toggle?) ...[
       const CanvasDockGroupDivider(),
-      toggle,
+      toggle.inline,
     ],
   ];
 }

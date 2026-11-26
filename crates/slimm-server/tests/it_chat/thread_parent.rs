@@ -125,6 +125,8 @@ async fn thread_parent_route_answers_the_real_parent_for_a_viewer() {
     assert_eq!(answer["parent_deleted"], false);
     assert_eq!(answer["parent_author_id"], admin_id);
     assert_eq!(answer["parent_author_display_name"], "admin");
+    assert_eq!(answer["parent_created_at"], parent["created_at"]);
+    assert!(answer["parent_created_at"].as_i64().unwrap() > 0);
 }
 
 /// The parent message can be soft-deleted independently of its thread, which

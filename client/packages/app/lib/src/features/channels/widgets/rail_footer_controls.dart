@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The controls at the right of the rail's user bar: mic and deafen while in a
-/// call, then the gear. `channel_rail_frame.dart` keeps the footer's layout.
+/// call with no call bar above, then the gear. `channel_rail_frame.dart` keeps the footer's layout.
 library;
 
 import 'package:flutter/material.dart';

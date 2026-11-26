@@ -201,6 +201,10 @@ RENAME_MEMBER = "Rename..."
 NICKNAME_FIELD = "Nickname"
 SAVE_NAME = "Save name"
 
+# Call dock: everything beyond mic, deafen, camera, share and leave lives under More
+DOCK_MORE = "More"
+SOUNDBOARD = "Soundboard"
+
 # Canvas
 OPEN_CANVAS = "Open canvas"
 CLOSE_CANVAS = "Close canvas"

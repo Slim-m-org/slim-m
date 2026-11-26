@@ -127,8 +127,7 @@ ProviderContainer _connectedContainer() => ProviderContainer(
 
 void main() {
   testWidgets(
-    "a real voice channel's in-call dock offers a one-tap way into its own "
-    'canvas',
+    "a real voice channel's in-call dock lists its own canvas in More",
     (tester) async {
       final container = _connectedContainer();
       addTearDown(container.dispose);
@@ -144,7 +143,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.bySemanticsLabel('Open canvas'), findsOneWidget);
+      await tester.tap(find.bySemanticsLabel('More'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('Open canvas'), findsOneWidget);
 
       // Stops the heartbeat timer `connected` started, before the pending-timer check that runs ahead of `addTearDown`.
       await container.read(voiceControllerProvider.notifier).leave();

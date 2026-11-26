@@ -253,29 +253,36 @@ void main() {
     expect(chip.color, AppTokens.light.accentSoft);
   });
 
-  testWidgets('alone on a narrow dock the music spills into a row above', (
-    tester,
-  ) async {
-    SharedPreferences.setMockInitialValues({});
-    tester.view.physicalSize = const Size(364, 1600);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.reset);
-    await pumpVoiceCallDock(
-      tester,
-      _connected,
-      width: 364,
-      session: _session(),
-      extraOverrides: [
-        voiceParticipantsProvider.overrideWithValue(const [_me]),
-      ],
-    );
-    await tester.pump();
+  testWidgets(
+    'alone on a narrow dock the music rows are in More, in a row above',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      tester.view.physicalSize = const Size(364, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await pumpVoiceCallDock(
+        tester,
+        _connected,
+        width: 364,
+        session: _session(),
+        extraOverrides: [
+          voiceParticipantsProvider.overrideWithValue(const [_me]),
+        ],
+      );
+      await tester.pump();
 
-    expect(find.byTooltip(RegExp('music')), findsOneWidget);
-    expect(
-      tester.widget<FloatingDockCard>(find.byType(FloatingDockCard)).rows,
-      hasLength(2),
-      reason: 'the call row and the extras above it',
-    );
-  });
+      expect(find.byTooltip(RegExp('music')), findsNothing);
+      expect(
+        tester
+            .widget<FloatingDockCard>(find.bySubtype<FloatingDockCard>())
+            .rows,
+        hasLength(2),
+        reason: 'the carets leave no room, so More takes a row above',
+      );
+      await tester.tap(find.bySemanticsLabel('More'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('Play music'), findsOneWidget);
+    },
+  );
 }

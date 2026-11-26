@@ -72,6 +72,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 
 import e2e_labels as L
+import e2e_voice_ui as ui
 import e2e_call_restore
 from e2e_api import wait_until
 from e2e_board_frame import SHARED_H, SHARED_W, board_frame, clear_window, fit_to_board_zoom_one
@@ -345,7 +346,7 @@ def close_on_both(a, b):
     """
     for c in (a, b):
         clear_window(c)
-        c.click(L.CLOSE_CANVAS)
+        ui.close_canvas(c)
         # A voice channel has no composer to come back to, only the call.
         c.wait_for(L.IN_CALL)
     for c in (a, b):

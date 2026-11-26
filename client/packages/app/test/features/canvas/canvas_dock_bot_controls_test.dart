@@ -99,7 +99,7 @@ void main() {
 
       expect(find.byType(BotCallControls), findsNothing);
       expect(find.byTooltip('Jellyfin controls'), findsNothing);
-      await tester.longPress(find.bySemanticsLabel(RegExp('^Mute')));
+      await tester.tap(find.bySemanticsLabel('More'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Jellyfin controls'));
       await tester.pumpAndSettle();
@@ -124,7 +124,7 @@ void main() {
     ) async {
       final call = await pumpPhone(tester, botOnCall: true);
 
-      await tester.longPress(find.bySemanticsLabel(RegExp('^Mute')));
+      await tester.tap(find.bySemanticsLabel('More'));
       await tester.pumpAndSettle();
       final rect = tester.getRect(find.text('Jellyfin controls'));
       expect(rect.height, greaterThanOrEqualTo(20));

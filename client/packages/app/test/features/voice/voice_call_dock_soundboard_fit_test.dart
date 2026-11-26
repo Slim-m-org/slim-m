@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The dock's one-row fit counts the soundboard button, so a narrow stage
+/// The dock's one-row fit counts the More button, so a narrow stage
 /// with the soundboard and the canvas toggle never draws one button under another.
 library;
 
@@ -43,7 +43,7 @@ Future<void> _expectNoOverlap(
   await tester.pump();
   final reason = 'width $width, touch $touch, $call';
   expect(tester.takeException(), isNull, reason: reason);
-  expect(find.bySemanticsLabel('Soundboard'), findsOneWidget);
+  expect(find.bySemanticsLabel('More'), findsOneWidget);
   final rects = [
     for (final e in find.bySubtype<CallDockButton>().evaluate())
       tester.getRect(find.byElementPredicate((x) => x == e)),

@@ -43,8 +43,10 @@ import '../../../widgets/floating_dock_card.dart';
 import '../../canvas/screens/canvas_pane.dart';
 import '../widgets/call_audio_start.dart';
 import '../widgets/call_leave_button.dart';
+import '../widgets/dock_item.dart';
 import '../../canvas/screens/canvas_dock_toggle.dart';
 import '../../canvas/providers/canvas_entry.dart';
+import '../../canvas/providers/canvas_toggle_refocus.dart';
 import 'dock_solo_controls.dart';
 
 class VoiceCallDock extends StatefulWidget {
@@ -160,8 +162,7 @@ class _VoiceCallDockState extends State<VoiceCallDock>
                     channelId == null ||
                         !ref.watch(canvasEntryProvider(channelId))
                     ? null
-                    : _CanvasToggleButton(channelId: channelId),
-                spillRow: true,
+                    : _canvasToggle(ref, channelId),
               ),
             ),
           ],
@@ -177,18 +178,12 @@ class _VoiceCallDockState extends State<VoiceCallDock>
 }
 
 /// The toggle itself: [CanvasDockToggle], lit while [channelId]'s canvas is open.
-class _CanvasToggleButton extends ConsumerWidget {
-  const _CanvasToggleButton({required this.channelId});
-
-  final String channelId;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final open = ref.watch(canvasOpenProvider) == channelId;
-    return CanvasDockToggle(
-      open: open,
-      onPressed: () =>
-          ref.read(canvasOpenProvider.notifier).state = open ? null : channelId,
-    );
-  }
+DockItem _canvasToggle(WidgetRef ref, String channelId) {
+  final open = ref.watch(canvasOpenProvider) == channelId;
+  return canvasToggleItem(
+    open: open,
+    refocus: ref.read(canvasToggleRefocusProvider.notifier),
+    onPressed: () =>
+        ref.read(canvasOpenProvider.notifier).state = open ? null : channelId,
+  );
 }

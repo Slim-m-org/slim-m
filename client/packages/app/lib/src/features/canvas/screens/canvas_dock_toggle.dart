@@ -7,11 +7,10 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../widgets/control_options_menu.dart';
+import '../providers/canvas_toggle_refocus.dart';
 import '../../voice/widgets/call_dock_button.dart';
-
-/// Set when the canvas was closed from the keyboard, so the toggle that takes
-/// the Close slot's place picks up focus instead of focus falling to the top.
-final canvasToggleRefocusProvider = StateProvider<bool>((ref) => false);
+import '../../voice/widgets/dock_item.dart';
 
 class CanvasDockToggle extends ConsumerStatefulWidget {
   const CanvasDockToggle({
@@ -53,7 +52,7 @@ class _CanvasDockToggleState extends ConsumerState<CanvasDockToggle> {
 
   void _press() {
     if (widget.open && _scope.hasFocus) {
-      ref.read(canvasToggleRefocusProvider.notifier).state = true;
+      armCanvasToggleRefocus(ref.read(canvasToggleRefocusProvider.notifier));
     }
     widget.onPressed();
   }
@@ -86,3 +85,39 @@ class CanvasDockExitFullscreen extends StatelessWidget {
     onPressed: onPressed,
   );
 }
+
+/// The canvas toggle as an optional call control: in More until pinned.
+DockItem canvasToggleItem({
+  required bool open,
+  required VoidCallback onPressed,
+  StateController<bool>? refocus,
+}) => DockItem(
+  id: 'canvas',
+  name: 'Canvas',
+  inline: CanvasDockToggle(open: open, onPressed: onPressed),
+  entries: [
+    ControlOption(
+      label: open ? 'Close canvas' : 'Open canvas',
+      icon: AppIcons.canvas,
+      onSelected: () {
+        if (open && refocus != null) armCanvasToggleRefocus(refocus);
+        onPressed();
+      },
+    ),
+  ],
+);
+
+/// The way out of fullscreen as an optional call control that never leaves the dock.
+DockItem exitFullscreenItem(VoidCallback onPressed) => DockItem(
+  id: 'exit-fullscreen',
+  name: 'Exit fullscreen',
+  keepInline: true,
+  inline: CanvasDockExitFullscreen(onPressed: onPressed),
+  entries: [
+    ControlOption(
+      label: 'Exit fullscreen',
+      icon: AppIcons.expand,
+      onSelected: onPressed,
+    ),
+  ],
+);

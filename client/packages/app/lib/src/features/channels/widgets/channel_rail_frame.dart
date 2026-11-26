@@ -209,9 +209,15 @@ class RailConnectionBar extends ConsumerWidget {
   }
 }
 
+/// Marks the profile name in the user bar.
+const railFooterNameKey = Key('rail-footer-name');
+
 /// Below this footer width the controls alone may not fit, so they scale down
 /// and the name line gives way to them.
 const double _footerNameMinWidth = 200;
+
+/// The same, with the call bar above carrying mic and deafen: only Notes and the gear stay, so the name fits a 200 px rail.
+const double _footerNameMinWidthWithCallBar = 176;
 
 /// The narrowest the name line is drawn at; in less (a call's mic and deafen
 /// beside Notes and the gear) only the presence dot says who and how.
@@ -228,9 +234,9 @@ class RailUserFooter extends ConsumerWidget {
 
   /// The channel currently shown beside or instead of this rail. A call
   /// already live in that channel has its own full call UI, so the call row
-  /// (name, duration, leave) is gated on this; mic and deafen are not, since
-  /// they control whichever call is live regardless of which channel is on
-  /// screen. It is also what lights the Notes button.
+  /// (name, duration, mic, deafen, share, leave) is gated on this; with no call
+  /// row, mic and deafen stay in this bar, since they control whichever call is
+  /// live regardless of which channel is on screen. It is also what lights the Notes button.
   ///
   /// This row's status line is the person's own presence word from
   /// [presenceForProvider], whatever the socket is doing: the Space's
@@ -261,7 +267,10 @@ class RailUserFooter extends ConsumerWidget {
     } else {
       callRow = null;
     }
-    final toggles = RailVoiceToggles(otherAccount: otherCommunity?.container);
+    // A call bar carries mic and deafen itself; the profile row has them only without one.
+    final Widget toggles = callRow == null
+        ? const RailVoiceToggles()
+        : const SizedBox.shrink();
     final recording = recordingElsewhere(context, ref, activeChannelId);
     return _FooterStack(
       recordingRow: recording == null
@@ -271,7 +280,11 @@ class RailUserFooter extends ConsumerWidget {
       bar: _FooterRow(
         paddingKey: const Key('rail-footer-padding'),
         safeBottom: true,
-        child: _UserBar(toggles: toggles, activeChannelId: activeChannelId),
+        child: _UserBar(
+          toggles: toggles,
+          activeChannelId: activeChannelId,
+          callBarUp: callRow != null,
+        ),
       ),
     );
   }
@@ -322,10 +335,15 @@ class _FooterRow extends StatelessWidget {
 
 /// Avatar, name and status, then mic and deafen in a call, Notes and the gear.
 class _UserBar extends ConsumerWidget {
-  const _UserBar({required this.toggles, required this.activeChannelId});
+  const _UserBar({
+    required this.toggles,
+    required this.activeChannelId,
+    required this.callBarUp,
+  });
 
   final Widget toggles;
   final String? activeChannelId;
+  final bool callBarUp;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -345,7 +363,9 @@ class _UserBar extends ConsumerWidget {
           RailNotesButton(activeChannelId: activeChannelId),
           railSettingsButton(context),
         ];
-        final named = constraints.maxWidth >= _footerNameMinWidth;
+        final named =
+            constraints.maxWidth >=
+            (callBarUp ? _footerNameMinWidthWithCallBar : _footerNameMinWidth);
         return Row(
           children: [
             const PresenceMenuButton(),
@@ -372,6 +392,7 @@ class _UserBar extends ConsumerWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
+                              key: railFooterNameKey,
                               me.valueOrNull?.displayName ?? '',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,

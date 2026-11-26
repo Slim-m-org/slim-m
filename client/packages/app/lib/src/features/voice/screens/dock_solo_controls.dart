@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// How a dock's call row carries the controls that are not part of every call:
-/// the music button while alone, and the canvas toggle beside it.
+/// soundboard, transcript, the music button while alone, and the canvas toggle.
 ///
-/// Controls never shrink to make room, so when the row would overflow the
-/// extras fold into a row of their own above it, the shape `VoiceCallDock`
-/// already used for the canvas toggle alone.
+/// They draw in the More menu unless the person pinned them to the dock. The
+/// row never shrinks a control: when pinned ones do not fit they go back to
+/// More, and when even the primary row plus More does not fit, the carets go.
 library;
 
 import 'package:flutter/material.dart';
@@ -12,16 +12,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../audio/hold_music_player.dart' show holdMusicAvailableProvider;
-import '../../../widgets/control_swatch_row.dart' show ControlOptionEntry;
 import '../providers/call_solo.dart';
 import '../providers/camera_switch.dart';
 import '../providers/hold_music_actions.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
-import 'hold_music_dock_toggle.dart';
-import '../widgets/captions_button.dart' show canUseCaptions;
-import '../widgets/soundboard_button.dart' show canUseSoundboard;
+import '../providers/voice_settings_controller.dart';
+import '../../../widgets/floating_dock_card.dart' show dockCardSidePadding;
+import '../widgets/dock_item.dart';
+import '../widgets/dock_items.dart';
 import '../widgets/voice_call_controls.dart';
+import 'hold_music_dock_toggle.dart';
 
 /// Whether the music button belongs in the dock: alone in the call and too narrow for the floating badge.
 bool soloMusicInDock(BuildContext context, WidgetRef ref) {
@@ -36,7 +37,7 @@ double dockButtonExtent(BuildContext context) {
   final touch = AppTouchTargets.of(context);
   final hitTarget = touch ? AppSizes.rowTouch : AppSizes.rowPointer;
   final chip = AppSizes.controlMd > hitTarget ? AppSizes.controlMd : hitTarget;
-  return chip + 2 * (focusRingGap + focusRingWidth) + AppSpacing.s8;
+  return chip + 2 * (focusRingGap + focusRingWidth) + dockButtonGap(context);
 }
 
 /// The music button's width: a [dockButtonExtent] and its options caret at pointer density.
@@ -45,19 +46,21 @@ double dockExtraExtent(BuildContext context) {
   return dockButtonExtent(context) + caret;
 }
 
-/// The extras in one widget, or null when there are none.
-Widget? dockExtras({required bool alone, Widget? toggle}) {
-  if (!alone) return toggle;
-  if (toggle == null) return const HoldMusicDockToggle();
-  return Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      const HoldMusicDockToggle(),
-      const SizedBox(width: AppSpacing.s8),
-      toggle,
-    ],
-  );
-}
+/// The music item while alone, then [toggle]: what a dock adds beside the call's own controls.
+List<DockItem> dockExtras(
+  WidgetRef ref, {
+  required bool alone,
+  DockItem? toggle,
+}) => [
+  if (alone)
+    DockItem(
+      id: 'music',
+      name: 'Music',
+      inline: const HoldMusicDockToggle(),
+      entries: holdMusicMenuOptions(ref),
+    ),
+  ?toggle,
+];
 
 /// What [callRowsWithExtras] lays out beside the call row.
 class CallRowOptions {
@@ -66,151 +69,175 @@ class CallRowOptions {
     required this.controller,
     required this.voice,
     this.toggle,
-    this.toggleSlots = 1,
-    this.toggleMenu = const [],
-    this.spillRow = false,
     this.hints = true,
   });
 
   final double width;
   final VoiceController controller;
   final VoiceFlags voice;
-  final Widget? toggle;
-  final int toggleSlots;
-  final List<ControlOptionEntry> toggleMenu;
-  final bool spillRow;
+
+  /// The canvas toggle, or the bots' controls: one more optional item.
+  final DockItem? toggle;
 
   /// See [CallControls.hints].
   final bool hints;
 }
 
-/// The card rows for a call: the call row with [toggle] and the music button
-/// inline when [width] allows, otherwise folded into the mic menu ([toggleMenu]
-/// is the toggle's own menu rows) or, with no menu rows, in a row of their own.
-/// [spillRow] skips the menu: the extras always get that row of their own, so they stay visible.
+/// The card rows for a call: one call row, with the optional controls inline
+/// when they are pinned and [CallRowOptions.width] holds them, in More when
+/// not, and without carets when even that does not fit.
 List<Widget> callRowsWithExtras(
   BuildContext context,
   WidgetRef ref,
   CallRowOptions options,
 ) {
-  final CallRowOptions(
-    :width,
-    :controller,
-    :voice,
-    :toggle,
-    :toggleSlots,
-    :toggleMenu,
-    :spillRow,
-    :hints,
-  ) = options;
-  final alone = soloMusicInDock(context, ref);
-  final extras = dockExtras(alone: alone, toggle: toggle);
-  Widget callRow(
-    Widget? extra, {
-    List<ControlOptionEntry> menuExtras = const [],
-  }) => CallControls(
-    controller: controller,
-    voice: voice,
-    extraControl: extra,
-    menuExtras: menuExtras,
-    hints: hints,
-  );
-  bool fitsWith(int extraCount, {bool music = false}) => callRowFitsFor(
-    context,
+  final extras = dockExtras(
     ref,
-    options,
-    extraCount: extraCount,
-    musicCaret: music,
+    alone: soloMusicInDock(context, ref),
+    toggle: options.toggle,
   );
-  // Nothing narrower than the bare row can fold away, so it spills over two lines instead.
-  if (!fitsWith(0)) {
-    return tightCallRows(
-      ref,
-      controller: controller,
-      voice: voice,
-      extra: extras,
-      hints: hints,
-    );
-  }
-  if (extras == null) return [callRow(null)];
-  final fits = fitsWith(
-    (alone ? 1 : 0) + (toggle != null ? toggleSlots : 0),
-    music: alone,
-  );
-  if (fits) return [callRow(extras)];
-  if (spillRow) {
-    return [Center(child: extras), callRow(null)];
-  }
-  // The one rule of desktop-vs-mobile.md: width decides, so extras fold into the mic menu.
-  final music = alone
-      ? holdMusicMenuOptions(ref)
-      : const <ControlOptionEntry>[];
-  if (toggleMenu.isNotEmpty) {
-    return [
-      callRow(null, menuExtras: [...music, ...toggleMenu]),
-    ];
-  }
-  if (alone && fitsWith(toggle != null ? toggleSlots : 0)) {
-    return [callRow(toggle, menuExtras: music)];
-  }
+  final fit = callRowFitFor(context, ref, options, extras: extras);
+  final pinRoom = callRowPinRoom(context, ref, options, extras: extras);
+  final hasMore =
+      fit == DockFit.tight &&
+      splitDockItems(
+        _itemsFor(context, ref, options, extras),
+        pinned: const [],
+        inlineAllowed: false,
+      ).hasMore;
   return [
-    ?toggle == null ? null : Center(child: toggle),
-    callRow(null, menuExtras: music),
-  ];
-}
-
-/// A call row too narrow for every control: what it leaves out gets a card row of its own above it, so leave stays beside the row it ends.
-List<Widget> tightCallRows(
-  WidgetRef ref, {
-  required VoiceController controller,
-  required VoiceFlags voice,
-  Widget? extra,
-  bool hints = true,
-}) {
-  final spills =
-      extra != null ||
-      canUseSoundboard(ref, voice.channelId) ||
-      canUseCaptions(ref, voice.channelId) ||
-      (voice.cameraEnabled && canSwitchCamera(ref, controller));
-  return [
-    if (spills)
+    if (hasMore)
       CallControls(
-        controller: controller,
-        voice: voice,
-        extraControl: extra,
+        controller: options.controller,
+        voice: options.voice,
+        extras: extras,
+        inlineExtras: false,
         spilledOnly: true,
+        pinRoom: pinRoom,
         hints: false,
         ownsShortcuts: false,
       ),
     CallControls(
-      controller: controller,
-      voice: voice,
-      tight: true,
-      hints: hints,
+      controller: options.controller,
+      voice: options.voice,
+      extras: extras,
+      inlineExtras: fit != DockFit.moreOnly,
+      pinRoom: pinRoom,
+      tight: fit == DockFit.tight,
+      hints: options.hints,
     ),
   ];
 }
 
-/// [callRowFits] for the call in [options], reading which optional controls it draws.
-bool callRowFitsFor(
-  BuildContext context,
-  WidgetRef ref,
-  CallRowOptions options, {
-  required int extraCount,
-  bool musicCaret = false,
-}) {
+/// How much of a call row fits.
+enum DockFit { pinned, moreOnly, tight }
+
+/// Whether the row holds [split]'s inline items at [options]'s width.
+bool _rowFits(BuildContext context, CallRowOptions options, DockSplit split) {
   final CallRowOptions(:width, :controller, :voice) = options;
+  final shareCaret =
+      voice.screenSharing && controller.video.screenShareNeedsSource;
   return callRowFits(
     context,
     width,
-    optionalCount:
-        extraCount +
-        (voice.cameraEnabled && canSwitchCamera(ref, controller) ? 1 : 0) +
-        (canUseSoundboard(ref, voice.channelId) ? 1 : 0) +
-        // Captions come with the mark button beside them.
-        (canUseCaptions(ref, voice.channelId) ? 2 : 0),
-    shareCaret: voice.screenSharing && controller.video.screenShareNeedsSource,
-    musicCaret: musicCaret,
+    optionalCount: split.buttonCount,
+    shareCaret: shareCaret,
+    musicCaret: split.inline.any((i) => i.id == 'music'),
+  );
+}
+
+/// The widest form of the row for [options] that fits: pinned items inline, only More, or More in a row above with no carets.
+DockFit callRowFitFor(
+  BuildContext context,
+  WidgetRef ref,
+  CallRowOptions options, {
+  required List<DockItem> extras,
+}) {
+  final items = _itemsFor(context, ref, options, extras);
+  final pinned = ref.watch(
+    voiceSettingsControllerProvider.select((s) => s.dockPinned),
+  );
+  if (_rowFits(
+    context,
+    options,
+    splitDockItems(items, pinned: pinned, inlineAllowed: true),
+  )) {
+    return DockFit.pinned;
+  }
+  if (_rowFits(
+    context,
+    options,
+    splitDockItems(items, pinned: pinned, inlineAllowed: false),
+  )) {
+    return DockFit.moreOnly;
+  }
+  return DockFit.tight;
+}
+
+/// Whether every control still in More would land inline if pinned, by the same fit [callRowFitFor] applies.
+bool callRowPinRoom(
+  BuildContext context,
+  WidgetRef ref,
+  CallRowOptions options, {
+  required List<DockItem> extras,
+}) {
+  final items = _itemsFor(context, ref, options, extras);
+  final pinned = ref.watch(
+    voiceSettingsControllerProvider.select((s) => s.dockPinned),
+  );
+  return [
+    for (final item in items)
+      if (!item.keepInline && !pinned.contains(item.id)) item,
+  ].every(
+    (candidate) => _rowFits(
+      context,
+      options,
+      splitDockItems(
+        items,
+        pinned: [...pinned, candidate.id],
+        inlineAllowed: true,
+      ),
+    ),
+  );
+}
+
+List<DockItem> _itemsFor(
+  BuildContext context,
+  WidgetRef ref,
+  CallRowOptions options,
+  List<DockItem> extras,
+) => buildDockItems(
+  context,
+  ref,
+  voice: options.voice,
+  extras: extras,
+  canSwitch:
+      options.voice.cameraEnabled && canSwitchCamera(ref, options.controller),
+  switchCameraButton: const SizedBox.shrink(),
+  switchCamera: () {},
+);
+
+/// How many optional buttons (More included) the pinned form of [options] draws, and whether the music one carries a caret.
+({int count, bool musicCaret}) dockInlineCount(
+  BuildContext context,
+  WidgetRef ref,
+  CallRowOptions options,
+) {
+  final extras = dockExtras(
+    ref,
+    alone: soloMusicInDock(context, ref),
+    toggle: options.toggle,
+  );
+  final split = splitDockItems(
+    _itemsFor(context, ref, options, extras),
+    pinned: ref.watch(
+      voiceSettingsControllerProvider.select((s) => s.dockPinned),
+    ),
+    inlineAllowed: true,
+  );
+  return (
+    count: split.buttonCount,
+    musicCaret: split.inline.any((i) => i.id == 'music'),
   );
 }
 
@@ -242,11 +269,11 @@ bool callRowFits(
   final hitTarget = touch ? AppSizes.rowTouch : AppSizes.rowPointer;
   final chip = AppSizes.controlMd > hitTarget ? AppSizes.controlMd : hitTarget;
   final button = chip + 2 * (focusRingGap + focusRingWidth);
-  // mic, deafen, camera, share and leave, then the optional buttons.
+  // mic, deafen, camera, share and leave, then the optional buttons (More included).
   final controlCount = 5 + optionalCount;
-  const cardPadding = AppSpacing.s12 * 2 + 2;
+  final cardPadding = dockCardSidePadding(context) * 2 + 2;
   // The divider before leave takes the place of one gap: s4, 1dp, s4.
-  const leaveDivider = 1.0;
+  const leaveDivider = AppSpacing.s4 * 2 + 1;
   // Measured, not derived: each caret's width less what its primary half gives back, at pointer density only; the mic, camera and share each carry one.
   final carets = touch
       ? (shareCaret ? _touchShareCaret : 0.0)
@@ -254,7 +281,7 @@ bool callRowFits(
   final needed =
       carets +
       controlCount * button +
-      (controlCount - 1) * AppSpacing.s8 +
+      (controlCount - 2) * dockButtonGap(context) +
       leaveDivider +
       cardPadding;
   return needed <= width;
