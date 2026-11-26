@@ -407,6 +407,18 @@ fn a_webp_without_metadata_is_left_as_it_is() {
     assert!(container_strip::strip(Kind::Webp, &source, Metadata::RemoveAll).is_none());
 }
 
+#[test]
+fn a_tiff_loses_its_position_in_place_and_a_clean_one_is_left_alone() {
+    let source = sample_exif(1);
+    assert!(contains(&source, &GPS_RATIONALS));
+    let stripped = container_strip::strip(Kind::Tiff, &source, Metadata::RemoveLocation).unwrap();
+    assert_eq!(stripped.len(), source.len());
+    assert!(!contains(&stripped, &GPS_RATIONALS));
+    assert_eq!(exif::orientation(&stripped), Some(1));
+    assert!(container_strip::strip(Kind::Tiff, &stripped, Metadata::RemoveLocation).is_none());
+    assert!(container_strip::strip(Kind::Tiff, &source, Metadata::Keep).is_none());
+}
+
 fn candidate(kind: Kind, width: u32, height: u32, coefficients: u64) -> Candidate {
     Candidate {
         kind,

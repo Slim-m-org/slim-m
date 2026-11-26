@@ -43,6 +43,7 @@ class CanvasPaneSurface extends StatelessWidget {
     this.truncated = false,
     required this.noteEditor,
     required this.noteSpans,
+    required this.textSpans,
     required this.noteSpansRevision,
     required this.pen,
     required this.remoteDrafts,
@@ -74,6 +75,7 @@ class CanvasPaneSurface extends StatelessWidget {
   final bool truncated;
   final Widget? noteEditor;
   final NoteSpanBuilder? noteSpans;
+  final NoteSpanBuilder? textSpans;
   final int noteSpansRevision;
   final CanvasPenStyle pen;
   final RemoteStrokeDrafts? remoteDrafts;
@@ -158,6 +160,7 @@ class CanvasPaneSurface extends StatelessWidget {
           shapeColor: AppCanvasColors.shape,
           notePalette: canvasNotePalette(tokens),
           noteSpans: noteSpans,
+          textSpans: textSpans,
           noteSpansRevision: noteSpansRevision,
           onStroke: actions.onStroke,
           tool: tool,
@@ -214,6 +217,7 @@ class CanvasPaneSurface extends StatelessWidget {
             document: document,
             canManage: canManage,
             selfId: selfId,
+            boardFocus: boardFocusNode,
           ),
         // Above the menu's hit catcher, so a tile's scene takes its own taps; its header lets them through to the board.
         CanvasModuleTileLayer(document: document),

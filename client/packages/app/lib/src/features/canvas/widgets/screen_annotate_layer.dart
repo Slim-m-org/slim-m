@@ -29,6 +29,7 @@ import '../../voice/providers/share_zoom_controller.dart';
 import '../../voice/providers/voice_flags.dart';
 import '../../voice/widgets/share_zoom_view.dart';
 import '../providers/armed_stamp.dart';
+import '../providers/screen_annotate_tool.dart';
 import 'armed_pen.dart';
 import 'screen_annotate_painter.dart';
 import 'screen_annotate_toolbar.dart';
@@ -49,6 +50,8 @@ class ScreenAnnotateLayer extends ConsumerStatefulWidget {
     this.readOnly = false,
     this.fallbackAspect,
     this.canvasTool,
+    this.shareToolState = false,
+    this.toolbarBottom = AppSpacing.s8,
   });
 
   final String sharerId;
@@ -69,6 +72,12 @@ class ScreenAnnotateLayer extends ConsumerStatefulWidget {
   /// The board's own tool on the canvas, which draws on the screen in place of the tile's toolbar.
   final CanvasTool? canvasTool;
 
+  /// Keeps the picked tool per sharer, so a second layer over the same screen starts with it.
+  final bool shareToolState;
+
+  /// Where the toolbar sits above the tile's bottom edge, for a view that docks its own controls there.
+  final double toolbarBottom;
+
   @override
   ConsumerState<ScreenAnnotateLayer> createState() =>
       _ScreenAnnotateLayerState();
@@ -82,7 +91,7 @@ class _ScreenAnnotateLayerState extends ConsumerState<ScreenAnnotateLayer>
   late final Ticker _ticker = createTicker(_onFrame);
   final _frame = ValueNotifier<int>(0);
   final _noteText = TextEditingController();
-  ScreenAnnotateTool? _tool;
+  ScreenAnnotateTool? _localTool;
   ScreenAnnotationSender? _sender;
   Offset? _shapeStart;
   Offset? _pendingNote;
@@ -91,9 +100,26 @@ class _ScreenAnnotateLayerState extends ConsumerState<ScreenAnnotateLayer>
   /// Why the last stamp was refused, shown on the tile until it times out.
   String? _refusal;
 
+  ScreenAnnotateTool? get _tool => widget.shareToolState
+      ? ref.read(screenAnnotateToolProvider(widget.sharerId))
+      : _localTool;
+
+  set _tool(ScreenAnnotateTool? tool) {
+    if (!widget.shareToolState) {
+      _localTool = tool;
+      return;
+    }
+    ref.read(screenAnnotateToolProvider(widget.sharerId).notifier).state = tool;
+  }
+
   @override
   void initState() {
     super.initState();
+    if (widget.shareToolState) {
+      ref.listenManual(screenAnnotateToolProvider(widget.sharerId), (_, _) {
+        if (mounted) setState(() {});
+      });
+    }
     _feed.addListener(_onFeed);
     widget.zoom?.addListener(_onFeed);
     _onFeed();
@@ -187,10 +213,8 @@ class _ScreenAnnotateLayerState extends ConsumerState<ScreenAnnotateLayer>
   void _setTool(ScreenAnnotateTool? tool) {
     _sender?.dispose();
     _sender = null;
-    setState(() {
-      _tool = tool;
-      _dropPendingNote();
-    });
+    _tool = tool;
+    setState(_dropPendingNote);
   }
 
   void _dropPendingNote() {
@@ -350,7 +374,7 @@ class _ScreenAnnotateLayerState extends ConsumerState<ScreenAnnotateLayer>
               if (_pendingNote != null) _noteField(),
               if (showToolbar)
                 Positioned(
-                  bottom: AppSpacing.s8,
+                  bottom: widget.toolbarBottom,
                   left: 0,
                   right: 0,
                   child: Center(

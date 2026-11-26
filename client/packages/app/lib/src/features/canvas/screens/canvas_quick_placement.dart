@@ -68,6 +68,9 @@ class CanvasQuickPlacement {
   /// How the board lays a note's text out, so a new note is as tall as its rendered Markdown.
   NoteSpanBuilder? noteSpans;
 
+  /// How the board draws a text box's text, which sizes a new one.
+  NoteSpanBuilder? textSpans;
+
   final api.SlimmApi client;
   final String channelId;
   final CanvasDocument document;
@@ -120,7 +123,7 @@ class CanvasQuickPlacement {
     CanvasTextProps props, {
     required void Function(String message) onError,
   }) {
-    final box = textBoxFor(props);
+    final box = textBoxFor(props, spans: textSpans);
     return _place(
       kind: 'text',
       world: world + Offset(box.width / 2, box.height / 2),

@@ -43,6 +43,7 @@ Future<void> _capture(
               initial: const CanvasTextProps(text: 'BRUH'),
               onSave: (_) {},
               onCancel: () {},
+              onEscape: () {},
             ),
           ),
         ),

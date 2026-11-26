@@ -34,12 +34,16 @@ class CanvasEdgeLayer extends ConsumerStatefulWidget {
     required this.document,
     required this.canManage,
     required this.selfId,
+    this.boardFocus,
   });
 
   final String channelId;
   final CanvasDocument document;
   final bool canManage;
   final String? selfId;
+
+  /// Where the keyboard returns when the label input closes, so the next key still reaches the board.
+  final FocusNode? boardFocus;
 
   @override
   ConsumerState<CanvasEdgeLayer> createState() => _CanvasEdgeLayerState();
@@ -121,7 +125,9 @@ class _CanvasEdgeLayerState extends ConsumerState<CanvasEdgeLayer> {
   void _close() {
     _edges.labelEdit.value = null;
     if (mounted) setState(() => _editing = null);
-    widget.document.selectedObjectId.value == null ? null : _focus.unfocus();
+    if (!_focus.hasFocus) return;
+    final board = widget.boardFocus;
+    board == null ? _focus.unfocus() : board.requestFocus();
   }
 
   @override

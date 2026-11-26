@@ -152,6 +152,7 @@ class CanvasSurfacePainters {
         notePalette: w.notePalette,
         textFontFamily: w.cursorLabelFontFamily,
         noteSpans: w.noteSpans,
+        textSpans: w.textSpans,
         noteSpansRevision: w.noteSpansRevision,
         placeholderFill: w.placeholderFill,
         placeholderIcon: w.placeholderIcon,

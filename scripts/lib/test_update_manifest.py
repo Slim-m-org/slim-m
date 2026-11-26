@@ -5,6 +5,7 @@ The key is generated per run and never leaves the temp dir; the real signing
 key lives only in the UPDATE_SIGNING_KEY Actions secret.
 """
 import base64
+import hashlib
 import importlib.util
 import json
 import os
@@ -160,6 +161,42 @@ class UpdateManifestTest(unittest.TestCase):
         expected = self.record(*self.all_names())
         (self.assets / "slim-m-client-0.90.0-linux-amd64.tar.gz").write_bytes(b"xyz")
         self.assertEqual(self.build("--expected", expected).returncode, 1)
+
+    def record_linux_candidates(self, attached, other):
+        """Two producer runs of one tag: each records into its own directory, then `attached` is what stays on the release."""
+        linux = self.assets / "slim-m-client-0.90.0-linux-amd64.tar.gz"
+        rest = [n for n in self.all_names() if n != linux.name]
+        expected = self.tmp / "expected"
+        for sub, content in (("linux-1", attached[0]), ("linux-2", attached[1])):
+            linux.write_bytes(content)
+            run("digest", "--out", self.make_dir(expected / sub), linux)
+        for name in rest:
+            run("digest", "--out", self.make_dir(expected / "rest"), self.assets / name)
+        linux.write_bytes(other)
+        return expected
+
+    def make_dir(self, path):
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+
+    def test_two_candidates_sign_when_the_attached_asset_matches_the_second(self):
+        expected = self.record_linux_candidates((b"stale-build", b"fresh-build"), b"fresh-build")
+        done = self.build("--expected", expected)
+        self.assertEqual(done.returncode, 0, done.stderr)
+
+    def test_two_candidates_sign_when_the_attached_asset_matches_the_first(self):
+        expected = self.record_linux_candidates((b"fresh-build", b"stale-build"), b"fresh-build")
+        done = self.build("--expected", expected)
+        self.assertEqual(done.returncode, 0, done.stderr)
+
+    def test_two_candidates_refuse_when_the_attached_asset_matches_neither(self):
+        expected = self.record_linux_candidates((b"build-one", b"build-two"), b"swapped")
+        done = self.build("--expected", expected)
+        self.assertEqual(done.returncode, 1)
+        self.assertIn("differs from the digest its producer recorded", done.stderr)
+        for content in (b"build-one", b"build-two"):
+            self.assertIn(hashlib.sha256(content).hexdigest(), done.stderr)
+        self.assertFalse(self.manifest.exists())
 
     def test_an_asset_no_producer_recorded_is_refused(self):
         names = [n for n in self.all_names() if "macos" not in n]

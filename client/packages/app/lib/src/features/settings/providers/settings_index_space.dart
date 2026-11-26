@@ -281,8 +281,8 @@ const spaceSettingsIndex = <SettingsEntry>[
   SettingsEntry(
     'retention',
     'Photo metadata',
-    description: 'Details stored inside a photo file.',
-    keywords: ['exif', 'location', 'gps', 'privacy'],
+    description: 'What is removed from uploaded photos.',
+    keywords: ['exif', 'location', 'gps', 'privacy', 'heic'],
     conditional: true,
   ),
   SettingsEntry(

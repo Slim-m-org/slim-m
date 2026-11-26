@@ -105,6 +105,7 @@ extension _CanvasPaneHelpers on _CanvasPaneState {
     focusBoard: _boardFocusNode.requestFocus,
     spectating: () => _spectating,
     currentTool: () => _tool,
+    onEscaped: _putToolDown,
   );
 
   /// Tells the places that size a note how the board lays its text out.
@@ -112,6 +113,14 @@ extension _CanvasPaneHelpers on _CanvasPaneState {
     InlineSpan builder(String text, TextStyle base) =>
         buildNoteSpans(text, base, style);
     _ops.noteSpans = _quickPlacement.noteSpans = builder;
+    return builder;
+  }
+
+  /// How the board draws a text box's text: plain, with custom emoji in place.
+  NoteSpanBuilder _useTextSpans(NoteSpanStyle style) {
+    InlineSpan builder(String text, TextStyle base) =>
+        buildTextBoxSpans(text, base, style);
+    _ops.textSpans = _quickPlacement.textSpans = _text.spans = builder;
     return builder;
   }
 

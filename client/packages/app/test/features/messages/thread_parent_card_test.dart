@@ -18,6 +18,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/features/messages/screens/thread_screen.dart';
 import 'package:slimm_app/src/features/messages/widgets/thread_parent_card.dart';
+import 'package:slimm_app/src/features/modules/providers/code_block_runner.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
@@ -112,6 +113,7 @@ Future<ProviderContainer> _pumpThread(
   Size size, {
   http.Response? threadParentResponse,
   Set<String> blocked = const {},
+  List<Override> overrides = const [],
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -132,6 +134,7 @@ Future<ProviderContainer> _pumpThread(
 
   final container = ProviderContainer(
     overrides: [
+      ...overrides,
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
       storeProvider.overrideWith((ref) async => store),
@@ -346,5 +349,85 @@ void main() {
     );
     semantics.dispose();
     await _settle(tester);
+  });
+
+  group('a long or code-only parent', () {
+    final body = find.byKey(const ValueKey('thread-parent-body'));
+
+    http.Response parentOf(String content) => _threadParentJson(
+      parentChannelId: 'parent-channel',
+      parentChannelName: 'general',
+      parentMessageId: 'parent-1',
+      parentContent: content,
+      parentAuthorId: 'alice',
+      parentAuthorDisplayName: 'Alice',
+    );
+
+    testWidgets('stays within the height bound at 300 lines', (tester) async {
+      await _pumpThread(
+        tester,
+        const Size(1400, 900),
+        threadParentResponse: parentOf(
+          [for (var i = 0; i < 300; i++) 'line $i'].join('\n\n'),
+        ),
+      );
+
+      expect(
+        tester.getSize(body).height,
+        lessThanOrEqualTo(threadParentMaxBodyHeight),
+      );
+      await _settle(tester);
+    });
+
+    testWidgets('keeps a mention whole instead of cutting the text', (
+      tester,
+    ) async {
+      await _pumpThread(
+        tester,
+        const Size(1400, 900),
+        threadParentResponse: parentOf(
+          '${'x' * 596} **bold** <#00000000-0000-0000-0000-000000000000> tail',
+        ),
+      );
+
+      expect(find.textContaining('…', findRichText: true), findsNothing);
+      expect(find.textContaining('tail', findRichText: true), findsOneWidget);
+      await _settle(tester);
+    });
+
+    testWidgets('offers no Run button on a code block', (tester) async {
+      await _pumpThread(
+        tester,
+        const Size(1400, 900),
+        overrides: [
+          codeBlockRunnerProvider.overrideWith(
+            (ref) async => const [
+              api.CodeBlockRunner(
+                moduleId: 'code-exec',
+                command: 'run',
+                language: 'javascript',
+              ),
+            ],
+          ),
+        ],
+        threadParentResponse: parentOf('```javascript\nlet a = 1;\n```'),
+      );
+
+      expect(find.byTooltip('Run with code-exec'), findsNothing);
+      await _settle(tester);
+    });
+
+    testWidgets('is one tap target, with nothing inside taking the tap', (
+      tester,
+    ) async {
+      await _pumpThread(
+        tester,
+        const Size(1400, 900),
+        threadParentResponse: parentOf('see https://example.com now'),
+      );
+
+      expect(body.hitTestable(), findsNothing);
+      await _settle(tester);
+    });
   });
 }

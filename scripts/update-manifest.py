@@ -85,25 +85,29 @@ def record_digests(files: list[Path], out: Path) -> None:
         (target / f"{path.name}{DIGEST_SUFFIX}").write_text(json.dumps(record, sort_keys=True) + "\n")
 
 
-def load_expected(directory: Path) -> dict[str, dict]:
-    expected = {}
-    for path in sorted(existing_dir(directory).iterdir()):
-        if not path.name.endswith(DIGEST_SUFFIX):
-            continue
+def load_expected(directory: Path) -> dict[str, list[dict]]:
+    """Every digest a producer recorded, per file name; a re-run of a producer leaves more than one."""
+    expected: dict[str, list[dict]] = {}
+    for path in sorted(existing_dir(directory).rglob(f"*{DIGEST_SUFFIX}")):
         record = json.loads(path.read_text())
-        expected[record["name"]] = record
+        expected.setdefault(record["name"], []).append(record)
     return expected
 
 
-def check_against_producer(path: Path, digest: str, expected: dict[str, dict]) -> None:
-    record = expected.get(path.name)
-    if record is None:
+def check_against_producer(path: Path, digest: str, expected: dict[str, list[dict]]) -> None:
+    records = expected.get(path.name)
+    if not records:
         raise ManifestError(f"{path.name} is attached but no producer recorded its digest")
-    if record["sha256"] != digest or record["size"] != path.stat().st_size:
-        raise ManifestError(f"{path.name} differs from the digest its producer recorded")
+    size = path.stat().st_size
+    if any(record["sha256"] == digest and record["size"] == size for record in records):
+        return
+    recorded = ", ".join(f"{record['sha256']} ({record['size']} bytes)" for record in records)
+    raise ManifestError(
+        f"{path.name} differs from the digest its producer recorded: attached {digest} ({size} bytes), recorded {recorded}"
+    )
 
 
-def _collect_artifacts(directory: Path, repo: str, tag: str, expected: dict[str, dict] | None) -> dict:
+def _collect_artifacts(directory: Path, repo: str, tag: str, expected: dict[str, list[dict]] | None) -> dict:
     artifacts = {}
     for path in sorted(directory.iterdir()):
         for platform, pattern in PLATFORMS.items():
@@ -123,7 +127,7 @@ def _collect_artifacts(directory: Path, repo: str, tag: str, expected: dict[str,
 
 
 def build_manifest(
-    tag: str, directory: Path, repo: str, require: list[str], expected: dict[str, dict] | None = None
+    tag: str, directory: Path, repo: str, require: list[str], expected: dict[str, list[dict]] | None = None
 ) -> dict:
     if not tag.startswith("client-v"):
         raise ManifestError(f"tag must look like client-vX.Y.Z, got {tag!r}")

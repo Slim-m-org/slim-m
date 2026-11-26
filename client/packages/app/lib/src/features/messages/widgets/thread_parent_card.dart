@@ -21,16 +21,26 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../message_preview.dart';
 import '../../channels/providers/threads.dart';
 import '../../settings/providers/display_density.dart';
+import '../../emoji/providers/emoji_catalog_provider.dart';
 import '../../members/providers/blocks_controller.dart';
+import '../../members/providers/known_mention_names.dart';
+import '../../members/providers/member_presence.dart';
+import '../../members/providers/mention_names.dart';
 import '../../members/providers/user_profiles.dart';
 import '../../../routing/breakpoints.dart';
 import 'attachment_view.dart';
 import 'author_label.dart';
+import 'bounded_fade_box.dart';
+import 'message_inline.dart' show rewriteMentions;
 import 'message_jump.dart';
+import 'message_text.dart';
 import '../../members/widgets/user_avatar.dart';
 
 /// How much of the parent's own text is shown before it is cut off.
 const int _snippetMaxRunes = 600;
+
+/// How tall the parent's body grows before it fades out; the original is one tap away.
+const double threadParentMaxBodyHeight = 160;
 
 /// Resolves [threadParentProvider] for [channelId] and shows the parent once
 /// it is known; nothing before then or for a channel that is not a thread, so
@@ -115,8 +125,11 @@ class ThreadParentCard extends ConsumerWidget {
         cachedDisplayName: parent.parentAuthorDisplayName,
         resolution: resolution,
       );
+      final content = parent.parentContent ?? '';
+      final hasText = plainPreview(content).isNotEmpty;
+      final members = ref.watch(membersProvider);
       final snippet = previewSnippet(
-        parent.parentContent ?? '',
+        rewriteMentions(content, ref.watch(mentionNamesProvider)),
         maxRunes: _snippetMaxRunes,
       );
       body = Row(
@@ -141,11 +154,22 @@ class ThreadParentCard extends ConsumerWidget {
                     fontWeight: AppWeights.semi,
                   ),
                 ),
-                if (snippet.isNotEmpty)
+                if (hasText)
+                  BoundedFadeBox(
+                    key: const ValueKey('thread-parent-body'),
+                    maxHeight: threadParentMaxBodyHeight,
+                    fadeColor: tokens.surfaceSunken,
+                    child: MessageBody(
+                      content: content,
+                      knownUsernames: knownUsernamesFrom(members),
+                      knownRoleNames: knownRoleNamesFrom(members),
+                      customEmoji: ref.watch(customEmojiIndexProvider),
+                      runnable: false,
+                    ),
+                  )
+                else
                   Text(
                     snippet,
-                    maxLines: 8,
-                    overflow: TextOverflow.ellipsis,
                     style: AppText.body.copyWith(color: tokens.textPrimary),
                   ),
                 for (final attachment in parent.parentAttachments)
@@ -210,7 +234,10 @@ class ThreadParentCard extends ConsumerWidget {
               color: tokens.surfaceSunken,
               borderRadius: BorderRadius.circular(AppRadii.card),
             ),
-            child: Padding(padding: EdgeInsets.all(blockPadding), child: body),
+            child: Padding(
+              padding: EdgeInsets.all(blockPadding),
+              child: IgnorePointer(child: body),
+            ),
           ),
         ),
       ),

@@ -98,6 +98,7 @@ class CanvasSurface extends StatefulWidget {
     this.edgeLabelFill,
     this.notePalette = const NotePalette(),
     this.noteSpans,
+    this.textSpans,
     this.noteSpansRevision = 0,
     this.remoteDrafts,
     this.onDraftPoint,
@@ -130,6 +131,7 @@ class CanvasSurface extends StatefulWidget {
 
   /// See [StrokePainter.noteSpans] and [StrokePainter.noteSpansRevision].
   final NoteSpanBuilder? noteSpans;
+  final NoteSpanBuilder? textSpans;
   final int noteSpansRevision;
 
   /// The selection outline and resize-handle colours; null renders no selection layer.

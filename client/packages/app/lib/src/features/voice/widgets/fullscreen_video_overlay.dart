@@ -29,10 +29,15 @@ import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
 import '../providers/share_zoom_controller.dart';
 import '../../../widgets/double_click_detector.dart';
+import 'fullscreen_share_annotate.dart';
 import 'fullscreen_video_controls.dart';
+import 'call_stage_layout.dart' show defaultDockClearance;
 import 'share_zoom_view.dart';
 import 'stream_volume_pill.dart';
 import 'stream_controls_reveal.dart';
+
+/// How far above the foot the share's own controls sit: the call dock and its margin, plus a gap.
+const double _aboveDock = defaultDockClearance + AppSpacing.s20;
 
 /// Which live view a tile was showing when it was expanded.
 enum FullscreenVideoKind { camera, screenShare }
@@ -192,7 +197,7 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
                     AppSpacing.s8 + inset.left,
                     AppSpacing.s8,
                     AppSpacing.s8 + inset.right,
-                    96 + inset.bottom,
+                    _aboveDock + inset.bottom,
                   ),
                   child: controller.screenShareViewFor(widget.identity),
                 ))
@@ -205,6 +210,11 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
               !p.isLocal &&
               controller.volumes.hasScreenAudio(p.identity),
         );
+    final annotated = widget.kind == FullscreenVideoKind.screenShare
+        ? participants
+              .where((p) => p.identity == widget.identity && !p.isLocal)
+              .firstOrNull
+        : null;
     // A touch shows the controls for a few seconds, a pointer while it is over the video.
     final Widget stage = StreamControlsReveal(
       initiallyShown: true,
@@ -223,6 +233,13 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
                   )
                 : video,
           ),
+          if (live && annotated != null)
+            FullscreenShareAnnotate(
+              sharerId: annotated.identity,
+              sharerName: annotated.name,
+              zoom: _zoom,
+              toolbarBottom: _aboveDock + inset.bottom,
+            ),
           Positioned(
             top: 0,
             left: 0,

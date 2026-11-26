@@ -15,11 +15,19 @@ import '../../screen_overlay/providers/stamp_images.dart';
 
 /// [content] fitted into its box; nothing until its bitmap is in. An animated
 /// GIF, a picture or a custom emoji, plays from its original unless the
-/// system asks for reduced motion.
+/// system asks for reduced motion or [animate] is false.
 class StampView extends ConsumerStatefulWidget {
-  const StampView({super.key, required this.content, this.semanticLabel});
+  const StampView({
+    super.key,
+    required this.content,
+    this.semanticLabel,
+    this.animate = true,
+  });
 
   final StampContent content;
+
+  /// False holds an animated stamp on its still frame.
+  final bool animate;
   final String? semanticLabel;
 
   @override
@@ -96,7 +104,9 @@ class _StampViewState extends ConsumerState<StampView> {
   Widget build(BuildContext context) {
     final original = _original;
     final Widget picture;
-    if (original != null && !MediaQuery.disableAnimationsOf(context)) {
+    if (original != null &&
+        widget.animate &&
+        !MediaQuery.disableAnimationsOf(context)) {
       picture = Image.memory(
         original,
         fit: BoxFit.contain,

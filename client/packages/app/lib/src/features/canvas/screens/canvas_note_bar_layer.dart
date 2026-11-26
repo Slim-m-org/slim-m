@@ -6,15 +6,12 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:slimm_design_system/design_system.dart'
-    show AppIconButton, AppIcons, AppSizes, AppSpacing;
+import 'package:slimm_design_system/design_system.dart' show AppSpacing;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../../providers/dock_reservation.dart';
-import '../../emoji/widgets/emoji_picker.dart';
 import '../providers/canvas_edge_style.dart';
 import '../widgets/canvas_note_editor.dart';
-import '../widgets/canvas_note_limits.dart';
 import '../widgets/canvas_note_style_options.dart';
 import '../widgets/canvas_selection_bar.dart';
 import '../widgets/canvas_text_style_options.dart';
@@ -35,7 +32,7 @@ class CanvasNoteBarLayer extends ConsumerWidget {
   final CanvasDocument document;
   final CanvasTool tool;
 
-  /// The note being typed in, whose text the bar's emoji button inserts into.
+  /// The note being typed in, whose own bar this is.
   final CanvasNoteEditSession? session;
 
   /// Whether this person may restyle the note: its author or a canvas manager, and it is not locked.
@@ -70,7 +67,7 @@ class CanvasNoteBarLayer extends ConsumerWidget {
         if (id == null ||
             bounds == null ||
             (style == null && box == null) ||
-            (box == null && !styled && session == null) ||
+            (box == null && !styled) ||
             (box != null && textEditing) ||
             dragging ||
             !armed ||
@@ -111,28 +108,12 @@ class CanvasNoteBarLayer extends ConsumerWidget {
                 container: true,
                 label: box == null ? 'Note style' : 'Text style',
                 child: Consumer(
-                  builder: (context, ref, _) => CanvasSelectionBar(
-                    entries: box != null
-                        ? canvasTextStyleOptions(
-                            context: context,
-                            ref: ref,
-                            size: box.size,
-                            colorKey: box.colorKey,
-                            onSize: (size) => onTextStyle(id, size: size),
-                            onColour: (key) => onTextStyle(id, colorKey: key),
-                          )
-                        : !styled
-                        ? const []
-                        : canvasNoteStyleOptions(
-                            context: context,
-                            ref: ref,
-                            style: style!,
-                            onChanged: (next) => onStyle(id, next),
-                          ),
-                    groupId: canvasNoteTapGroup,
-                    trailing: session == null
-                        ? null
-                        : _EmojiButton(session: session!),
+                  builder: (context, ref, _) => _bar(
+                    context: context,
+                    ref: ref,
+                    id: id,
+                    style: style,
+                    box: box,
                   ),
                 ),
               ),
@@ -142,33 +123,44 @@ class CanvasNoteBarLayer extends ConsumerWidget {
       },
     );
   }
-}
 
-class _EmojiButton extends StatelessWidget {
-  const _EmojiButton({required this.session});
-
-  final CanvasNoteEditSession session;
-
-  void _insert(String emoji) {
-    session.focusNode.requestFocus();
-    if (!insertEmojiWithinNoteCap(session.controller, emoji)) {
-      session.refusals.value++;
+  Widget _bar({
+    required BuildContext context,
+    required WidgetRef ref,
+    required String id,
+    required CanvasNoteStyle? style,
+    required ({String text, String size, String colorKey})? box,
+  }) {
+    if (box != null) {
+      return CanvasSelectionBar(
+        colour: canvasTextBarColour(context, box.colorKey),
+        colourLabel: 'Text colour',
+        colourEntries: canvasTextColourEntries(
+          context: context,
+          ref: ref,
+          colorKey: box.colorKey,
+          onColour: (key) => onTextStyle(id, colorKey: key),
+        ),
+        size: canvasTextSizeEntry(
+          box.size,
+          (size) => onTextStyle(id, size: size),
+        ),
+        groupId: canvasNoteTapGroup,
+      );
     }
-  }
-
-  @override
-  Widget build(BuildContext context) => SizedBox(
-    width: AppSizes.rowTouch,
-    child: EmojiPickerButton(
-      alignEnd: true,
-      tapGroupId: canvasNoteTapGroup,
-      onSelect: _insert,
-      triggerBuilder: (context, toggle) => AppIconButton(
-        icon: AppIcons.smile,
-        semanticLabel: 'Insert emoji',
-        tooltip: 'Insert emoji',
-        onPressed: toggle,
+    void change(CanvasNoteStyle next) => onStyle(id, next);
+    return CanvasSelectionBar(
+      colour: canvasNoteBarColour(style!),
+      colourLabel: 'Colours',
+      colourEntries: canvasNoteColourEntries(
+        context: context,
+        ref: ref,
+        style: style,
+        onChanged: change,
       ),
-    ),
-  );
+      size: canvasNoteSizeEntry(style, change),
+      groupId: canvasNoteTapGroup,
+      onClosed: session?.focusNode.requestFocus,
+    );
+  }
 }

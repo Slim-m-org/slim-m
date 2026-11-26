@@ -38,6 +38,7 @@ class MessageCodeBlockRunner extends ConsumerStatefulWidget {
     required this.code,
     this.messageId,
     this.blockIndex = 0,
+    this.runnable = true,
   });
 
   final String? language;
@@ -47,6 +48,9 @@ class MessageCodeBlockRunner extends ConsumerStatefulWidget {
   /// the run ephemeral and per-viewer - see the file doc comment.
   final String? messageId;
   final int blockIndex;
+
+  /// False where the block is only shown, so no Run action is offered.
+  final bool runnable;
 
   @override
   ConsumerState<MessageCodeBlockRunner> createState() =>
@@ -137,7 +141,9 @@ class _MessageCodeBlockRunnerState extends ConsumerState<MessageCodeBlockRunner>
   @override
   Widget build(BuildContext context) {
     final runners = ref.watch(codeBlockRunnerProvider).valueOrNull ?? const [];
-    final runner = matchCodeBlockRunner(runners, widget.language);
+    final runner = widget.runnable
+        ? matchCodeBlockRunner(runners, widget.language)
+        : null;
     final hidden = hasHiddenCodeCharacters(widget.code);
     final sharedRun = _shared ? _sharedRun() : null;
     final result = _shared

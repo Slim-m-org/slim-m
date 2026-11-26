@@ -74,7 +74,12 @@ void main() {
     const at = Offset(40, 50);
     tool.place(at);
     final editor =
-        tool.editor(null, onCancel: () {}, onEditClosed: () {})!
+        tool.editor(
+              null,
+              onCancel: () {},
+              onEscape: () {},
+              onEditClosed: () {},
+            )!
             as CanvasTextEditor;
 
     await tester.runAsync(() async {
@@ -82,7 +87,12 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 500));
     });
 
-    final reopened = tool.editor(null, onCancel: () {}, onEditClosed: () {});
+    final reopened = tool.editor(
+      null,
+      onCancel: () {},
+      onEscape: () {},
+      onEditClosed: () {},
+    );
     expect(tool.draft, at);
     expect((reopened! as CanvasTextEditor).initial.text, 'a long paragraph');
     expect(engine.errors, isNotEmpty);

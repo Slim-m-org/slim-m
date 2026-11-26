@@ -3,7 +3,10 @@
 ///
 /// A task checkbox is a [WidgetSpan] holding a [NoteCheckMark] that is never inflated: the painter
 /// only reads it for the box's state and source line, and draws the box itself in the gap the layout left.
+/// A custom emoji is the same kind of gap, a [NoteEmojiMark] the painter fills with the emoji's bitmap.
 library;
+
+import 'dart:ui' as ui;
 
 import 'package:flutter/widgets.dart';
 
@@ -20,6 +23,9 @@ typedef NoteSpanBuilder = InlineSpan Function(String text, TextStyle base);
 /// The box a placeholder checkbox leaves in the text, as a multiple of the font size.
 const double noteCheckboxScale = 1;
 
+/// The box an inline custom emoji leaves in the text, as a multiple of the font size.
+const double noteEmojiScale = 1.2;
+
 /// A note's text size in world units: the size its box allows, scaled by the step it was given.
 double noteTextSizeOf(
   double fontSizeForBox,
@@ -35,6 +41,14 @@ class NoteCheckMark extends SizedBox {
   final int line;
 }
 
+/// A custom emoji in the text: its shortcode [name] and its [image] once the bitmap has loaded.
+class NoteEmojiMark extends SizedBox {
+  const NoteEmojiMark({super.key, required this.name, this.image});
+
+  final String name;
+  final ui.Image? image;
+}
+
 /// A span a tap opens: [url] is where it goes.
 class NoteLinkSpan extends TextSpan {
   const NoteLinkSpan({required this.url, super.text, super.style});
@@ -45,7 +59,13 @@ class NoteLinkSpan extends TextSpan {
 /// One checkbox as laid out: its box inside the text area and the state it shows.
 typedef NoteCheck = ({Rect rect, bool checked, int line});
 
-final Expando<List<NoteCheckMark>> _marksOf = Expando<List<NoteCheckMark>>();
+/// One emoji as laid out: its box inside the text area and its bitmap, null while it loads.
+typedef NoteEmoji = ({Rect rect, ui.Image? image});
+
+final Expando<List<SizedBox>> _marksOf = Expando<List<SizedBox>>();
+
+bool _isPlaceholderMark(Widget child) =>
+    child is NoteCheckMark || child is NoteEmojiMark;
 
 /// [spans] laid out at [fontSize] inside a [width] wide text area, wrapped at most [maxLines] lines.
 TextPainter layoutNoteText(
@@ -54,14 +74,13 @@ TextPainter layoutNoteText(
   required double width,
   int? maxLines,
 }) {
-  final marks = <NoteCheckMark>[];
+  final marks = <SizedBox>[];
   spans.visitChildren((span) {
-    if (span is WidgetSpan && span.child is NoteCheckMark) {
-      marks.add(span.child as NoteCheckMark);
+    if (span is WidgetSpan && _isPlaceholderMark(span.child)) {
+      marks.add(span.child as SizedBox);
     }
     return true;
   });
-  final side = fontSize * noteCheckboxScale;
   final painter = TextPainter(
     text: spans,
     textDirection: TextDirection.ltr,
@@ -70,9 +89,12 @@ TextPainter layoutNoteText(
   );
   if (marks.isNotEmpty) {
     painter.setPlaceholderDimensions([
-      for (final _ in marks)
+      for (final mark in marks)
         PlaceholderDimensions(
-          size: Size(side, side),
+          size: Size.square(
+            fontSize *
+                (mark is NoteEmojiMark ? noteEmojiScale : noteCheckboxScale),
+          ),
           alignment: PlaceholderAlignment.middle,
         ),
     ]);
@@ -89,7 +111,20 @@ List<NoteCheck> noteChecksOf(TextPainter painter) {
   if (marks == null || boxes == null) return const [];
   return [
     for (var i = 0; i < marks.length && i < boxes.length; i++)
-      (rect: boxes[i].toRect(), checked: marks[i].checked, line: marks[i].line),
+      if (marks[i] case final NoteCheckMark mark)
+        (rect: boxes[i].toRect(), checked: mark.checked, line: mark.line),
+  ];
+}
+
+/// Every custom emoji in [painter]'s text, in reading order.
+List<NoteEmoji> noteEmojisOf(TextPainter painter) {
+  final marks = _marksOf[painter];
+  final boxes = painter.inlinePlaceholderBoxes;
+  if (marks == null || boxes == null) return const [];
+  return [
+    for (var i = 0; i < marks.length && i < boxes.length; i++)
+      if (marks[i] case final NoteEmojiMark mark)
+        (rect: boxes[i].toRect(), image: mark.image),
   ];
 }
 

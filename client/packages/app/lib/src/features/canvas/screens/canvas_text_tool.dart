@@ -43,6 +43,9 @@ class CanvasTextTool {
   /// True while this viewer only watches the canvas, so no box is opened.
   final bool Function() spectating;
 
+  /// How the board draws a text box's text, so the editor sizes the box as it will be seen.
+  NoteSpanBuilder? spans;
+
   /// Where the editor for a box not placed yet is open, in world coordinates.
   Offset? draft;
 
@@ -72,6 +75,7 @@ class CanvasTextTool {
   Widget? editor(
     String? editingId, {
     required VoidCallback onCancel,
+    required VoidCallback onEscape,
     required VoidCallback onEditClosed,
   }) {
     if (editingId != null) {
@@ -88,6 +92,8 @@ class CanvasTextTool {
         ),
         onSave: (props) => unawaited(_saveEdit(editingId, props, onEditClosed)),
         onCancel: onCancel,
+        onEscape: onEscape,
+        spans: spans,
       );
     }
     final at = draft;
@@ -105,6 +111,8 @@ class CanvasTextTool {
           ),
       onSave: (props) => unawaited(_saveDraft(at, props)),
       onCancel: onCancel,
+      onEscape: onEscape,
+      spans: spans,
     );
   }
 

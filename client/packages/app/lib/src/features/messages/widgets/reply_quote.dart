@@ -17,6 +17,7 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../message_preview.dart';
+import '../../members/providers/mention_names.dart';
 import '../providers/message_extras.dart';
 import '../providers/reply_parent.dart';
 import '../providers/repost_blocks.dart';
@@ -25,6 +26,7 @@ import '../../members/providers/user_profiles.dart';
 import '../../members/widgets/role_color.dart';
 import '../../members/widgets/user_avatar.dart';
 import 'author_label.dart';
+import 'message_inline.dart' show rewriteMentions;
 import 'reply_target_summary.dart';
 
 /// How much of a quoted message's own text is shown before it is cut off - a
@@ -111,6 +113,7 @@ class ReplyQuote extends ConsumerWidget {
           );
     final name = _nameFor(resolved, resolution);
     final label = name == null || !pinged ? name : '@$name';
+    final mentionNames = ref.watch(mentionNamesProvider);
     final attachments = resolved == null
         ? const <api.Attachment>[]
         : ref.watch(
@@ -127,7 +130,10 @@ class ReplyQuote extends ConsumerWidget {
       _ when !hasText && attachments.isNotEmpty => attachmentKindLabel(
         attachments,
       ),
-      _ => previewSnippet(resolved.content, maxRunes: _quoteMaxRunes),
+      _ => previewSnippet(
+        rewriteMentions(resolved.content, mentionNames),
+        maxRunes: _quoteMaxRunes,
+      ),
     };
     return AppTouchHitArea(
       key: quoteKey,
@@ -239,9 +245,10 @@ class ReplyQuote extends ConsumerWidget {
               name: label,
               profile: profile,
               style: snippetStyle.copyWith(
-                color:
-                    memberNameColor(profile, tokens.surfaceBase) ??
-                    tokens.textPrimary,
+                color: pinged
+                    ? tokens.accent
+                    : memberNameColor(profile, tokens.surfaceBase) ??
+                          tokens.textPrimary,
                 fontWeight: AppWeights.semi,
               ),
               secondary: snippet,

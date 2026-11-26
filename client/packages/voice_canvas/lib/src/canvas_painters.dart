@@ -124,6 +124,7 @@ class StrokePainter extends CustomPainter {
     this.shapeColor,
     this.textFontFamily,
     this.noteSpans,
+    this.textSpans,
     this.noteSpansRevision = 0,
     this.placeholderFill = const Color(0xFFB9C0C8),
     this.placeholderIcon = const Color(0xFF6C757E),
@@ -155,6 +156,9 @@ class StrokePainter extends CustomPainter {
   /// How a note's text becomes spans; null paints it as plain text.
   final NoteSpanBuilder? noteSpans;
 
+  /// How a text box's text becomes spans (inline emoji, no block markdown); null paints it as plain text.
+  final NoteSpanBuilder? textSpans;
+
   /// Bumped by the owner when what [noteSpans] reads changes, so cached note
   /// layouts rebuild.
   final int noteSpansRevision;
@@ -182,6 +186,7 @@ class StrokePainter extends CustomPainter {
     inkColors: inkColors,
     textFontFamily: textFontFamily,
     noteSpans: noteSpans,
+    textSpans: textSpans,
     noteSpansRevision: noteSpansRevision,
     elevationShadow: elevationShadow,
   );

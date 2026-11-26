@@ -2,12 +2,15 @@
 /// What a text box is made of: the wire props, the input filter, the font steps and the box a text needs.
 library;
 
-import 'package:flutter/services.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/canvas/providers/canvas_object_inputs.dart';
 import 'package:slimm_app/src/features/canvas/providers/canvas_text_props.dart';
+import 'package:slimm_app/src/features/canvas/widgets/canvas_note_spans.dart';
 import 'package:slimm_app/src/features/canvas/widgets/canvas_text_content.dart';
+import 'package:slimm_app/src/features/canvas/widgets/canvas_text_spans.dart';
+import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 api.CanvasObject _object(Map<String, dynamic> props) => api.CanvasObject(
@@ -114,6 +117,36 @@ void main() {
       final large = textBoxFor(small.copyWith(size: 'large'));
       expect(many.height, greaterThan(one.height));
       expect(large.height, greaterThan(one.height));
+    });
+
+    test('several emoji are measured as the emoji the board draws', () {
+      const style = NoteSpanStyle(
+        knownUsernames: {},
+        mentionInk: Colors.blue,
+        mentionFill: Colors.blue,
+        linkInk: Colors.blue,
+        customEmoji: {'blobby': 'e-blobby'},
+      );
+      final text = List.filled(12, ':blobby:').join(' ');
+      final props = small.copyWith(text: text);
+      final base = TextStyle(
+        fontFamily: AppFonts.sans,
+        fontSize: canvasTextFontSizes['small']!,
+        height: canvasTextLineHeight,
+      );
+      final drawn = layoutNoteText(
+        buildTextBoxSpans(text, base, style),
+        fontSize: canvasTextFontSizes['small']!,
+        width: defaultTextBoxWidth - canvasTextPad * 2,
+      );
+
+      final fitted = textBoxFor(
+        props,
+        spans: (t, b) => buildTextBoxSpans(t, b, style),
+      );
+
+      expect(fitted.height, (drawn.height + canvasTextPad * 2).ceilToDouble());
+      expect(fitted.height, lessThan(textBoxFor(props).height));
     });
 
     test('a line break adds a line and the width is the one asked for', () {

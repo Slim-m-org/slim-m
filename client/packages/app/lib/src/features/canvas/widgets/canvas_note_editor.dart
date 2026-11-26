@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import 'canvas_inline_emoji_controller.dart';
 import 'canvas_note_sizing.dart';
 import 'canvas_note_field.dart';
 
@@ -28,7 +29,11 @@ class CanvasNoteEditSession {
     required this.initialText,
     required this.startBounds,
     this.draft,
-  }) : controller = TextEditingController(text: initialText),
+    Map<String, String> Function()? emojiIndex,
+  }) : controller = InlineEmojiController(
+         text: initialText,
+         index: emojiIndex ?? () => const {},
+       ),
        focusNode = FocusNode(),
        baseHeight = startBounds.h {
     controller.selection = TextSelection.collapsed(offset: initialText.length);
@@ -43,7 +48,7 @@ class CanvasNoteEditSession {
   /// Set for a note that exists only here until its text is committed: where it was asked for.
   final CanvasNoteDraft? draft;
 
-  final TextEditingController controller;
+  final InlineEmojiController controller;
   final FocusNode focusNode;
 
   /// Counts the inserts the note's cap refused, so its field can say why.
@@ -78,6 +83,7 @@ class CanvasNoteEditor extends StatefulWidget {
     required this.palette,
     required this.onCommit,
     required this.onCancel,
+    required this.onEscape,
     required this.onGone,
   });
 
@@ -85,7 +91,12 @@ class CanvasNoteEditor extends StatefulWidget {
   final CanvasNoteEditSession session;
   final NotePalette palette;
   final ValueChanged<String> onCommit;
+
+  /// An edit that ended with nothing to keep; the tool stays as it was.
   final VoidCallback onCancel;
+
+  /// Escape ended the edit.
+  final VoidCallback onEscape;
 
   /// The note was removed under the editor.
   final VoidCallback onGone;
@@ -221,6 +232,12 @@ class _CanvasNoteEditorState extends State<CanvasNoteEditor>
     widget.onCancel();
   }
 
+  void _escape() {
+    if (_done) return;
+    _done = true;
+    widget.onEscape();
+  }
+
   @override
   Widget build(BuildContext context) {
     final inset = MediaQuery.viewInsetsOf(context).bottom;
@@ -249,6 +266,7 @@ class _CanvasNoteEditorState extends State<CanvasNoteEditor>
           bounds.w * camera.zoom,
           bounds.h * camera.zoom,
         );
+        _endWhenOutOfView(rect);
         _keepAboveKeyboard(rect, inset);
         final ink = widget.palette.inkOf(style, AppCanvasColors.note);
         return Stack(
@@ -267,7 +285,7 @@ class _CanvasNoteEditorState extends State<CanvasNoteEditor>
                       controller: _session.controller,
                       focusNode: _session.focusNode,
                       onSave: _commit,
-                      onCancel: _cancel,
+                      onCancel: _escape,
                       hintText: canvasNoteFieldHint,
                       inPlaceStyle: TextStyle(
                         fontFamily: AppFonts.sans,
@@ -287,6 +305,15 @@ class _CanvasNoteEditorState extends State<CanvasNoteEditor>
         );
       },
     );
+  }
+
+  /// A note panned out of the pane is committed (or dropped when empty), so no bar is left editing it from afar.
+  void _endWhenOutOfView(Rect rect) {
+    final view = widget.document.viewport;
+    if (_done || view.isEmpty || (Offset.zero & view).overlaps(rect)) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !_done) _commit();
+    });
   }
 
   /// A phone's keyboard must not cover the note: the camera pans, never the layout.

@@ -105,6 +105,8 @@ void main() {
     await placeWithTool(tester, const Offset(150, 150));
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyT);
+    await tester.pump();
     final again = await tester.startGesture(
       screenFor(tester, const Offset(150, 150)),
     );
@@ -117,7 +119,7 @@ void main() {
     expect(fixture.posted, isEmpty);
   });
 
-  testWidgets('Escape cancels a new text box and keeps the tool armed', (
+  testWidgets('Escape cancels a new text box and puts the tool down', (
     tester,
   ) async {
     final fixture = await openPane(tester);
@@ -129,13 +131,13 @@ void main() {
 
     expect(field, findsNothing);
     expect(fixture.posted, isEmpty);
-    final text = tester.widget<AppIconButton>(
+    final pan = tester.widget<AppIconButton>(
       find.ancestor(
-        of: find.bySemanticsLabel('Text'),
+        of: find.bySemanticsLabel('Pan'),
         matching: find.byWidgetPredicate((w) => w is AppIconButton),
       ),
     );
-    expect(text.active, isTrue, reason: 'the editor took the press');
+    expect(pan.active, isTrue, reason: 'one press ends the edit and the tool');
   });
 
   testWidgets('Ctrl+Enter saves the text box', (tester) async {
@@ -152,16 +154,18 @@ void main() {
     expect((fixture.posted.single['props'] as Map)['text'], 'keys only');
   });
 
-  testWidgets('size and colour share one row of the bar', (tester) async {
+  testWidgets('the colour button then the sizes share one row of the bar', (
+    tester,
+  ) async {
     await openPane(tester);
     await placeWithTool(tester, const Offset(150, 150));
 
     final small = tester.getCenter(find.text('S'));
     final large = tester.getCenter(find.text('L'));
-    final blue = tester.getCenter(find.bySemanticsLabel('Blue'));
-    expect(small.dy, closeTo(blue.dy, 0.5));
-    expect(large.dy, closeTo(blue.dy, 0.5));
-    expect(large.dx, lessThan(blue.dx), reason: 'sizes first, then colours');
+    final colour = tester.getCenter(find.byTooltip('Text colour'));
+    expect(small.dy, closeTo(colour.dy, 0.5));
+    expect(large.dy, closeTo(colour.dy, 0.5));
+    expect(colour.dx, lessThan(small.dx), reason: 'colour first, then sizes');
   });
 
   testWidgets('size and colour picked in the editor travel with the text', (
@@ -172,7 +176,9 @@ void main() {
     await placeWithTool(tester, const Offset(150, 150));
     await tester.enterText(field, 'big blue');
     await tester.tap(find.text('L'));
-    await tester.tap(find.bySemanticsLabel('Blue'));
+    await tester.tap(find.byTooltip('Text colour'));
+    await tester.pump();
+    await tester.tap(find.byTooltip('Blue'));
     await commit(tester);
 
     expect(fixture.posted.single['props'], {
@@ -213,6 +219,7 @@ void main() {
     await openPane(tester);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.keyT);
+    await tester.pump();
     await tester.pump();
     final gesture = await tester.startGesture(
       screenFor(tester, const Offset(150, 150)),
@@ -314,7 +321,9 @@ void main() {
 
         await tester.enterText(field, 'after');
         await tester.tap(find.text('S'));
-        await tester.tap(find.bySemanticsLabel('Green'));
+        await tester.tap(find.byTooltip('Text colour'));
+        await tester.pump();
+        await tester.tap(find.byTooltip('Green'));
         await commit(tester);
 
         final edits = fixture.postedOps.where((op) => op['kind'] == 'edit');

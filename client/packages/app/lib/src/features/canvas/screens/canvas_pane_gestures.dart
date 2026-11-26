@@ -35,7 +35,7 @@ extension _CanvasPaneGestures on _CanvasPaneState {
     unawaited(ref.read(canvasToolsHiddenProvider.notifier).select(hide));
   }
 
-  /// Escape with a drawing tool armed: drop a half-drawn stroke or shape, else close a docked thread, else put the tool down to Pan.
+  /// Escape with a tool armed: drop a half-drawn stroke or shape, else close a docked thread, else put the tool down to Pan.
   void _onEscapeTool() {
     if (_gestureController.cancelDrawing()) return;
     if (_threadPaneDocked) return _closeThreadPane();
@@ -191,10 +191,21 @@ extension _CanvasPaneGestures on _CanvasPaneState {
     _boardFocusNode.requestFocus();
   }
 
+  void _onNoteEditEscape() {
+    _onNoteEditCancel();
+    _putToolDown();
+  }
+
+  /// Escape ends an edit and the tool that opened it together, so one press returns to Pan.
+  void _putToolDown() {
+    if (_tool != CanvasTool.pan) _onToolChanged(CanvasTool.pan);
+  }
+
   /// The text box's own editor while one is open.
   Widget? _textEditor() => _text.editor(
     _editingNoteId,
     onCancel: _onNoteEditCancel,
+    onEscape: _onNoteEditEscape,
     onEditClosed: () => _refresh(() => _editingNoteId = null),
   );
 
@@ -224,12 +235,19 @@ extension _CanvasPaneGestures on _CanvasPaneState {
   NoteSpanStyle _noteSpanStyle(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final members = ref.watch(membersProvider).valueOrNull ?? const [];
+    ref.watch(canvasNoteEmojiImagesProvider);
+    final emojiRevision = ref
+        .read(canvasNoteEmojiImagesProvider.notifier)
+        .revision;
     return NoteSpanStyle(
       knownUsernames: {for (final m in members) m.username.toLowerCase()},
       mentionInk: tokens.accent,
       mentionFill: tokens.accentSoft,
       linkInk: tokens.accent,
       mentionNames: ref.watch(mentionNamesProvider),
+      customEmoji: ref.watch(customEmojiIndexProvider),
+      emojiImage: ref.read(canvasNoteEmojiImagesProvider.notifier).imageOf,
+      emojiRevision: emojiRevision,
     );
   }
 

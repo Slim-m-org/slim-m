@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The bar of controls over a selected canvas object: the option groups a tool offers, laid in one row.
+/// The bar of style controls over a selected note or text box: one colour button and the text size.
 ///
-/// It floats above the object on a wide pane and docks at the foot of a narrow one, and
-/// scrolls sideways when the row is wider than the room.
+/// The colour button opens a popover holding every colour group the object takes, so a note and a text box show
+/// the same bar shape. It floats above the object on a wide pane and docks at the foot of a narrow one.
 library;
 
 import 'dart:math' as math;
@@ -10,86 +10,76 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../widgets/context_menu_region.dart';
 import '../../../widgets/control_menu_entries.dart';
 import '../../../widgets/control_swatch_row.dart';
 
 /// Below this pane width the bar docks instead of floating (desktop-vs-mobile Law 1: width decides).
 const double canvasSelectionBarDockWidth = 600;
 
-/// The width one swatch takes in the bar's colour rows.
-const double _swatchWidth = 30;
-const double _touchScale = 1.4;
+/// The widest the bar is ever drawn, however much room the pane has.
+const double canvasSelectionBarMaxWidth = 480;
 
 class CanvasSelectionBar extends StatelessWidget {
   const CanvasSelectionBar({
     super.key,
-    required this.entries,
-    this.trailing,
+    required this.colour,
+    required this.colourLabel,
+    required this.colourEntries,
+    required this.size,
     this.groupId,
+    this.onClosed,
   });
 
-  final List<ControlOptionEntry> entries;
+  /// The colour the button shows for what the object has now.
+  final Color colour;
+  final String colourLabel;
 
-  /// A control kept at the row's end, such as the emoji button while text is typed.
-  final Widget? trailing;
+  /// What the popover holds: colour groups and, for a note, how much of the fill shows.
+  final List<ControlOptionEntry> colourEntries;
+  final ControlSegmented size;
 
-  /// The text field's tap region group, so a tap on the bar is not an outside tap that ends the edit.
+  /// The text field's tap region group, so a tap on the bar or its popover is not an outside tap that ends the edit.
   final Object? groupId;
 
-  /// The width the row takes unscrolled, which a scroll view cannot report for itself.
-  double _naturalWidth(BuildContext context, bool touch) {
-    var width = AppSpacing.s24 + (trailing == null ? 0 : AppSizes.rowTouch);
-    for (final entry in entries) {
-      width +=
-          AppSpacing.s12 +
-          switch (entry) {
-            ControlSwatchGroup(:final swatches) => _groupWidth(swatches, touch),
-            ControlSegmented(:final options) => AppSegmentedControl.inlineWidth(
-              context,
-              options,
-            ),
-            _ => 0,
-          };
-    }
-    return width - AppSpacing.s12;
-  }
-
-  double _groupWidth(List<ControlSwatch> swatches, bool touch) =>
-      swatches.length * _swatchWidth * (touch ? _touchScale : 1);
+  /// Runs when the colour menu or sheet closes however it ends, so a caller typing can take the keyboard back.
+  final VoidCallback? onClosed;
 
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final touch = AppTouchTargets.of(context);
     final rowHeight = touch ? AppSizes.rowTouch : AppSizes.rowPointer;
-    final bar = Container(
-      height: rowHeight + AppSpacing.s8,
-      width: _naturalWidth(context, touch),
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
-      decoration: BoxDecoration(
-        color: tokens.surfaceRaised,
-        border: Border.all(color: tokens.borderSubtle),
-        borderRadius: BorderRadius.circular(AppRadii.card),
-        boxShadow: AppShadows.menu,
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  for (final (i, entry) in entries.indexed) ...[
-                    if (i > 0) const SizedBox(width: AppSpacing.s12),
-                    _entry(context, entry, touch),
-                  ],
-                ],
-              ),
+    final bar = ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: canvasSelectionBarMaxWidth),
+      child: Container(
+        height: rowHeight + AppSpacing.s8,
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
+        decoration: BoxDecoration(
+          color: tokens.surfaceRaised,
+          border: Border.all(color: tokens.borderSubtle),
+          borderRadius: BorderRadius.circular(AppRadii.card),
+          boxShadow: AppShadows.menu,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          spacing: AppSpacing.s8,
+          children: [
+            _ColourButton(
+              colour: colour,
+              label: colourLabel,
+              entries: colourEntries,
+              groupId: groupId,
+              onClosed: onClosed,
             ),
-          ),
-          ?trailing,
-        ],
+            AppSegmentedControl.inline(
+              options: size.options,
+              selectedIndex: size.selectedIndex,
+              onSegmentSelected: size.onSelected,
+              semanticLabel: size.label,
+            ),
+          ],
+        ),
       ),
     );
     return Material(
@@ -99,31 +89,121 @@ class CanvasSelectionBar extends StatelessWidget {
           : TextFieldTapRegion(groupId: groupId, child: bar),
     );
   }
+}
 
-  Widget _entry(BuildContext context, ControlOptionEntry entry, bool touch) =>
-      switch (entry) {
-        ControlSwatchGroup(:final heading, :final swatches) => Semantics(
-          label: heading,
-          container: true,
-          child: SizedBox(
-            width: _groupWidth(swatches, touch),
-            child: ControlSwatchRow(swatches: swatches, close: () {}),
+/// The swatch of the colour in use, which opens the colour popover.
+class _ColourButton extends StatefulWidget {
+  const _ColourButton({
+    required this.colour,
+    required this.label,
+    required this.entries,
+    required this.groupId,
+    required this.onClosed,
+  });
+
+  final Color colour;
+  final String label;
+  final List<ControlOptionEntry> entries;
+  final Object? groupId;
+  final VoidCallback? onClosed;
+
+  @override
+  State<_ColourButton> createState() => _ColourButtonState();
+}
+
+class _ColourButtonState extends State<_ColourButton> {
+  final _region = GlobalKey<ContextMenuRegionState>();
+
+  List<Widget> _items(BuildContext context, VoidCallback close) {
+    Widget inGroup(Widget child) => widget.groupId == null
+        ? child
+        : TextFieldTapRegion(groupId: widget.groupId, child: child);
+    return [
+      for (final entry in widget.entries)
+        switch (entry) {
+          ControlSwatchGroup(:final heading, :final swatches) => inGroup(
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (heading != null) AppMenuLabel(heading),
+                ControlSwatchRow(swatches: swatches, close: close),
+              ],
+            ),
+          ),
+          ControlSegmented(
+            :final label,
+            :final options,
+            :final selectedIndex,
+            :final onSelected,
+          ) =>
+            inGroup(
+              AppMenuSegmentedRow(
+                label: label,
+                options: options,
+                selectedIndex: selectedIndex,
+                onSelected: (i) {
+                  close();
+                  onSelected(i);
+                },
+              ),
+            ),
+          _ => const SizedBox.shrink(),
+        },
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return ContextMenuRegion(
+      key: _region,
+      ownsFocusNode: false,
+      enableLongPress: false,
+      menuWidth: 248,
+      tapRegionGroupId: widget.groupId,
+      onVisibilityChanged: (open) {
+        if (!open) widget.onClosed?.call();
+      },
+      itemsBuilder: _items,
+      sheetSemanticLabel: widget.label,
+      child: Tooltip(
+        message: widget.label,
+        excludeFromSemantics: true,
+        child: FocusableTapTarget(
+          semanticLabel: widget.label,
+          onTap: () => _region.currentState?.toggle(),
+          builder: (context, focused, hovered) => Container(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
+            decoration: BoxDecoration(
+              color: hovered ? tokens.surfaceSunken : Colors.transparent,
+              borderRadius: BorderRadius.circular(AppRadii.control),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              spacing: AppSpacing.s4,
+              children: [
+                Container(
+                  width: AppSizes.icon20,
+                  height: AppSizes.icon20,
+                  decoration: BoxDecoration(
+                    color: widget.colour,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: tokens.borderSubtle),
+                  ),
+                ),
+                Icon(
+                  AppIcons.chevronDown,
+                  size: AppSizes.icon16,
+                  color: tokens.textSecondary,
+                ),
+              ],
+            ),
           ),
         ),
-        ControlSegmented(
-          :final label,
-          :final options,
-          :final selectedIndex,
-          :final onSelected,
-        ) =>
-          AppSegmentedControl.inline(
-            options: options,
-            selectedIndex: selectedIndex,
-            onSegmentSelected: onSelected,
-            semanticLabel: label,
-          ),
-        _ => const SizedBox.shrink(),
-      };
+      ),
+    );
+  }
 }
 
 /// Puts a [CanvasSelectionBar] above [anchor] (below it when there is no room), kept inside the pane;

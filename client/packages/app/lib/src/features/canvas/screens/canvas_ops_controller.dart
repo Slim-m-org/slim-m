@@ -139,6 +139,9 @@ class CanvasOpsController {
   /// How the board lays a note's text out, so a note grows to the room its rendered Markdown takes.
   NoteSpanBuilder? noteSpans;
 
+  /// How the board draws a text box's text, which sizes an edited one.
+  NoteSpanBuilder? textSpans;
+
   Offset? _lastErase;
 
   /// Stops retries and any batch still walking, once the pane is gone.

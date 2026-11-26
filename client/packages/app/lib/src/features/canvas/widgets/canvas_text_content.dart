@@ -45,23 +45,23 @@ class TextBoxInputFormatter extends TextInputFormatter {
   }
 }
 
-/// The box [props] needs when wrapped at [width]: tall enough for every line, never below one line.
+/// The box [props] needs when wrapped at [width]: tall enough for every line as the board draws them through [spans], never below one line.
 ({double width, double height}) textBoxFor(
   CanvasTextProps props, {
   double width = defaultTextBoxWidth,
+  NoteSpanBuilder? spans,
 }) {
   final fontSize = canvasTextFontSizes[props.size]!;
-  final painter = TextPainter(
-    text: TextSpan(
-      text: props.text,
-      style: TextStyle(
-        fontFamily: AppFonts.sans,
-        fontSize: fontSize,
-        height: canvasTextLineHeight,
-      ),
-    ),
-    textDirection: TextDirection.ltr,
-  )..layout(maxWidth: width - canvasTextPad * 2);
+  final base = TextStyle(
+    fontFamily: AppFonts.sans,
+    fontSize: fontSize,
+    height: canvasTextLineHeight,
+  );
+  final painter = layoutNoteText(
+    spans?.call(props.text, base) ?? TextSpan(text: props.text, style: base),
+    fontSize: fontSize,
+    width: width - canvasTextPad * 2,
+  );
   final height = (painter.height + canvasTextPad * 2).ceilToDouble();
   painter.dispose();
   return (width: width, height: height.clamp(minObjectSize, maxObjectExtent));
