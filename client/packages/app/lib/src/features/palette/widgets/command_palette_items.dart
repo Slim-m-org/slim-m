@@ -66,6 +66,7 @@ class PaletteResultItem {
     this.showsAllOf,
     this.hint,
     this.keepsOpen = false,
+    this.opensAllResults = false,
   });
 
   final String label;
@@ -91,6 +92,9 @@ class PaletteResultItem {
 
   /// Running it changes the search rather than leaving it, so the palette stays.
   final bool keepsOpen;
+
+  /// The row that turns the typed text into the full message results.
+  final bool opensAllResults;
   final Future<void> Function(BuildContext context, WidgetRef ref) onSelect;
 }
 

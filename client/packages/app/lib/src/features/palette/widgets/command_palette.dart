@@ -130,6 +130,7 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
     ..addListener(() => setState(() {}));
   String _query = '';
   int _highlighted = 0;
+  bool _fullResults = false;
   List<api.TranscriptHit> _transcriptResults = const [];
 
   /// Retires a transcript search still in flight when the query moves on.
@@ -158,6 +159,21 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
   /// With chips the palette is a message search, and nothing else.
   bool get _filtering => _field.filters.isNotEmpty;
 
+  /// Chips, or "See all results" on plain text, leave only message hits.
+  bool get _messagesOnly => _filtering || _fullResults;
+
+  /// Lists every message hit for the typed text, with no channels or people.
+  void _showFullResults() {
+    if (_filtering || _field.typingValue) return;
+    final text = parsePaletteQuery(_query);
+    if (text.scope != PaletteScope.all || text.text.isEmpty) return;
+    setState(() {
+      _fullResults = true;
+      _highlighted = 0;
+    });
+    _search();
+  }
+
   /// Puts [prefix] in front of the query, as if typed, to list one section whole.
   void _scopeTo(String prefix) =>
       _field.setText('$prefix${parsePaletteQuery(_query).text}');
@@ -175,6 +191,7 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
     setState(() {
       _query = _field.text;
       _highlighted = 0;
+      _fullResults = false;
     });
     if (widget.scope case final scope?) {
       ref
@@ -191,7 +208,7 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
     _transcriptResults = const [];
     if (_field.typingValue) {
       _messages.clear();
-    } else if (_filtering) {
+    } else if (_messagesOnly) {
       final parsed = parseSearchQuery(_query, filters: _field.filters);
       final scopeOnly =
           parsed.text.isEmpty &&
@@ -290,13 +307,17 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
     await WidgetsBinding.instance.endOfFrame;
     if (!mounted) return;
     var item = _visible.elementAtOrNull(_highlighted);
-    final hit = item == null || item.kind == PaletteKind.message;
+    // Before any hit has loaded the "See all" row sits first, but Enter on free text still opens a hit.
+    final untouched = item?.opensAllResults ?? false;
+    final hit = item == null || item.kind == PaletteKind.message || untouched;
     if (hit && !_messages.current) {
       _flushTranscripts();
       await _messages.flush();
       await WidgetsBinding.instance.endOfFrame;
       if (!mounted) return;
-      item = _visible.where((i) => i.kind == PaletteKind.message).firstOrNull;
+      item =
+          _visible.where((i) => i.kind == PaletteKind.message).firstOrNull ??
+          (untouched ? item : null);
     }
     if (item != null) await _run(item);
   }
@@ -323,6 +344,8 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
     return {
       const SingleActivator(LogicalKeyboardKey.arrowDown): () => _move(1),
       const SingleActivator(LogicalKeyboardKey.arrowUp): () => _move(-1),
+      const SingleActivator(LogicalKeyboardKey.enter, shift: true):
+          _showFullResults,
       const SingleActivator(LogicalKeyboardKey.tab): () => _tab(1),
       const SingleActivator(LogicalKeyboardKey.tab, shift: true): () =>
           _tab(-1),
@@ -339,7 +362,7 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
     final permissions = ref.watch(myPermissionsProvider);
     // Re-read every build, so a resize crossing it while open swaps shells live.
     final compact = MediaQuery.sizeOf(context).width < kCompactWidth;
-    final label = _filtering
+    final label = _messagesOnly
         ? 'Search messages'
         : 'Search channels, people and messages';
 
@@ -421,7 +444,7 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
     return CallbackShortcuts(bindings: _bindings(), child: shell);
   }
 
-  Widget _animatedResults(_ResultInputs inputs) {
+  Widget _animatedResults(PaletteResultInputs inputs) {
     // Keyed on the query and chips: arrow keys and late-arriving message hits update in place, only typing crossfades.
     return MaybeAnimatedSize(
       duration: AppMotion.fast,
@@ -439,21 +462,24 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
     );
   }
 
-  List<PaletteSection> _sections(_ResultInputs inputs) {
+  List<PaletteSection> _sections(PaletteResultInputs inputs) {
     final channelsById = {for (final c in inputs.channels) c.id: c};
     final parsed = parsePaletteQuery(_query);
     final query = parsed.text;
     final everything = parsed.scope == PaletteScope.all;
     return paletteSections((
       query: _query,
-      filtering: _filtering,
+      filtering: _messagesOnly,
       typingValue: _field.typingValue,
-      suggestions: fieldSuggestions(
-        _field,
-        filtering: _filtering,
-        members: inputs.members,
-        channels: inputs.channels,
-      ),
+      suggestions: _fullResults
+          ? const []
+          : fieldSuggestions(
+              _field,
+              filtering: _filtering,
+              members: inputs.members,
+              channels: inputs.channels,
+            ),
+      seeAll: seeAllResultsItem(parsed.text, _showFullResults),
       suggestionsLabel: filterSuggestionsLabel(_field.word),
       messages: _messages,
       messageItems: buildMessageItems(
@@ -486,7 +512,7 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
     ));
   }
 
-  Widget _buildResults(_ResultInputs inputs) {
+  Widget _buildResults(PaletteResultInputs inputs) {
     resolveAuthorProfiles(ref, _messages.results.map((m) => m.authorId));
     final query = _filtering ? _query : parsePaletteQuery(_query).text;
     final sections = _sections(inputs);
@@ -518,18 +544,8 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
         forbidden: asked && _messages.forbidden,
         failed: _messages.failed && !_field.typingValue,
         retry: () => _messages.retry(),
-        announcement: paletteAnnouncement(_messages, _filtering, query),
+        announcement: paletteAnnouncement(_messages, _messagesOnly, query),
       ),
     );
   }
 }
-
-/// Everything the results list is built from, bundled so two builders share it.
-typedef _ResultInputs = ({
-  List<Channel> channels,
-  Map<String, String> categoryNames,
-  List<api.UserProfile> members,
-  api.Me? me,
-  int permissions,
-  bool compact,
-});
