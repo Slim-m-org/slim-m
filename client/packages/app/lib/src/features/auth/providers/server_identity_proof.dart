@@ -36,8 +36,13 @@ typedef IdentityReading = ({
 });
 
 /// Whether [error] came from a server that answered, not from one nothing came back from.
+///
+/// A rate limit or a shed request says nothing about the key, so it is no answer either.
 bool serverAnswered(Object error) =>
-    error is! api.TransportException || error is api.UnreadableReplyException;
+    (error is! api.TransportException ||
+        error is api.UnreadableReplyException) &&
+    error is! api.RateLimitedException &&
+    error is! api.UnavailableException;
 
 /// Asks [client] to sign a fresh challenge and checks it against [identity]'s key.
 Future<IdentityAnswer> challengeIdentity(
