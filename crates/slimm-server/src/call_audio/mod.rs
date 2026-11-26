@@ -106,15 +106,21 @@ impl CallAudio {
 
     /// The listener's one-shot transcription address and bearer secret, when one is configured.
     pub fn transcribe_endpoint(&self) -> Option<(String, String)> {
+        self.endpoint("/v1/transcribe")
+    }
+
+    /// The listener's `/v1/speak` address and bearer secret, when one is configured.
+    pub fn speak_endpoint(&self) -> Option<(String, String)> {
+        self.endpoint("/v1/speak")
+    }
+
+    fn endpoint(&self, route: &str) -> Option<(String, String)> {
         let settings = &self.inner.as_ref()?.settings;
         let http = settings
             .url
             .replacen("wss://", "https://", 1)
             .replacen("ws://", "http://", 1);
-        Some((
-            link::listener_url(&http, "/v1/transcribe"),
-            settings.secret.clone(),
-        ))
+        Some((link::listener_url(&http, route), settings.secret.clone()))
     }
 
     /// Whether the listener is connected and said `ready`.

@@ -14160,6 +14160,71 @@ paths:
                 $ref: "#/components/schemas/Error"
         "503":
           $ref: "#/components/responses/Unavailable"
+  /channels/{channelId}/voice/tts:
+    parameters:
+      - name: channelId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: speakTts
+      tags: [voice]
+      summary: Speak a line into the call the caller is in (text to speech).
+      description: >
+        Needs VIEW_CHANNEL, CONNECT, SEND_MESSAGES and SPEAK in the channel, so a member
+        who is server-muted there is refused, and a seat in its call. The line is queued
+        for the call and spoken with a synthetic voice by a short-lived participant named
+        "<display name> (TTS)"; the route does not post the text, the client sends it to
+        the call chat as an ordinary message once this answers 202. A call holds at most
+        five lines at once and a person at most two; over either is 429. Two lines at once
+        per caller, then one every five seconds, answered 429 with `retry_after_seconds`.
+        501 when this deployment has no listener with a voice, which the client reads as
+        "text to speech is not set up here".
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text:
+                  type: string
+                  description: >
+                    One line, at most 300 characters once whitespace is collapsed;
+                    empty is a 400.
+      responses:
+        "202":
+          description: The line is queued.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ahead]
+                properties:
+                  ahead:
+                    type: integer
+                    format: int32
+                    minimum: 0
+                    description: How many lines are ahead of this one in the call.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "501":
+          description: This deployment has no voice or no text to speech set up.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /channels/{channelId}/voice/screen-stamps:
     parameters:
       - name: channelId

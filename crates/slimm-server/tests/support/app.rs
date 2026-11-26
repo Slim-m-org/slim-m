@@ -29,6 +29,7 @@ use slimm_server::media::Media;
 use slimm_server::push::PushSender;
 use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::Store;
+use slimm_server::tts::TtsService;
 use slimm_server::voice::VoiceService;
 use tower::ServiceExt;
 
@@ -56,6 +57,7 @@ impl StateBuilder {
     setter!(dock, Dock);
     setter!(code_runner, CodeRunner);
     setter!(call_audio, CallAudio);
+    setter!(tts, TtsService);
 
     pub fn build(self) -> AppState {
         self.0
@@ -80,6 +82,7 @@ pub fn builder(store: Store) -> StateBuilder {
         dock: Dock::disabled(),
         code_runner: CodeRunner::disabled(),
         call_audio: CallAudio::disabled(),
+        tts: TtsService::disabled(),
     })
 }
 

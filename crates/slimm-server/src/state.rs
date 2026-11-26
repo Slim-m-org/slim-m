@@ -10,6 +10,7 @@ use crate::media::Media;
 use crate::push::PushSender;
 use crate::ratelimit::RateLimiter;
 use crate::store::Store;
+use crate::tts::TtsService;
 use crate::voice::VoiceService;
 
 /// What every handler shares: the persistence layer, the auth service, and the
@@ -28,4 +29,5 @@ pub struct AppState {
     pub dock: dock::Dock,
     pub code_runner: CodeRunner,
     pub call_audio: CallAudio,
+    pub tts: TtsService,
 }

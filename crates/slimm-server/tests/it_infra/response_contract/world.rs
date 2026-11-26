@@ -94,6 +94,7 @@ impl Contract {
                     .with_connector_runtime(Some(host_run)),
                 code_runner: slimm_server::code_runner::CodeRunner::disabled(),
                 call_audio: slimm_server::call_audio::CallAudio::disabled(),
+                tts: slimm_server::tts::TtsService::disabled(),
             },
             api: Api::load(repo_root),
             covered: BTreeSet::new(),
