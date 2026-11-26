@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.141.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.140.0...client-v0.141.0) (2026-11-26)
+
+
+### Features
+
+* canvas multi-select, /tts, thread mentions, cross-device badges and the rest of the backlog ([#2508](https://github.com/Slim-m-org/slim-m/issues/2508)) ([4d99cdb](https://github.com/Slim-m-org/slim-m/commit/4d99cdbc6786b91212c77dfcd3c9d0265df6569b))
+
 ## [0.140.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.139.1...client-v0.140.0) (2026-11-26)
 
 
