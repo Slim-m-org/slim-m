@@ -64,10 +64,9 @@ void main() {
             'the canvas entry is in the dock\'s More menu, in no header row',
       );
       await tester.tap(find.bySemanticsLabel('More'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
       expect(find.text('Open canvas'), findsOneWidget);
-      await tester.tapAt(const Offset(5, 5));
-      await tester.pumpAndSettle();
       for (final label in [
         'Toggle text chat',
         'Search messages',
