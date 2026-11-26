@@ -9,6 +9,8 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../composer/widgets/composer_extras.dart'
     show MessageLengthCounter, messageLengthOverage;
+import '../../composer/widgets/composer_shortcode_convert.dart'
+    show canonicalCustomEmojiText;
 import '../../composer/widgets/composer_text_controller.dart';
 
 /// Pre-filled with [initialContent]. Enter saves, Shift+Enter inserts a
@@ -29,9 +31,13 @@ class MessageEditField extends StatefulWidget {
     required this.onCancel,
     this.saving = false,
     this.failure,
+    this.emojiIndex = const {},
   });
 
   final String initialContent;
+
+  /// The deployment's custom emoji by lowercase name, drawn in place and saved as `:name:`.
+  final Map<String, String> emojiIndex;
   final ValueChanged<String> onSubmit;
   final VoidCallback onCancel;
   final bool saving;
@@ -42,8 +48,10 @@ class MessageEditField extends StatefulWidget {
 }
 
 class _MessageEditFieldState extends State<MessageEditField> {
-  late final _controller = ComposerTextController(text: widget.initialContent)
-    ..selection = TextSelection.collapsed(offset: widget.initialContent.length);
+  late final _controller = ComposerTextController(
+    text: widget.initialContent,
+    index: () => widget.emojiIndex,
+  )..selection = TextSelection.collapsed(offset: widget.initialContent.length);
   final _focusNode = FocusNode();
 
   @override
@@ -70,7 +78,7 @@ class _MessageEditFieldState extends State<MessageEditField> {
     if (text.isEmpty) {
       widget.onCancel();
     } else if (messageLengthOverage(_controller.text.runes.length) == null) {
-      widget.onSubmit(text);
+      widget.onSubmit(canonicalCustomEmojiText(text, widget.emojiIndex));
     }
   }
 

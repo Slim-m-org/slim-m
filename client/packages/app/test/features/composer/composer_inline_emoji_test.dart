@@ -50,6 +50,8 @@ http.Response _json(Object body) => http.Response(
 Future<List<String>> _mount(
   WidgetTester tester, {
   Brightness brightness = Brightness.light,
+  String kind = 'text',
+  bool isThread = false,
 }) async {
   tester.view.physicalSize = const Size(1280, 700);
   tester.view.devicePixelRatio = 1;
@@ -58,7 +60,7 @@ Future<List<String>> _mount(
   addTearDown(db.close);
   final store = MessageStore(db);
   await store.upsertChannels([
-    const api.Channel(id: 'c1', name: 'general', kind: 'text', createdAt: 0),
+    api.Channel(id: 'c1', name: 'general', kind: kind, createdAt: 0),
   ]);
   final posted = <String>[];
   final container = ProviderContainer(
@@ -112,7 +114,9 @@ Future<List<String>> _mount(
           brightness,
           brightness == Brightness.dark ? AppTokens.dark : AppTokens.light,
         ).copyWith(platform: TargetPlatform.linux),
-        home: const Scaffold(body: ChannelScreen(channelId: 'c1')),
+        home: Scaffold(
+          body: ChannelScreen(channelId: 'c1', isThread: isThread),
+        ),
       ),
     ),
   );
@@ -282,4 +286,24 @@ void main() {
     expect(_inField, findsNothing);
     await _unmount(tester);
   });
+
+  for (final (label, kind, thread) in const [
+    ('direct message', 'dm', false),
+    ('group direct message', 'group_dm', false),
+    ('thread reply', 'text', true),
+  ]) {
+    testWidgets('a $label draws custom emoji inline and sends canonical text', (
+      tester,
+    ) async {
+      final posted = await _mount(tester, kind: kind, isThread: thread);
+      await _type(tester, ':HeHe: and :bruins:');
+      expect(_inField, findsNWidgets(2));
+      expect(find.byKey(const Key('composer-shortcode-preview')), findsNothing);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await _flush(tester);
+      expect(posted, [':hehe: and :bruins:']);
+      await _unmount(tester);
+    });
+  }
 }
