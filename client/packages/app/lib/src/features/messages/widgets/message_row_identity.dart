@@ -79,9 +79,13 @@ class MessageTimeMark extends ConsumerWidget {
     super.key,
     required this.message,
     this.compact = false,
+    this.dated = false,
   });
 
   final Message message;
+
+  /// Prefixes the day, as the day divider words it, when the message is not from today.
+  final bool dated;
 
   /// Glyph-only pending/failed marks, for the avatar-wide continuation gutter where
   /// a word cannot fit. The sent branch has no glyph fallback: no string
@@ -90,6 +94,13 @@ class MessageTimeMark extends ConsumerWidget {
   /// an unconstrained overlay instead (see [MessageRowLeading]) rather than
   /// shrinking or wrapping it.
   final bool compact;
+
+  String _stamp(bool use24Hour) {
+    final time = formatMessageTime(message.createdAt, use24Hour: use24Hour);
+    if (!dated) return time;
+    final day = formatMessageDay(message.createdAt);
+    return day == 'Today' ? time : '$day $time';
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -126,7 +137,7 @@ class MessageTimeMark extends ConsumerWidget {
           label: full,
           excludeSemantics: true,
           child: Text(
-            formatMessageTime(message.createdAt, use24Hour: use24Hour),
+            _stamp(use24Hour),
             style: mono,
             maxLines: 1,
             softWrap: false,
@@ -324,9 +335,13 @@ class MessageRowHeader extends ConsumerWidget {
     this.editing = false,
     this.assumeBot = false,
     this.nameReserve = 0,
+    this.dated = false,
   });
 
   final Message message;
+
+  /// Passed to [MessageTimeMark.dated].
+  final bool dated;
 
   /// Room the hover toolbar needs past the name, from `MessageHoverToolbar.clearance`.
   ///
@@ -401,7 +416,7 @@ class MessageRowHeader extends ConsumerWidget {
             const AppBadge(variant: AppBadgeVariant.tag, label: 'Bot'),
           ],
           const SizedBox(width: AppSpacing.s8),
-          MessageTimeMark(message: message),
+          MessageTimeMark(message: message, dated: dated),
           if (editing) ...[
             const SizedBox(width: AppSpacing.s8),
             const AppBadge(variant: AppBadgeVariant.role, label: 'Editing'),

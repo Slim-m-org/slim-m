@@ -17,6 +17,7 @@ import 'package:slimm_app/src/features/members/providers/blocks_controller.dart'
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/features/messages/screens/thread_screen.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_row_identity.dart';
 import 'package:slimm_app/src/features/messages/widgets/thread_parent_card.dart';
 import 'package:slimm_app/src/features/modules/providers/code_block_runner.dart';
 import 'package:slimm_data/data.dart';
@@ -89,8 +90,10 @@ http.Response _threadParentJson({
   String? parentAuthorId,
   String? parentAuthorDisplayName,
   List<Map<String, Object>> parentAttachments = const [],
+  int? parentCreatedAt,
 }) => http.Response(
   jsonEncode({
+    'parent_created_at': ?parentCreatedAt,
     'parent_attachments': parentAttachments,
     'parent_channel_id': parentChannelId,
     'parent_channel_name': parentChannelName,
@@ -202,7 +205,85 @@ Future<void> _settle(WidgetTester tester) async {
   }
 }
 
+/// The text of the parent card's time mark, or null when the header shows none.
+String? _timeMark(WidgetTester tester) {
+  final stamp = find.descendant(
+    of: find.byKey(MessageRowHeader.headerKey),
+    matching: find.byWidgetPredicate(
+      (w) => w is Text && RegExp(r'\d:\d\d').hasMatch(w.data ?? ''),
+    ),
+  );
+  return stamp.evaluate().isEmpty ? null : tester.widget<Text>(stamp).data;
+}
+
+/// A parent whose id is a UUIDv7 minted long before the server stored it.
+http.Response _parentSentAt(int? createdAt) => _threadParentJson(
+  parentChannelId: 'parent-channel',
+  parentChannelName: 'general',
+  parentMessageId: '018bcfe5-6800-7000-8000-000000000001',
+  parentContent: 'the original question',
+  parentAuthorId: 'alice',
+  parentAuthorDisplayName: 'Alice',
+  parentCreatedAt: createdAt,
+);
+
 void main() {
+  testWidgets('the parent time is the stored created_at, not the id\'s', (
+    tester,
+  ) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    await _pumpThread(
+      tester,
+      const Size(1400, 900),
+      threadParentResponse: _parentSentAt(now),
+    );
+
+    final mark = _timeMark(tester);
+    expect(mark, isNotNull);
+    expect(mark, isNot(contains('2023')));
+    expect(
+      mark,
+      anyOf(
+        formatMessageTime(now, use24Hour: false),
+        formatMessageTime(now, use24Hour: true),
+      ),
+      reason: 'the id says Nov 2023 but the server stored it today',
+    );
+
+    await _settle(tester);
+  });
+
+  testWidgets('a parent from an earlier day carries its date', (tester) async {
+    final earlier = DateTime(2024, 3, 9, 15, 41).millisecondsSinceEpoch;
+    await _pumpThread(
+      tester,
+      const Size(1400, 900),
+      threadParentResponse: _parentSentAt(earlier),
+    );
+
+    final mark = _timeMark(tester);
+    expect(mark, startsWith(formatMessageDay(earlier)));
+    expect(mark, contains('March 9, 2024'));
+
+    await _settle(tester);
+  });
+
+  testWidgets('a parent with no stored time shows none, even on a v7 id', (
+    tester,
+  ) async {
+    await _pumpThread(
+      tester,
+      const Size(1400, 900),
+      threadParentResponse: _parentSentAt(null),
+    );
+
+    expect(find.text('Alice'), findsOneWidget);
+    expect(find.byKey(MessageRowHeader.headerKey), findsNothing);
+    expect(_timeMark(tester), isNull);
+
+    await _settle(tester);
+  });
+
   testWidgets('a blocked author\'s parent shows a stub, not their text', (
     tester,
   ) async {

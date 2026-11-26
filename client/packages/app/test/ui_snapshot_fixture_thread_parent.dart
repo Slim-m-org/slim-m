@@ -11,6 +11,7 @@ const fixtureThreadParent = {
   'parent_deleted': false,
   'parent_author_id': 'user-nick',
   'parent_author_display_name': 'Nick',
+  'parent_created_at': 1760000000000,
   'parent_attachments': [
     {
       'id': 'att-repro',

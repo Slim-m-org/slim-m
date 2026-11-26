@@ -5,8 +5,9 @@
 /// Laid out like an ordinary message row (the pane gutter, the density's
 /// avatar, the author and time line over the text) so the original reads as
 /// the start of the conversation and the first reply sits directly under it.
-/// It is not a [MessageRow]: the thread-parent payload carries no timestamp
-/// or reactions to give one, so the time is read from the message's UUIDv7 id.
+/// It is not a [MessageRow]: the thread-parent payload carries no reactions to
+/// give one. The time is the server's stored one, and a parent from an earlier
+/// day carries its date, since the thread may be opened long after.
 library;
 
 import 'package:flutter/material.dart';
@@ -16,7 +17,6 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_data/data.dart' show Message;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../ids.dart';
 import '../../../message_preview.dart';
 import '../../channels/providers/threads.dart';
 import '../../settings/providers/display_density.dart';
@@ -237,9 +237,9 @@ class ThreadParentCard extends ConsumerWidget {
     );
   }
 
-  /// The channel row's own name-then-time line; the time is left off when the id carries none.
+  /// The channel row's own name-then-time line; the time is left off when the server sent none.
   Widget _header(String name, api.UserProfile? profile, AppTokens tokens) {
-    final sentAt = uuidV7Time(parent.parentMessageId);
+    final sentAt = parent.parentCreatedAt;
     final nameStyle = AppText.body.copyWith(
       color: memberNameColor(profile, tokens.surfaceBase) ?? tokens.textPrimary,
       fontWeight: AppWeights.semi,
@@ -256,10 +256,11 @@ class ThreadParentCard extends ConsumerWidget {
         authorDisplayName: parent.parentAuthorDisplayName,
         seq: 0,
         content: '',
-        createdAt: sentAt.millisecondsSinceEpoch,
+        createdAt: sentAt,
         pending: false,
         failed: false,
       ),
+      dated: true,
     );
   }
 }

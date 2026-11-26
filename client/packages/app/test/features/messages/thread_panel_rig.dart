@@ -64,6 +64,7 @@ const rigParent = api.ThreadParent(
   parentContent: '@nick planetarium arc might be coming to close soon.',
   parentAuthorId: 'taka',
   parentAuthorDisplayName: 'Taka',
+  parentCreatedAt: rigBase - 60000,
 );
 
 class _Extras extends MessageExtrasController {
