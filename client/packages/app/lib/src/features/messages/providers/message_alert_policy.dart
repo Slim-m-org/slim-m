@@ -24,10 +24,17 @@ import '../../../providers/sync_controller.dart';
 
 /// What an alert needs to know about a message it was allowed to raise.
 class MessageAlert {
-  const MessageAlert({required this.isDm, required this.mentionsSelf});
+  const MessageAlert({
+    required this.isDm,
+    required this.mentionsSelf,
+    this.isThread = false,
+  });
 
   final bool isDm;
   final bool mentionsSelf;
+
+  /// Written in a thread, which no rail row lights for.
+  final bool isThread;
 }
 
 /// How old the schedule and the account preference may be before an alert
@@ -143,7 +150,11 @@ class MessageAlertPolicy {
     )) {
       return null;
     }
-    return MessageAlert(isDm: isDm, mentionsSelf: mentionsSelf);
+    return MessageAlert(
+      isDm: isDm,
+      mentionsSelf: mentionsSelf,
+      isThread: parentId != null,
+    );
   }
 
   /// A channel's own default, or its parent's for a thread: a thread has none
