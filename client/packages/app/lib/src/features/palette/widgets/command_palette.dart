@@ -32,7 +32,6 @@ import '../../../widgets/run_guarded.dart';
 import '../../members/providers/member_presence.dart' show membersProvider;
 import '../../members/providers/presence_view.dart' show aroundUserIdsProvider;
 import '../../messages/providers/message_search_query.dart';
-import '../../voice/providers/transcript_search.dart';
 import '../../../providers/providers.dart';
 import '../../../providers/store_stream.dart';
 import '../../members/providers/user_profiles.dart';
@@ -40,15 +39,15 @@ import '../../channels/widgets/channel_rail.dart' show selectedChannelId;
 import '../../channels/widgets/category_tree.dart' show categoryPaths;
 import '../providers/conversation_search_memory.dart';
 import '../providers/palette_message_search.dart';
+import '../providers/palette_transcript_search.dart';
 import '../providers/palette_query.dart';
 import 'command_palette_compact.dart';
 import 'command_palette_items.dart';
 import 'command_palette_results.dart';
 import 'command_palette_sections.dart';
+import 'palette_section_builder.dart';
 import 'command_palette_rows.dart';
 import 'palette_filter_chips.dart';
-import 'palette_filter_suggestions.dart';
-import 'palette_transcript_items.dart';
 import '../../../widgets/rise_fade_transition.dart';
 import '../../members/providers/mention_names.dart' show mentionNamesProvider;
 
@@ -131,13 +130,11 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
   String _query = '';
   int _highlighted = 0;
   bool _fullResults = false;
-  List<api.TranscriptHit> _transcriptResults = const [];
-
-  /// Retires a transcript search still in flight when the query moves on.
-  int _transcriptGeneration = 0;
-
-  /// Waits out the same pause as the message search, so one pause sends both.
-  Timer? _transcriptTimer;
+  late final _transcripts = PaletteTranscriptSearch(
+    ref.read,
+    limit: paletteResultLimit,
+    pause: paletteSearchDebounce,
+  )..addListener(() => setState(() {}));
 
   /// The last frame's flat result list, for key handlers, which run outside build.
   List<PaletteResultItem> _visible = const [];
@@ -150,7 +147,7 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
 
   @override
   void dispose() {
-    _transcriptTimer?.cancel();
+    _transcripts.dispose();
     _messages.dispose();
     _field.dispose();
     super.dispose();
@@ -203,9 +200,7 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
   }
 
   void _search() {
-    _transcriptTimer?.cancel();
-    _transcriptGeneration++;
-    _transcriptResults = const [];
+    _transcripts.clear();
     if (_field.typingValue) {
       _messages.clear();
     } else if (_messagesOnly) {
@@ -236,30 +231,9 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
             debounce: paletteSearchDebounce,
           ),
         );
-        _transcriptTimer = Timer(
-          paletteSearchDebounce,
-          () => unawaited(_searchTranscripts(text.text)),
-        );
+        _transcripts.schedule(text.text);
       }
     }
-  }
-
-  void _flushTranscripts() {
-    if (_transcriptTimer?.isActive ?? false) {
-      _transcriptTimer!.cancel();
-      unawaited(_searchTranscripts(parsePaletteQuery(_query).text));
-    }
-  }
-
-  Future<void> _searchTranscripts(String query) async {
-    final generation = _transcriptGeneration;
-    final hits = await searchTranscriptHits(
-      ref.read,
-      query,
-      limit: paletteResultLimit,
-    );
-    if (!mounted || generation != _transcriptGeneration) return;
-    setState(() => _transcriptResults = hits);
   }
 
   void _close() => Navigator.of(context).pop();
@@ -297,7 +271,7 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
       unawaited(_runHighlighted());
       return;
     }
-    _flushTranscripts();
+    _transcripts.flush(parsePaletteQuery(_query).text);
     unawaited(_messages.flush());
     _field.focusNode.unfocus();
   }
@@ -307,17 +281,13 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
     await WidgetsBinding.instance.endOfFrame;
     if (!mounted) return;
     var item = _visible.elementAtOrNull(_highlighted);
-    // Before any hit has loaded the "See all" row sits first, but Enter on free text still opens a hit.
-    final untouched = item?.opensAllResults ?? false;
-    final hit = item == null || item.kind == PaletteKind.message || untouched;
+    final hit = item == null || item.kind == PaletteKind.message;
     if (hit && !_messages.current) {
-      _flushTranscripts();
+      _transcripts.flush(parsePaletteQuery(_query).text);
       await _messages.flush();
       await WidgetsBinding.instance.endOfFrame;
       if (!mounted) return;
-      item =
-          _visible.where((i) => i.kind == PaletteKind.message).firstOrNull ??
-          (untouched ? item : null);
+      item = _visible.where((i) => i.kind == PaletteKind.message).firstOrNull;
     }
     if (item != null) await _run(item);
   }
@@ -462,55 +432,20 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
     );
   }
 
-  List<PaletteSection> _sections(PaletteResultInputs inputs) {
-    final channelsById = {for (final c in inputs.channels) c.id: c};
-    final parsed = parsePaletteQuery(_query);
-    final query = parsed.text;
-    final everything = parsed.scope == PaletteScope.all;
-    return paletteSections((
-      query: _query,
-      filtering: _messagesOnly,
-      typingValue: _field.typingValue,
-      suggestions: _fullResults
-          ? const []
-          : fieldSuggestions(
-              _field,
-              filtering: _filtering,
-              members: inputs.members,
-              channels: inputs.channels,
-            ),
-      seeAll: seeAllResultsItem(parsed.text, _showFullResults),
-      suggestionsLabel: filterSuggestionsLabel(_field.word),
-      messages: _messages,
-      messageItems: buildMessageItems(
-        _messages.results,
+  List<PaletteSection> _sections(PaletteResultInputs inputs) =>
+      buildPaletteSections((
+        inputs: inputs,
+        query: _query,
+        field: _field,
+        fullResults: _fullResults,
+        messages: _messages,
+        transcriptHits: _transcripts.results,
         currentChannelId: widget.currentChannelId,
-        channelsById: channelsById,
         mentionNames: ref.watch(mentionNamesProvider),
-      ),
-      channels: channelSections(
-        inputs.channels,
-        query,
-        selfDisplayName: inputs.me?.displayName,
-        categoryNames: inputs.categoryNames,
-        currentChannelId: widget.currentChannelId,
-        showAll: everything ? () => _scopeTo('#') : null,
-      ),
-      people: buildMemberItems(
-        inputs.members,
-        query,
-        inputs.me?.id,
         around: ref.watch(aroundUserIdsProvider),
-        limit: everything ? paletteResultLimit : palettePeopleScopeLimit,
-        showAll: everything ? () => _scopeTo('@') : null,
-      ),
-      transcripts: buildTranscriptItems(
-        _transcriptResults,
-        channelsById: channelsById,
-      ),
-      actions: buildActionItems(query, inputs.permissions),
-    ));
-  }
+        showFullResults: _showFullResults,
+        scopeTo: _scopeTo,
+      ));
 
   Widget _buildResults(PaletteResultInputs inputs) {
     resolveAuthorProfiles(ref, _messages.results.map((m) => m.authorId));

@@ -96,6 +96,18 @@ void main() {
     await teardown(tester, setup.container, setup.db);
   });
 
+  testWidgets('with no hits there is no See all row, only No matches', (
+    tester,
+  ) async {
+    final setup = await _open(tester);
+    await _type(tester, 'zebra');
+
+    expect(inPalette('See all results for "zebra"'), findsNothing);
+    expect(find.text('No matches.'), findsOneWidget);
+
+    await teardown(tester, setup.container, setup.db);
+  });
+
   testWidgets('the last row opens every message hit and drops other sections', (
     tester,
   ) async {
