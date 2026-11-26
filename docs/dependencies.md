@@ -379,17 +379,20 @@ Its platform list is Android, iOS, macOS and OpenHarmony; it has no Linux, Windo
 Everywhere else `photoLibraryProvider` is null and the Photos menu entry opens the system picker as before.
 
 Permissions: iOS reuses the existing `NSPhotoLibraryUsageDescription` (checked by `hygiene.yml`'s purpose-string step), whose text already says the app opens the photo library to attach an image.
-Android declares `READ_MEDIA_IMAGES` and `READ_MEDIA_VIDEO` (API 33+) and `READ_MEDIA_VISUAL_USER_SELECTED` (API 34+, the partial grant); the plugin supplies `READ_EXTERNAL_STORAGE` up to API 32.
-The Play appbundle removes all three media permissions (`src/play/AndroidManifest.xml`) and builds no photo library, so the Photos entry opens the system picker there.
+The strip is iOS only: no Android build declares a media permission, and every Android photo entry opens the system photo picker (see `image_picker` below).
 A denied grant shows an inline panel with a button into the system picker, and a limited grant shows the allowed photos with an "Allow more" button that reopens the OS selection UI.
 
-### `image_picker`, for "Take photo" on the profile picture
+### `image_picker`, for "Take photo" and the Android photo picker
 
 `avatar_camera_native.dart` calls `ImagePicker().pickImage(source: ImageSource.camera)` and hands the bytes to the existing crop and upload path.
 It is reached through a `dart.library.io` conditional import and only builds a capture on iOS and Android; everywhere else `avatarCameraCaptureProvider` is null and the menu hides "Take photo".
 It is used for the camera source only, because `photo_manager` above cannot capture.
 Permissions: iOS reuses `NSCameraUsageDescription` (its text now also names profile photos) and Android reuses the `CAMERA` permission already declared for calls, so the two plugins add no new keys.
 Real-camera capture on a phone is untested here and needs a device.
+
+On Android, `system_photo_picker.dart` also uses it for the composer's Photo library and the avatar, banner and invite pickers, with `ImagePickerAndroid.useAndroidPhotoPicker` set so the system photo picker opens (newest first, multi-select, no media permission).
+`file_picker`'s media filter opens the Documents browser there, which is why the two attach entries once showed two different galleries; iOS still uses `file_picker`'s `PHPicker`.
+`image_picker_android` and `image_picker_platform_interface` are direct dependencies only to set that flag.
 
 ### `in_app_update`, for Play's flexible update
 

@@ -13,19 +13,29 @@
 /// usable image; neither is checkable without a phone.
 library;
 
+import 'dart:typed_data';
+
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/widgets.dart' show FocusNode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/messages/widgets/attachment_picker.dart';
+import 'package:slimm_app/src/features/messages/widgets/system_photo_picker.dart';
 
-import '../composer/composer_harness.dart' show usePicker;
+import '../composer/composer_harness.dart'
+    show FakePlatformFile, pickedFile, usePicker;
+
+/// A host with only `file_picker`, which is every platform but Android.
+ProviderContainer _withoutSystemPicker() => ProviderContainer(
+  overrides: [systemPhotoPickerAvailableProvider.overrideWithValue(false)],
+);
 
 void main() {
   test('the photo library route asks the plugin for FileType.image', () async {
     // A null file is the shape a cancelled pick returns.
     final picker = usePicker(null);
 
-    final container = ProviderContainer();
+    final container = _withoutSystemPicker();
     addTearDown(container.dispose);
     final picked = await container.read(
       attachmentPickerProvider(AttachmentSource.photoLibrary),
@@ -39,7 +49,7 @@ void main() {
   test('the media library route asks the plugin for FileType.media', () async {
     final picker = usePicker(null);
 
-    final container = ProviderContainer();
+    final container = _withoutSystemPicker();
     addTearDown(container.dispose);
     await container.read(
       attachmentPickerProvider(AttachmentSource.mediaLibrary),
@@ -57,7 +67,7 @@ void main() {
     () async {
       final picker = usePicker(null);
 
-      final container = ProviderContainer();
+      final container = _withoutSystemPicker();
       addTearDown(container.dispose);
       final picked = await container.read(
         attachmentPickerProvider(AttachmentSource.fileBrowser),
@@ -75,12 +85,111 @@ void main() {
 
   test('the still image route filters the browser to still pictures', () async {
     final picker = usePicker(null);
-    final container = ProviderContainer();
+    final container = _withoutSystemPicker();
     addTearDown(container.dispose);
     await container.read(
       attachmentPickerProvider(AttachmentSource.stillImageFiles),
     )();
     expect(picker.lastType, FileType.custom);
     expect(picker.lastAllowedExtensions, ['png', 'jpg', 'jpeg', 'webp']);
+  });
+
+  group('on Android', () {
+    late List<({bool videos, bool multiple})> asked;
+    late List<PlatformFile> chosen;
+
+    ProviderContainer open() {
+      asked = [];
+      chosen = [pickedFile(), pickedFile()];
+      final container = ProviderContainer(
+        overrides: [
+          systemPhotoPickerAvailableProvider.overrideWithValue(true),
+          systemPhotoPickerProvider.overrideWithValue(({
+            required bool videos,
+            required bool multiple,
+          }) async {
+            asked.add((videos: videos, multiple: multiple));
+            return chosen;
+          }),
+        ],
+      );
+      addTearDown(container.dispose);
+      return container;
+    }
+
+    test(
+      'both photo sources open the system photo picker, not file_picker',
+      () async {
+        final picker = usePicker(null);
+        final container = open();
+        await container.read(
+          attachmentPickerProvider(AttachmentSource.photoLibrary),
+        )();
+        await container.read(
+          attachmentPickerProvider(AttachmentSource.mediaLibrary),
+        )();
+        expect(picker.calls, 0);
+        expect(asked, [
+          (videos: false, multiple: false),
+          (videos: true, multiple: false),
+        ]);
+      },
+    );
+
+    test('the composer batch picker keeps multi-select with videos', () async {
+      usePicker(null);
+      final container = open();
+      final files = await container.read(
+        attachmentBatchPickerProvider(AttachmentSource.mediaLibrary),
+      )();
+      expect(files, hasLength(2));
+      expect(asked, [(videos: true, multiple: true)]);
+    });
+
+    test('the file browser still opens the documents browser', () async {
+      final picker = usePicker(null);
+      final container = open();
+      await container.read(
+        attachmentBatchPickerProvider(AttachmentSource.fileBrowser),
+      )();
+      expect(picker.calls, 1);
+      expect(picker.lastType, FileType.any);
+      expect(asked, isEmpty);
+    });
+  });
+
+  test('iOS keeps routing photos through file_picker', () async {
+    final picker = usePicker(null);
+    final container = ProviderContainer(
+      overrides: [
+        systemPhotoPickerAvailableProvider.overrideWithValue(false),
+        systemPhotoPickerProvider.overrideWithValue(
+          ({required bool videos, required bool multiple}) =>
+              fail('the Android picker must not open on iOS'),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    await container.read(
+      attachmentBatchPickerProvider(AttachmentSource.mediaLibrary),
+    )();
+    expect(picker.lastType, FileType.media);
+  });
+
+  test('a batch pick stages every chosen file in order', () async {
+    final focus = FocusNode();
+    addTearDown(focus.dispose);
+    final staged = <String>[];
+    await runAttachmentPick(
+      pick: () async => [
+        FakePlatformFile('a.png', Uint8List(1)),
+        FakePlatformFile('b.png', Uint8List(1)),
+      ],
+      focus: focus,
+      isMounted: () => true,
+      onPickerFailed: () => fail('the pick succeeded'),
+      stage: (file) async => staged.add(file.name),
+    );
+    expect(staged, ['a.png', 'b.png']);
   });
 }

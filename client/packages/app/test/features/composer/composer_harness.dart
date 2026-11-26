@@ -30,6 +30,7 @@ import 'package:slimm_app/src/features/composer/widgets/composer.dart';
 import 'package:slimm_app/src/features/composer/widgets/composer_clipboard_image.dart';
 import 'package:slimm_app/src/features/emoji/widgets/emoji_picker_grid.dart';
 import 'package:slimm_app/src/features/composer/widgets/photo_library.dart';
+import 'package:slimm_app/src/features/messages/widgets/system_photo_picker.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../ui_snapshot_support.dart' show snapshotBoundary;
@@ -313,6 +314,9 @@ Widget composerHarness({
         customEmojiProvider.overrideWith((ref) => customEmoji),
       customEmojiImageProvider.overrideWith((ref, id) => _png),
       photoLibraryProvider.overrideWithValue(null),
+      systemPhotoPickerAvailableProvider.overrideWithValue(
+        platform == TargetPlatform.android,
+      ),
       ...extraOverrides,
     ],
     child: MaterialApp(
