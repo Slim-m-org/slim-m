@@ -17,7 +17,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../members/providers/user_profiles.dart';
 import '../providers/call_transcript.dart';
 import '../providers/live_call_transcript.dart';
-import '../providers/voice_settings_controller.dart';
+import '../providers/call_captions.dart';
 
 /// Lines the strip has room for on a tall window.
 const captionLines = 3;
@@ -33,11 +33,6 @@ int captionLinesFor(BuildContext context) =>
 const captionHold = Duration(seconds: 8);
 
 const callCaptionsKey = Key('call-captions');
-
-/// Whether [channelId]'s call shows captions for this member right now.
-bool captionsShown(WidgetRef ref, String channelId) =>
-    ref.watch(liveCallTranscriptIdProvider(channelId)) != null &&
-    ref.watch(voiceSettingsControllerProvider.select((s) => s.showCaptions));
 
 /// The strip's fixed height at this text scale.
 double captionsHeight(BuildContext context) {
@@ -61,7 +56,7 @@ class CallCaptionsStrip extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final transcriptId = ref.watch(liveCallTranscriptIdProvider(channelId));
-    if (transcriptId == null || !captionsShown(ref, channelId)) {
+    if (transcriptId == null || !ref.watch(captionsShownProvider(channelId))) {
       return const SizedBox.shrink();
     }
     return Padding(

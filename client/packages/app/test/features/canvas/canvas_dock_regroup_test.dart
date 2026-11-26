@@ -74,7 +74,7 @@ void main() {
       final more = _label(tester, 'More');
       expect(more.left, greaterThan(_label(tester, 'Share a screen').right));
       expect(more.right, lessThanOrEqualTo(leave.left));
-      for (final label in ['Soundboard', 'Show captions', 'Mark this moment']) {
+      for (final label in ['Soundboard', 'Captions', 'Mark this moment']) {
         expect(find.bySemanticsLabel(RegExp('^$label')), findsNothing);
       }
       await tester.pumpWidget(const SizedBox());

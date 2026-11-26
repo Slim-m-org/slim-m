@@ -13,12 +13,12 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/canvas/providers/canvas_open.dart';
 import 'package:slimm_app/src/features/channels/providers/channel_permissions.dart';
 import 'package:slimm_app/src/features/voice/providers/call_audio.dart';
+import 'package:slimm_app/src/features/voice/providers/call_captions.dart';
 import 'package:slimm_app/src/features/voice/providers/call_transcript.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_settings_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_text_tab.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_in_call.dart';
-import 'package:slimm_app/src/features/voice/screens/voice_text_pane.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_text_surface.dart';
 import 'package:slimm_app/src/features/voice/widgets/transcript_line_row.dart';
 import 'package:slimm_app/src/features/voice/widgets/call_captions_strip.dart';
@@ -234,6 +234,7 @@ void main() {
           channelPermissionsProvider.overrideWith((ref, id) async => -1),
           voiceChatPaneVisibleProvider.overrideWith((ref) => true),
           voiceTextTabProvider.overrideWith((ref) => VoiceTextTab.transcript),
+          voiceSettingsControllerProvider.overrideWith(_CaptionsOn.new),
         ],
         afterSettle: (tester) async {
           // A phone arrives on the call, so the chat is opened the way a person does.
@@ -250,4 +251,61 @@ void main() {
       );
     });
   }
+
+  group('the Chat | Transcript switch', () {
+    Future<void> render(
+      WidgetTester tester,
+      Future<void> Function(WidgetTester tester) check, {
+      bool captionsOn = false,
+    }) => renderSurfaceThemes(
+      tester,
+      '/channels/c-main',
+      'laptop-1280',
+      const ['light'],
+      (t) => 'voice-in-call-pane-switch-$t',
+      overrides: [
+        voiceControllerProvider.overrideWith(
+          (ref) => SnapshotVoiceController(ref, gridCallState),
+        ),
+        callAudioProvider.overrideWith(_Transcribing.new),
+        callTranscriptProvider.overrideWith(_Speaking.new),
+        channelPermissionsProvider.overrideWith((ref, id) async => -1),
+        voiceChatPaneVisibleProvider.overrideWith((ref) => true),
+        if (captionsOn)
+          voiceSettingsControllerProvider.overrideWith(_CaptionsOn.new),
+      ],
+      afterSettle: check,
+    );
+
+    testWidgets('is hidden until captions or the transcript are asked for', (
+      tester,
+    ) async {
+      await render(tester, (tester) async {
+        expect(find.bySubtype<VoiceTextSurface>(), findsOneWidget);
+        expect(find.byKey(voiceTextTabsKey), findsNothing);
+      });
+    });
+
+    testWidgets('shows with captions on', (tester) async {
+      await render(captionsOn: true, tester, (tester) async {
+        expect(find.byKey(voiceTextTabsKey), findsOneWidget);
+      });
+    });
+
+    testWidgets('shows after View transcript, without turning captions on', (
+      tester,
+    ) async {
+      await render(tester, (tester) async {
+        final container = ProviderScope.containerOf(
+          tester.element(find.bySubtype<VoiceTextSurface>()),
+        );
+        container
+            .read(callCaptionsProvider('c-main').notifier)
+            .showTranscript();
+        await tester.pump();
+        expect(find.byKey(voiceTextTabsKey), findsOneWidget);
+        expect(find.byKey(callCaptionsKey), findsNothing);
+      });
+    });
+  });
 }

@@ -101,7 +101,7 @@ const voiceSettingsIndex = <SettingsEntry>[
   SettingsEntry(
     'voice',
     'Show captions',
-    description: 'Shows what is said in calls that are transcribed.',
+    description: 'Turns captions on when a call is transcribed.',
     keywords: ['subtitles', 'transcript', 'live', 'deaf', 'hearing'],
   ),
   SettingsEntry(

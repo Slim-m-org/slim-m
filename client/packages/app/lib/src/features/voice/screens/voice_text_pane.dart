@@ -39,15 +39,12 @@ import '../../../routing/breakpoints.dart';
 import '../../../widgets/app_panel_reveal.dart';
 import '../../../widgets/header_icon_action.dart';
 import '../providers/voice_chat_unread.dart';
+import '../providers/voice_text_tab.dart' show voiceChatPaneVisibleProvider;
 import '../widgets/voice_chat_unread_dot.dart';
 import 'call_details_pane.dart';
 import 'voice_text_surface.dart';
 
-/// Whether the voice channel's docked chat pane is open, at desktop widths.
-/// Defaults closed: opening a voice channel keeps the call stage at full
-/// width until a member asks for the pane, rather than narrowing every
-/// existing call the moment this ships.
-final voiceChatPaneVisibleProvider = StateProvider<bool>((ref) => false);
+export '../providers/voice_text_tab.dart' show voiceChatPaneVisibleProvider;
 
 /// Whether the call's details are docked open beside it. Opening the chat
 /// closes them, since the two share the one slot.

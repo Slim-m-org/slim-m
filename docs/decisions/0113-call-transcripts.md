@@ -165,3 +165,15 @@ How whisper hears the phrase was measured before this shipped: docs/research/voi
 A member has at most one stats read running at a time; a second answers 429.
 "All kept" still reads every kept line of the member, about 3 seconds at a million lines; nothing is stored to avoid it.
 
+
+## Amendment 2026-11-25: one Captions control
+
+The call has one control, "Captions", in place of the Transcribe start control and the Transcript menu's captions switch.
+The transcript still runs in the background whenever the Space has transcripts on, with the same notice and the same consent rules.
+Captions only reveal the live text on this device; nothing else is exposed until the viewer asks.
+In `always` the transcript already runs, so turning Captions on only shows the strip.
+In `on_request`, turning Captions on when nothing runs opens the same confirm sheet and asks everyone as before; while the ask is pending the control says "Waiting for everyone", and a decline turns captions back off with the existing explanation.
+In `off` the control is not shown, and it is also hidden from a member without `VIEW_TRANSCRIPTS`.
+The Chat | Transcript pane switch and the full transcript appear only after the viewer turned Captions on in this call, or chose "View transcript" in the same menu; the choice ends with the transcript.
+The always-mode header mark and the `on_request` banner with Stop stay as the passive indicators, and "Mark this moment" and "Add a note" stay in the same menu while a transcript runs.
+The per-device Captions default now means "show captions when a call's transcript is running"; it never starts a request by itself.

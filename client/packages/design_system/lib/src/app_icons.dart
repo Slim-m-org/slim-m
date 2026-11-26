@@ -502,6 +502,9 @@ abstract final class AppIcons {
   static const IconData callList = LucideIcons.listMusic300;
   static const IconData callCaptions = LucideIcons.captions300;
 
+  /// Opening a running call's whole transcript, beside the live [callCaptions].
+  static const IconData callTranscript = LucideIcons.fileText300;
+
   /// Marking a moment of a transcribed call for everyone who reads it, unlike
   /// [bookmark], which keeps a message in your own private list.
   static const IconData callMark = LucideIcons.bookmarkPlus300;
