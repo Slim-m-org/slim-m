@@ -8,7 +8,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_data/data.dart' show Channel;
+import 'package:slimm_data/data.dart' show Channel, hasMessageFromIn;
 
 import '../../../permissions.dart';
 import '../../members/providers/blocks_controller.dart';
@@ -72,7 +72,7 @@ class MessageAlertPolicy {
   final Map<String, ({bool value, DateTime at})> _canSend = {};
 
   /// A thread's parent channel never changes, so each is asked for once.
-  final Map<String, String?> _parentChannels = {};
+  final Map<String, api.ThreadParent?> _parents = {};
 
   /// When each provider was last known good, for [alertStateMaxAge].
   final Map<Object, DateTime> _loadedAt = {};
@@ -112,11 +112,14 @@ class MessageAlertPolicy {
     // A lobby's chat is never on screen, so the server pushes nothing for it either.
     if (channel?.createsRooms == true) return null;
     final isDm = channel?.kind == 'dm';
+    final parentId = await _parentChannelId(channel, message.channelId);
     // The server resolves this per viewer, including role and broadcast rights the client cannot see.
-    final mentionsSelf = !isDm && message.mentionsMe;
+    final mentionsSelf =
+        !isDm &&
+        (message.mentionsMe ||
+            await _inOwnThread(parentId, message.channelId, selfId));
 
     final overrides = _ref.read(channelNotificationOverridesProvider);
-    final parentId = await _parentChannelId(channel, message.channelId);
     final preference =
         overrides.overrideFor(message.channelId) ??
         (parentId == null ? null : overrides.overrideFor(parentId)) ??
@@ -184,10 +187,11 @@ class MessageAlertPolicy {
   /// whether the id is one.
   Future<String?> _parentChannelId(Channel? channel, String channelId) async {
     if (channel != null && channel.parentMessageId == null) return null;
-    if (!_parentChannels.containsKey(channelId)) {
+    if (!_parents.containsKey(channelId)) {
       try {
-        final parent = await _ref.read(apiProvider).getThreadParent(channelId);
-        _parentChannels[channelId] = parent.parentChannelId;
+        _parents[channelId] = await _ref
+            .read(apiProvider)
+            .getThreadParent(channelId);
       } on api.ApiException catch (error, stack) {
         api.reportFailure(
           api.LogTag.ui,
@@ -198,7 +202,21 @@ class MessageAlertPolicy {
         return null;
       }
     }
-    return _parentChannels[channelId];
+    return _parents[channelId]?.parentChannelId;
+  }
+
+  /// Whether this account started the thread or already replied in it, which
+  /// counts as a mention like Discord. Backs up the server's own `mentionsMe`
+  /// for a server that predates the rule.
+  Future<bool> _inOwnThread(
+    String? parentId,
+    String channelId,
+    String? selfId,
+  ) async {
+    if (parentId == null || selfId == null) return false;
+    if (_parents[channelId]?.parentAuthorId == selfId) return true;
+    final store = await _ref.read(storeProvider.future);
+    return hasMessageFromIn(store, channelId, selfId);
   }
 
   /// The account default as it applies to [message]: "everything" reads as

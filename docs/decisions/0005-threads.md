@@ -97,3 +97,17 @@ The title reads "Thread in #channel" once the parent resolves, and plain "Thread
 When the parent resolves, the panel upserts a real local channel row carrying the real `parentMessageId`, so the read marker has a row to update and `replaceChannels` never prunes it.
 The title's `Semantics(container: true, header: true)` separates it in the framework semantics tree but not in Flutter web's DOM, so the e2e harness waits on the back button instead.
 
+
+## Amendment 2026-11-26: a reply in a thread you are in is a mention
+
+Owner decision: a reply in a thread you started or replied in counts as a mention for you, like Discord.
+It alerts even in a channel set to Mentions only.
+Muting the thread, or its channel, or Do not disturb, still silences it, and your own reply never alerts you.
+
+This answers the push question the decision left open: a thread reply stays an ordinary channel message for people outside the thread, and is a targeted mention for the thread's own audience.
+The audience is the same set push already narrowed to, `Store::thread_participants`: the parent message's author plus everyone who has posted in the thread, still limited to who can view it and minus anyone who blocked the author.
+
+It is stored once, at send time, as a `message_mentions` row for each such person (not as a direct `@name`, so search's `mentions:` is unaffected).
+That one source feeds the server push rules, `mentions_me` on the message, the unread mention badge for the thread and the live frame, so badges and alerts cannot disagree.
+The client alert policy reads `mentions_me`, and also counts a thread whose parent message you wrote or one you already replied in, so an older server still behaves.
+Membership is read when a message is sent or edited, so someone who joins a thread later is not retroactively mentioned by older replies unless one of them is edited.
