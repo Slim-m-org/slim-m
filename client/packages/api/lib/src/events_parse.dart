@@ -18,6 +18,9 @@ ServerEvent? coreFrame(Map<String, dynamic> decoded) {
     'error' => ErrorEvent(decoded['message'] as String? ?? 'unknown'),
     'dm.changed' when decoded['channel_id'] is String =>
       DmChanged(channelId: decoded['channel_id'] as String),
+    'tts.failed' when decoded['channel_id'] is String => TtsFailed(
+        channelId: decoded['channel_id'] as String,
+      ),
     _ => null,
   };
 }

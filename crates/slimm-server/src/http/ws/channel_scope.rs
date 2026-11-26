@@ -99,6 +99,7 @@ pub(super) fn channel_of(event: &Event) -> Option<ChannelId> {
         | Event::VoiceNotice { .. }
         | Event::DmLeft { .. }
         | Event::SoundboardPlayed { .. }
+        | Event::TtsFailed { .. }
         | Event::VoiceSessionClosed { .. }
         | Event::Stamped { .. } => return None,
     })

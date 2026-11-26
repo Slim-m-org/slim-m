@@ -343,6 +343,7 @@ pub(super) fn to_frame(
         | Event::VoiceNotice { .. }
         | Event::DmLeft { .. }
         | Event::SoundboardPlayed { .. }
+        | Event::TtsFailed { .. }
         | Event::VoiceSessionClosed { .. }
         | Event::Stamped { .. } => return Ok(None),
     }))

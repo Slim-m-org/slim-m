@@ -91,6 +91,9 @@ enum CallPresence {
 /// The participant attribute that marks a deafened listener.
 const String kDeafenedAttribute = 'deafened';
 
+/// The identity prefix of the participant that speaks a `/tts` line for someone.
+const String kSpeechIdentityPrefix = 'tts-';
+
 class VoiceParticipant {
   const VoiceParticipant({
     required this.identity,
@@ -110,6 +113,14 @@ class VoiceParticipant {
 
   /// Display name as the token carried it.
   final String name;
+
+  /// Whether this is the voice speaking someone's `/tts` line, not a person.
+  bool get isSpeechSynth => identity.startsWith(kSpeechIdentityPrefix);
+
+  /// The member this participant stands for: [identity], or for a `/tts` voice the one who typed the line.
+  String get userId => isSpeechSynth
+      ? identity.substring(kSpeechIdentityPrefix.length)
+      : identity;
 
   final bool isSpeaking;
   final bool isMuted;

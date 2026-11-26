@@ -172,6 +172,7 @@ mod tests {
             language: Some("en".into()),
             threads: 1,
             max_sessions: 1,
+            piper: None,
         });
         let pool = Arc::new(Pool::new(transcriber, 1));
         Control::new(config, pool, Arc::new(NoSessions)).router()

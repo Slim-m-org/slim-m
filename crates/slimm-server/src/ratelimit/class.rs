@@ -397,6 +397,11 @@ classes! {
     /// makes every client in the call make a noise, so the limit is about the
     /// room's ears, not the server's CPU.
     Soundboard,
+    /// Speaking a line into a call with text to speech (decision 0142), charged per caller.
+    ///
+    /// Two at once, then one every five seconds: a line is up to 300 characters, about twenty
+    /// seconds of one voice in everyone's ears, so the limit is about the room, not the server.
+    Tts,
     /// Placing a stamp on someone's shared screen (decision 0121), charged per sender.
     ///
     /// Three at once, then one every two seconds: a person has at most three live stamps on a
@@ -446,6 +451,7 @@ impl Class {
             Class::GifSelect => (20.0, 1.0 / 6.0),
             Class::LinkPreview => (10.0, 1.0),
             Class::Soundboard => (1.0, 1.0 / 3.0),
+            Class::Tts => (2.0, 1.0 / 5.0),
             Class::ScreenStamp => (3.0, 0.5),
             Class::GroupDmCreate => (5.0, 1.0 / 60.0),
             // See this variant's own doc comment for how these were sized.

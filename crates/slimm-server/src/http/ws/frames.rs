@@ -341,6 +341,10 @@ pub(super) enum ServerFrame {
         clip_id: String,
         player_id: String,
     },
+    /// A line this account asked `/tts` to speak failed after it was accepted;
+    /// see [`crate::hub::Event::TtsFailed`].
+    #[serde(rename = "tts.failed")]
+    TtsFailed { channel_id: String },
     /// A DM call ring started; see [`crate::hub::Event::CallRinging`].
     #[serde(rename = "call.ringing")]
     CallRinging {

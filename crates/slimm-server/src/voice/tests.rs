@@ -513,3 +513,34 @@ async fn a_twirp_not_found_from_the_room_service_reads_as_already_gone() {
             .is_empty()
     );
 }
+
+#[test]
+fn the_speech_token_is_visible_publish_only_and_named_for_who_typed() {
+    let channel = ChannelId::generate();
+    let user = UserId::generate();
+    let minted = service()
+        .mint_speaker(channel, user, "Nick", Some("ws://10.0.0.100:7880"))
+        .expect("an enabled service mints");
+    let claims = decode_payload(&minted.token);
+    assert_eq!(claims["sub"], format!("tts-{user}"));
+    assert_eq!(claims["name"], "Nick (TTS)");
+    assert_eq!(claims["video"]["room"], room_for_channel(channel));
+    assert_eq!(claims["video"]["canPublish"], true);
+    assert_eq!(claims["video"]["canSubscribe"], false);
+    assert_eq!(claims["video"]["canPublishData"], false);
+    assert_eq!(claims["video"]["roomAdmin"], false);
+    assert_ne!(
+        claims["video"]["hidden"], true,
+        "a hidden participant cannot publish"
+    );
+    let lifetime = claims["exp"].as_u64().unwrap() - claims["nbf"].as_u64().unwrap();
+    assert_eq!(lifetime, 120);
+    assert!(
+        claims["sub"]
+            .as_str()
+            .unwrap()
+            .parse::<uuid::Uuid>()
+            .is_err(),
+        "never parses as a user id, so no roster or webhook path takes it for the member"
+    );
+}

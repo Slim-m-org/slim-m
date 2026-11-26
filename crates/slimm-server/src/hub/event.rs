@@ -482,6 +482,13 @@ pub enum Event {
         clip_id: crate::ids::SoundClipId,
         player_id: UserId,
     },
+    /// A line `user_id` asked to speak with `/tts` was accepted and then failed
+    /// (decision 0142). Private to `user_id`, who typed it. Ephemeral: never
+    /// persisted, no catch-up.
+    TtsFailed {
+        user_id: UserId,
+        channel_id: ChannelId,
+    },
     /// A voice session closed. Internal: only the module event consumer reads
     /// it, and no websocket frame is ever built from it.
     VoiceSessionClosed {

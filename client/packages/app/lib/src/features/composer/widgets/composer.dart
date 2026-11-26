@@ -11,13 +11,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../ids.dart';
 import '../../members/providers/bot_commands.dart';
 import '../providers/composer_attachment_drop.dart';
 import '../../modules/providers/module_panels.dart';
 import '../../modules/providers/app_launch.dart';
 import '../../../routing/breakpoints.dart';
 import '../providers/slash_command.dart';
+import '../providers/tts_speak.dart';
 import '../../channels/providers/slow_mode_controller.dart';
 import '../../messages/providers/typing_controller.dart';
 import '../../messages/widgets/attachment_picker.dart';
@@ -47,10 +47,10 @@ import 'composer_key_handler.dart';
 import 'composer_focus_registration.dart';
 import 'composer_mention_help_state.dart';
 import 'composer_photo_strip.dart';
-import 'composer_slash.dart';
 import 'composer_text_stats.dart';
 import '../../emoji/widgets/emoji_picker.dart';
 import 'composer_gif_command.dart';
+import 'composer_command_run.dart';
 import '../../../widgets/text_insert.dart';
 import '../../messages/widgets/typing_indicator.dart';
 
@@ -149,8 +149,7 @@ class _ComposerState extends ConsumerState<Composer> {
 
   final _focusRegistration = ComposerFocusRegistration();
 
-  /// Keyed by [Composer.channelId]; `channel_attachment_drop_zone.dart`
-  /// reaches this composer's staging through it.
+  /// Keyed by [Composer.channelId]; the channel drop zone reaches the staging through it.
   final _drop = ComposerDropRegistration();
 
   final _autocomplete = ComposerAutocompleteController();
@@ -161,13 +160,10 @@ class _ComposerState extends ConsumerState<Composer> {
 
   final _mentionHelp = ComposerMentionHelp();
   String? _commandError;
-
-  /// True while a command awaits its result, so a second send cannot rerun it.
-  bool _commandRunning = false;
-  final _launchId = RetryId(newMessageId);
+  final _commands = ComposerCommandRun();
 
   ComposerSendGate get _gate => ComposerSendGate(
-    commandRunning: _commandRunning,
+    commandRunning: _commands.running,
     stats: _stats,
     attachments: _attachments,
     slowModeRemaining: _slowModeRemaining,
@@ -351,36 +347,25 @@ class _ComposerState extends ConsumerState<Composer> {
 
   Future<void> _send() async {
     if (!_gate.canSend) return;
-    final gifQuery = _gifSearchEnabled && _attachments.isEmpty
-        ? gifCommandQuery(widget.controller.text)
-        : null;
-    if (gifQuery != null) {
-      widget.controller.clear();
-      _openGifSearch(gifQuery);
-      return;
-    }
     final staging = _attachments;
-    final bool handled;
-    _commandRunning = true;
-    try {
-      handled = await runComposedCommand(
-        ref: ref,
-        launchId: _launchId,
-        channelId: widget.channelId,
-        controller: widget.controller,
-        apps: _apps,
-        commands: _slashCommands,
-        hasStagedFile: !_attachments.isEmpty,
-        isMounted: () => mounted,
-        clearError: () => setState(() => _commandError = null),
-        onPosted: () => widget.onCommandPosted?.call(),
-        replyToId: widget.replyToId,
-        fail: _reportCommandError,
-      );
-    } finally {
-      _commandRunning = false;
-      if (mounted) setState(() {});
-    }
+    final done = _commands.run(
+      ref: ref,
+      channelId: widget.channelId,
+      controller: widget.controller,
+      apps: _apps,
+      commands: _slashCommands,
+      hasStagedFile: !_attachments.isEmpty,
+      gifSearchEnabled: _gifSearchEnabled,
+      isMounted: () => mounted,
+      openGif: _openGifSearch,
+      clearError: () => setState(() => _commandError = null),
+      onPosted: () => widget.onCommandPosted?.call(),
+      replyToId: widget.replyToId,
+      fail: _reportCommandError,
+    );
+    setState(() {});
+    final handled = await done;
+    if (mounted) setState(() {});
     if (handled) return;
     await staging.sendReady(widget.onSend);
     if (mounted) {
@@ -395,6 +380,10 @@ class _ComposerState extends ConsumerState<Composer> {
   @override
   Widget build(BuildContext context) {
     final touch = AppTouchTargets.of(context);
+    ref.listen(
+      ttsFailedProvider(widget.channelId),
+      (_, _) => _reportCommandError("Couldn't speak that line."),
+    );
     // In build because both sources are watched and can arrive late.
     _slashCommands = ref.watch(slashCommandProvider).valueOrNull ?? const [];
     _apps = ref.watch(appLaunchProvider).valueOrNull ?? const [];
