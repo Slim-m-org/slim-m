@@ -46,7 +46,7 @@ SYMBOLS_BY_CATEGORY = {
 REQUIRED_REASON_SYMBOLS = re.compile(r"\b(" + "|".join(SYMBOLS_BY_CATEGORY.values()) + r")\b")
 
 MANIFEST_BUNDLES = ("Runner",)
-EXTENSIONS = ("BroadcastExtension", "NotificationService")
+EXTENSIONS = ("BroadcastExtension", "NotificationService", "ShareExtension")
 
 
 def load(bundle: str) -> dict:

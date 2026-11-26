@@ -122,13 +122,14 @@ jobs:
                           f{print}
                           /End PBXSourcesBuildPhase section/{f=0}' "$pbx")
           fail=0
-          # NotificationService/ is here for the same reason Runner/ is: its
+          # NotificationService/ and ShareExtension/ are here for the same reason Runner/ is: their
           # sources compile nowhere if they are missing from the phase, and a
           # notification would silently keep showing the generic string with
           # nothing anywhere saying why.
           for f in client/packages/app/ios/Runner/*.swift \
                    client/packages/app/ios/Runner/*.m \
-                   client/packages/app/ios/NotificationService/*.swift; do
+                   client/packages/app/ios/NotificationService/*.swift \
+                   client/packages/app/ios/ShareExtension/*.swift; do
             [ -e "$f" ] || continue
             name=$(basename "$f")
             grep -qF "$name in Sources" <<<"$sources" || {
@@ -136,7 +137,7 @@ jobs:
               fail=1
             }
           done
-          [ "$fail" -eq 0 ] && echo "every Runner/NotificationService source is registered"
+          [ "$fail" -eq 0 ] && echo "every Runner/NotificationService/ShareExtension source is registered"
           exit $fail
       - name: every object id in the project is unique
         run: |
@@ -223,24 +224,26 @@ jobs:
       # An app extension carrying a Frameworks directory is refused by the
       # store with error 90206, which only surfaces at upload - after a
       # release has been tagged and an archive built. Caught here instead.
-      - name: the broadcast extension embeds no frameworks
+      - name: the app extensions embed no frameworks
         run: |
           set -euo pipefail
-          found=0
-          while IFS= read -r appex; do
-            found=1
-            echo "found $appex"
-            if [ -d "$appex/Frameworks" ]; then
-              echo "::error::$appex embeds frameworks; the store refuses this (90206)"
-              ls -la "$appex/Frameworks"
+          for name in BroadcastExtension ShareExtension; do
+            found=0
+            while IFS= read -r appex; do
+              found=1
+              echo "found $appex"
+              if [ -d "$appex/Frameworks" ]; then
+                echo "::error::$appex embeds frameworks; the store refuses this (90206)"
+                ls -la "$appex/Frameworks"
+                exit 1
+              fi
+            done < <(find "$HOME/Library/Developer/Xcode/DerivedData" -maxdepth 8 -path '*/Build/Products/*' -name "$name.appex")
+            if [ "$found" -eq 0 ]; then
+              echo "::error::$name.appex was not built"
               exit 1
             fi
-          done < <(find "$HOME/Library/Developer/Xcode/DerivedData" -maxdepth 8 -path '*/Build/Products/*' -name 'BroadcastExtension.appex')
-          if [ "$found" -eq 0 ]; then
-            echo "::error::BroadcastExtension.appex was not built"
-            exit 1
-          fi
-          echo "the extension embeds no frameworks"
+          done
+          echo "the extensions embed no frameworks"
 
       # Booted here, not in the background: on a 3-core runner the boot slowed whatever ran beside it by about as much as it saved.
       - name: boot the simulator
