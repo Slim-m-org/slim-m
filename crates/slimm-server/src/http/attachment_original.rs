@@ -7,7 +7,7 @@ use axum::http::{HeaderMap, header};
 use axum::response::Response;
 
 use super::AppState;
-use super::attachments::content_disposition;
+use super::asset_response::content_disposition;
 use super::error::ApiError;
 
 pub(super) async fn serve(

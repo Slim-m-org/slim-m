@@ -17,7 +17,7 @@ use axum::routing::{get, post};
 use serde::{Deserialize, Serialize};
 
 use super::AppState;
-use super::attachments::serve;
+use super::asset_response::serve;
 use super::error::ApiError;
 use super::extract::{
     ASSET, AUTHED_READ, Authed, AuthedLimited, Bytes, Json, Query, UPLOAD, WRITE, enforce,

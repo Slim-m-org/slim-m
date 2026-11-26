@@ -11,7 +11,7 @@ use axum::http::header::CONTENT_TYPE;
 use axum::response::Response;
 
 use super::AppState;
-use super::attachments::serve;
+use super::asset_response::serve;
 use super::error::ApiError;
 use super::extract::{ASSET, AuthedLimited};
 use super::messages::parse_uuid;

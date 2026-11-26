@@ -12,7 +12,7 @@ use axum::response::Response;
 use axum::routing::get;
 
 use super::AppState;
-use super::attachments::serve_revalidated;
+use super::asset_response::serve_revalidated;
 use super::error::ApiError;
 use super::extract::{
     ASSET, Authed, AuthedLimited, Bytes, INVITE_CHECK, Json, RateLimited, UPLOAD, enforce,

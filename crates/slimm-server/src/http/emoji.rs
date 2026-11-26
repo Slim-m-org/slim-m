@@ -27,7 +27,7 @@ use base64::engine::general_purpose::STANDARD as BASE64;
 use serde::{Deserialize, Serialize};
 
 use super::AppState;
-use super::attachments::serve;
+use super::asset_response::serve;
 use super::error::{ApiError, RefusedItem};
 use super::extract::Authed;
 use super::extract::enforce;

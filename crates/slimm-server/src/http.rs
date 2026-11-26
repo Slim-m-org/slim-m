@@ -19,6 +19,7 @@ mod admin_alerts;
 pub mod admin_audit;
 mod analytics;
 mod apps;
+mod asset_response;
 mod attachment_compress;
 mod attachment_ids;
 mod attachment_limit;
