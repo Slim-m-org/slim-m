@@ -128,6 +128,22 @@ impl Store {
             .await
     }
 
+    /// The account a refresh token was issued to, spent or not, without touching it.
+    ///
+    /// A cookie refresh checks it against the account the browser claims before anything is spent.
+    pub async fn refresh_token_owner(&self, refresh_token: &str) -> anyhow::Result<Option<UserId>> {
+        let presented = hash_secret(refresh_token);
+        let owner = sqlx::query_scalar!(
+            r#"SELECT s.user_id AS "user_id!: UserId"
+               FROM refresh_tokens r JOIN sessions s ON s.id = r.session_id
+               WHERE r.token_hash = ?"#,
+            presented
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(owner)
+    }
+
     /// [`Self::rotate_refresh`], also recording the client kind and version the
     /// app reports, so the devices list follows an app update instead of
     /// keeping the version it signed in with. `None` leaves a field as it was.

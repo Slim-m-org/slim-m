@@ -7,8 +7,9 @@
 
 use axum::Router;
 use axum::extract::{DefaultBodyLimit, State};
-use axum::http::StatusCode;
 use axum::http::request::Parts;
+use axum::http::{HeaderMap, StatusCode};
+use axum::response::{IntoResponse, Response};
 use axum::routing::{delete, post};
 use serde::{Deserialize, Serialize};
 
@@ -20,12 +21,12 @@ use super::extract::{
     limit_key,
 };
 use super::invites::invite_code_key;
-use super::session_revocation::{sessions_revoked, sessions_revoked_by_id};
+use super::session_revocation::sessions_revoked;
 use crate::hub::Event;
 use crate::ids::UserId;
 use crate::ratelimit::Class;
 use crate::store::DeleteAccountError;
-use crate::store::{IssuedTokens, JoinPolicy, RefreshOutcome, RegisterError};
+use crate::store::{IssuedTokens, JoinPolicy, RegisterError};
 
 /// Auth payloads are a handful of short fields; cap the body well below any
 /// realistic request so an oversized body is rejected before it is buffered.
@@ -112,22 +113,15 @@ struct DeleteAccountRequest {
     code: Option<String>,
 }
 
-#[derive(Deserialize)]
-struct RefreshRequest {
-    refresh_token: String,
-    #[serde(default)]
-    client_kind: Option<String>,
-    #[serde(default)]
-    client_version: Option<String>,
-}
-
 /// Shared with [`super::totp`], which mints the same pair once a sign-in has
 /// met its second factor.
 #[derive(Serialize)]
 pub(super) struct TokenResponse {
     user_id: String,
     access_token: String,
-    refresh_token: String,
+    /// Left out for a web client: its token is in an HttpOnly cookie.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    refresh_token: Option<String>,
     access_expires_at: i64,
 }
 
@@ -139,14 +133,14 @@ pub(super) struct TokenResponse {
 /// should keep being able to, and `202 Accepted` says exactly what happened -
 /// the password was accepted and the sign-in is not finished.
 enum LoginOutcome {
-    Tokens(TokenResponse),
+    Tokens(Response),
     Challenge(super::totp::ChallengeResponse),
 }
 
 impl axum::response::IntoResponse for LoginOutcome {
     fn into_response(self) -> axum::response::Response {
         match self {
-            LoginOutcome::Tokens(tokens) => Json(tokens).into_response(),
+            LoginOutcome::Tokens(response) => response,
             LoginOutcome::Challenge(challenge) => challenge.into_response(),
         }
     }
@@ -197,7 +191,7 @@ pub(super) fn token_response(tokens: &IssuedTokens) -> TokenResponse {
     TokenResponse {
         user_id: tokens.user_id.to_string(),
         access_token: tokens.access_token.clone(),
-        refresh_token: tokens.refresh_token.clone(),
+        refresh_token: Some(tokens.refresh_token.clone()),
         access_expires_at: tokens.access_expires_at,
     }
 }
@@ -218,8 +212,9 @@ pub(super) fn token_response(tokens: &IssuedTokens) -> TokenResponse {
 async fn register(
     _limited: RateLimited<PASSWORD>,
     State(state): State<AppState>,
+    headers: HeaderMap,
     Json(req): Json<RegisterRequest>,
-) -> Result<Json<TokenResponse>, ApiError> {
+) -> Result<Response, ApiError> {
     validate_username(&req.username)?;
     validate_password(&req.password)?;
     let display_name = match req.display_name.as_deref().map(str::trim) {
@@ -282,7 +277,7 @@ async fn register(
             install_id.as_deref(),
         )
         .await?;
-    Ok(Json(token_response(&tokens)))
+    Ok(web_session::session_response(&headers, &tokens))
 }
 
 /// Says whether a live account, bot included, already holds this username.
@@ -414,33 +409,19 @@ async fn login(
     tracing::debug!(user_id = %tokens.user_id, device_id = %tokens.device_id, client = ?client_kind, "auth: signed in");
     sessions_revoked(&state, tokens.user_id, &tokens.replaced);
     super::sign_in_alert::announce(&state, &tokens, &req.device_name, client_kind.as_deref()).await;
-    Ok(LoginOutcome::Tokens(token_response(&tokens)))
+    Ok(LoginOutcome::Tokens(web_session::session_response(
+        &parts.headers,
+        &tokens,
+    )))
 }
 
 async fn refresh(
     _limited: RateLimited<REFRESH>,
     State(state): State<AppState>,
-    Json(req): Json<RefreshRequest>,
-) -> Result<Json<TokenResponse>, ApiError> {
-    let (kind, version) =
-        parse_client_info(req.client_kind.as_deref(), req.client_version.as_deref())?;
-    let outcome = state
-        .store
-        .rotate_refresh_reporting(&req.refresh_token, kind.as_deref(), version.as_deref())
-        .await?;
-    match outcome {
-        RefreshOutcome::Rotated(tokens) => {
-            tracing::debug!(user_id = %tokens.user_id, device_id = %tokens.device_id, "auth: session refreshed");
-            Ok(Json(token_response(&tokens)))
-        }
-        // A benign miss and a detected replay look identical to the client: the
-        // only move either way is to log in again.
-        RefreshOutcome::Denied(_) => Err(ApiError::Unauthorized),
-        RefreshOutcome::Reused(session_id) => {
-            sessions_revoked_by_id(&state, vec![session_id]);
-            Err(ApiError::Unauthorized)
-        }
-    }
+    headers: HeaderMap,
+    Json(req): Json<refresh::RefreshRequest>,
+) -> Result<Response, ApiError> {
+    refresh::rotate(&state, &headers, req).await
 }
 
 async fn ws_ticket(
@@ -456,10 +437,15 @@ async fn ws_ticket(
 async fn logout(
     AuthedLimited(ctx): AuthedLimited<WRITE>,
     State(state): State<AppState>,
-) -> Result<StatusCode, ApiError> {
+    headers: HeaderMap,
+) -> Result<Response, ApiError> {
     state.store.revoke_session(ctx.session_id).await?;
     sessions_revoked(&state, ctx.user_id, &[ctx.session_id]);
-    Ok(StatusCode::NO_CONTENT)
+    Ok(web_session::clearing(
+        &headers,
+        ctx.user_id,
+        StatusCode::NO_CONTENT.into_response(),
+    ))
 }
 
 /// Deletes the caller's own account: purge personal data, anonymize authored
@@ -467,8 +453,9 @@ async fn logout(
 async fn delete_account(
     AuthedLimited(ctx): AuthedLimited<PASSWORD>,
     State(state): State<AppState>,
+    headers: HeaderMap,
     Json(req): Json<DeleteAccountRequest>,
-) -> Result<StatusCode, ApiError> {
+) -> Result<Response, ApiError> {
     super::reauth::require_password(&state, ctx.user_id, req.password.as_deref()).await?;
     super::reauth::require_current_code(&state, ctx.user_id, req.code.as_deref()).await?;
     let closed = match state
@@ -488,14 +475,20 @@ async fn delete_account(
         Err(DeleteAccountError::Internal(e)) => return Err(e.into()),
     };
     super::members::deleted_account::finish_closed_account(&state, ctx.user_id, closed).await;
-    Ok(StatusCode::NO_CONTENT)
+    Ok(web_session::clearing(
+        &headers,
+        ctx.user_id,
+        StatusCode::NO_CONTENT.into_response(),
+    ))
 }
 
 pub(crate) use self::validation::{
     is_disallowed_label_char, validate_label, validate_password, validate_username,
 };
 
+mod refresh;
 mod validation;
+pub(super) mod web_session;
 
 #[cfg(test)]
 mod tests;

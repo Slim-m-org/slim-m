@@ -10,6 +10,7 @@ use axum::Router;
 use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::StatusCode;
 use axum::http::request::Parts;
+use axum::response::IntoResponse;
 use axum::routing::{delete, get, post};
 use serde::{Deserialize, Serialize};
 
@@ -152,14 +153,24 @@ async fn remove_device(
     AuthedLimited(ctx): AuthedLimited<WRITE>,
     Path(device_id): Path<String>,
     State(state): State<AppState>,
-) -> Result<StatusCode, ApiError> {
+    headers: axum::http::HeaderMap,
+) -> Result<axum::response::Response, ApiError> {
     let device_id = DeviceId(parse_uuid(&device_id)?);
     let Some(revoked) = state.store.remove_device(ctx.user_id, device_id).await? else {
-        return Ok(StatusCode::NO_CONTENT);
+        return Ok(StatusCode::NO_CONTENT.into_response());
     };
 
     super::session_revocation::sessions_revoked(&state, ctx.user_id, &revoked);
-    Ok(StatusCode::NO_CONTENT)
+    let response = StatusCode::NO_CONTENT.into_response();
+    // Removing the device this browser signed in on ends its own session, so its cookie goes too.
+    if revoked.contains(&ctx.session_id) {
+        return Ok(super::auth::web_session::clearing(
+            &headers,
+            ctx.user_id,
+            response,
+        ));
+    }
+    Ok(response)
 }
 
 // --- Blocking ---

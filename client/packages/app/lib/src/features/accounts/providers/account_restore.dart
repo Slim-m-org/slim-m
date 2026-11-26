@@ -4,14 +4,13 @@
 /// See docs/decisions/0068-multiple-servers-in-one-app.md.
 library;
 
-import 'dart:convert';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_platform/platform.dart';
 
 import '../../../providers/fresh_install.dart';
 import '../../../providers/providers.dart';
+import '../../../providers/web_session.dart';
 import 'account_host.dart';
 import 'account_store.dart';
 
@@ -58,10 +57,16 @@ Future<bool> restoreAccountSession(
     final stored = await store.readSession(account);
     runtime.slot.restoreFailed = false;
     if (stored == null) return false;
-    final tokens = TokenPair.fromJson(
-      jsonDecode(stored) as Map<String, dynamic>,
+    final tokens = sessionFromStored(
+      container.read(webSessionModeProvider),
+      stored,
     );
+    if (tokens == null) {
+      await store.deleteSession(account);
+      return false;
+    }
     container.read(sessionProvider).set(tokens);
+    moveStoredPairToCookie(container, tokens);
     return true;
   } catch (error, stack) {
     reportFailure(LogTag.auth, 'restore the saved session', error, stack);

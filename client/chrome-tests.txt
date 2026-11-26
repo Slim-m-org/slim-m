@@ -44,6 +44,8 @@ api/test/voice_activity_event_test.dart
 api/test/voice_participant_event_test.dart
 api/test/voice_roster_participant_model_test.dart
 api/test/watch_session_test.dart
+api/test/web_cookie_session_test.dart
+api/test/peer_tokens_test.dart
 app/test/features/members/activity_feeds_test.dart
 app/test/features/members/activity_publisher_test.dart
 app/test/push/android_push_messages_test.dart
@@ -189,6 +191,8 @@ app/test/features/voice/voice_roster_test.dart
 app/test/features/voice/voice_sfu_security_test.dart
 app/test/whats_new/whats_new_content_test.dart
 app/test/whats_new/whats_new_controller_test.dart
+app/test/features/auth/web_session_storage_test.dart
+app/test/features/auth/tab_peer_tokens_test.dart
 design_system/test/app_icons_pan_test.dart
 design_system/test/initials_test.dart
 platform/test/cross_tab_web_test.dart
@@ -196,6 +200,7 @@ platform/test/device_push_keys_test.dart
 platform/test/fcm_token_channel_test.dart
 platform/test/install_format_test.dart
 platform/test/now_playing_mpris_test.dart
+platform/test/tab_channel_test.dart
 rtc/test/audio_devices_test.dart
 rtc/test/audio_device_switching_test.dart
 rtc/test/audio_gain_test.dart

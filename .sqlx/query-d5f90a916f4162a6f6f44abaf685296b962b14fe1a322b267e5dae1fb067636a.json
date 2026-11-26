@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT s.user_id AS \"user_id!: UserId\"\n               FROM refresh_tokens r JOIN sessions s ON s.id = r.session_id\n               WHERE r.token_hash = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "user_id!: UserId",
+        "ordinal": 0,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "sessions",
+            "name": "user_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "d5f90a916f4162a6f6f44abaf685296b962b14fe1a322b267e5dae1fb067636a"
+}

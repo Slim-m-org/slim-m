@@ -87,3 +87,4 @@ mod user_notes;
 mod username_case;
 mod username_check;
 mod users;
+mod web_session_cookie;
