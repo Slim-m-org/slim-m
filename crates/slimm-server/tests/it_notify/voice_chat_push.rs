@@ -130,7 +130,7 @@ async fn a_thread_off_a_voice_chat_follows_it() {
         .store
         .send_message(NewMessage::plain(
             w.voice,
-            w.member,
+            w.author,
             MessageId::generate(),
             "root",
         ))

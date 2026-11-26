@@ -27,4 +27,16 @@ void main() {
     expect(await hasMessageFrom(store, 'user-2'), isFalse);
     expect(await hasMessageFrom(store, 'user-1'), isTrue);
   });
+
+  test('hasMessageFromIn looks at one channel only', () async {
+    await store.addPending(
+      id: 'm1',
+      channelId: 'chan-1',
+      authorId: 'user-1',
+      content: 'hello',
+    );
+    expect(await hasMessageFromIn(store, 'chan-1', 'user-1'), isTrue);
+    expect(await hasMessageFromIn(store, 'chan-2', 'user-1'), isFalse);
+    expect(await hasMessageFromIn(store, 'chan-1', 'user-2'), isFalse);
+  });
 }

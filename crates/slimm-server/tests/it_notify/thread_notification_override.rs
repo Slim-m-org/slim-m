@@ -102,15 +102,17 @@ async fn a_parent_channel_mute_silences_a_reply_in_its_thread() {
 }
 
 /// The same lookup, one preference milder: a mentions-only parent must drop an
-/// ordinary reply in its thread and still wake for a real mention in one.
+/// ordinary reply for somebody who is not in the thread and still wake for a real mention in one.
 #[tokio::test]
 async fn a_parent_mentions_only_override_still_wakes_for_a_mention_in_its_thread() {
     let (store, _guard) = new_store("slimm-thread-notif-parent-mentions").await;
     let (alice, alice_device) = account(&store, "alice").await;
     let (bob, bob_device) = account(&store, "bob").await;
+    let (carol, carol_device) = account(&store, "carol").await;
     let channel = store.list_channels().await.unwrap()[0].id;
     register(&store, alice, alice_device, "alice-token").await;
     register(&store, bob, bob_device, "bob-token").await;
+    register(&store, carol, carol_device, "carol-token").await;
 
     let parent = send(&store, channel, alice, "root").await;
     let thread = store
@@ -120,7 +122,7 @@ async fn a_parent_mentions_only_override_still_wakes_for_a_mention_in_its_thread
         .channel;
 
     store
-        .set_channel_notification_preference(alice, channel, NotificationPreference::Mentions)
+        .set_channel_notification_preference(carol, channel, NotificationPreference::Mentions)
         .await
         .unwrap();
 
@@ -128,15 +130,15 @@ async fn a_parent_mentions_only_override_still_wakes_for_a_mention_in_its_thread
         .await
         .unwrap();
     assert!(
-        !plain.contains(&alice),
-        "mentions-only on the parent must drop a plain reply in its thread, got {plain:?}"
+        !plain.contains(&carol),
+        "mentions-only on the parent must drop a plain reply in a thread she is not in, got {plain:?}"
     );
 
-    let mention = wake_recipients(&store, thread.id, bob, "hey @alice look")
+    let mention = wake_recipients(&store, thread.id, bob, "hey @carol look")
         .await
         .unwrap();
     assert!(
-        mention.contains(&alice),
+        mention.contains(&carol),
         "a real mention in the thread must still wake her, got {mention:?}"
     );
 }
@@ -172,4 +174,63 @@ async fn a_thread_own_override_still_beats_its_parent_channel() {
         !recipients.contains(&alice),
         "alice muted this thread itself, so not even a mention wakes her, got {recipients:?}"
     );
+}
+
+/// Alice started the thread, so bob's plain reply is a mention for her and wakes her under Mentions only.
+/// A mute of the parent channel or of the thread still silences it, and carol, who never joined, hears nothing.
+#[tokio::test]
+async fn a_reply_in_a_thread_you_are_in_counts_as_a_mention() {
+    let (store, _guard) = new_store("slimm-thread-reply-is-mention").await;
+    let (alice, alice_device) = account(&store, "alice").await;
+    let (bob, bob_device) = account(&store, "bob").await;
+    let (carol, carol_device) = account(&store, "carol").await;
+    let channel = store.list_channels().await.unwrap()[0].id;
+    register(&store, alice, alice_device, "alice-token").await;
+    register(&store, bob, bob_device, "bob-token").await;
+    register(&store, carol, carol_device, "carol-token").await;
+    let parent = send(&store, channel, alice, "root").await;
+    let thread = store
+        .open_thread(channel, parent.message.id)
+        .await
+        .unwrap()
+        .channel;
+    for user in [alice, bob, carol] {
+        store
+            .set_channel_notification_preference(user, channel, NotificationPreference::Mentions)
+            .await
+            .unwrap();
+    }
+    send(&store, thread.id, bob, "bob joins").await;
+
+    let heard = wake_recipients(&store, thread.id, bob, "plain reply")
+        .await
+        .unwrap();
+    assert!(heard.contains(&alice), "the starter, got {heard:?}");
+    assert!(!heard.contains(&bob), "never the author, got {heard:?}");
+    assert!(!heard.contains(&carol), "a bystander, got {heard:?}");
+    let heard = wake_recipients(&store, thread.id, alice, "plain reply")
+        .await
+        .unwrap();
+    assert!(heard.contains(&bob), "an earlier replier, got {heard:?}");
+
+    store
+        .set_channel_notification_preference(alice, channel, NotificationPreference::Nothing)
+        .await
+        .unwrap();
+    let heard = wake_recipients(&store, thread.id, bob, "plain reply")
+        .await
+        .unwrap();
+    assert!(!heard.contains(&alice), "a muted channel, got {heard:?}");
+    store
+        .set_channel_notification_preference(alice, channel, NotificationPreference::Mentions)
+        .await
+        .unwrap();
+    store
+        .set_channel_notification_preference(alice, thread.id, NotificationPreference::Nothing)
+        .await
+        .unwrap();
+    let heard = wake_recipients(&store, thread.id, bob, "plain reply")
+        .await
+        .unwrap();
+    assert!(!heard.contains(&alice), "a muted thread, got {heard:?}");
 }
