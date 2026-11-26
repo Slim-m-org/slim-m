@@ -14670,10 +14670,12 @@ components:
       description: >
         Sent as `cookie` by the web client (decision 0141). The refresh token
         then travels in an HttpOnly, Secure, SameSite=Strict cookie named
-        `__Secure-slimm_rt_<user_id>` with `Path=/auth/refresh`, and is left out
+        `__Host-slimm_rt_<user_id>` (`Path=/`, no `Domain`, so a sibling
+        subdomain cannot plant one), and is left out
         of the response body. A sign-in or refresh sets the cookie; sign-out,
         removing the current device, deleting the account and a refused refresh
-        clear it. Other clients send nothing and are unchanged. A cookie refresh
+        clear it; a refresh clears the cookie only when the cookie, not a body
+        token, was what it presented. Other clients send nothing and are unchanged. A cookie refresh
         without this header is refused, which is the CSRF guard beside SameSite.
       schema:
         type: string

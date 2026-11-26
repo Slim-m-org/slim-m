@@ -297,7 +297,7 @@ Both ship a real OS-backed keychain with the same always-present guarantee as th
 
 The web build still uses flutter_secure_storage for the local database key and the account list, but not for the session: values there are AES-GCM encrypted under a key that itself lives in `localStorage`, so that is obfuscation against a casual look, not secrecy against script running on the same origin.
 The web client's refresh token therefore never reaches it.
-The server sets the token as an HttpOnly, Secure, SameSite=Strict cookie scoped to `/auth/refresh`, the access token stays in memory, and storage holds only the public account id (decision 0141).
+The server sets the token as an HttpOnly, Secure, SameSite=Strict `__Host-` cookie, the access token stays in memory, and storage holds only the public account id (decision 0141).
 One script injection on the origin can then use the 15-minute access token the tab holds, but cannot read the 30-day refresh token.
 A plain-http LAN address or a server on another origin cannot use the cookie, so there a tab keeps nothing and a reload signs in again.
 

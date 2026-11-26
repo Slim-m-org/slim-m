@@ -8,6 +8,7 @@ import 'package:slimm_platform/platform.dart';
 
 import '../features/accounts/providers/account_slot.dart';
 import 'providers.dart';
+import 'tab_peer_tokens.dart';
 import 'web_session.dart';
 
 /// The session, shared by everything that talks to the server so a refresh in
@@ -38,7 +39,15 @@ final sessionProvider = Provider<SessionStore>((ref) {
       ? sessionTokenHandle
       : slot.accountFor(ref.read(serverUrlProvider)).sessionHandle;
   late final SessionStore store;
+  final peers = TabPeerTokens(
+    ref.read(tabChannelProvider),
+    held: () => store.tokens,
+    onAnnounced: (announced) => store.takeUpPeerToken(announced),
+    isActive: () => ref.read(webSessionModeProvider) == WebSessionMode.cookie,
+  );
+  ref.onDispose(peers.dispose);
   store = SessionStore(
+    peers: peers,
     sync: TabSessionSync(tabs, () async {
       // Nothing is stored in this mode, so another tab's write says nothing about this tab's session.
       if (ref.read(webSessionModeProvider) == WebSessionMode.memory) {
@@ -100,6 +109,10 @@ Future<void> _persistSession(
   Uri? serverUrl,
   WebSessionMode mode,
 ) async {
+  // A pair from before the cookie stays stored until its refresh has moved it into the cookie.
+  if (mode == WebSessionMode.cookie && (tokens?.carriesRefreshToken ?? false)) {
+    return;
+  }
   final stored = tokens == null ? null : sessionToStore(mode, tokens);
   if (stored == null) {
     await keyStore.delete(handle);

@@ -144,6 +144,16 @@ class TokenPair {
         accessExpiresAt: json['access_expires_at'] as int? ?? 0,
       );
 
+  /// Whether this pair holds an access token to present.
+  bool get hasAccessToken => accessToken.isNotEmpty;
+
+  /// What one tab tells the others after a rotation: the access token, never a refresh token.
+  Map<String, dynamic> toAccessJson() => {
+        'user_id': userId,
+        'access_token': accessToken,
+        'access_expires_at': accessExpiresAt,
+      };
+
   /// The part of a session safe to keep where page script can read it: the account id alone.
   Map<String, dynamic> toHintJson() => {'user_id': userId};
 

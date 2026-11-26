@@ -23,6 +23,14 @@ const _tokens = TokenPair(
   accessExpiresAt: 0,
 );
 
+/// What a cookie session holds after a sign-in: no refresh token.
+const _webPair = TokenPair(
+  userId: 'user-1',
+  accessToken: 'access-1',
+  refreshToken: '',
+  accessExpiresAt: 0,
+);
+
 const _serverUrl = 'https://chat.example';
 
 /// Remembers every value written, so a test can look for a token anywhere, not only under one handle.
@@ -40,6 +48,7 @@ ProviderContainer _container(
   KeyStore keys,
   WebSessionMode mode, {
   List<http.Request>? seen,
+  int status = 200,
 }) {
   final container = ProviderContainer(
     overrides: [
@@ -54,12 +63,14 @@ ProviderContainer _container(
             httpClient: MockClient((request) async {
               seen.add(request);
               return http.Response(
-                jsonEncode({
-                  'user_id': 'user-1',
-                  'access_token': 'access-2',
-                  'access_expires_at': 9,
-                }),
-                200,
+                status != 200
+                    ? '{}'
+                    : jsonEncode({
+                        'user_id': 'user-1',
+                        'access_token': 'access-2',
+                        'access_expires_at': 9,
+                      }),
+                status,
                 headers: {'content-type': 'application/json'},
               );
             }),
@@ -85,8 +96,8 @@ void main() {
     test('the real build reads its own platform and page', () {
       expect(
         webSessionModeFor(Uri.base),
-        kIsWeb ? WebSessionMode.cookie : WebSessionMode.native,
-        reason: 'a test page is served from loopback, a secure context',
+        kIsWeb ? WebSessionMode.memory : WebSessionMode.native,
+        reason: 'a test page is plain-http loopback, which keeps no cookie',
       );
     });
 
@@ -98,15 +109,18 @@ void main() {
       expect(modeFor(_serverUrl), WebSessionMode.cookie);
     });
 
-    test('a loopback page is a secure context too', () {
-      expect(
-        modeFor(
-          'http://localhost:8080',
-          at: Uri.parse('http://localhost:8080/app/'),
-        ),
-        WebSessionMode.cookie,
-      );
-    });
+    test(
+      'plain-http loopback stores nothing: Safari drops its Secure cookie',
+      () {
+        expect(
+          modeFor(
+            'http://localhost:8080',
+            at: Uri.parse('http://localhost:8080/app/'),
+          ),
+          WebSessionMode.memory,
+        );
+      },
+    );
 
     test('a plain-http LAN server stores nothing', () {
       expect(
@@ -131,7 +145,7 @@ void main() {
       final keys = _RecordingKeyStore();
       final container = _container(keys, WebSessionMode.cookie);
 
-      container.read(sessionProvider).set(_tokens);
+      container.read(sessionProvider).set(_webPair);
       await container.read(sessionProvider).settled;
 
       expect(jsonDecode(await keys.read(sessionTokenHandle) ?? 'null'), {
@@ -156,27 +170,51 @@ void main() {
       expect(tokens.refreshToken, isEmpty);
     });
 
+    test('a pair stored before the cookie is spent into it, and only then '
+        'replaced by the account id', () async {
+      final keys = _RecordingKeyStore();
+      await keys.put(sessionTokenHandle, jsonEncode(_tokens.toJson()));
+      await keys.put(serverUrlHandle, _serverUrl);
+      final seen = <http.Request>[];
+      final container = _container(keys, WebSessionMode.cookie, seen: seen);
+
+      await restoreSession(container);
+      await pumpEventQueue(times: 100);
+      await container.read(sessionProvider).settled;
+
+      expect(jsonDecode(seen.single.body)['refresh_token'], 'refresh-1');
+      expect(seen.single.headers['x-slimm-web-session'], 'cookie');
+      expect(container.read(sessionProvider).tokens!.accessToken, 'access-2');
+      expect(container.read(sessionProvider).tokens!.refreshToken, isEmpty);
+      expect(jsonDecode((await keys.read(sessionTokenHandle))!), {
+        'user_id': 'user-1',
+      }, reason: 'the old refresh token is gone once the cookie holds it');
+    });
+
     test(
-      'a pair stored before the cookie is deleted at once and spent into the '
-      'cookie',
+      'a migration refresh that fails keeps the stored pair for the next load',
       () async {
         final keys = _RecordingKeyStore();
         await keys.put(sessionTokenHandle, jsonEncode(_tokens.toJson()));
         await keys.put(serverUrlHandle, _serverUrl);
         final seen = <http.Request>[];
-        final container = _container(keys, WebSessionMode.cookie, seen: seen);
+        final container = _container(
+          keys,
+          WebSessionMode.cookie,
+          seen: seen,
+          status: 503,
+        );
 
         await restoreSession(container);
+        await pumpEventQueue(times: 100);
         await container.read(sessionProvider).settled;
-        await pumpEventQueue();
 
-        expect(jsonDecode((await keys.read(sessionTokenHandle))!), {
-          'user_id': 'user-1',
-        }, reason: 'the old refresh token no longer sits in storage');
-        expect(jsonDecode(seen.single.body)['refresh_token'], 'refresh-1');
-        expect(seen.single.headers['x-slimm-web-session'], 'cookie');
-        expect(container.read(sessionProvider).tokens!.accessToken, 'access-2');
-        expect(container.read(sessionProvider).tokens!.refreshToken, isEmpty);
+        expect(seen, isNotEmpty);
+        expect(
+          jsonDecode((await keys.read(sessionTokenHandle))!)['refresh_token'],
+          'refresh-1',
+          reason: 'a network failure must not lose the only copy of the token',
+        );
       },
     );
 
@@ -184,7 +222,7 @@ void main() {
       final keys = _RecordingKeyStore();
       final container = _container(keys, WebSessionMode.cookie);
       final session = container.read(sessionProvider);
-      session.set(_tokens);
+      session.set(_webPair);
       await session.settled;
 
       session.clear();

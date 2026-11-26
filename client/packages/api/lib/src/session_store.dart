@@ -23,11 +23,15 @@ class SessionStore {
     TokenPair? tokens,
     Future<void> Function(TokenPair?)? onChange,
     this.sync,
+    this.peers,
   })  : _tokens = tokens,
         _onChange = onChange;
 
   /// How this session coordinates with other tabs sharing its storage; null where one process owns it.
   final SessionSync? sync;
+
+  /// How this tab shares access tokens with the others on one cookie session; null everywhere else.
+  final PeerTokens? peers;
 
   TokenPair? _tokens;
   final Future<void> Function(TokenPair?)? _onChange;
@@ -156,6 +160,39 @@ class SessionStore {
     await adoptStoredRotation(adoptSignOut: true);
   }
 
+  /// Takes up a newer access token another tab minted, so this tab never rotates just to replace one a peer already replaced.
+  ///
+  /// A tab with no live token yet asks its peers first, briefly, before the caller falls back to rotating.
+  Future<TokenPair?> adoptPeerToken() async {
+    final source = peers;
+    final held = _tokens;
+    if (source == null || held == null) return null;
+    var candidate = source.newest;
+    if (!_outlives(candidate, held) && held.accessToken.isEmpty) {
+      candidate = await source.ask();
+    }
+    if (!identical(_tokens, held) || candidate == null) return null;
+    if (!_outlives(candidate, held)) return null;
+    adopt(candidate);
+    return candidate;
+  }
+
+  /// Whether [other] is a live access token for the held account that outlasts the held one.
+  bool _outlives(TokenPair? other, TokenPair held) =>
+      other != null &&
+      other.userId == held.userId &&
+      other.accessToken.isNotEmpty &&
+      other.accessToken != held.accessToken &&
+      other.accessExpiresAt > held.accessExpiresAt &&
+      other.accessExpiresAt >
+          DateTime.now().millisecondsSinceEpoch + _peerTokenMargin;
+
+  /// Takes up a token a peer just announced, if it replaces the one held.
+  void takeUpPeerToken(TokenPair announced) {
+    final held = _tokens;
+    if (held != null && _outlives(announced, held)) adopt(announced);
+  }
+
   /// Adopts the stored pair when it is not the one held, returning it.
   ///
   /// Null means this tab still holds the newest pair and must rotate itself.
@@ -190,6 +227,23 @@ class SessionStore {
     adopt(stored);
     return stored;
   }
+}
+
+const _peerTokenMargin = 10000;
+
+/// Access tokens shared between the tabs of one cookie session.
+///
+/// A rotation kills the session's earlier access tokens, so the tab that rotates tells the others the new one.
+/// The access token is already readable by page script, so sharing it adds no exposure.
+abstract interface class PeerTokens {
+  /// The newest pair another tab announced, if any.
+  TokenPair? get newest;
+
+  /// Tells the other tabs about a pair this tab just minted.
+  void announce(TokenPair tokens);
+
+  /// Asks the other tabs for a live pair, null when none answers in time.
+  Future<TokenPair?> ask();
 }
 
 /// What a [SessionStore] needs when other tabs share its stored token pair.

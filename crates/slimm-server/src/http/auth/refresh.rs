@@ -34,19 +34,27 @@ pub(super) async fn rotate(
         parse_client_info(req.client_kind.as_deref(), req.client_version.as_deref())?;
     let web = web_session::requested(headers);
     let account = web_session::account(headers);
-    let token = match (req.refresh_token, web) {
-        (Some(token), false) => token,
+    let (token, from_cookie) = match (req.refresh_token, web) {
+        (Some(token), false) => (token, false),
         (None, false) => {
             return Err(ApiError::BadRequestDetail(
                 "missing field `refresh_token`".to_owned(),
             ));
         }
-        (Some(token), true) if !token.is_empty() => token,
+        (Some(token), true) if !token.is_empty() => (token, false),
         (_, true) => match account.and_then(|id| web_session::read_cookie(headers, id)) {
-            Some(token) => token,
-            None => return Ok(refused(headers, account)),
+            Some(token) => (token, true),
+            None => return Ok(refused(headers, None)),
         },
     };
+    let cookie_account = if from_cookie { account } else { None };
+    if let Some(claimed) = cookie_account {
+        // A cookie planted under another account's name is refused before it spends anything.
+        let owner = state.store.refresh_token_owner(&token).await?;
+        if owner.is_some_and(|owner| owner != claimed) {
+            return Ok(refused(headers, cookie_account));
+        }
+    }
     let outcome = state
         .store
         .rotate_refresh_reporting(&token, kind.as_deref(), version.as_deref())
@@ -57,15 +65,15 @@ pub(super) async fn rotate(
             Ok(web_session::session_response(headers, &tokens))
         }
         // A benign miss and a detected replay look the same: the only move is to sign in again.
-        RefreshOutcome::Denied(_) => Ok(refused(headers, account)),
+        RefreshOutcome::Denied(_) => Ok(refused(headers, cookie_account)),
         RefreshOutcome::Reused(session_id) => {
             sessions_revoked_by_id(state, vec![session_id]);
-            Ok(refused(headers, account))
+            Ok(refused(headers, cookie_account))
         }
     }
 }
 
-/// A 401 that also drops a web client's dead cookie, so it stops presenting it.
+/// A 401 that also drops the cookie that was presented, so it stops being presented.
 fn refused(headers: &HeaderMap, account: Option<UserId>) -> Response {
     let response = ApiError::Unauthorized.into_response();
     match account {

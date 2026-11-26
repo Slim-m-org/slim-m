@@ -25,7 +25,7 @@ enum WebSessionMode {
 
 /// The mode for a client reaching [server] from a page at [page].
 ///
-/// A SameSite=Strict cookie only travels to the page's own origin, and the browser only keeps a Secure one in a secure context.
+/// A SameSite=Strict cookie only travels to the page's own origin, and a browser only keeps a Secure one over https.
 WebSessionMode webSessionModeFor(Uri server, {bool isWeb = kIsWeb, Uri? page}) {
   if (!isWeb) return WebSessionMode.native;
   final at = page ?? Uri.base;
@@ -38,9 +38,8 @@ WebSessionMode webSessionModeFor(Uri server, {bool isWeb = kIsWeb, Uri? page}) {
       : WebSessionMode.memory;
 }
 
-bool _isSecureContext(Uri page) =>
-    page.scheme == 'https' ||
-    const {'localhost', '127.0.0.1', '[::1]', '::1'}.contains(page.host);
+/// https only: Safari does not keep a Secure cookie from http://localhost, so loopback falls back to [WebSessionMode.memory].
+bool _isSecureContext(Uri page) => page.scheme == 'https';
 
 final webSessionModeProvider = Provider<WebSessionMode>(
   (ref) => webSessionModeFor(ref.watch(serverUrlProvider)),

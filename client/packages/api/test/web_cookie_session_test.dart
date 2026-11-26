@@ -104,6 +104,23 @@ void main() {
       expect(api.session.isSignedIn, isFalse);
     });
 
+    test('a refreshed pair for another account is refused and ends the session',
+        () async {
+      final api = _api(
+          [],
+          (_) => _json({
+                'user_id': 'someone-else',
+                'access_token': 'theirs',
+                'access_expires_at': 7,
+              }),
+          webSession: true,
+          session: _hint());
+
+      await expectLater(api.refresh(), throwsA(isA<UnauthorizedException>()));
+
+      expect(api.session.isSignedIn, isFalse);
+    });
+
     test('a pre-cookie refresh token is sent once, to move it into the cookie',
         () async {
       final seen = <http.Request>[];

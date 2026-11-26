@@ -106,12 +106,12 @@ async fn a_web_sign_in_sets_an_http_only_cookie_and_leaves_the_body_token_out() 
     assert!(body.get("refresh_token").is_none(), "body: {body}");
     assert!(body["access_token"].as_str().is_some_and(|t| !t.is_empty()));
     let user_id = body["user_id"].as_str().unwrap();
-    assert!(set_cookie.starts_with(&format!("__Secure-slimm_rt_{user_id}=")));
+    assert!(set_cookie.starts_with(&format!("__Host-slimm_rt_{user_id}=")));
     for attribute in [
         "; HttpOnly",
         "; Secure;",
         "; SameSite=Strict",
-        "; Path=/auth/refresh",
+        "; Path=/;",
         "; Max-Age=",
     ] {
         assert!(
@@ -149,7 +149,7 @@ async fn refresh_reads_the_cookie_and_rotates_it() {
     assert!(refreshed.get("refresh_token").is_none());
     let rotated = cookie_header(&headers);
     assert_ne!(cookie_token(&rotated), cookie_token(&set_cookie));
-    assert!(rotated.contains("HttpOnly") && rotated.contains("Path=/auth/refresh"));
+    assert!(rotated.contains("HttpOnly") && rotated.contains("Path=/;"));
 
     // Using the new access token confirms the rotation, so the spent value is now a leak.
     let access = refreshed["access_token"].as_str().unwrap();
@@ -210,7 +210,10 @@ async fn a_cookie_refresh_without_an_account_or_cookie_is_unauthorized() {
     );
     let (status, headers, _) = send(&app, no_cookie).await;
     assert_eq!(status, StatusCode::UNAUTHORIZED);
-    assert!(cookie_header(&headers).contains("Max-Age=0"));
+    assert!(
+        headers.get(SET_COOKIE).is_none(),
+        "no cookie was presented, so there is none to clear"
+    );
 }
 
 #[tokio::test]
@@ -257,10 +260,10 @@ async fn sign_out_clears_the_cookie_and_revokes_the_session() {
     assert_eq!(status, StatusCode::NO_CONTENT);
     let cleared = cookie_header(&headers);
     assert!(
-        cleared.starts_with(&format!("__Secure-slimm_rt_{user_id}=;")),
+        cleared.starts_with(&format!("__Host-slimm_rt_{user_id}=;")),
         "{cleared}"
     );
-    assert!(cleared.contains("Max-Age=0") && cleared.contains("Path=/auth/refresh"));
+    assert!(cleared.contains("Max-Age=0") && cleared.contains("Path=/;"));
 
     let (after, _, _) = send(
         &app,
@@ -378,4 +381,175 @@ async fn completing_a_second_factor_sets_the_cookie_too() {
     assert_eq!(status, StatusCode::OK);
     assert!(body.get("refresh_token").is_none());
     assert!(cookie_header(&headers).contains("HttpOnly"));
+}
+
+/// Signs `name` up through the store (the deployment is already claimed) and in over HTTP as a web client.
+async fn web_member(app: &Router, store: &Store, name: &str) -> (Value, String) {
+    let hash = Auth::new(2)
+        .unwrap()
+        .hash_password(PASSWORD.to_owned())
+        .await
+        .unwrap();
+    store.create_account(name, name, &hash).await.unwrap();
+    let login = json!({"username": name, "password": PASSWORD, "device_name": "b"});
+    let (status, headers, body) = send(app, post("/auth/login", &[WEB], login)).await;
+    assert_eq!(status, StatusCode::OK);
+    (body, cookie_header(&headers))
+}
+
+fn with_header(mut request: Request<Body>, header: (&'static str, &str)) -> Request<Body> {
+    request
+        .headers_mut()
+        .insert(header.0, header.1.parse().unwrap());
+    request
+}
+
+#[tokio::test]
+async fn a_cookie_planted_under_another_accounts_name_is_refused_and_not_spent() {
+    let (app, store, _guard) = app_with_store("slimm-web-cookie-planted").await;
+    let (alice, _) = web_register(&app, "alice").await;
+    let (bob, bob_cookie) = web_member(&app, &store, "bobby").await;
+    let (alice_id, bob_id) = (
+        alice["user_id"].as_str().unwrap(),
+        bob["user_id"].as_str().unwrap(),
+    );
+    let planted = format!("__Host-slimm_rt_{alice_id}={}", cookie_token(&bob_cookie));
+
+    let (status, headers, _) = send(&app, refresh_with_cookie(alice_id, &planted, &[WEB])).await;
+
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    assert!(cookie_header(&headers).contains("Max-Age=0"));
+    let (still, _, _) = send(
+        &app,
+        refresh_with_cookie(bob_id, &pair(&bob_cookie), &[WEB]),
+    )
+    .await;
+    assert_eq!(
+        still,
+        StatusCode::OK,
+        "the planted use never spent bob's token"
+    );
+}
+
+#[tokio::test]
+async fn a_refused_body_token_clears_no_cookie() {
+    let (app, _guard) = app("slimm-web-cookie-body-refused").await;
+    let (body, _) = web_register(&app, "migrant2").await;
+    let user_id = body["user_id"].as_str().unwrap();
+    let request = post(
+        "/auth/refresh",
+        &[WEB, ("x-slimm-account", user_id)],
+        json!({"refresh_token": "not-a-token"}),
+    );
+
+    let (status, headers, _) = send(&app, request).await;
+
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    assert!(headers.get(SET_COOKIE).is_none());
+}
+
+#[tokio::test]
+async fn a_denied_cookie_refresh_sends_the_clear() {
+    let (app, _guard) = app("slimm-web-cookie-denied").await;
+    let (body, _) = web_register(&app, "denied").await;
+    let user_id = body["user_id"].as_str().unwrap();
+    let stale = format!("__Host-slimm_rt_{user_id}=never-issued");
+
+    let (status, headers, _) = send(&app, refresh_with_cookie(user_id, &stale, &[WEB])).await;
+
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    assert!(cookie_header(&headers).contains("Max-Age=0"));
+}
+
+#[tokio::test]
+async fn a_replayed_cookie_refresh_sends_the_clear() {
+    let (app, _guard) = app("slimm-web-cookie-reused").await;
+    let (body, first) = web_register(&app, "reuser").await;
+    let user_id = body["user_id"].as_str().unwrap();
+    let (_, _, rotated) = send(&app, refresh_with_cookie(user_id, &pair(&first), &[WEB])).await;
+    let access = rotated["access_token"].as_str().unwrap();
+    let (confirmed, _, _) = send(
+        &app,
+        support::app::request_bearer("GET", "/devices", access),
+    )
+    .await;
+    assert_eq!(confirmed, StatusCode::OK);
+
+    let (status, headers, _) =
+        send(&app, refresh_with_cookie(user_id, &pair(&first), &[WEB])).await;
+
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    assert!(cookie_header(&headers).contains("Max-Age=0"));
+}
+
+#[tokio::test]
+async fn deleting_the_account_clears_the_cookie() {
+    let (app, store, _guard) = app_with_store("slimm-web-cookie-delete").await;
+    web_register(&app, "admin").await;
+    let (body, _) = web_member(&app, &store, "leaver2").await;
+    let (user_id, access) = (
+        body["user_id"].as_str().unwrap(),
+        body["access_token"].as_str().unwrap(),
+    );
+    let delete =
+        support::app::request_json("DELETE", "/account", access, json!({"password": PASSWORD}));
+
+    let (status, headers, _) = send(&app, with_header(delete, WEB)).await;
+
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    let cleared = cookie_header(&headers);
+    assert!(
+        cleared.starts_with(&format!("__Host-slimm_rt_{user_id}=;")),
+        "{cleared}"
+    );
+}
+
+#[tokio::test]
+async fn removing_another_device_leaves_this_browsers_cookie() {
+    let (app, _guard) = app("slimm-web-cookie-other-device").await;
+    let (body, _) = web_register(&app, "twodevices").await;
+    let access = body["access_token"].as_str().unwrap();
+    let other = json!({"username": "twodevices", "password": PASSWORD, "device_name": "phone", "install_id": "phone-install-1"});
+    send(&app, post("/auth/login", &[], other)).await;
+    let (_, _, devices) = send(
+        &app,
+        support::app::request_bearer("GET", "/devices", access),
+    )
+    .await;
+    let other_device = devices
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|d| d["is_current"] == false)
+        .expect("the phone is listed");
+    let uri = format!("/devices/{}", other_device["id"].as_str().unwrap());
+
+    let remove = with_header(support::app::request_bearer("DELETE", &uri, access), WEB);
+    let (status, headers, _) = send(&app, remove).await;
+
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    assert!(headers.get(SET_COOKIE).is_none());
+}
+
+#[tokio::test]
+async fn logout_and_a_refused_refresh_without_the_web_header_send_no_cookie() {
+    let (app, _guard) = app("slimm-web-cookie-native-clear").await;
+    let (_, _, body) = send(&app, post("/auth/register", &[], register_body("plain"))).await;
+    let access = body["access_token"].as_str().unwrap();
+
+    let (denied, headers, _) = send(
+        &app,
+        post("/auth/refresh", &[], json!({"refresh_token": "nope"})),
+    )
+    .await;
+    assert_eq!(denied, StatusCode::UNAUTHORIZED);
+    assert!(headers.get(SET_COOKIE).is_none());
+
+    let (status, headers, _) = send(
+        &app,
+        support::app::request_bearer("POST", "/auth/logout", access),
+    )
+    .await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    assert!(headers.get(SET_COOKIE).is_none());
 }

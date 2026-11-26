@@ -121,12 +121,14 @@ extension SlimmApiAuth on SlimmApi {
   Future<TokenPair> _refreshOnce() async {
     // The refresh token is the session: it must not reach a server nobody vouched for.
     await awaitTrust();
-    final sync = session.sync;
-    if (sync == null) return _rotate();
-    return sync.exclusive(() async {
-      final adopted = await session.adoptStoredRotation();
+    Future<TokenPair> adoptOrRotate() async {
+      final adopted =
+          await session.adoptStoredRotation() ?? await session.adoptPeerToken();
       return adopted ?? await _rotate();
-    });
+    }
+
+    final sync = session.sync;
+    return sync == null ? adoptOrRotate() : sync.exclusive(adoptOrRotate);
   }
 
   Future<TokenPair> _rotate() async {
@@ -151,6 +153,11 @@ extension SlimmApiAuth on SlimmApi {
         },
       );
       tokens = TokenPair.fromJson(json as Map<String, dynamic>);
+      // A cookie that answers for another account is never taken up as this one.
+      if (tokens.userId != current.userId) {
+        throw const UnauthorizedException(
+            'the refreshed session is another account\'s');
+      }
     } on UnauthorizedException {
       // The refresh token is spent, revoked, or the session is gone; the only
       // move left is a fresh sign-in - unless the session already moved on.
@@ -164,6 +171,7 @@ extension SlimmApiAuth on SlimmApi {
       throw const UnauthorizedException('signed out while refreshing');
     }
     session.set(tokens);
+    session.peers?.announce(tokens);
     // Past the deadline the durability window is left open, as it was before the wait existed.
     var persisted = true;
     await session.settled.timeout(

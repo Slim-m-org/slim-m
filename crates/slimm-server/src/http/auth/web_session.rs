@@ -21,8 +21,8 @@ const WEB_SESSION_HEADER: &str = "x-slimm-web-session";
 const WEB_SESSION_VALUE: &str = "cookie";
 /// Names which account's cookie a refresh reads.
 const ACCOUNT_HEADER: &str = "x-slimm-account";
-const COOKIE_PREFIX: &str = "__Secure-slimm_rt_";
-const REFRESH_PATH: &str = "/auth/refresh";
+/// `__Host-` makes the browser refuse a cookie set from a sibling subdomain; it needs `Path=/` and no `Domain`.
+const COOKIE_PREFIX: &str = "__Host-slimm_rt_";
 
 /// Whether the caller is a web client that keeps its refresh token in the cookie.
 pub(in crate::http) fn requested(headers: &HeaderMap) -> bool {
@@ -58,7 +58,7 @@ pub(super) fn read_cookie(headers: &HeaderMap, user_id: UserId) -> Option<String
 fn cookie_line(user_id: UserId, value: &str, max_age_secs: i64) -> HeaderValue {
     let name = cookie_name(user_id);
     let line = format!(
-        "{name}={value}; HttpOnly; Secure; SameSite=Strict; Path={REFRESH_PATH}; Max-Age={max_age_secs}"
+        "{name}={value}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age={max_age_secs}"
     );
     HeaderValue::from_str(&line).expect("a uuid and an opaque token are header-safe")
 }
