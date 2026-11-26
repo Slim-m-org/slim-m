@@ -9,12 +9,18 @@ library;
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:slimm_api/api.dart';
+import 'package:slimm_api/api.dart'
+    show
+        ApiException,
+        ForbiddenException,
+        NotConfiguredException,
+        NotFoundException,
+        RateLimitedException;
 import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
 
 import '../../../api_failure.dart';
-import '../../../providers/providers.dart';
 import '../../voice/providers/voice_controller.dart';
+import '../providers/tts_speak.dart';
 
 /// The line a `/tts` message asks to speak (empty for a bare `/tts`), or null
 /// when the text is anything else.
@@ -53,7 +59,7 @@ Future<bool> speakComposedTts({
     return false;
   }
   try {
-    await ref.read(apiProvider).speakTts(channelId, line);
+    await ref.read(ttsSpeakProvider)(channelId, line);
   } on ApiException catch (e) {
     fail(ttsFailureMessage(e));
     return false;
