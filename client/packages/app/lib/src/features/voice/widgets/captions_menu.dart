@@ -41,7 +41,7 @@ List<Widget> captionsMenuItems(
         CaptionsControl.startable => [
           _switchRow(
             inner.watch(captionsOnProvider(channelId)),
-            (_) => unawaited(askToTranscribe(context, ref, close, channelId)),
+            (_) => unawaited(askToTranscribe(context, close, channelId)),
           ),
         ],
         CaptionsControl.running => [
@@ -96,17 +96,19 @@ Widget _switchRow(bool on, ValueChanged<bool> onChanged) => AppMenuSwitchRow(
 /// Asks everyone, as the Transcribe control did, and turns captions on once it is asked.
 Future<void> askToTranscribe(
   BuildContext context,
-  WidgetRef ref,
   VoidCallback close,
   String channelId,
 ) async {
+  final container = ProviderScope.containerOf(context, listen: false);
   close();
   if (!await confirmTranscribeCall(context)) return;
-  final captions = ref.read(callCaptionsProvider(channelId).notifier)
+  final captions = container.read(callCaptionsProvider(channelId).notifier)
     ..setCaptions(true);
-  final audio = ref.read(callAudioProvider(channelId).notifier);
+  final audio = container.read(callAudioProvider(channelId).notifier);
   await audio.requestTranscript();
-  if (ref.read(callAudioProvider(channelId)).error != null) captions.reset();
+  if (container.read(callAudioProvider(channelId)).error != null) {
+    captions.reset();
+  }
 }
 
 void _viewTranscript(WidgetRef ref, String channelId) {

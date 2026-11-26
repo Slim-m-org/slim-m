@@ -62,7 +62,7 @@ List<DockItem> buildDockItems(
               label: 'Show captions',
               value: captionsOn,
               onChanged: (_) =>
-                  unawaited(askToTranscribe(context, ref, () {}, channelId)),
+                  unawaited(askToTranscribe(context, () {}, channelId)),
             ),
           ],
           CaptionsControl.pending => [
