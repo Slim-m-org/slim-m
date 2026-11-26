@@ -11,6 +11,7 @@ import 'exceptions.dart';
 import 'upload_source.dart';
 import 'client.dart';
 import 'client_transport.dart';
+import 'client_web_session.dart';
 
 const _diagnosticsChunk = 64 * 1024;
 const _diagnosticsDeadline = Duration(minutes: 2);

@@ -7,6 +7,7 @@ import 'exceptions.dart';
 import 'models.dart';
 import 'client.dart';
 import 'client_transport.dart';
+import 'client_web_session.dart';
 import 'upload_guard.dart';
 import 'upload_send.dart';
 import 'upload_source.dart';

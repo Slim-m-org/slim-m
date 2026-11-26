@@ -10,6 +10,7 @@ import 'exceptions.dart';
 import 'logging/app_log.dart';
 import 'models.dart';
 import 'client.dart';
+import 'client_web_session.dart';
 
 const _contentTypeHeader = 'content-type';
 
@@ -47,12 +48,6 @@ const uploadAnswerDeadline = Duration(minutes: 10);
 
 /// Methods a repeat cannot double up: a POST might already have landed.
 const _replayable = {'GET', 'HEAD', 'PUT', 'DELETE'};
-
-/// Set to `cookie` by a web client whose refresh token lives in an HttpOnly cookie.
-const _webSessionHeader = 'x-slimm-web-session';
-
-/// Names the account whose cookie a web client's refresh reads.
-const _webAccountHeader = 'x-slimm-account';
 
 extension SlimmApiTransport on SlimmApi {
   Future<Object?> send(
@@ -132,34 +127,6 @@ extension SlimmApiTransport on SlimmApi {
     throw errorFor(response);
   }
 
-  /// Rotates the session for a 401 on a call sent with [sentWith], unless another call already did.
-  ///
-  /// Rotating again would void the token that call minted, so a late 401 only replays.
-  ///
-  /// Throws [UnauthorizedException] when the session now belongs to an account other than [sentBy], so a call
-  /// issued by one account is never replayed, or its refresh spent, under another's.
-  Future<void> refreshUnlessRotated(String? sentWith, {String? sentBy}) async {
-    _requireSameAccount(sentBy);
-    if (session.tokens?.accessToken == sentWith) await refresh();
-    _requireSameAccount(sentBy);
-  }
-
-  /// Refreshes through the cookie before the first call of a web tab that holds only its sign-in hint.
-  ///
-  /// Every caller waits on the one refresh in flight, so a cold load spends no 401 finding out the token is missing.
-  Future<void> ensureAccessToken() async {
-    final held = session.tokens;
-    if (!webSession || held == null || held.hasAccessToken) return;
-    await refresh();
-    _requireSameAccount(held.userId);
-  }
-
-  void _requireSameAccount(String? sentBy) {
-    if (session.tokens?.userId != sentBy) {
-      throw const UnauthorizedException('the signed-in account changed');
-    }
-  }
-
   /// Runs [attempt], and once more when it died on a dropped socket and [method] is safe to repeat.
   ///
   /// A phone back from the background finds its pooled sockets dead; a fresh one answers.
@@ -183,7 +150,7 @@ extension SlimmApiTransport on SlimmApi {
     required bool authenticated,
   }) {
     final request = http.Request(method, uri)..followRedirects = !unvouched;
-    if (webSession) _nameCookieFlow(request);
+    if (webSession) nameCookieFlow(request);
     if (bytes != null) {
       // An upload (an attachment or an avatar): the request body is the raw
       // bytes, never JSON, though the response below still is.
@@ -201,15 +168,6 @@ extension SlimmApiTransport on SlimmApi {
       request.headers['authorization'] = 'Bearer $token';
     }
     return request;
-  }
-
-  /// Tells the server this tab is on the cookie flow, and which account's cookie a refresh reads.
-  void _nameCookieFlow(http.Request request) {
-    request.headers[_webSessionHeader] = 'cookie';
-    if (request.url.path != '/auth/refresh') return;
-    if (session.tokens?.userId case final account?) {
-      request.headers[_webAccountHeader] = account;
-    }
   }
 
   bool _isSuccess(http.Response response, bool expectNoContent) {
