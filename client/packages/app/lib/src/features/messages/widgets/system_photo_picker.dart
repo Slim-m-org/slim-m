@@ -15,6 +15,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:image_picker_android/image_picker_android.dart';
 import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
 
+export 'picked_copies_none.dart' if (dart.library.io) 'picked_copies_io.dart';
+
 /// Whether this host has it; a provider so tests can pick a platform.
 final systemPhotoPickerAvailableProvider = Provider<bool>(
   (ref) => hasSystemPhotoPicker(),
@@ -31,7 +33,8 @@ typedef SystemPhotoPicker =
 bool hasSystemPhotoPicker() =>
     !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 
-Future<List<PlatformFile>> _pickFromSystem({
+Future<List<PlatformFile>> _pickFromSystem(
+  PickedCopyLog log, {
   required bool videos,
   required bool multiple,
 }) async {
@@ -50,13 +53,32 @@ Future<List<PlatformFile>> _pickFromSystem({
       ),
     ],
   };
+  log.record(files.map((f) => f.path));
   return [for (final f in files) _PickedXFile(f)];
 }
 
 /// Injectable because `image_picker` has no implementation under test.
-final systemPhotoPickerProvider = Provider<SystemPhotoPicker>(
-  (ref) => _pickFromSystem,
-);
+final systemPhotoPickerProvider = Provider<SystemPhotoPicker>((ref) {
+  final log = ref.watch(pickedCopyLogProvider);
+  return ({required bool videos, required bool multiple}) =>
+      _pickFromSystem(log, videos: videos, multiple: multiple);
+});
+
+/// The paths the photo picker copied, so they can be deleted once unread.
+class PickedCopyLog {
+  final Set<String> _paths = {};
+
+  void record(Iterable<String> paths) => _paths.addAll(paths);
+
+  /// Hands over every recorded path and forgets them.
+  List<String> drain() {
+    final taken = _paths.toList();
+    _paths.clear();
+    return taken;
+  }
+}
+
+final pickedCopyLogProvider = Provider<PickedCopyLog>((ref) => PickedCopyLog());
 
 final class _PickedXFile extends PlatformFile {
   _PickedXFile(this._file);
