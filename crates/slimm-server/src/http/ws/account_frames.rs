@@ -109,6 +109,15 @@ pub(super) fn authorize(ctx: &SessionContext, event: &Event) -> Option<Authoriza
                 player_id: player_id.to_string(),
             },
         ),
+        Event::TtsFailed {
+            user_id,
+            channel_id,
+        } => (
+            *user_id,
+            ServerFrame::TtsFailed {
+                channel_id: channel_id.to_string(),
+            },
+        ),
         Event::DmLeft {
             user_id,
             channel_id,

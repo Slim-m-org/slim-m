@@ -212,7 +212,7 @@ class CallParticipantTile extends StatelessWidget {
               child: UserAvatar(
                 key: callTileAvatarKey,
                 name: participant.name,
-                userId: participant.identity,
+                userId: participant.userId,
                 size: avatarSize,
               ),
             ),

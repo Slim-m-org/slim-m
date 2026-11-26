@@ -81,6 +81,14 @@ fn a_soundboard_play_is_one_every_three_seconds() {
     assert!((1.0 / refill - 3.0).abs() < 1e-9, "refill {refill}");
 }
 
+/// Two lines at once for a quick back and forth, then one every five seconds.
+#[test]
+fn text_to_speech_is_two_at_once_then_one_every_five_seconds() {
+    let (burst, refill) = Class::Tts.budget();
+    assert_eq!(burst, 2.0);
+    assert!((1.0 / refill - 5.0).abs() < 1e-9, "refill {refill}");
+}
+
 /// Three live stamps per person on a screen, so the burst is three and the refill one per 2 s.
 #[test]
 fn a_screen_stamp_is_three_at_once_then_one_every_two_seconds() {

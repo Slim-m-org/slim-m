@@ -107,6 +107,7 @@ async fn start_with(max_sessions: u32, silence: Duration) -> (String, Arc<Fake>)
         language: None,
         threads: 1,
         max_sessions,
+        piper: None,
     });
     let fake = Arc::new(Fake::default());
     let pool = Arc::new(Pool::new(Arc::new(Silent), 1));

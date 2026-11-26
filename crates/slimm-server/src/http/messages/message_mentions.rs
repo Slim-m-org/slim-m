@@ -61,6 +61,13 @@ pub(crate) async fn resolve_and_store_under(
             mentioned.push(*user);
         }
     }
+    for user in
+        crate::mentions::thread_participants_reached(&state.store, channel_id, under.0).await?
+    {
+        if !mentioned.contains(&user) {
+            mentioned.push(user);
+        }
+    }
     crate::mentions::drop_blockers(&state.store, under.0, &mut mentioned).await?;
     let written = crate::push::recipients::directly_named(content);
     let mut direct = state.store.user_ids_for_usernames(&written).await?;

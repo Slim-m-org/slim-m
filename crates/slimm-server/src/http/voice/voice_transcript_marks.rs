@@ -14,6 +14,7 @@ use super::super::AppState;
 use super::super::error::ApiError;
 use super::super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, WRITE, enforce};
 use super::super::messages::parse_uuid;
+use super::super::participant::Participant;
 use super::voice_transcripts::readable;
 use crate::call_audio::marks;
 use crate::hidden_chars::is_hidden_char;
@@ -135,7 +136,7 @@ async fn in_call(state: &AppState, transcript: &CallTranscript) -> Vec<UserId> {
 
 async fn add(
     State(state): State<AppState>,
-    AuthedLimited(ctx): AuthedLimited<WRITE>,
+    Participant(ctx): Participant<WRITE>,
     Path((id, raw_mark)): Path<(String, String)>,
     Json(body): Json<PutMarkDto>,
 ) -> Result<(StatusCode, Json<MarkDto>), ApiError> {

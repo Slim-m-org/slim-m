@@ -472,6 +472,7 @@ class PaletteFooter extends StatelessWidget {
               children: [
                 hint(const ['↑', '↓'], 'Move'),
                 hint(const ['Enter'], 'Open'),
+                if (!filtering) hint(const ['Shift', 'Enter'], 'All results'),
                 hint(const ['Tab'], filtering ? 'Complete' : 'Next section'),
               ],
             ),

@@ -10,10 +10,10 @@ use axum::routing::{get, post};
 use serde::{Deserialize, Serialize};
 
 use super::AppState;
+use super::channel_read::{ReadStateDto, read_state_for};
 use super::error::ApiError;
 use super::extract::{AUTHED_READ, AuthedLimited, Json, WRITE};
 use super::message_validation::parse_uuid;
-use super::sync::{ReadStateDto, read_state_for};
 use crate::ids::ChannelId;
 use crate::permissions::Permissions;
 
@@ -67,7 +67,7 @@ async fn mark_channels_read(
             continue;
         }
         // The store clamps to the channel's newest seq, so MAX means "everything".
-        super::read_sync::advance_and_announce(&state, ctx.user_id, id, i64::MAX).await?;
+        super::read_sync::advance_announce_and_push(&state, &ctx, id, i64::MAX).await?;
         answers.push(ChannelReadStateDto {
             channel_id: id.to_string(),
             state: read_state_for(&state, ctx.user_id, id).await?,

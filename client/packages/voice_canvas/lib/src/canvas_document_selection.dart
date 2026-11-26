@@ -9,6 +9,13 @@ part of 'canvas_document.dart';
 /// `CanvasDocument`'s own private slot table, and a `part of` file shares
 /// that access without exposing it beyond this library.
 extension CanvasDocumentSelection on CanvasDocument {
+  /// A dying object must not stay offered a resize, reorder or delete.
+  void _releaseSelection(String id) {
+    if (selectedObjectId.value == id) selectedObjectId.value = null;
+    multiSelection.release(id);
+    if (elevatedObjectId.value == id) elevatedObjectId.value = null;
+  }
+
   /// The kind a live object was placed as, or null if [id] is unknown or has
   /// been removed. What a resize gesture needs to refuse a stroke: an image,
   /// a note and a shape all have a box with nothing thinner inside it to

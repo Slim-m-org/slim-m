@@ -125,3 +125,33 @@ async fn a_photo_the_memory_budget_refuses_is_stripped_not_decoded() {
     let (_, _, body) = fetch(&space, stored["id"].as_str().unwrap(), "").await;
     assert!(!contains(&body, &GPS_RATIONALS));
 }
+
+const AVIF_WITH_POSITION: &[u8] = include_bytes!("../../fixtures/tiny_gps.avif");
+
+#[tokio::test]
+async fn an_avif_is_served_without_its_position_with_compression_off_or_on() {
+    assert!(
+        contains(AVIF_WITH_POSITION, &GPS_RATIONALS),
+        "the fixture carries a position"
+    );
+    for enabled in [false, true] {
+        let space = space().await;
+        configure(&space, json!({"enabled": enabled})).await;
+        let stored = upload_as(&space, "IMG_0004.avif", AVIF_WITH_POSITION.to_vec()).await;
+        assert_eq!(stored["content_type"], json!("image/avif"));
+        let (status, _, body) = fetch(&space, stored["id"].as_str().unwrap(), "").await;
+        assert_eq!(status, StatusCode::OK);
+        assert!(!contains(&body, &GPS_RATIONALS), "enabled={enabled}");
+        assert!(!contains(&body, b"GPSLatitude"), "enabled={enabled}");
+        assert_eq!(body.len(), AVIF_WITH_POSITION.len());
+    }
+}
+
+#[tokio::test]
+async fn an_avif_keeps_its_position_when_all_metadata_is_kept() {
+    let space = space().await;
+    configure(&space, json!({"metadata": "keep"})).await;
+    let stored = upload_as(&space, "IMG_0004.avif", AVIF_WITH_POSITION.to_vec()).await;
+    let (_, _, body) = fetch(&space, stored["id"].as_str().unwrap(), "").await;
+    assert_eq!(body, AVIF_WITH_POSITION);
+}

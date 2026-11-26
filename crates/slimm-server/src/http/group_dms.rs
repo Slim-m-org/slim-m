@@ -17,12 +17,13 @@ use super::dms::{DmConversationDto, with_nicknames};
 use super::error::ApiError;
 use super::extract::{Authed, AuthedLimited, Json, WRITE, enforce};
 use super::messages::parse_uuid;
+use super::participant::require_participant;
 use super::post_commit::run_to_completion;
 use crate::hub::Event;
 use crate::ids::{ChannelId, UserId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
-use crate::store::{GroupDmError, LeftGroup, MemberGate};
+use crate::store::{GroupDmError, LeftGroup};
 use crate::voice::VoiceError;
 
 const BODY_LIMIT: usize = 4 * 1024;
@@ -85,14 +86,6 @@ impl From<GroupDmError> for ApiError {
     }
 }
 
-async fn require_member(state: &AppState, user_id: UserId) -> Result<(), ApiError> {
-    // The gate caps what a DM may do, but would still let one be created.
-    if state.store.member_gate(user_id).await? != MemberGate::Member {
-        return Err(ApiError::ForbiddenBecause("accept the rules first"));
-    }
-    Ok(())
-}
-
 fn optional_name(name: Option<&str>) -> Result<Option<&str>, ApiError> {
     match name.map(str::trim) {
         None | Some("") => Ok(None),
@@ -121,14 +114,8 @@ async fn create(
     Json(req): Json<CreateRequest>,
 ) -> Result<(StatusCode, Json<DmConversationDto>), ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::GroupDmCreate)?;
-    require_member(&state, ctx.user_id).await?;
+    require_participant(&state, ctx.user_id).await?;
     let name = optional_name(req.name.as_deref())?;
-    // A timeout takes away naming a group too, since the name reaches everyone in it.
-    if name.is_some() && state.store.timed_out_until(ctx.user_id).await?.is_some() {
-        return Err(ApiError::ForbiddenBecause(
-            "you cannot name a group right now",
-        ));
-    }
     let id = req
         .id
         .as_deref()
@@ -168,7 +155,7 @@ async fn add_member(
     State(state): State<AppState>,
     Json(req): Json<AddRequest>,
 ) -> Result<Json<DmConversationDto>, ApiError> {
-    require_member(&state, ctx.user_id).await?;
+    require_participant(&state, ctx.user_id).await?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
     let new_member = UserId(parse_uuid(&req.user_id)?);
     state
@@ -247,7 +234,7 @@ async fn delete(
     State(state): State<AppState>,
 ) -> Result<StatusCode, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
-    require_member(&state, ctx.user_id).await?;
+    require_participant(&state, ctx.user_id).await?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
     let deleted = state.store.delete_group_dm(ctx.user_id, channel_id).await?;
     super::channels::end_voice_room(&state, channel_id).await;

@@ -63,6 +63,7 @@ mod deployment_frames;
 mod ephemeral_frames;
 mod frame_budget;
 mod frames;
+mod interaction_click_frame;
 mod interaction_frames;
 mod message_frames;
 mod pending_key;

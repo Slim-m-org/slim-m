@@ -33,6 +33,7 @@ export 'client_dock.dart' show SlimmApiDock;
 export 'client_dock_host_run.dart' show SlimmApiDockHostRun;
 export 'client_emoji.dart' show SlimmApiEmoji;
 export 'client_soundboard.dart' show SlimmApiSoundboard;
+export 'client_tts.dart' show SlimmApiTts;
 export 'client_screen_stamps.dart' show SlimmApiScreenStamps;
 export 'client_space_themes.dart' show SlimmApiSpaceThemes;
 export 'client_download_links.dart' show DownloadLink, SlimmApiDownloadLinks;

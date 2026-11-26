@@ -17,7 +17,7 @@ extension _CanvasPaneGestures on _CanvasPaneState {
         onPicked: () => _onToolChanged(CanvasTool.stamp),
       );
     }
-    if (tool != CanvasTool.pan) _document.selectedObjectId.value = null;
+    if (tool != CanvasTool.pan) _document.multiSelection.clear();
     // Arming a tool by key or wheel brings the folded tools back, so what is armed shows.
     if (tool != CanvasTool.pan && ref.read(canvasToolsHiddenProvider)) {
       unawaited(ref.read(canvasToolsHiddenProvider.notifier).select(false));
@@ -168,6 +168,8 @@ extension _CanvasPaneGestures on _CanvasPaneState {
       const SingleActivator(LogicalKeyboardKey.keyV, meta: true): () =>
           unawaited(_imagePaste.pasteFromKeystroke()),
     },
+    const SingleActivator(LogicalKeyboardKey.keyA, control: true): _onSelectAll,
+    const SingleActivator(LogicalKeyboardKey.keyA, meta: true): _onSelectAll,
     const SingleActivator(LogicalKeyboardKey.delete): _onDeleteKey,
     const SingleActivator(LogicalKeyboardKey.backspace): _onDeleteKey,
   });
@@ -346,7 +348,61 @@ extension _CanvasPaneGestures on _CanvasPaneState {
   /// Delete/Backspace over the current Move-tool selection, the desktop convention.
   void _onDeleteKey() {
     final selected = _document.selectedObjectId.value;
-    if (selected != null) unawaited(_onDeleteSelected(selected));
+    if (selected != null) return unawaited(_onDeleteSelected(selected));
+    unawaited(_onDeletePicked());
+  }
+
+  /// Picks every object in view this person may pick, as the drag box over the whole screen would.
+  void _onSelectAll() {
+    if (_spectating || _tool != CanvasTool.pan) return;
+    _document.multiSelection.select(
+      objectIdsInRect(_document, _document.worldView, accepts: _select.mayPick),
+    );
+  }
+
+  Widget _groupBar(bool manageCanvas) => CanvasMultiSelectionBar(
+    document: _document,
+    armed: _tool == CanvasTool.pan,
+    mayDelete: () => _groupMayDelete(manageCanvas),
+    onDelete: () => unawaited(_onDeletePicked()),
+    onAlign: (mode) => unawaited(_onAlignPicked(mode)),
+  );
+
+  Future<void> _onAlignPicked(CanvasAlign mode) async {
+    final picked = _document.multiSelection.ids.value.toList();
+    final manageCanvas = ref
+        .read(myChannelPermissionsProvider(widget.channelId))
+        .hasPermission(Perm.manageCanvas);
+    await _ops.alignObjects(
+      picked,
+      mode,
+      manageCanvas: manageCanvas,
+      selfId: ref.read(meProvider).valueOrNull?.id,
+    );
+    _refresh();
+  }
+
+  CanvasGroupActions _groupActions(bool manageCanvas) => CanvasGroupActions(
+    onAlign: (mode) => unawaited(_onAlignPicked(mode)),
+    onDelete: () => unawaited(_onDeletePicked()),
+    mayDelete: () => _groupMayDelete(manageCanvas),
+  );
+
+  bool _groupMayDelete(bool manageCanvas) =>
+      !_spectating &&
+      _document.multiSelection.ids.value.any(
+        (id) => manageCanvas || !_ops.isLocked(id),
+      );
+
+  /// Deletes everything picked together by the drag box or a modifier click, as one undo step.
+  Future<void> _onDeletePicked() async {
+    final picked = _document.multiSelection.ids.value.toList();
+    if (picked.isEmpty) return;
+    final manageCanvas = ref
+        .read(myChannelPermissionsProvider(widget.channelId))
+        .hasPermission(Perm.manageCanvas);
+    await _ops.deleteObjects(picked, manageCanvas: manageCanvas);
+    _refresh();
   }
 
   /// A spectator's pointer is not relayed: the server only relays one that may draw.

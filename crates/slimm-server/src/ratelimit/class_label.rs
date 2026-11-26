@@ -28,6 +28,7 @@ impl Class {
             Class::LinkPreview => "link_preview",
             Class::Ring => "ring",
             Class::Soundboard => "soundboard",
+            Class::Tts => "tts",
             Class::ScreenStamp => "screen_stamp",
             Class::GroupDmCreate => "group_dm_create",
             Class::CanvasWatch => "canvas_watch",

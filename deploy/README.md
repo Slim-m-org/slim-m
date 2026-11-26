@@ -198,6 +198,17 @@ That download is the only traffic the listener makes of its own, and it carries 
 To avoid it, put the file at `/models/ggml-base.bin` in that volume first.
 `WHISPER_LANGUAGE` sets a language (`en`, `de`, ...); the default detects each utterance.
 
+### Text to speech
+
+The same listener speaks the `/tts` command (decision 0142).
+Someone in a call types `/tts hello` and a short-lived participant named "Their name (TTS)" says it into the call, with a synthetic voice made on this machine by Piper; the text also goes to the call chat.
+There is nothing else to turn on: with the listener running, `/tts` works, and without it the command answers that text to speech is not set up.
+
+The image carries Piper and downloads its voice, `en_US-lessac-medium` (about 63 MB), once into the `listener_models` volume, checked against a pinned sha256.
+Set `PIPER_MODEL` to an empty value to leave text to speech off, or to another voice's `.onnx` in `/models` (its `.onnx.json` beside it) to use that one.
+A line is at most 300 characters, a call holds five lines at a time, and a person gets two lines at once, then one every five seconds.
+Each line is a short burst of CPU, a few core-seconds, and the listener makes at most two at once; plan for about 200 MB on top of the speech model.
+
 ### CPU and memory
 
 Transcription runs on the CPU, on `LISTENER_THREADS` worker threads (default 4), one utterance at a time each.

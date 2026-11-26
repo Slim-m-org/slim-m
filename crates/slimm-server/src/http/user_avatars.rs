@@ -13,7 +13,7 @@ use axum::http::request::Parts;
 use axum::response::Response;
 
 use super::AppState;
-use super::attachments::serve;
+use super::asset_response::serve;
 use super::error::ApiError;
 use super::extract::{ASSET, Authed, AuthedLimited, Bytes, Json, UPLOAD, enforce};
 use super::messages::parse_uuid;

@@ -59,6 +59,7 @@ class AlertRig {
     this.accountFails = false,
     this.overrides = const {},
     this.parentFails = false,
+    this.parentAuthorId,
     this.makeStore = MessageStore.new,
     this.framesApplied,
     this.visibility,
@@ -87,6 +88,9 @@ class AlertRig {
   final Map<String, String> overrides;
   final bool parentFails;
 
+  /// Who wrote the message every thread hangs off, as `/thread-parent` reports it.
+  final String? parentAuthorId;
+
   /// Channels this account can read but not post in.
   Set<String> readOnly = const {};
 
@@ -103,6 +107,7 @@ class AlertRig {
   final threadParentRequests = <String>[];
 
   late final SlimmDatabase db;
+  late final MessageStore store;
   late final ProviderContainer container;
 
   MessageAlertPolicy get policy => container.read(messageAlertPolicyProvider);
@@ -112,7 +117,7 @@ class AlertRig {
   Future<void> start() async {
     alertNewChannelWait = const Duration(milliseconds: 50);
     db = SlimmDatabase(NativeDatabase.memory());
-    final store = makeStore(db);
+    store = makeStore(db);
     await store.upsertChannels([
       const api.Channel(
         id: 'group-1',
@@ -238,6 +243,7 @@ class AlertRig {
         'parent_channel_id': 'group-1',
         'parent_message_id': 'pm1',
         'parent_deleted': false,
+        if (parentAuthorId != null) 'parent_author_id': parentAuthorId,
       });
     }
     if (path.endsWith('/thread-parent')) {

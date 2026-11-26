@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:cryptography/cryptography.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/features/auth/screens/sign_in_screen.dart';
 import 'package:slimm_app/src/providers/providers.dart';
@@ -47,14 +48,17 @@ final _version = {
 /// A pinned Space whose `/version` answers with [version], counting sign-ins.
 Future<({ProviderContainer container, List<String> logins})> _pinned(
   WidgetTester tester,
-  Future<http.Response> Function(http.Request request) version,
-) async {
+  Future<http.Response> Function(http.Request request) version, {
+  Future<http.Response> Function(http.Request request)? proof,
+  String pinnedKey = _key,
+}) async {
   final logins = <String>[];
   final client = MockClient((request) async {
     switch (request.url.path) {
       case '/version':
         return version(request);
       case '/identity/proof':
+        if (proof != null) return proof(request);
         return _json({
           'public_key': _key,
           'signature': base64.encode(List<int>.filled(64, 7)),
@@ -73,7 +77,7 @@ Future<({ProviderContainer container, List<String> logins})> _pinned(
     return _json({'exists': true});
   });
   final keyStore = InMemoryKeyStore();
-  await keyStore.put('server_identity:$_server', _key);
+  await keyStore.put('server_identity:$_server', pinnedKey);
   final container = ProviderContainer(
     overrides: [
       keyStoreProvider.overrideWithValue(keyStore),
@@ -116,6 +120,29 @@ Future<void> _submit(WidgetTester tester) async {
   await pumpFrames(tester, frames: 60);
 }
 
+/// A server with a real key: its `/version` body and a `/identity/proof` that signs.
+Future<({String key, Map<String, Object?> version, ProofHandler proof})>
+_signingServer() async {
+  final pair = await Ed25519().newKeyPair();
+  final key = base64.encode((await pair.extractPublicKey()).bytes);
+  final version = {
+    ..._version,
+    'identity': {...(_version['identity']! as Map), 'public_key': key},
+  };
+  Future<http.Response> proof(http.Request request) async {
+    final challenge = base64.decode(
+      (jsonDecode(request.body) as Map)['challenge'] as String,
+    );
+    final signed = [...identityProofContext, ...challenge];
+    final signature = (await Ed25519().sign(signed, keyPair: pair)).bytes;
+    return _json({'public_key': key, 'signature': base64.encode(signature)});
+  }
+
+  return (key: key, version: version, proof: proof);
+}
+
+typedef ProofHandler = Future<http.Response> Function(http.Request request);
+
 void main() {
   setUpAll(mockAppVersion);
 
@@ -134,7 +161,6 @@ void main() {
 
   for (final (name, status, body) in [
     ('a 500', 500, ''),
-    ('a 503', 503, '{"error":"down"}'),
     ('a 403', 403, '{"error":"no"}'),
   ]) {
     testWidgets('a pinned address answering /version with $name shows the '
@@ -153,6 +179,85 @@ void main() {
       expect(rig.logins, isEmpty);
     });
   }
+
+  for (final status in [429, 503]) {
+    for (final onProof in [false, true]) {
+      final where = onProof ? '/identity/proof' : '/version';
+      testWidgets('a pinned address answering $where with a $status shows '
+          'the busy step and sends no password', (tester) async {
+        final rig = await _pinned(
+          tester,
+          (_) async => onProof
+              ? _json(_version)
+              : http.Response('{"error":"busy"}', status),
+          proof: onProof ? (_) async => http.Response('{}', status) : null,
+        );
+
+        await _submit(tester);
+        await waitUntil(
+          tester,
+          () => find.text('The server is busy').evaluate().isNotEmpty,
+        );
+
+        expect(find.textContaining('no longer proves'), findsNothing);
+        expect(rig.logins, isEmpty);
+      });
+    }
+  }
+
+  testWidgets('trying again after a busy answer goes on to sign in', (
+    tester,
+  ) async {
+    var busy = true;
+    final server = (await tester.runAsync(_signingServer))!;
+    final rig = await _pinned(
+      tester,
+      (_) async => busy ? http.Response('{}', 429) : _json(server.version),
+      proof: server.proof,
+      pinnedKey: server.key,
+    );
+
+    await _submit(tester);
+    await waitUntil(
+      tester,
+      () => find.text('The server is busy').evaluate().isNotEmpty,
+    );
+    expect(rig.logins, isEmpty);
+    busy = false;
+    await pumpFrames(tester, frames: 30);
+    expect(find.widgetWithText(AppButton, 'Try again'), findsOneWidget);
+    await tester.tap(find.widgetWithText(AppButton, 'Try again'));
+    await pumpFrames(tester, frames: 30);
+    await waitUntil(tester, () => rig.logins.isNotEmpty);
+
+    expect(rig.logins, hasLength(1));
+  });
+
+  testWidgets('trying again and failing the proof shows the changed-identity '
+      'step and sends no password', (tester) async {
+    var busy = true;
+    final rig = await _pinned(
+      tester,
+      (_) async => busy ? http.Response('{}', 503) : _json(_version),
+    );
+
+    await _submit(tester);
+    await waitUntil(
+      tester,
+      () => find.text('The server is busy').evaluate().isNotEmpty,
+    );
+    busy = false;
+    await pumpFrames(tester, frames: 30);
+    expect(find.widgetWithText(AppButton, 'Try again'), findsOneWidget);
+    await tester.tap(find.widgetWithText(AppButton, 'Try again'));
+    await pumpFrames(tester, frames: 30);
+    await waitUntil(
+      tester,
+      () => find.textContaining('no longer proves').evaluate().isNotEmpty,
+    );
+
+    expect(rig.logins, isEmpty);
+  });
 
   testWidgets('a pinned address that does not answer sends no password', (
     tester,

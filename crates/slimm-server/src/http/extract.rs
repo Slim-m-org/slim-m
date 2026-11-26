@@ -239,6 +239,9 @@ pub(crate) const PROFILE_EDIT: u8 = 22;
 /// Exporting a canvas into a new canvas channel; see [`Class::CanvasExport`].
 pub(crate) const CANVAS_EXPORT: u8 = 23;
 
+/// Speaking a line into a call; see [`Class::Tts`].
+pub(crate) const TTS: u8 = 24;
+
 /// Panics on an unknown code rather than falling back.
 ///
 /// It used to end `_ => Class::Refresh`, which meant a new code compiled clean
@@ -272,6 +275,7 @@ fn class_of(code: u8) -> Class {
         WATCH_TICK => Class::WatchTick,
         CANVAS_EXPORT => Class::CanvasExport,
         PROFILE_EDIT => Class::ProfileEdit,
+        TTS => Class::Tts,
         other => unreachable!("no rate-limit class for code {other}"),
     }
 }

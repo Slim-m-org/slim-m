@@ -163,6 +163,16 @@ pub(crate) async fn message_audience(
     }
     // Resolved once: both steps below ask the same "is this a thread, and whose" question.
     let parent = store.thread_parent(channel_id).await?;
+    // Replying in a thread you started or replied in counts as a mention, so Mentions only still wakes them.
+    if let Some(parent) = &parent {
+        let participants = store
+            .thread_participants(channel_id, parent.parent_message_id)
+            .await?;
+        mentioned.extend(viewers.iter().filter(|user| {
+            participants.contains(user)
+                && reach.only.as_ref().is_none_or(|only| only.contains(user))
+        }));
+    }
     let viewers =
         narrow_for_thread(store, channel_id, parent.as_ref(), &mentioned, viewers).await?;
     let scope = Scope {

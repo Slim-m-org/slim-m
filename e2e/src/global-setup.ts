@@ -1,15 +1,17 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-import { assertLocalStack, readStack, stackScript } from './stack';
+import { startSecureFront } from './secure-front';
+import { assertLocalStack, readRawStack, stackScript } from './stack';
 
 export default async function globalSetup(): Promise<void> {
   if (process.env.E2E_STACK_UP !== '1') stackScript('up');
   assertLocalStack();
   await completeAdminSetup();
+  await startSecureFront(readRawStack());
 }
 
 /** alice claimed the deployment, so the admin setup would otherwise cover every test's screen. */
 async function completeAdminSetup(): Promise<void> {
-  const stack = readStack();
+  const stack = readRawStack();
   const login = await fetch(`${stack.api}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

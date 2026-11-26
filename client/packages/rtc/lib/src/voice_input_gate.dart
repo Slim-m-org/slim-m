@@ -116,7 +116,7 @@ class VoiceInputGate {
     });
   }
 
-  /// Whether a meter is on screen in a focused app; only then are readings taken at the display rate, otherwise just fast enough for the dead-mic watchdog, Strong fallback and automatic sensitivity, and not at all while the mic is closed.
+  /// Whether a meter is on screen in a focused app; only then are readings taken at the display rate, otherwise every 100 ms for your own speaking ring, and not at all while the mic is closed.
   void setLevelDisplayed(bool displayed) {
     if (displayed == _levelDisplayed) return;
     _levelDisplayed = displayed;
@@ -129,8 +129,7 @@ class VoiceInputGate {
   InputGateRate _rate() {
     if (_levelDisplayed) return InputGateRate.display;
     if (!mic.open) return InputGateRate.off;
-    if (_autoThreshold != null) return InputGateRate.adapt;
-    return strong.watching ? InputGateRate.watch : InputGateRate.slow;
+    return InputGateRate.ring;
   }
 
   /// Softens shouts and caps sudden peaks on the microphone, where the

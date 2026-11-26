@@ -18,6 +18,14 @@ pub struct Config {
     pub language: Option<String>,
     pub threads: usize,
     pub max_sessions: u32,
+    /// The Piper binary and voice for `/v1/speak`; `None` without a voice leaves speech off.
+    pub piper: Option<PiperConfig>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PiperConfig {
+    pub bin: PathBuf,
+    pub model: PathBuf,
 }
 
 impl Config {
@@ -43,6 +51,10 @@ impl Config {
             language,
             threads: number(get("LISTENER_THREADS"), 4)?.max(1) as usize,
             max_sessions: number(get("LISTENER_MAX_SESSIONS"), 2)?.max(1),
+            piper: get("PIPER_MODEL").map(|model| PiperConfig {
+                bin: get("PIPER_BIN").unwrap_or("piper").into(),
+                model: model.into(),
+            }),
         })
     }
 }
@@ -87,6 +99,24 @@ mod tests {
         assert_eq!(
             Config::from_map(&set).unwrap().language.as_deref(),
             Some("de")
+        );
+    }
+
+    #[test]
+    fn speech_is_off_without_a_voice_and_on_with_one() {
+        let off = Config::from_map(&env(&[("LISTENER_SECRET", SECRET)])).unwrap();
+        assert_eq!(off.piper, None);
+        let on = Config::from_map(&env(&[
+            ("LISTENER_SECRET", SECRET),
+            ("PIPER_MODEL", "/v/a.onnx"),
+        ]))
+        .unwrap();
+        assert_eq!(
+            on.piper,
+            Some(PiperConfig {
+                bin: PathBuf::from("piper"),
+                model: PathBuf::from("/v/a.onnx")
+            })
         );
     }
 

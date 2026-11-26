@@ -90,7 +90,7 @@ impl Store {
 
         // Authorized before the write lock, never inside it; see `may_link`.
         for sha256 in attachment_ids {
-            if !crate::store::attachments::may_link(self, author_id, sha256).await? {
+            if !crate::store::attachment_access::may_link(self, author_id, sha256).await? {
                 return Err(SendError::AttachmentNotFound);
             }
         }

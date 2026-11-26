@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Merged over main only for an appbundle, which only Google Play consumes: Play restricts this permission and updates the app itself, and restricts the photo permissions the composer strip would need, so Play uses the system picker (decision 0025). -->
+<!-- Merged over main only for an appbundle, which only Google Play consumes: Play restricts this permission and updates the app itself, and restricts the photo permissions, which no code asks for since every Android photo entry uses the system picker (decision 0025); the removals guard against a dependency adding them. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" tools:node="remove"/>

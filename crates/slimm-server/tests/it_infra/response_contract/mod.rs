@@ -144,6 +144,12 @@ const UNCOVERED: &[(&str, &str)] = &[
          it against a fake room service.",
     ),
     (
+        "speakTts",
+        "its 202 needs a reachable LiveKit room service to see the caller in the call, which \
+         this harness has none of; tests/it_voice/tts.rs drives every outcome of it against a \
+         fake room service and a fake speaker.",
+    ),
+    (
         "placeScreenStamp",
         "its 204 needs a reachable LiveKit room service to see both people in the call and the \
          target sharing, which this harness has none of, and has no body to check; \

@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart';
+import 'package:slimm_app/src/features/messages/widgets/system_photo_picker.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/messages/widgets/attachment_picker.dart';
 import 'package:slimm_app/src/features/messages/widgets/image_drop_zone.dart';
@@ -122,6 +123,7 @@ Future<void> _pump(
   final file = FakePlatformFile('b.png', Uint8List.fromList(_png));
   final container = ProviderContainer(
     overrides: [
+      systemPhotoPickerAvailableProvider.overrideWithValue(false),
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
       attachmentPickerProvider.overrideWith(

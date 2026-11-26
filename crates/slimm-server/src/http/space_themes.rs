@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::AppState;
-use super::attachments::serve;
+use super::asset_response::serve;
 use super::error::ApiError;
 use super::extract::{
     ASSET, AUTHED_READ, Authed, AuthedLimited, Json, WRITE, enforce, require_manage_server,

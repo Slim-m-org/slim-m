@@ -34,6 +34,8 @@ export default defineConfig({
     actionTimeout: 30_000,
     navigationTimeout: 60_000,
     viewport: { width: 1280, height: 900 },
+    // The front is served with a throwaway certificate.
+    ignoreHTTPSErrors: true,
     launchOptions: {
       args: [
         '--use-fake-device-for-media-stream',

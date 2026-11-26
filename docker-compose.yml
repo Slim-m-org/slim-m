@@ -153,6 +153,8 @@ services:
       WHISPER_LANGUAGE: ${WHISPER_LANGUAGE:-auto}
       LISTENER_THREADS: ${LISTENER_THREADS:-4}
       LISTENER_MAX_SESSIONS: ${LISTENER_MAX_SESSIONS:-2}
+      # Text to speech (decision 0142): set PIPER_MODEL to an empty value to turn it off.
+      PIPER_MODEL: ${PIPER_MODEL-/models/en_US-lessac-medium.onnx}
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=64m
     volumes:

@@ -120,7 +120,13 @@ class OnboardingScreen extends ConsumerWidget {
     if (chosen == null || !context.mounted) return;
 
     final (:server, :probe) = chosen;
-    if (await settleServerIdentity(context, ref, server, probe)) {
+    if (await settleServerIdentity(
+      context,
+      ref,
+      server,
+      probe,
+      reprobe: () => probeServerIdentity(ref, server),
+    )) {
       onServerChosen(server, null);
     }
   }

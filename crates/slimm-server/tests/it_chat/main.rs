@@ -76,6 +76,7 @@ mod space_link_previews;
 mod thread_listing;
 mod thread_parent;
 mod thread_reply_count;
+mod thread_reply_mention;
 mod threads;
 mod unread_count_cap;
 mod write_refusal_reasons;

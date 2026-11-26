@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// How often a call reads the input gate: fast only while a meter is shown,
-/// otherwise at the dead-mic watchdog rate.
+/// How often a call reads the input gate: every 50 ms while a meter is shown,
+/// otherwise every 100 ms with the mic open, for your own speaking ring.
 library;
 
 import 'dart:async';
@@ -108,14 +108,15 @@ const _window = Duration(milliseconds: 400);
 const _settleAfterChange = Duration(milliseconds: 60);
 
 void main() {
-  test('a call with nothing displayed polls at a twentieth of the rate', () {
+  test('a call with nothing displayed polls at half the display rate', () {
     fakeAsync((async) {
       final (:gate, :session) = _joinedSession(async);
       final watching = _pollsIn(async, gate, _window);
       session.setLevelDisplayed(true);
       final displayed = _pollsIn(async, gate, _window);
-      expect(watching, lessThan(displayed ~/ 4));
-      expect(watching, greaterThan(0), reason: 'the watchdog still reads');
+      expect(watching, lessThan(displayed));
+      expect(watching, greaterThan(displayed ~/ 3),
+          reason: 'the ring still reads');
       session.dispose();
     });
   });
@@ -128,22 +129,7 @@ void main() {
       session.setLevelDisplayed(false);
       async.elapse(_settleAfterChange);
       final after = _pollsIn(async, gate, _window);
-      expect(after, lessThan(displayed ~/ 4));
-      session.dispose();
-    });
-  });
-
-  test('automatic sensitivity adapts at a fifth of the display rate', () {
-    fakeAsync((async) {
-      final (:gate, :session) = _joinedSession(async);
-      session.setLevelDisplayed(true);
-      final displayed = _pollsIn(async, gate, _window);
-      session.setLevelDisplayed(false);
-      session.setAutoInputThreshold(true);
-      async.elapse(_settleAfterChange);
-      final adapting = _pollsIn(async, gate, _window);
-      expect(adapting, lessThan(displayed ~/ 2));
-      expect(adapting, greaterThan(displayed ~/ 10));
+      expect(after, lessThan(displayed));
       session.dispose();
     });
   });

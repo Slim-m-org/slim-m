@@ -17,4 +17,10 @@ enum BadgeCount {
     if let currentThread, !currentThread.isEmpty { channels.insert(currentThread) }
     return max(channels.count, 1)
   }
+
+  /// The badge once `channelId` reads as read elsewhere: the channels still
+  /// holding a delivered notification, which can be none.
+  static func afterRead(channelId: String, deliveredThreads: [String]) -> Int {
+    Set(deliveredThreads.filter { !$0.isEmpty && $0 != channelId }).count
+  }
 }

@@ -20,6 +20,7 @@ import 'package:slimm_platform/platform.dart' show KeyStore;
 import '../../../providers/providers.dart';
 import '../../../routing/page_transitions.dart';
 import '../providers/server_identity_proof.dart';
+import 'server_busy_step.dart';
 import 'server_identity_changed_step.dart';
 
 /// The handle a server's pinned public key is stored under, one per address:
@@ -83,6 +84,9 @@ Future<ServerIdentityProbe> probeServerIdentity(
         error,
         stack,
       );
+      if (serverBusy(error)) {
+        return (answer: IdentityAnswer.busy, identity: null);
+      }
       if (serverAnswered(error)) {
         return (answer: IdentityAnswer.notSlim, identity: null);
       }
@@ -132,16 +136,26 @@ Future<bool> confirmServerIdentity(
     requireSlimServer: requireSlimServer,
   );
   if (!context.mounted) return false;
-  return settleServerIdentity(context, ref, server, probe);
+  return settleServerIdentity(
+    context,
+    ref,
+    server,
+    probe,
+    reprobe: () =>
+        probeServerIdentity(ref, server, requireSlimServer: requireSlimServer),
+  );
 }
 
 /// The pin half of [confirmServerIdentity], for a [probe] already read.
+///
+/// A busy answer from a pinned address stops at the busy step until [reprobe] gets a real one.
 Future<bool> settleServerIdentity(
   BuildContext context,
   WidgetRef ref,
   Uri server,
-  ServerIdentityProbe probe,
-) async {
+  ServerIdentityProbe probe, {
+  Future<ServerIdentityProbe> Function()? reprobe,
+}) async {
   final keyStore = ref.read(keyStoreProvider);
   final handle = identityHandleFor(server);
   final pinned = await keyStore.read(handle);
@@ -150,7 +164,14 @@ Future<bool> settleServerIdentity(
         .read(firstContactServersProvider.notifier)
         .update((handles) => {...handles, handle});
   }
-  if (probe.answer == IdentityAnswer.unanswered) return true;
+  if (probe.answer == IdentityAnswer.busy && pinned != null) {
+    if (!context.mounted) return false;
+    return _waitOutBusy(context, ref, server, reprobe);
+  }
+  if (probe.answer == IdentityAnswer.unanswered ||
+      probe.answer == IdentityAnswer.busy) {
+    return true;
+  }
   final identity = probe.identity;
 
   if (pinned == null) {
@@ -182,4 +203,25 @@ Future<bool> settleServerIdentity(
   // Nothing new to pin when the server proved nothing; the old key stays pinned.
   if (presented != null) await keyStore.put(handle, presented.publicKey);
   return true;
+}
+
+/// Offers to ask a busy pinned server again; no secret goes anywhere until it gives a real answer.
+Future<bool> _waitOutBusy(
+  BuildContext context,
+  WidgetRef ref,
+  Uri server,
+  Future<ServerIdentityProbe> Function()? reprobe,
+) async {
+  final again = reprobe == null
+      ? false
+      : await Navigator.of(context).push<bool>(
+          fadeThroughRoute<bool>(
+            context,
+            (context) => ServerBusyStep(address: server),
+          ),
+        );
+  if (again != true || reprobe == null || !context.mounted) return false;
+  final probe = await reprobe();
+  if (!context.mounted) return false;
+  return settleServerIdentity(context, ref, server, probe, reprobe: reprobe);
 }

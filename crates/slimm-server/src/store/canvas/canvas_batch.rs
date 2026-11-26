@@ -34,7 +34,7 @@ impl Store {
         let Some(sha256) = request.attachment else {
             return Ok(());
         };
-        if !super::super::attachments::may_link(self, author_id, sha256).await? {
+        if !super::super::attachment_access::may_link(self, author_id, sha256).await? {
             return Err(PlaceError::AttachmentNotFound);
         }
         let summary = self

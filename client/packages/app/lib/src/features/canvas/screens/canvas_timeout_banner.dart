@@ -6,7 +6,10 @@ library;
 import 'dart:async';
 
 import 'package:clock/clock.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../providers/effective_me.dart';
+import 'canvas_engine.dart';
 import 'canvas_forbidden_message.dart';
 
 class CanvasTimeoutBanner {
@@ -16,6 +19,33 @@ class CanvasTimeoutBanner {
     required this.clear,
     DateTime Function()? now,
   }) : _now = now ?? (() => clock.now());
+
+  /// A banner wired to [ref]'s engine error and the caller's timeout, which also tells [onError] whenever the error changes.
+  factory CanvasTimeoutBanner.attach(
+    WidgetRef ref, {
+    required String channelId,
+    required CanvasEngine engine,
+    required void Function(String? error) onError,
+  }) {
+    final banner = CanvasTimeoutBanner(
+      timedOutUntil: () => ref.read(meProvider).valueOrNull?.timedOutUntil,
+      error: () => ref.read(canvasEngineProvider(channelId)).error,
+      clear: () => engine.reportError(null),
+    );
+    ref
+      ..listenManual(canvasEngineProvider(channelId).select((s) => s.error), (
+        _,
+        error,
+      ) {
+        banner.watch();
+        onError(error);
+      })
+      ..listenManual(
+        meProvider.select((m) => m.valueOrNull?.timedOutUntil),
+        (_, _) => banner.watch(),
+      );
+    return banner..watch();
+  }
 
   /// The caller's own `Me.timedOutUntil` in Unix milliseconds, read fresh each time.
   final int? Function() timedOutUntil;

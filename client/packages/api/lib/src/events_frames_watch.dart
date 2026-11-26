@@ -56,6 +56,15 @@ class SoundboardPlayed extends ServerEvent {
   final String playerId;
 }
 
+/// A line this account asked `/tts` to speak was accepted and then failed
+/// (decision 0142). Delivered only to the account that typed it, never
+/// persisted, so it is shown once when it arrives and never replayed.
+class TtsFailed extends ServerEvent {
+  const TtsFailed({required this.channelId});
+
+  final String channelId;
+}
+
 /// A line just kept in [transcriptId], sent only to the people in the call
 /// who may read it. Apply by [TranscriptLine.seq]; a gap means one was
 /// missed and the transcript route fills it.

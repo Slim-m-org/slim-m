@@ -119,7 +119,9 @@ class AppLockController extends StateNotifier<bool>
   /// lock screen, or the unlocked app, has been drawn.
   void _releaseShieldAfterFrame() {
     final binding = WidgetsBinding.instance;
-    binding.addPostFrameCallback((_) => unawaited(_host.releaseShield()));
+    binding.addPostFrameCallback((_) {
+      if (mounted) unawaited(_host.releaseShield());
+    });
     binding.scheduleFrame();
   }
 

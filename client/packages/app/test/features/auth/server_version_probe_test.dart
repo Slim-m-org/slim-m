@@ -14,6 +14,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/features/auth/providers/client_floor.dart';
 import 'package:slimm_app/src/features/auth/providers/server_identity_hold.dart';
+import 'package:slimm_app/src/features/auth/providers/server_identity_proof.dart';
 import 'package:slimm_app/src/features/auth/providers/server_identity_recheck.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
@@ -48,14 +49,25 @@ class _Harness {
   }
 }
 
-Future<_Harness> _harness({bool failProbe = false}) async {
+Future<_Harness> _harness({
+  bool failProbe = false,
+  int? answerWith,
+  int? proofAnswerWith,
+}) async {
   final store = InMemoryKeyStore();
   await store.put(_handle, _key);
+  if (proofAnswerWith != null) {
+    await store.put(identityProofHandleFor(Uri.parse(_server)), _key);
+  }
   late _Harness harness;
   final client = MockClient((request) async {
+    if (request.url.path == '/identity/proof' && proofAnswerWith != null) {
+      return http.Response('{}', proofAnswerWith);
+    }
     if (request.url.path != '/version') return http.Response('{}', 200);
     harness.versionReads++;
     if (failProbe) throw http.ClientException('network down');
+    if (answerWith != null) return http.Response('{}', answerWith);
     return http.Response(
       jsonEncode({
         'name': 'slim-m',
@@ -161,6 +173,29 @@ void main() {
       expect(harness.versionReads, reads);
     },
   );
+
+  for (final status in [429, 503]) {
+    test('a $status on the identity proof of a signed-in session is no '
+        'verdict on its key', () async {
+      final harness = await _harness(proofAnswerWith: status);
+      await harness.settle();
+
+      expect(
+        harness.container.read(serverIdentityChangeProvider).valueOrNull,
+        isNull,
+      );
+    });
+
+    test('a $status from the server is no verdict on its key', () async {
+      final harness = await _harness(answerWith: status);
+      await harness.settle();
+
+      expect(
+        harness.container.read(serverIdentityChangeProvider).valueOrNull,
+        isNull,
+      );
+    });
+  }
 
   testWidgets('a reconnect in a hidden window asks again and reports a changed '
       'key, with nothing reading it', (tester) async {

@@ -13,3 +13,16 @@ Future<bool> hasMessageFrom(MessageStore store, String authorId) async {
     ..limit(1);
   return (await query.get()).isNotEmpty;
 }
+
+/// Whether the local store holds a message written by [authorId] in [channelId].
+Future<bool> hasMessageFromIn(
+  MessageStore store,
+  String channelId,
+  String authorId,
+) async {
+  final query = store.db.select(store.db.messages)
+    ..where((m) => m.authorId.equals(authorId))
+    ..where((m) => m.channelId.equals(channelId))
+    ..limit(1);
+  return (await query.get()).isNotEmpty;
+}

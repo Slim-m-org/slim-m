@@ -19,7 +19,10 @@ import 'package:flutter/painting.dart';
 import 'canvas_board.dart';
 import 'canvas_edges.dart';
 import 'canvas_external_pointers.dart';
+import 'canvas_image_bitmaps.dart';
+import 'canvas_multi_selection.dart';
 import 'canvas_note_style.dart';
+import 'canvas_outside_tracker.dart';
 import 'canvas_paint_order.dart';
 import 'canvas_removed_ids.dart';
 import 'canvas_scene.dart';
@@ -102,11 +105,16 @@ class CanvasDocument extends ChangeNotifier {
   final ValueNotifier<int> objectCount = ValueNotifier<int>(0);
 
   /// How many live objects the board cannot hold whole; see [idsOutsideBoard].
-  final ValueNotifier<int> outsideBoardCount = ValueNotifier<int>(0);
-  final Set<String> _outsideIds = {};
+  ValueNotifier<int> get outsideBoardCount => _outside.count;
+  final CanvasOutsideTracker _outside = CanvasOutsideTracker();
 
   /// The one object selected for a resize or reorder, or null; a notifier so the selection painter repaints with no widget rebuild.
   final ValueNotifier<String?> selectedObjectId = ValueNotifier<String?>(null);
+
+  /// The objects picked together by a drag box or a modifier click, and the box being drawn.
+  late final CanvasMultiSelection multiSelection = CanvasMultiSelection(
+    selectedObjectId,
+  );
 
   /// The one object this client's own pointer is dragging or resizing, shorter-lived than [selectedObjectId]; the painter gives it the elevation shadow.
   final ValueNotifier<String?> elevatedObjectId = ValueNotifier<String?>(null);
@@ -294,54 +302,26 @@ class CanvasDocument extends ChangeNotifier {
     return slot;
   }
 
-  /// Attaches a decoded bitmap to a live image object; [image] is disposed instead if [id] died while the decode ran, since nothing else would free it.
-  void setImageBitmap(String id, ui.Image image) {
-    final slot = _slotById[id];
-    final stroke = slot == null ? null : _strokes[slot];
-    if (stroke == null || !stroke.alive) {
-      image.dispose();
-      return;
-    }
-    // A tier swap or a repeat paste replaces a held bitmap, which nothing else frees.
-    if (!identical(stroke.image, image)) stroke.image?.dispose();
-    stroke.image = image;
-    stroke.imageLoadFailed = false;
-    _changed(stroke);
-    notifyListeners();
-  }
+  late final CanvasImageBitmaps _bitmaps = CanvasImageBitmaps(
+    live: (id) {
+      final slot = _slotById[id];
+      final stroke = slot == null ? null : _strokes[slot];
+      return stroke != null && stroke.alive ? stroke : null;
+    },
+    changed: (stroke) {
+      _changed(stroke);
+      notifyListeners();
+    },
+  );
 
-  /// Marks a live [CanvasObjectKind.image] object as one whose bytes could
-  /// not be fetched or decoded, so the painter draws a placeholder instead
-  /// of leaving it blank. A no-op if [id] is unknown, dead, or already
-  /// carries a bitmap - a hydration failure racing behind a fetch that
-  /// already landed must not blank out a real image.
-  void markImageLoadFailed(String id) {
-    final slot = _slotById[id];
-    final stroke = slot == null ? null : _strokes[slot];
-    if (stroke == null || !stroke.alive || stroke.image != null) return;
-    stroke.imageLoadFailed = true;
-    _changed(stroke);
-    notifyListeners();
-  }
+  /// Attaches a decoded bitmap to a live image object, disposing it if the object died meanwhile.
+  void setImageBitmap(String id, ui.Image image) => _bitmaps.attach(id, image);
 
-  /// Detaches and disposes a live object's decoded bitmap, if it holds one,
-  /// without removing the object itself.
-  ///
-  /// The one caller is the app layer's bounded decode cache: evicting an
-  /// off-budget bitmap has to free the memory without forgetting the
-  /// object, which would need a real removal op nobody sent. The object
-  /// simply stops painting until it is fetched and hydrated again, the same
-  /// as one still waiting on its first decode.
-  void evictImageBitmap(String id) {
-    final slot = _slotById[id];
-    final stroke = slot == null ? null : _strokes[slot];
-    final image = stroke?.image;
-    if (image == null) return;
-    stroke!.image = null;
-    image.dispose();
-    _changed(stroke);
-    notifyListeners();
-  }
+  /// Marks a live image as one whose bytes could not be fetched.
+  void markImageLoadFailed(String id) => _bitmaps.markFailed(id);
+
+  /// Frees a live object's decoded bitmap without removing the object; the app's bounded decode cache calls it.
+  void evictImageBitmap(String id) => _bitmaps.evict(id);
 
   /// Marks a stroke as never having landed.
   ///
@@ -360,12 +340,6 @@ class CanvasDocument extends ChangeNotifier {
     objectCount.value = objectCount.value - 1;
     _paintOrder.removed(slot);
     _changed(stroke);
-  }
-
-  /// A dying object must not stay offered a resize, reorder or delete.
-  void _releaseSelection(String id) {
-    if (selectedObjectId.value == id) selectedObjectId.value = null;
-    if (elevatedObjectId.value == id) elevatedObjectId.value = null;
   }
 
   /// True for an id taken off the board by a removal, as opposed to [kill]'s
@@ -443,10 +417,10 @@ class CanvasDocument extends ChangeNotifier {
     edges.reset();
     unsavedInk.clear();
     scene.reset();
-    _outsideIds.clear();
-    outsideBoardCount.value = 0;
+    _outside.clear();
     objectCount.value = 0;
     selectedObjectId.value = null;
+    multiSelection.clear();
     elevatedObjectId.value = null;
     _heldLive.clear();
     _maxStrokeWidth = 0;
@@ -460,9 +434,7 @@ class CanvasDocument extends ChangeNotifier {
     unsavedInk.set(stroke.id, unsaved: false);
     _releaseSelection(stroke.id);
     scene.remove(slot);
-    if (_outsideIds.remove(stroke.id)) {
-      outsideBoardCount.value = _outsideIds.length;
-    }
+    _outside.forget(stroke.id);
     stroke.image?.dispose();
     _strokes[slot] = null;
     _forgetGroupSlot(stroke.groupId, slot);
@@ -511,7 +483,8 @@ class CanvasDocument extends ChangeNotifier {
     _isDisposed = true;
     _disposeImages();
     objectCount.dispose();
-    outsideBoardCount.dispose();
+    _outside.dispose();
+    multiSelection.dispose();
     selectedObjectId.dispose();
     elevatedObjectId.dispose();
     editingObjectId.dispose();

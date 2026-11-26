@@ -23,6 +23,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../composer/widgets/composer_attachments.dart';
 import 'package:slimm_api/api.dart' show LogTag, reportFailure;
 import '../../../picker_extensions.dart';
+import 'system_photo_picker.dart';
 
 /// Which native picker a request should open.
 enum AttachmentSource {
@@ -44,6 +45,15 @@ enum AttachmentSource {
 
 /// Runs one pick and answers what was chosen, or null if nothing was.
 typedef AttachmentPicker = Future<PlatformFile?> Function();
+
+/// Runs one pick that may choose several files, empty if nothing was.
+typedef AttachmentBatchPicker = Future<List<PlatformFile>> Function();
+
+/// Android sends both photo sources to the system photo picker, because
+/// `file_picker` opens its Documents browser there instead of the camera roll.
+bool _isPhotoSource(AttachmentSource source) =>
+    source == AttachmentSource.photoLibrary ||
+    source == AttachmentSource.mediaLibrary;
 
 /// A compatible representation, so iOS hands over a JPEG rather than the
 /// HEIC original that only Apple devices can show; a live photo picked here
@@ -77,14 +87,41 @@ Future<PlatformFile?> _pickStillImageFile() => FilePicker.pickFile(
 /// test can tap a picker action and never get past it, the same gap
 /// `emojiImagePickerProvider` closes for the emoji upload card.
 final attachmentPickerProvider =
-    Provider.family<AttachmentPicker, AttachmentSource>(
-      (ref, source) => switch (source) {
+    Provider.family<AttachmentPicker, AttachmentSource>((ref, source) {
+      if (ref.watch(systemPhotoPickerAvailableProvider) &&
+          _isPhotoSource(source)) {
+        final pick = ref.watch(systemPhotoPickerProvider);
+        return () async {
+          final files = await pick(
+            videos: source == AttachmentSource.mediaLibrary,
+            multiple: false,
+          );
+          return files.isEmpty ? null : files.first;
+        };
+      }
+      return switch (source) {
         AttachmentSource.photoLibrary => _pickPhotoLibrary,
         AttachmentSource.mediaLibrary => _pickMediaLibrary,
         AttachmentSource.fileBrowser => _pickFileBrowser,
         AttachmentSource.stillImageFiles => _pickStillImageFile,
-      },
-    );
+      };
+    });
+
+/// [attachmentPickerProvider], but the Android photo picker may choose several
+/// photos at once; every other route picks one file, as it always did.
+final attachmentBatchPickerProvider =
+    Provider.family<AttachmentBatchPicker, AttachmentSource>((ref, source) {
+      if (ref.watch(systemPhotoPickerAvailableProvider) &&
+          _isPhotoSource(source)) {
+        final pick = ref.watch(systemPhotoPickerProvider);
+        return () => pick(
+          videos: source == AttachmentSource.mediaLibrary,
+          multiple: true,
+        );
+      }
+      final single = ref.watch(attachmentPickerProvider(source));
+      return () async => [?await single()];
+    });
 
 /// Runs [pick], stages whatever it returns, and re-focuses [focus] on every
 /// exit including a cancelled or failed pick - the native picker takes focus
@@ -95,15 +132,15 @@ final attachmentPickerProvider =
 /// can be gone by the time either the picker or the stage resolves. Split out
 /// of `composer.dart`, which had no line budget left for it.
 Future<void> runAttachmentPick({
-  required AttachmentPicker pick,
+  required AttachmentBatchPicker pick,
   required FocusNode focus,
   required bool Function() isMounted,
   required VoidCallback onPickerFailed,
   required Future<void> Function(FileSource file) stage,
 }) async {
-  final PlatformFile? file;
+  final List<PlatformFile> files;
   try {
-    file = await pick();
+    files = await pick();
   } catch (e, stack) {
     reportFailure(LogTag.media, 'pick an attachment', e, stack);
     if (!isMounted()) return;
@@ -113,14 +150,14 @@ Future<void> runAttachmentPick({
   }
   if (!isMounted()) return;
   focus.requestFocus();
-  final picked = file;
-  if (picked == null) return;
-  await stage(
-    FileSource(
-      name: picked.name,
-      length: () async => await picked.length() ?? 0,
-      readAll: picked.readAsBytes,
-      openRead: picked.readAsByteStream,
-    ),
-  );
+  for (final picked in files) {
+    await stage(
+      FileSource(
+        name: picked.name,
+        length: () async => await picked.length() ?? 0,
+        readAll: picked.readAsBytes,
+        openRead: picked.readAsByteStream,
+      ),
+    );
+  }
 }

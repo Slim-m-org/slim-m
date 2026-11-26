@@ -209,17 +209,18 @@ void main() {
         expect(polls(fake), 20, reason: 'display: 20 a second');
         expect(gate.fast, isTrue);
 
-        gate.setRate(InputGateRate.watch);
+        gate.setRate(InputGateRate.ring);
         final before = polls(fake);
-        async.elapse(const Duration(seconds: 5));
-        expect(polls(fake) - before, 5, reason: 'watch: 1 a second');
-        expect(gate.fast, isFalse);
-        expect(steps.last, const Duration(seconds: 1));
-
-        gate.setRate(InputGateRate.adapt);
-        final adapting = polls(fake);
         async.elapse(const Duration(seconds: 1));
-        expect(polls(fake) - adapting, 5, reason: 'adapt: 5 a second');
+        expect(polls(fake) - before, 10, reason: 'ring: 10 a second');
+        expect(gate.fast, isTrue, reason: 'fast enough to light your own ring');
+        expect(steps.last, const Duration(milliseconds: 100));
+
+        gate.setRate(InputGateRate.off);
+        final stopped = polls(fake);
+        async.elapse(const Duration(seconds: 1));
+        expect(polls(fake) - stopped, 0, reason: 'off: nothing reads');
+        expect(gate.fast, isFalse);
 
         gate.setRate(InputGateRate.display);
         final again = polls(fake);
@@ -233,10 +234,10 @@ void main() {
       fakeAsync((async) {
         final fake = _FakeGate();
         final gate = InputGateMonitor(invoke: fake.invoke, supported: true)
-          ..setRate(InputGateRate.watch);
+          ..setRate(InputGateRate.ring);
         gate.start(() {});
-        async.elapse(const Duration(seconds: 3));
-        expect(polls(fake), 3);
+        async.elapse(const Duration(seconds: 1));
+        expect(polls(fake), 10);
         gate.stop();
       });
     });

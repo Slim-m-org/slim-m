@@ -186,7 +186,7 @@ This addendum covers the other two.
 - The banner says "An update is available." with Update, shows the download, then "The update is ready." with Restart, which hands the install to Play.
 - A decline, a cancel or a failure offers the update again; a dismissed offer comes back once the download is ready.
 - The Play build is the appbundle, built with `SLIMM_PLAY_BUILD=true`: the sideload apk updater is compiled out of it, the native installer channel is not registered, and the bundle has no `REQUEST_INSTALL_PACKAGES`.
-- The bundle also has no `READ_MEDIA_IMAGES`, `READ_MEDIA_VIDEO` or `READ_MEDIA_VISUAL_USER_SELECTED`, which Play restricts to apps whose core use is gallery access; the Play build leaves the composer photo strip out and opens the system photo picker instead.
+- The bundle also has no `READ_MEDIA_IMAGES`, `READ_MEDIA_VIDEO` or `READ_MEDIA_VISUAL_USER_SELECTED`, which Play restricts to apps whose core use is gallery access; no Android build declares them now, since every Android photo entry opens the system photo picker and only iOS has the composer photo strip.
 - A sideloaded apk keeps the signed-manifest updater from the 2026-11-20 amendment.
 
 ### The flatpak remote

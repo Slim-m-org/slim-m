@@ -38,6 +38,7 @@ mod soundboard_emoji;
 mod soundboard_migration;
 mod soundboard_starter;
 mod strong_noise_suppression;
+mod tts;
 mod uplink_test;
 mod voice;
 mod voice_access_revoked;

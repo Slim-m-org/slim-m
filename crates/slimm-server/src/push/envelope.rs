@@ -106,6 +106,8 @@ pub(super) enum PushKind {
     Voice,
     /// An account security alert; see `security`.
     Security,
+    /// A channel was read on another device; see `read_clear`.
+    Read,
 }
 
 impl PushKind {
@@ -119,6 +121,7 @@ impl PushKind {
             PushKind::CallEnd => "call_end",
             PushKind::Voice => "voice",
             PushKind::Security => "security",
+            PushKind::Read => "read",
         }
     }
 }

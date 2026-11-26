@@ -8,14 +8,16 @@ use crate::store::Store;
 
 /// Advances `user_id`'s marker in `channel_id` and fans the stored marker out to that account's
 /// own sessions. A mark that moves nothing publishes nothing: the frame wakes every socket.
+/// Returns whether the marker moved.
 pub(crate) async fn advance_and_announce(
     store: &Store,
     hub: &Hub,
     user_id: UserId,
     channel_id: ChannelId,
     seq: i64,
-) -> anyhow::Result<()> {
-    if let Some(last_read_seq) = store.mark_read(user_id, channel_id, seq).await? {
+) -> anyhow::Result<bool> {
+    let moved = store.mark_read(user_id, channel_id, seq).await?;
+    if let Some(last_read_seq) = moved {
         hub.publish(Event::ReadStateChanged {
             user_id,
             channel_id,
@@ -23,5 +25,5 @@ pub(crate) async fn advance_and_announce(
             manually_unread: false,
         });
     }
-    Ok(())
+    Ok(moved.is_some())
 }

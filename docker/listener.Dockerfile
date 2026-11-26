@@ -28,13 +28,30 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --system --uid 10001 --no-create-home listener \
     && mkdir /models && chown listener /models
+# Piper's own release build (decision 0142), pinned by sha256 per architecture; it ships its phonemizer and espeak-ng data beside the binary.
+ARG TARGETARCH
+RUN case "$TARGETARCH" in \
+      amd64) arch=x86_64; sum=a50cb45f355b7af1f6d758c1b360717877ba0a398cc8cbe6d2a7a3a26e225992 ;; \
+      arm64) arch=aarch64; sum=fea0fd2d87c54dbc7078d0f878289f404bd4d6eea6e7444a77835d1537ab88eb ;; \
+      *) echo "no Piper build for $TARGETARCH" >&2; exit 1 ;; \
+    esac \
+    && curl -fsSL --proto '=https' --tlsv1.2 --retry 3 -o /tmp/piper.tar.gz "https://github.com/rhasspy/piper/releases/download/2023.11.14-2/piper_linux_${arch}.tar.gz" \
+    && echo "$sum  /tmp/piper.tar.gz" | sha256sum -c - \
+    && tar -xzf /tmp/piper.tar.gz -C /opt \
+    && rm /tmp/piper.tar.gz
 COPY --from=builder /build/target/release/slimm-listener /usr/local/bin/slimm-listener
 COPY docker/listener-entrypoint.sh /usr/local/bin/listener-entrypoint
 # Pinned to a commit of the model repository, so a moved tag cannot change what is fetched.
 ENV WHISPER_MODEL=/models/ggml-base.bin \
     WHISPER_MODEL_URL=https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base.bin \
     WHISPER_MODEL_SHA256=60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe \
-    LISTENER_ADDR=0.0.0.0:9400
+    LISTENER_ADDR=0.0.0.0:9400 \
+    PIPER_BIN=/opt/piper/piper \
+    PIPER_MODEL=/models/en_US-lessac-medium.onnx \
+    PIPER_MODEL_URL=https://huggingface.co/rhasspy/piper-voices/resolve/5ec43b186ef915a195d3ddbcfd9916e76c503c3f/en/en_US/lessac/medium/en_US-lessac-medium.onnx \
+    PIPER_MODEL_SHA256=5efe09e69902187827af646e1a6e9d269dee769f9877d17b16b1b46eeaaf019f \
+    PIPER_CONFIG_URL=https://huggingface.co/rhasspy/piper-voices/resolve/5ec43b186ef915a195d3ddbcfd9916e76c503c3f/en/en_US/lessac/medium/en_US-lessac-medium.onnx.json \
+    PIPER_CONFIG_SHA256=efe19c417bed055f2d69908248c6ba650fa135bc868b0e6abb3da181dab690a0
 EXPOSE 9400
 VOLUME ["/models"]
 USER listener

@@ -3,7 +3,7 @@
 //! of [`super::attachments`] so that file holds the upload/fetch handlers and
 //! this one holds the RFC 9110 `Range` arithmetic and the streamed response it
 //! builds. Every response still routes through
-//! [`super::attachments::apply_asset_headers`], so a ranged body carries the
+//! [`super::asset_response::apply_asset_headers`], so a ranged body carries the
 //! same security headers a whole one does.
 
 use std::io::SeekFrom;
@@ -14,7 +14,7 @@ use axum::response::{IntoResponse, Response};
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tokio_util::io::ReaderStream;
 
-use super::attachments::apply_asset_headers;
+use super::asset_response::apply_asset_headers;
 use super::error::ApiError;
 
 /// Bytes read per chunk of a streamed body; the default 4 KiB costs a blocking-pool hop per read.

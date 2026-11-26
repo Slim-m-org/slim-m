@@ -98,7 +98,7 @@ class VoiceSessionCore {
         (roomFactory == null
             ? InputGateMonitor()
             : InputGateMonitor.disabled());
-    gate.setRate(InputGateRate.watch);
+    gate.setRate(InputGateRate.ring);
     mic = micPort ?? LiveKitMicPort(() => flow.room);
     devices = VoiceAudioDevices(
       VoiceAudioDevicesHost(

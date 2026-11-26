@@ -14,7 +14,7 @@ pub fn strip(kind: Kind, bytes: &[u8], policy: Metadata) -> Option<Vec<u8>> {
         Kind::Jpeg => jpeg_segments::strip(bytes, policy),
         Kind::Png => strip_png(bytes, policy),
         Kind::Webp => strip_webp(bytes, policy),
-        Kind::Heic => heic_strip::strip(bytes, policy),
+        Kind::Heic | Kind::Avif => heic_strip::strip(bytes, policy),
         Kind::Tiff => strip_tiff(bytes),
         _ => None,
     }

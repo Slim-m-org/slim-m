@@ -5,11 +5,24 @@
 /// channels or people, and plain text searches everything.
 library;
 
+import 'package:flutter/foundation.dart' show VoidCallback;
+import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/palette_message_search.dart';
 import 'command_palette_items.dart';
 import 'command_palette_results.dart';
+
+/// Everything the results list is built from, bundled so two builders share it.
+typedef PaletteResultInputs = ({
+  List<Channel> channels,
+  Map<String, String> categoryNames,
+  List<api.UserProfile> members,
+  api.Me? me,
+  int permissions,
+  bool compact,
+});
 
 /// Every row the palette might show; [paletteSections] picks and orders them.
 typedef PaletteSectionInputs = ({
@@ -24,6 +37,7 @@ typedef PaletteSectionInputs = ({
   List<PaletteResultItem> people,
   List<PaletteResultItem> transcripts,
   List<PaletteResultItem> actions,
+  PaletteResultItem? seeAll,
 });
 
 List<PaletteSection> paletteSections(PaletteSectionInputs i) {
@@ -45,6 +59,8 @@ List<PaletteSection> paletteSections(PaletteSectionInputs i) {
     if (everything && !i.messages.forbidden) _messages(i),
     if (everything) (label: 'Transcripts', items: i.transcripts, count: null),
     if (everything) (label: 'Actions', items: i.actions, count: null),
+    if (everything && i.seeAll != null)
+      (label: 'Search', items: [i.seeAll!], count: null),
   ].where((s) => s.items.isNotEmpty).toList();
 }
 
@@ -80,3 +96,15 @@ String paletteAnnouncement(
   if (count == 0) return filtering ? 'No matches.' : '';
   return '$count ${count == 1 ? 'message' : 'messages'} found.';
 }
+
+/// The last row for plain text: opens every message hit, as Shift+Enter does.
+PaletteResultItem? seeAllResultsItem(String text, VoidCallback show) =>
+    text.trim().isEmpty
+    ? null
+    : PaletteResultItem(
+        label: 'See all results for "${text.trim()}"',
+        leading: AppIcons.search,
+        keepsOpen: true,
+        opensAllResults: true,
+        onSelect: (_, _) async => show(),
+      );

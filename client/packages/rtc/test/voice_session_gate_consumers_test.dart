@@ -120,43 +120,33 @@ void main() {
     expect(await rig.pollsIn(const Duration(milliseconds: 300)), 0);
   });
 
-  test('an open mic with nothing displayed reads at the watchdog pace',
-      () async {
+  test('an open mic with nothing displayed reads at the ring pace', () async {
     await start(micOn: true);
-    expect(rig.gate.rate, InputGateRate.slow);
-    final slow = await rig.pollsIn(const Duration(milliseconds: 400));
+    expect(rig.gate.rate, InputGateRate.ring);
+    expect(rig.gate.fast, isTrue, reason: 'the local ring follows the gate');
+    final ring = await rig.pollsIn(const Duration(milliseconds: 400));
     rig.session.setLevelDisplayed(true);
     final shown = await rig.pollsIn(const Duration(milliseconds: 400));
-    expect(slow, greaterThan(0));
-    expect(slow, lessThan(shown ~/ 10));
+    expect(ring, greaterThan(0));
+    expect(ring, lessThan(shown));
   });
 
-  test('Strong reads faster than the watchdog needs, and relaxes when off',
-      () async {
+  test('Strong and automatic sensitivity keep the ring pace', () async {
     await start(micOn: true);
     rig.session.setStrongNoiseSuppression(true);
-    await Future<void>.delayed(const Duration(milliseconds: 20));
-    expect(rig.gate.rate, InputGateRate.watch);
-    rig.session.setStrongNoiseSuppression(false);
-    await Future<void>.delayed(const Duration(milliseconds: 20));
-    expect(rig.gate.rate, InputGateRate.slow);
-  });
-
-  test('automatic sensitivity adapts faster than the watchdog', () async {
-    await start(micOn: true);
     rig.session.setAutoInputThreshold(true);
     await Future<void>.delayed(const Duration(milliseconds: 20));
-    expect(rig.gate.rate, InputGateRate.adapt);
+    expect(rig.gate.rate, InputGateRate.ring);
   });
 
   test('muting stops the polling and unmuting resumes it', () async {
     await start(micOn: true);
-    expect(rig.gate.rate, InputGateRate.slow);
+    expect(rig.gate.rate, InputGateRate.ring);
     await rig.session.setMicrophoneEnabled(false);
     expect(rig.gate.rate, InputGateRate.off);
     expect(await rig.pollsIn(const Duration(milliseconds: 300)), 0);
     await rig.session.setMicrophoneEnabled(true);
-    expect(rig.gate.rate, InputGateRate.slow);
+    expect(rig.gate.rate, InputGateRate.ring);
     expect(
         await rig.pollsIn(const Duration(milliseconds: 300)), greaterThan(0));
   });
@@ -172,7 +162,7 @@ void main() {
 
   test('a gate that reads silence never restarts the capture', () async {
     await start(micOn: true, levelDb: kInputFloorDb);
-    expect(rig.gate.rate, InputGateRate.slow);
+    expect(rig.gate.rate, InputGateRate.ring);
 
     await Future<void>.delayed(const Duration(milliseconds: 500));
 

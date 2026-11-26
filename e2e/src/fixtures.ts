@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-import { test as base, type Browser, type BrowserContextOptions, type TestInfo } from '@playwright/test';
+import { expect, test as base, type Browser, type BrowserContextOptions, type TestInfo } from '@playwright/test';
 import { FlutterApp } from './flutter';
 import { L } from './labels';
 import { readStack, type Stack } from './stack';
@@ -38,15 +38,20 @@ async function openUser(
   stack: Stack,
   testInfo: TestInfo,
   storageState?: StorageState,
+  rejected: string[] = [],
 ): Promise<FlutterApp> {
   // Recorded here because a context made by hand is not covered by the config's video option.
   const context = await browser.newContext({
     permissions: ['microphone', 'camera'],
     baseURL: stack.web,
+    ignoreHTTPSErrors: true,
     storageState,
     recordVideo: { dir: testInfo.outputPath(`video-${name}`), size: { width: 1280, height: 900 } },
   });
   const page = await context.newPage();
+  page.on('response', (response) => {
+    if (response.status() === 401) rejected.push(`${name}: ${response.request().method()} ${new URL(response.url()).pathname}`);
+  });
   // The video starts with the page, so this lets a reviewer line a step up with a video timestamp.
   testInfo.annotations.push({ type: `video-start-${name}`, description: String(Date.now()) });
   const app = new FlutterApp(page, name);
@@ -55,17 +60,39 @@ async function openUser(
   return app;
 }
 
-async function openBoth(browser: Browser, stack: Stack, testInfo: TestInfo, sessions?: Record<UserName, StorageState>): Promise<Users> {
-  const [alice, bob] = await Promise.all(USERS.map((name) => openUser(browser, name, stack, testInfo, sessions?.[name])));
+async function openBoth(
+  browser: Browser,
+  stack: Stack,
+  testInfo: TestInfo,
+  sessions?: Record<UserName, StorageState>,
+  rejected?: string[],
+): Promise<Users> {
+  const [alice, bob] = await Promise.all(USERS.map((name) => openUser(browser, name, stack, testInfo, sessions?.[name], rejected)));
   return { alice, bob };
 }
 
+const REFRESH_COOKIE_PREFIX = '__Host-slimm_rt_';
+
+/**
+ * Keeps the session a user ended the test with for the next test to start from.
+ *
+ * Every load of the web client spends its refresh cookie and is given a new one, so a copy taken
+ * after sign-in is dead once any test has used it. A user who ended signed out keeps the earlier copy.
+ */
+async function carryOverSession(app: FlutterApp, sessions: Record<UserName, StorageState>): Promise<void> {
+  const state = await app.page.context().storageState({ indexedDB: true });
+  if (state.cookies.some((cookie) => cookie.name.startsWith(REFRESH_COOKIE_PREFIX))) {
+    sessions[app.name as UserName] = state;
+  }
+}
+
 /** Closes the user's context, which finalises their video, and attaches the video. */
-async function closeBoth(users: Users, testInfo: TestInfo): Promise<void> {
+async function closeBoth(users: Users, testInfo: TestInfo, sessions?: Record<UserName, StorageState>): Promise<void> {
   await settleVideo();
   await Promise.all(
     Object.values(users).map(async (app) => {
       const { page } = app;
+      if (sessions) await carryOverSession(app, sessions);
       await page.context().close();
       const video = page.video();
       if (video) await testInfo.attach(`${app.name}.webm`, { path: await video.path(), contentType: 'video/webm' });
@@ -127,7 +154,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
     async ({ browser, stack }, use) => {
       const sessions = {} as Record<UserName, StorageState>;
       for (const name of USERS) {
-        const context = await browser.newContext({ baseURL: stack.web });
+        const context = await browser.newContext({ baseURL: stack.web, ignoreHTTPSErrors: true });
         const app = new FlutterApp(await context.newPage(), name);
         await app.open(stack.web);
         await signIn(app, stack, name);
@@ -147,12 +174,15 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
   },
 
   signedIn: async ({ browser, stack, sessions }, use, testInfo) => {
-    const users = await openBoth(browser, stack, testInfo, sessions);
+    const rejected: string[] = [];
+    const users = await openBoth(browser, stack, testInfo, sessions, rejected);
     await test.step('alice and bob open the app with their sessions', async () => {
       await Promise.all(Object.values(users).map((app) => app.see(L.TEXT_CHANNEL)));
+      // A cold load refreshes through the cookie first, so no call goes out with a token the server cannot accept.
+      expect(rejected, 'calls answered 401 while the app opened').toEqual([]);
     });
     await use(users);
-    await closeBoth(users, testInfo);
+    await closeBoth(users, testInfo, sessions);
   },
 });
 

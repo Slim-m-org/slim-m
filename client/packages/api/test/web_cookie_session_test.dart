@@ -80,7 +80,7 @@ void main() {
       expect(api.session.tokens?.refreshToken, isEmpty);
     });
 
-    test('a request with an empty access token is refreshed, then replayed',
+    test('a cold load refreshes through the cookie before its first call',
         () async {
       final seen = <http.Request>[];
       final api = _api(seen, (request) {
@@ -92,8 +92,71 @@ void main() {
       }, webSession: true, session: _hint());
 
       expect(await api.listChannels(), isEmpty);
-      expect(seen.map((r) => r.url.path),
-          ['/channels', '/auth/refresh', '/channels']);
+      expect(seen.map((r) => r.url.path), ['/auth/refresh', '/channels']);
+      expect(seen.last.headers['authorization'], 'Bearer fresh-access');
+    });
+
+    test('calls made together on a cold load share the one refresh', () async {
+      final seen = <http.Request>[];
+      final api = _api(seen, (request) {
+        if (request.url.path == '/auth/refresh') return _json(_noRefreshBody);
+        return request.headers['authorization'] == 'Bearer fresh-access'
+            ? _json(<Object>[])
+            : _json({'error': 'unauthorized'}, 401);
+      }, webSession: true, session: _hint());
+
+      await Future.wait([
+        api.listChannels(),
+        api.listChannels(),
+        api.listChannels(),
+      ]);
+
+      expect(seen.where((r) => r.url.path == '/auth/refresh'), hasLength(1));
+      expect(seen.first.url.path, '/auth/refresh');
+      expect(
+        seen.where((r) => r.url.path == '/channels'),
+        hasLength(3),
+        reason: 'each call is sent once, none replayed after a 401',
+      );
+    });
+
+    test('a refused cold-load refresh signs out and sends nothing else',
+        () async {
+      final seen = <http.Request>[];
+      final api = _api(
+        seen,
+        (_) => _json({'error': 'unauthorized'}, 401),
+        webSession: true,
+        session: _hint(),
+      );
+
+      await expectLater(
+        api.listChannels(),
+        throwsA(isA<UnauthorizedException>()),
+      );
+      expect(seen.map((r) => r.url.path), ['/auth/refresh']);
+      expect(api.session.isSignedIn, isFalse);
+    });
+
+    test('a tab that already holds an access token does not refresh first',
+        () async {
+      final seen = <http.Request>[];
+      final api = _api(
+        seen,
+        (_) => _json(<Object>[]),
+        webSession: true,
+        session: SessionStore(
+          tokens: const TokenPair(
+            userId: 'user-1',
+            accessToken: 'held',
+            refreshToken: '',
+            accessExpiresAt: 0,
+          ),
+        ),
+      );
+
+      await api.listChannels();
+      expect(seen.map((r) => r.url.path), ['/channels']);
     });
 
     test('a rejected cookie ends the session', () async {
@@ -143,12 +206,18 @@ void main() {
 
     test('logout names the cookie flow so the server clears it', () async {
       final seen = <http.Request>[];
-      final api = _api(seen, (_) => http.Response('', 204),
-          webSession: true, session: _hint());
+      final api = _api(
+          seen,
+          (request) => request.url.path == '/auth/refresh'
+              ? _json(_noRefreshBody)
+              : http.Response('', 204),
+          webSession: true,
+          session: _hint());
 
       await api.logout();
 
-      expect(seen.single.headers['x-slimm-web-session'], 'cookie');
+      expect(seen.last.url.path, '/auth/logout');
+      expect(seen.last.headers['x-slimm-web-session'], 'cookie');
       expect(api.session.isSignedIn, isFalse);
     });
   });

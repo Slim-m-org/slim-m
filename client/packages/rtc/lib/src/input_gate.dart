@@ -97,18 +97,12 @@ const int kInputGateMaxFailures = 3;
 
 /// How fast the gate is read, as a multiple of the display interval.
 enum InputGateRate {
-  /// A meter or speaking ring is on screen in a focused app.
+  /// A meter is on screen in a visible app: 50 ms.
   display(1),
 
-  /// Nothing is displayed but automatic sensitivity is adapting: 200 ms.
-  adapt(4),
-
-  /// Nothing is displayed but Strong runs: 1 s, enough for the Strong
-  /// fallback (2 s of polls).
-  watch(20),
-
-  /// Only the dead-mic watchdog reads, and it needs 10 s of silence: 2 s.
-  slow(40),
+  /// An open mic in a call with no meter: 100 ms, so your own speaking ring
+  /// follows the gate instead of waiting on the SFU's report.
+  ring(2),
 
   /// Nothing consumes a reading (the microphone is closed): no polling.
   off(0);
@@ -167,7 +161,9 @@ class InputGateMonitor {
   Duration get interval => displayInterval * _rate.multiple;
 
   /// Whether readings come fast enough to draw a meter or a speaking ring.
-  bool get fast => running && _rate == InputGateRate.display;
+  bool get fast =>
+      running &&
+      (_rate == InputGateRate.display || _rate == InputGateRate.ring);
 
   /// Changes the poll rate; a running monitor keeps its voice callback.
   void setRate(InputGateRate next) {

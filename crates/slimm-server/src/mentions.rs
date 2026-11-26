@@ -101,3 +101,21 @@ pub async fn drop_blockers(
     mentioned.retain(|id| !blockers.contains(id));
     Ok(())
 }
+
+/// Who a reply by `author_id` in `channel_id` reaches because they started the thread or replied in it,
+/// narrowed to those who can view it. Empty outside a thread; the author never counts.
+pub async fn thread_participants_reached(
+    store: &Store,
+    channel_id: ChannelId,
+    author_id: UserId,
+) -> anyhow::Result<Vec<UserId>> {
+    let Some(parent) = store.thread_parent(channel_id).await? else {
+        return Ok(Vec::new());
+    };
+    let mut participants = store
+        .thread_participants(channel_id, parent.parent_message_id)
+        .await?;
+    participants.remove(&author_id);
+    let participants: Vec<UserId> = participants.into_iter().collect();
+    store.viewers_among(channel_id, &participants).await
+}

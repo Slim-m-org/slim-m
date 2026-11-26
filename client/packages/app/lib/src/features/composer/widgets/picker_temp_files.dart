@@ -5,8 +5,10 @@ library;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:slimm_api/api.dart' as api;
 
+import '../../messages/widgets/system_photo_picker.dart';
 import 'photo_library.dart';
 
 /// Only phones copy a pick into the app's cache; elsewhere the path is the user's own file.
@@ -59,5 +61,13 @@ final pickerTempFilesProvider = Provider<PickerTempFiles>(
     if (!_copiesPicks) return;
     await FilePicker.clearTemporaryFiles();
     await ref.read(photoLibraryProvider)?.clearCache();
+    await _clearSystemPickerCopies(ref);
   }, clearsMidSession: clearsPicksMidSession(defaultTargetPlatform)),
 );
+
+Future<void> _clearSystemPickerCopies(Ref ref) async {
+  if (defaultTargetPlatform != TargetPlatform.android) return;
+  final paths = ref.read(pickedCopyLogProvider).drain();
+  if (paths.isEmpty) return;
+  await deletePickedCopies(paths, (await getTemporaryDirectory()).path);
+}

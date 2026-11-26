@@ -17,4 +17,23 @@ if [ ! -f "$WHISPER_MODEL" ]; then
     mv "$tmp" "$WHISPER_MODEL"
 fi
 
+# Text to speech (decision 0142) is optional: PIPER_MODEL= (empty) leaves it off, and a voice that cannot be fetched does not stop the listener.
+fetch_voice() {
+    url=$1 dest=$2 want=$3
+    [ -f "$dest" ] && return 0
+    tmp="$dest.part"
+    curl -fsSL --retry 3 -o "$tmp" "$url" || return 1
+    [ "$(sha256sum "$tmp" | cut -d' ' -f1)" = "$want" ] || { rm -f "$tmp"; return 1; }
+    mv "$tmp" "$dest"
+}
+
+if [ -n "${PIPER_MODEL:-}" ]; then
+    echo "fetching the text to speech voice once from $PIPER_MODEL_URL"
+    if ! fetch_voice "$PIPER_MODEL_URL" "$PIPER_MODEL" "$PIPER_MODEL_SHA256" \
+        || ! fetch_voice "$PIPER_CONFIG_URL" "$PIPER_MODEL.json" "$PIPER_CONFIG_SHA256"; then
+        echo "the voice could not be fetched or did not match its pinned sha256; text to speech stays off" >&2
+        unset PIPER_MODEL
+    fi
+fi
+
 exec /usr/local/bin/slimm-listener

@@ -19,6 +19,9 @@ enum IdentityAnswer {
   /// It answered, but not with a slim-m `/version`.
   notSlim,
 
+  /// It said it is busy (429 or 503), which says nothing about its key.
+  busy,
+
   /// A slim-m server that gave no valid proof, as one older than the challenge does.
   unproven,
 
@@ -39,6 +42,12 @@ typedef IdentityReading = ({
 bool serverAnswered(Object error) =>
     error is! api.TransportException || error is api.UnreadableReplyException;
 
+/// Whether [error] is a server saying it is busy, which says nothing about its key.
+///
+/// An ambient recheck of a signed-in session reads it as no verdict; a caller about to send a secret asks again first.
+bool serverBusy(Object error) =>
+    error is api.RateLimitedException || error is api.UnavailableException;
+
 /// Asks [client] to sign a fresh challenge and checks it against [identity]'s key.
 Future<IdentityAnswer> challengeIdentity(
   api.SlimmApi client,
@@ -58,6 +67,7 @@ Future<IdentityAnswer> challengeIdentity(
       error,
       stack,
     );
+    if (serverBusy(error)) return IdentityAnswer.busy;
     return serverAnswered(error)
         ? IdentityAnswer.unproven
         : IdentityAnswer.unanswered;
@@ -119,6 +129,7 @@ Future<bool> holdsPinnedKey(
     case IdentityAnswer.unproven:
       return await keyStore.read(handle) != pinned;
     case IdentityAnswer.unanswered ||
+        IdentityAnswer.busy ||
         IdentityAnswer.notSlim ||
         IdentityAnswer.disproven:
       return false;
