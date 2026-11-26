@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.140.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.139.1...client-v0.140.0) (2026-11-26)
+
+
+### Features
+
+* **client:** inline custom emoji, one Captions control, and call and thread notification fixes ([#2505](https://github.com/Slim-m-org/slim-m/issues/2505)) ([c601087](https://github.com/Slim-m-org/slim-m/commit/c601087d56a5a02f2e087aaff6e736dddd72489a))
+* **client:** tidier call dock, call bar controls and threads panel ([#2504](https://github.com/Slim-m-org/slim-m/issues/2504)) ([7763d4b](https://github.com/Slim-m-org/slim-m/commit/7763d4bd1f45ab37ec83c7c5e81c29ec09895733))
+* keep the web client's refresh token in an HttpOnly cookie ([#2502](https://github.com/Slim-m-org/slim-m/issues/2502)) ([08444d0](https://github.com/Slim-m-org/slim-m/commit/08444d0123f0c8aec341f39596074c7749fd9af7))
+
 ## [0.139.1](https://github.com/Slim-m-org/slim-m/compare/client-v0.139.0...client-v0.139.1) (2026-11-26)
 
 
