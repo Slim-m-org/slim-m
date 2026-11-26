@@ -4,16 +4,20 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/features/channels/providers/channel_permissions.dart';
 import 'package:slimm_app/src/features/voice/providers/live_call_transcript.dart';
+import 'package:slimm_app/src/features/voice/providers/shortcut_overrides.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
 import 'package:slimm_app/src/features/voice/widgets/call_dock_button.dart';
 import 'package:slimm_app/src/features/voice/widgets/dock_item.dart';
 import 'package:slimm_app/src/features/voice/widgets/dock_items.dart';
 import 'package:slimm_app/src/permissions.dart';
+import 'package:slimm_platform/platform.dart'
+    show AppAction, userShortcutOverrides;
 import 'package:slimm_rtc/rtc.dart';
 
 import 'voice_call_controls_harness.dart';
@@ -127,6 +131,15 @@ void main() {
   testWidgets('captions switched on inside Transcript leave the menu open', (
     tester,
   ) async {
+    SharedPreferences.setMockInitialValues({
+      'slimm.voice.shortcut_overrides': encodeOverrides({
+        AppAction.markCallMoment: const SingleActivator(
+          LogicalKeyboardKey.keyK,
+          control: true,
+        ),
+      }),
+    });
+    addTearDown(() => userShortcutOverrides = const {});
     await _pump(tester, 1280);
     await _openMore(tester);
     await tester.tap(find.text('Transcript'));
@@ -139,7 +152,7 @@ void main() {
 
     expect(_button('Transcript'), findsOneWidget, reason: 'now in the dock');
     expect(find.text('Captions'), findsOneWidget, reason: 'menu stays put');
-    expect(find.text('Mark this moment'), findsOneWidget);
+    expect(find.text('Mark this moment (Ctrl+K)'), findsOneWidget);
     await _settleOut(tester);
   });
 

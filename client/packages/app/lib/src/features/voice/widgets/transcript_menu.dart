@@ -8,7 +8,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_platform/platform.dart' show AppAction;
 
+import '../../../widgets/shortcut_label.dart';
 import '../providers/call_mark_actions.dart';
 import '../providers/live_call_transcript.dart';
 import '../providers/voice_settings_controller.dart';
@@ -32,7 +34,7 @@ List<Widget> transcriptMenuItems(
   const _CaptionsSwitchRow(),
   AppMenuItem(
     key: markButtonKey,
-    label: 'Mark this moment',
+    label: labelWithShortcut('Mark this moment', AppAction.markCallMoment),
     leading: AppIcons.callMark,
     onTap: () {
       close();

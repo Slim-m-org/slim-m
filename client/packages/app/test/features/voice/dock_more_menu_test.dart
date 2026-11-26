@@ -148,7 +148,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     final captions = tester.getRect(find.text('Captions'));
-    final mark = tester.getRect(find.text('Mark this moment'));
+    final mark = tester.getRect(find.textContaining('Mark this moment'));
     expect(captions.top, lessThan(mark.top), reason: 'captions lead the menu');
     expect(captions.right, lessThanOrEqualTo(1280));
     expect(mark.right, lessThanOrEqualTo(1280));
