@@ -95,4 +95,33 @@ const List<WhatsNewEntry> whatsNewArchiveEntries11 = [
       ),
     ],
   ),
+  WhatsNewEntry(
+    version: '0.139.1',
+    headline: 'A tidier canvas, and smaller fixes all over',
+    points: [
+      WhatsNewPoint(
+        'Notes and text on the canvas share one short style bar: a colour '
+        'button and a size.',
+      ),
+      WhatsNewPoint(
+        'Typing a custom emoji like :name: in a note or text shows the '
+        'emoji right there.',
+      ),
+      WhatsNewPoint(
+        'One Escape takes you back to the hand tool from any tool, and the '
+        'connection dots are easier to grab.',
+      ),
+      WhatsNewPoint(
+        "You can draw on someone's shared screen in full screen too.",
+      ),
+      WhatsNewPoint(
+        'Thread replies and quotes show mentions by name, and search shows '
+        'profile pictures when you filter by person.',
+      ),
+      WhatsNewPoint(
+        'Photo location is removed from HEIC and TIFF photos too, even with '
+        'compression off.',
+      ),
+    ],
+  ),
 ];
