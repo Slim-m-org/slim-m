@@ -10,7 +10,7 @@ import 'exceptions.dart';
 import 'logging/app_log.dart';
 import 'models.dart';
 import 'client.dart';
-import 'client_web_session.dart';
+import 'web_session_flow.dart';
 
 const _contentTypeHeader = 'content-type';
 

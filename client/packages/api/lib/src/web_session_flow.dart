@@ -32,6 +32,7 @@ extension SlimmApiWebSession on SlimmApi {
   Future<void> ensureAccessToken() async {
     final held = session.tokens;
     if (!webSession || held == null || held.hasAccessToken) return;
+    await awaitTrust();
     await refresh();
     requireSameAccount(held.userId);
   }
