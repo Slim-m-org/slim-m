@@ -8,6 +8,7 @@ pub enum Kind {
     Png,
     Webp,
     Heic,
+    Avif,
     Bmp,
     Tiff,
 }
@@ -15,6 +16,8 @@ pub enum Kind {
 const HEIC_BRANDS: &[&[u8; 4]] = &[
     b"heic", b"heix", b"heim", b"heis", b"hevc", b"hevx", b"mif1", b"msf1",
 ];
+
+const AVIF_BRANDS: &[&[u8; 4]] = &[b"avif", b"avis"];
 
 impl Kind {
     /// The format of `bytes`, from the file's own signature.
@@ -30,6 +33,11 @@ impl Kind {
             && HEIC_BRANDS.iter().any(|b| &bytes[8..12] == *b)
         {
             Some(Self::Heic)
+        } else if bytes.len() >= 12
+            && &bytes[4..8] == b"ftyp"
+            && AVIF_BRANDS.iter().any(|b| &bytes[8..12] == *b)
+        {
+            Some(Self::Avif)
         } else if bytes.starts_with(b"BM") && bytes.len() >= 26 {
             Some(Self::Bmp)
         } else if bytes.starts_with(b"II*\0") || bytes.starts_with(b"MM\0*") {
@@ -46,6 +54,7 @@ impl Kind {
             Self::Png => &["png"],
             Self::Webp => &["webp"],
             Self::Heic => &["heic", "heif", "hif"],
+            Self::Avif => &["avif"],
             Self::Bmp => &["bmp"],
             Self::Tiff => &["tif", "tiff"],
         }
@@ -135,4 +144,24 @@ fn tiff_page_count(bytes: &[u8]) -> Option<usize> {
         ifd = u32_at(ifd + 2 + u16_at(ifd)? * 12)?;
     }
     Some(pages)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn ftyp(brand: &[u8; 4]) -> Vec<u8> {
+        let mut bytes = b"\0\0\0\x18ftyp".to_vec();
+        bytes.extend_from_slice(brand);
+        bytes.extend_from_slice(&[0; 12]);
+        bytes
+    }
+
+    #[test]
+    fn an_avif_is_told_from_a_heic_by_its_brand() {
+        assert_eq!(Kind::sniff(&ftyp(b"avif")), Some(Kind::Avif));
+        assert_eq!(Kind::sniff(&ftyp(b"avis")), Some(Kind::Avif));
+        assert_eq!(Kind::sniff(&ftyp(b"heic")), Some(Kind::Heic));
+        assert_eq!(Kind::sniff(&ftyp(b"isom")), None);
+    }
 }

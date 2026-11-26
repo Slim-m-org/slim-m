@@ -100,7 +100,7 @@ fn decode_with_image(kind: Kind, bytes: &[u8]) -> Option<Decoded> {
         Kind::Webp => ImageFormat::WebP,
         Kind::Bmp => ImageFormat::Bmp,
         Kind::Tiff => ImageFormat::Tiff,
-        Kind::Heic => return None,
+        Kind::Heic | Kind::Avif => return None,
     };
     let mut decoder = ImageReader::with_format(Cursor::new(bytes), format)
         .into_decoder()

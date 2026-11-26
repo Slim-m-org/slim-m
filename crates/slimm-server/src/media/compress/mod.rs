@@ -291,6 +291,7 @@ fn source_type(kind: Kind) -> &'static str {
         Kind::Png => "image/png",
         Kind::Webp => "image/webp",
         Kind::Heic => "image/heic",
+        Kind::Avif => "image/avif",
         Kind::Bmp => "image/bmp",
         Kind::Tiff => "image/tiff",
     }

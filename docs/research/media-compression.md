@@ -132,7 +132,8 @@ The default upload limit is 1 GiB (`SLIMM_ATTACHMENT_MAX_BYTES`), so a 40 MB pho
 - HEIC location is removed in place (`heic_strip.rs`): the EXIF item is rebuilt without GPS and zero-padded to its old length, and an XMP item is blanked with spaces, so the file keeps its length and every `iloc` offset stays true.
   Only single-extent items stored in the file body are handled, which is every file seen from phones; a file that does not parse is stored as sent, the same as a JPEG that does not parse.
   A TIFF has its GPS block, XMP and IPTC data blanked in place the same way, in both removal modes; the rest of its tags stay.
-  Not covered: AVIF, which is not sniffed as a photo and so never touched, and BMP, which carries no metadata.
+  An AVIF (major brand `avif` or `avis`) is sniffed as a photo and stripped by the same code, since it is the same ISOBMFF box structure; it is never decoded or converted, so it is stripped whether compression is on or off.
+  Not covered: BMP, which carries no metadata.
 - Not preserved on re-encode: HDR gain maps and multi-picture data (Ultra HDR), and the EXIF thumbnail.
   Keep original retains them.
 
