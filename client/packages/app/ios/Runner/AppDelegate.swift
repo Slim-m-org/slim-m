@@ -380,6 +380,21 @@ import UserNotifications
     }
   }
 
+  /// A foreground app learns of a read over its socket; only a suspended one needs the push.
+  override func application(
+    _ application: UIApplication,
+    didReceiveRemoteNotification userInfo: [AnyHashable: Any],
+    fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void
+  ) {
+    guard application.applicationState != .active, userInfo["kind"] as? String == "read" else {
+      super.application(
+        application, didReceiveRemoteNotification: userInfo,
+        fetchCompletionHandler: completionHandler)
+      return
+    }
+    AppBadgeChannel.applyReadPush(userInfo) { completionHandler(.noData) }
+  }
+
   override func application(
     _ application: UIApplication,
     didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data

@@ -22,6 +22,16 @@ final class BadgeCountTests: XCTestCase {
     XCTAssertEqual(count, 1)
   }
 
+  func testAReadChannelLeavesTheOthersCounted() {
+    let count = BadgeCount.afterRead(channelId: "a", deliveredThreads: ["a", "a", "b", "c"])
+    XCTAssertEqual(count, 2)
+  }
+
+  func testReadingTheOnlyChannelClearsTheBadge() {
+    let count = BadgeCount.afterRead(channelId: "a", deliveredThreads: ["a", "", "a"])
+    XCTAssertEqual(count, 0)
+  }
+
   func testThePushThatIsBeingShownAlwaysCounts() {
     let count = BadgeCount.unreadChannels(deliveredThreads: [], currentThread: nil)
     XCTAssertEqual(count, 1)
