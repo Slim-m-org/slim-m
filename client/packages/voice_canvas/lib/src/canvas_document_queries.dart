@@ -121,7 +121,7 @@ extension CanvasDocumentQueries on CanvasDocument {
   List<({String id, String attachmentId})> get visibleImagesAwaitingBitmap => [
         for (final slot in scene.visible)
           if (strokeIfAlive(slot) case final stroke?)
-            if (!_outsideIds.contains(stroke.id) &&
+            if (!_outside.contains(stroke.id) &&
                 imageAwaitsBitmap(stroke.id) &&
                 stroke.attachmentId != null)
               (id: stroke.id, attachmentId: stroke.attachmentId!),
@@ -142,7 +142,7 @@ extension CanvasDocumentQueries on CanvasDocument {
         if (strokeIfAlive(slot) case final stroke?
             when stroke.kind == CanvasObjectKind.tile &&
                 stroke.tileKey != null &&
-                !_outsideIds.contains(stroke.id))
+                !_outside.contains(stroke.id))
           slot,
     ]..sort(comparePaintOrder);
     return [

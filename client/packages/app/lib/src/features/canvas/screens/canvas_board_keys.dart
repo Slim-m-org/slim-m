@@ -296,8 +296,11 @@ class _CanvasBoardKeysState extends State<CanvasBoardKeys> {
   }
 
   bool _deselect() {
-    if (_document.selectedObjectId.value == null) return false;
-    _document.selectedObjectId.value = null;
+    final picked = _document.multiSelection;
+    if (_document.selectedObjectId.value == null && picked.ids.value.isEmpty) {
+      return false;
+    }
+    picked.clear();
     return true;
   }
 

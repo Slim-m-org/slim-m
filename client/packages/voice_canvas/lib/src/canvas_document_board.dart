@@ -86,7 +86,7 @@ extension CanvasDocumentBoard on CanvasDocument {
   /// Ids of live objects the board cannot hold whole, which its clip hides in
   /// part or in full. A stroke larger than the board is left out: no move
   /// could bring it in.
-  List<String> get idsOutsideBoard => List.unmodifiable(_outsideIds);
+  List<String> get idsOutsideBoard => _outside.ids;
 
   void _trackOutside(CanvasStroke? stroke) {
     if (stroke == null) return;
@@ -99,15 +99,12 @@ extension CanvasDocumentBoard on CanvasDocument {
         ) &&
         (stroke.kind != CanvasObjectKind.stroke ||
             (stroke.w <= board.width && stroke.h <= board.height));
-    final changed =
-        outside ? _outsideIds.add(stroke.id) : _outsideIds.remove(stroke.id);
-    if (changed) outsideBoardCount.value = _outsideIds.length;
+    _outside.mark(stroke.id, outside: outside);
   }
 
   void _retrackAllOutside() {
-    _outsideIds.clear();
+    _outside.clear();
     _strokes.forEach(_trackOutside);
-    outsideBoardCount.value = _outsideIds.length;
   }
 
   /// Whether the camera sits on the shared area, as opposed to a pan or zoom away from it.

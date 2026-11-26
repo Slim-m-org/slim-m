@@ -260,6 +260,7 @@ class CanvasNoteEditing {
     onTextStyle,
     bool textEditing = false,
     Widget? textEditor,
+    Widget? groupBar,
   }) {
     final open = session;
     return Positioned.fill(
@@ -293,6 +294,7 @@ class CanvasNoteEditing {
               onGone: gone,
             ),
           ?textEditor,
+          ?groupBar,
         ],
       ),
     );
