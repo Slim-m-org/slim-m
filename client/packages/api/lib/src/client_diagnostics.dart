@@ -230,6 +230,7 @@ extension on SlimmApi {
     Map<String, String>? query,
   }) async {
     await awaitTrust();
+    await ensureAccessToken();
     final token = session.tokens?.accessToken;
     if (token == null) throw const UnauthorizedException('not signed in');
     final uri = requestUri(path, query);

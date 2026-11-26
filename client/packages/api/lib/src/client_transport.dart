@@ -77,6 +77,7 @@ extension SlimmApiTransport on SlimmApi {
       final hold = trustGate?.call();
       if (hold != null) await hold;
     }
+    if (authenticated) await ensureAccessToken();
     final sentWith = session.tokens?.accessToken;
     final sentBy = session.tokens?.userId;
     Future<http.Response> attempt() => _perform(
@@ -141,6 +142,16 @@ extension SlimmApiTransport on SlimmApi {
     _requireSameAccount(sentBy);
     if (session.tokens?.accessToken == sentWith) await refresh();
     _requireSameAccount(sentBy);
+  }
+
+  /// Refreshes through the cookie before the first call of a web tab that holds only its sign-in hint.
+  ///
+  /// Every caller waits on the one refresh in flight, so a cold load spends no 401 finding out the token is missing.
+  Future<void> ensureAccessToken() async {
+    final held = session.tokens;
+    if (!webSession || held == null || held.hasAccessToken) return;
+    await refresh();
+    _requireSameAccount(held.userId);
   }
 
   void _requireSameAccount(String? sentBy) {
@@ -234,6 +245,7 @@ extension SlimmApiTransport on SlimmApi {
   }) async {
     final hold = trustGate?.call();
     if (hold != null) await hold;
+    await ensureAccessToken();
     final token = session.tokens?.accessToken;
     final sentBy = session.tokens?.userId;
     if (token == null) {
