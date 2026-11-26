@@ -20,6 +20,7 @@ class TabPeerTokens implements PeerTokens {
     required this.held,
     required this.onAnnounced,
     required this.isActive,
+    required this.anotherTabOpen,
     this.wait = const Duration(milliseconds: 400),
   }) {
     _hearing = _channel.messages.listen(_hear);
@@ -36,6 +37,9 @@ class TabPeerTokens implements PeerTokens {
   /// False outside the cookie mode, where a peer's access token says nothing about this tab's session.
   final bool Function() isActive;
 
+  /// Whether any other tab is open to answer, so a lone tab never waits for nobody.
+  final Future<bool> Function() anotherTabOpen;
+
   final Duration wait;
   late final StreamSubscription<String> _hearing;
   TokenPair? _newest;
@@ -51,9 +55,10 @@ class TabPeerTokens implements PeerTokens {
 
   @override
   Future<TokenPair?> ask() async {
-    if (!isActive()) return null;
+    final own = held();
+    if (!isActive() || own == null || !await anotherTabOpen()) return null;
     final asking = _asking ??= Completer<TokenPair?>();
-    _channel.post(jsonEncode({'t': 'ask'}));
+    _channel.post(jsonEncode({'t': 'ask', 'user_id': own.userId}));
     final answer = await asking.future.timeout(wait, onTimeout: () => null);
     _asking = null;
     return answer;
@@ -68,11 +73,14 @@ class TabPeerTokens implements PeerTokens {
       switch (message['t']) {
         case 'ask':
           final own = held();
-          if (own != null && own.hasAccessToken) {
+          if (own != null &&
+              own.hasAccessToken &&
+              message['user_id'] == own.userId) {
             _channel.post(_encode('token', own));
           }
         case 'token':
-          final pair = TokenPair.fromStoredJson(message);
+          final pair = TokenPair.fromAccessJson(message);
+          if (pair.userId != held()?.userId) return;
           _newest = pair;
           _asking?.complete(pair);
           onAnnounced(pair);

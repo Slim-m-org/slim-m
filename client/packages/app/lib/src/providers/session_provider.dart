@@ -44,6 +44,7 @@ final sessionProvider = Provider<SessionStore>((ref) {
     held: () => store.tokens,
     onAnnounced: (announced) => store.takeUpPeerToken(announced),
     isActive: () => ref.read(webSessionModeProvider) == WebSessionMode.cookie,
+    anotherTabOpen: tabs.anotherTabIsOpen,
   );
   ref.onDispose(peers.dispose);
   store = SessionStore(
@@ -109,11 +110,14 @@ Future<void> _persistSession(
   Uri? serverUrl,
   WebSessionMode mode,
 ) async {
-  // A pair from before the cookie stays stored until its refresh has moved it into the cookie.
+  var storeAs = mode;
   if (mode == WebSessionMode.cookie && (tokens?.carriesRefreshToken ?? false)) {
-    return;
+    // A pair from before the cookie stays stored until its refresh has moved it into the cookie.
+    if (await _isStoredLegacyPair(keyStore, handle, tokens!)) return;
+    // A refresh token the server just issued means it knows no cookie: store the pair as a native client would.
+    storeAs = WebSessionMode.native;
   }
-  final stored = tokens == null ? null : sessionToStore(mode, tokens);
+  final stored = tokens == null ? null : sessionToStore(storeAs, tokens);
   if (stored == null) {
     await keyStore.delete(handle);
     if (tokens != null && serverUrl != null) {
@@ -125,6 +129,19 @@ Future<void> _persistSession(
   if (serverUrl != null) {
     await keyStore.put(serverUrlHandle, serverUrl.toString());
   }
+}
+
+Future<bool> _isStoredLegacyPair(
+  KeyStore keyStore,
+  String handle,
+  TokenPair tokens,
+) async {
+  final stored = await keyStore.read(handle);
+  if (stored == null) return false;
+  final held = TokenPair.fromStoredJson(
+    jsonDecode(stored) as Map<String, dynamic>,
+  );
+  return held.matchesRefreshToken(tokens);
 }
 
 /// Browser tabs of one profile; a no-op everywhere else.

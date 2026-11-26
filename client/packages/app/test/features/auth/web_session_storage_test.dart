@@ -49,6 +49,7 @@ ProviderContainer _container(
   WebSessionMode mode, {
   List<http.Request>? seen,
   int status = 200,
+  String? bodyRefreshToken,
 }) {
   final container = ProviderContainer(
     overrides: [
@@ -69,6 +70,7 @@ ProviderContainer _container(
                         'user_id': 'user-1',
                         'access_token': 'access-2',
                         'access_expires_at': 9,
+                        'refresh_token': ?bodyRefreshToken,
                       }),
                 status,
                 headers: {'content-type': 'application/json'},
@@ -189,6 +191,28 @@ void main() {
       expect(jsonDecode((await keys.read(sessionTokenHandle))!), {
         'user_id': 'user-1',
       }, reason: 'the old refresh token is gone once the cookie holds it');
+    });
+
+    test('a server that still answers with a refresh token is stored natively, '
+        'never keeping the spent legacy pair', () async {
+      final keys = _RecordingKeyStore();
+      await keys.put(sessionTokenHandle, jsonEncode(_tokens.toJson()));
+      await keys.put(serverUrlHandle, _serverUrl);
+      final container = _container(
+        keys,
+        WebSessionMode.cookie,
+        seen: <http.Request>[],
+        bodyRefreshToken: 'refresh-2',
+      );
+
+      await restoreSession(container);
+      await pumpEventQueue(times: 100);
+      await container.read(sessionProvider).settled;
+
+      expect(
+        jsonDecode((await keys.read(sessionTokenHandle))!)['refresh_token'],
+        'refresh-2',
+      );
     });
 
     test(

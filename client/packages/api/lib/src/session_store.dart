@@ -162,15 +162,13 @@ class SessionStore {
 
   /// Takes up a newer access token another tab minted, so this tab never rotates just to replace one a peer already replaced.
   ///
-  /// A tab with no live token yet asks its peers first, briefly, before the caller falls back to rotating.
+  /// Without a newer one cached it asks its peers first, briefly, since the held token is the one that failed.
   Future<TokenPair?> adoptPeerToken() async {
     final source = peers;
     final held = _tokens;
     if (source == null || held == null) return null;
     var candidate = source.newest;
-    if (!_outlives(candidate, held) && held.accessToken.isEmpty) {
-      candidate = await source.ask();
-    }
+    if (!_outlives(candidate, held)) candidate = await source.ask();
     if (!identical(_tokens, held) || candidate == null) return null;
     if (!_outlives(candidate, held)) return null;
     adopt(candidate);
@@ -219,11 +217,12 @@ class SessionStore {
     }
     // A web tab's stored hint has no token to take up: its cookie is already shared by every tab.
     final sameAccount = stored.userId == held.userId;
-    if (sameAccount &&
-        (stored.refreshToken.isEmpty ||
-            stored.refreshToken == held.refreshToken)) {
+    if (sameAccount && stored.refreshToken.isEmpty) {
+      // Another tab already spent this pair's legacy token into the cookie; sending it again reads as reuse.
+      if (held.carriesRefreshToken) adopt(held.withoutRefreshToken());
       return null;
     }
+    if (sameAccount && stored.refreshToken == held.refreshToken) return null;
     adopt(stored);
     return stored;
   }

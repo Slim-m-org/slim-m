@@ -185,9 +185,31 @@ void main() {
     });
   });
 
+  group('two tabs restored from the same pre-cookie pair', () {
+    test('the second never sends the spent legacy token in the body', () async {
+      final seen = <http.Request>[];
+      // Tab 1 already migrated: storage holds the hint, and no announcement reached this tab.
+      final session = SessionStore(
+        tokens: const TokenPair(
+          userId: 'user-1',
+          accessToken: 'dead',
+          refreshToken: 'legacy',
+          accessExpiresAt: 0,
+        ),
+        sync: _StoredSync(TokenPair.signedInHint('user-1')),
+      );
+      final api = _api(seen, (_) => _json(_noRefreshBody),
+          webSession: true, session: session);
+
+      await api.refresh();
+
+      expect(jsonDecode(seen.single.body), isNot(contains('refresh_token')));
+      expect(session.tokens?.accessToken, 'fresh-access');
+    });
+  });
+
   group('a shared stored hint', () {
-    test('does not replace the pair a tab still holds for a rotation',
-        () async {
+    test('blanks the legacy token a tab still holds, as it is spent', () async {
       final session = SessionStore(
         tokens: const TokenPair(
           userId: 'user-1',
@@ -199,7 +221,8 @@ void main() {
       );
 
       expect(await session.adoptStoredRotation(), isNull);
-      expect(session.tokens?.refreshToken, 'legacy');
+      expect(session.tokens?.refreshToken, isEmpty);
+      expect(session.tokens?.accessToken, 'old');
     });
 
     test('is taken up when another tab signed in as someone else', () async {

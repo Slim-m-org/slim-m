@@ -52,6 +52,9 @@ class _Peer implements PeerTokens {
   TokenPair? _newest;
   var asked = 0;
 
+  /// Stands in for an announcement that arrives while this tab is waiting.
+  Future<TokenPair?> Function()? lateAnswer;
+
   @override
   TokenPair? get newest => _newest;
 
@@ -65,6 +68,7 @@ class _Peer implements PeerTokens {
   @override
   Future<TokenPair?> ask() async {
     asked++;
+    if (lateAnswer case final late?) return late();
     for (final peer in _bus.where((p) => p != this)) {
       final held = peer.session.tokens;
       if (held != null && held.accessToken.isNotEmpty) return held;
@@ -138,10 +142,30 @@ void main() {
     final a = _tab(server, bus, access: 'access-0', expires: _farFuture - 1);
     final b = _tab(server, bus, access: 'stale', expires: _farFuture + 100000);
 
+    a.peer.lateAnswer = () async => null;
     await a.api.refresh();
     await b.api.refresh();
 
     expect(server.rotations, 2);
+  });
+
+  test(
+      'a tab whose live-looking token just failed waits for a late '
+      'announcement before rotating', () async {
+    final server = _Server();
+    final bus = <_Peer>[];
+    final a = _tab(server, bus, access: 'access-0', expires: _farFuture - 1);
+    final b = _tab(server, bus, access: 'access-0', expires: _farFuture - 1);
+    server.live = 'expired';
+    b.peer.lateAnswer = () async {
+      await a.api.refresh();
+      return a.api.session.tokens;
+    };
+
+    expect(await b.api.listChannels(), isEmpty);
+
+    expect(b.peer.asked, 1);
+    expect(server.rotations, 1, reason: 'only A rotated');
   });
 
   test('a tab with nobody to ask rotates for itself', () async {

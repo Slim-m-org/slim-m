@@ -50,6 +50,7 @@ TokenPair _pair(String access, {int? expires}) => TokenPair(
     held: () => store.tokens,
     onAnnounced: (pair) => store.takeUpPeerToken(pair),
     isActive: () => active,
+    anotherTabOpen: () async => true,
     wait: const Duration(milliseconds: 50),
   );
   store = SessionStore(tokens: held, peers: peers);
@@ -123,6 +124,75 @@ void main() {
     quiet.peers.announce(_pair('fresh'));
 
     expect(listening.store.tokens?.accessToken, 'old');
+  });
+
+  test('a refresh token smuggled into a message is dropped', () {
+    final line = _Line();
+    final b = _tab(line.second, _pair('old', expires: 1));
+
+    line.first.post(
+      '{"t":"token","user_id":"u1","access_token":"fresh",'
+      '"access_expires_at":$_soon,"refresh_token":"stolen"}',
+    );
+
+    expect(b.store.tokens?.accessToken, 'fresh');
+    expect(b.store.tokens?.carriesRefreshToken, isFalse);
+    expect(b.peers.newest?.carriesRefreshToken, isFalse);
+  });
+
+  test(
+    'asks and answers name the account, and another account is ignored',
+    () async {
+      final line = _Line();
+      final other = _tab(
+        line.first,
+        TokenPair(
+          userId: 'u2',
+          accessToken: 'theirs',
+          refreshToken: '',
+          accessExpiresAt: _soon,
+        ),
+      );
+      final mine = _tab(line.second, TokenPair.signedInHint('u1'));
+      final answers = <String>[];
+      final listening = line.second.messages.listen(answers.add);
+      addTearDown(listening.cancel);
+
+      expect(
+        await mine.peers.ask(),
+        isNull,
+        reason: 'u2 does not answer for u1',
+      );
+      expect(answers, isEmpty, reason: 'nothing was posted back at all');
+      other.peers.announce(
+        TokenPair(
+          userId: 'u2',
+          accessToken: 'theirs-2',
+          refreshToken: '',
+          accessExpiresAt: _soon,
+        ),
+      );
+      expect(mine.peers.newest, isNull);
+    },
+  );
+
+  test('a lone tab asks nobody and does not wait', () async {
+    final line = _Line();
+    final posted = <String>[];
+    final listening = line.second.messages.listen(posted.add);
+    addTearDown(listening.cancel);
+    final peers = TabPeerTokens(
+      line.first,
+      held: () => TokenPair.signedInHint('u1'),
+      onAnnounced: (_) {},
+      isActive: () => true,
+      anotherTabOpen: () async => false,
+      wait: const Duration(seconds: 30),
+    );
+    addTearDown(peers.dispose);
+
+    expect(await peers.ask(), isNull);
+    expect(posted, isEmpty);
   });
 
   test('a garbled message from another tab is ignored', () {

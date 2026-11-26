@@ -144,6 +144,26 @@ class TokenPair {
         accessExpiresAt: json['access_expires_at'] as int? ?? 0,
       );
 
+  /// The same session with its refresh token dropped, for one whose legacy token is known to be spent.
+  TokenPair withoutRefreshToken() => TokenPair(
+        userId: userId,
+        accessToken: accessToken,
+        refreshToken: '',
+        accessExpiresAt: accessExpiresAt,
+      );
+
+  /// A peer tab's announcement: the access fields only, whatever else the message carries.
+  factory TokenPair.fromAccessJson(Map<String, dynamic> json) => TokenPair(
+        userId: json['user_id'] as String,
+        accessToken: json['access_token'] as String? ?? '',
+        refreshToken: '',
+        accessExpiresAt: json['access_expires_at'] as int? ?? 0,
+      );
+
+  /// Whether [other] holds the very refresh token this pair does.
+  bool matchesRefreshToken(TokenPair other) =>
+      refreshToken.isNotEmpty && refreshToken == other.refreshToken;
+
   /// Whether this pair holds an access token to present.
   bool get hasAccessToken => accessToken.isNotEmpty;
 
