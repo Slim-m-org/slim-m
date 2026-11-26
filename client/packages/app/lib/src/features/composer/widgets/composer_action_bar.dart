@@ -120,6 +120,7 @@ class ComposerActionBar extends ConsumerWidget {
     // A line break grows the bar over a beat, earlier lines holding still.
     return ComposerShortcodes(
       controller: controller,
+      showPreview: false,
       child: LayoutBuilder(
         builder: (context, box) => _bar(
           context,

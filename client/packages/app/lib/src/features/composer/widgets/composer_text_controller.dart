@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The composer's text controller: typed spaces wrap onto the next line
-/// instead of hanging past the field's right edge.
+/// instead of hanging past the field's right edge, and custom emoji draw in place.
 library;
 
-import 'package:flutter/material.dart';
+import '../../emoji/widgets/inline_emoji_controller.dart';
 
 const _space = 0x20;
 const _noBreakSpace = 0xA0;
@@ -27,32 +27,13 @@ String wrappingSpaces(String text) {
   return String.fromCharCodes(units);
 }
 
-/// Draws [wrappingSpaces] while [text] and every offset stay what was typed.
-class ComposerTextController extends TextEditingController {
-  ComposerTextController({super.text});
+/// Draws [wrappingSpaces] and each completed custom `:name:` as its emoji, while [text] and every offset stay what was typed.
+class ComposerTextController extends InlineEmojiController {
+  ComposerTextController({super.text, Map<String, String> Function()? index})
+    : super(index: index ?? _noEmoji);
+
+  static Map<String, String> _noEmoji() => const {};
 
   @override
-  TextSpan buildTextSpan({
-    required BuildContext context,
-    TextStyle? style,
-    required bool withComposing,
-  }) {
-    final shown = wrappingSpaces(text);
-    final composing = value.composing;
-    if (!withComposing || !value.isComposingRangeValid) {
-      return TextSpan(style: style, text: shown);
-    }
-    const underline = TextStyle(decoration: TextDecoration.underline);
-    return TextSpan(
-      style: style,
-      children: [
-        TextSpan(text: shown.substring(0, composing.start)),
-        TextSpan(
-          style: style?.merge(underline) ?? underline,
-          text: shown.substring(composing.start, composing.end),
-        ),
-        TextSpan(text: shown.substring(composing.end)),
-      ],
-    );
-  }
+  String displayText(String typed) => wrappingSpaces(typed);
 }

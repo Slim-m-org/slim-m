@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/features/canvas/widgets/canvas_inline_emoji_controller.dart';
+import 'package:slimm_app/src/features/emoji/widgets/inline_emoji_controller.dart';
 import 'package:slimm_app/src/features/emoji/providers/emoji_catalog_provider.dart';
 import 'package:slimm_design_system/design_system.dart';
 

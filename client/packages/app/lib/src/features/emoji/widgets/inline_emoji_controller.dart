@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// A text controller that draws each completed custom `:name:` as its emoji, in place, while the text stays as typed.
 ///
+/// A subclass may restyle the plain text through [displayText], which must keep every offset.
+///
 /// The shortcode's first character becomes the emoji and the rest is kept at no size, so every offset in the
 /// field is still an offset in the text: the caret, a selection and a backspace all work on the real characters.
 library;
@@ -9,7 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart' show noteEmojiScale;
 
 import '../../composer/widgets/composer_shortcode_convert.dart';
-import '../../emoji/widgets/custom_emoji_image.dart';
+import 'custom_emoji_image.dart';
 
 /// The size the characters behind an emoji are drawn at: invisible, yet still characters in the line.
 const double _hiddenFontSize = 0.01;
@@ -19,6 +21,10 @@ class InlineEmojiController extends TextEditingController {
 
   /// The deployment's custom emoji, read at each paint so one that loads later still shows.
   final Map<String, String> Function() index;
+
+  /// The text as it is drawn: one code unit for each of the typed text's, so offsets are unchanged.
+  @protected
+  String displayText(String typed) => typed;
 
   /// Keeps the caret out of a shortcode's hidden characters and takes a backspace at its edge as one delete.
   @override
@@ -77,18 +83,18 @@ class InlineEmojiController extends TextEditingController {
       for (final range in customEmojiRangesIn(text, index()))
         if (!_overlaps(range, composing)) range,
     ];
+    final shown = displayText(text);
     if (ranges.isEmpty) {
-      return super.buildTextSpan(
-        context: context,
+      return TextSpan(
         style: style,
-        withComposing: withComposing,
+        children: _plain(shown, 0, shown.length, composing, style),
       );
     }
     final size = (style?.fontSize ?? 14) * noteEmojiScale;
     var at = 0;
     final children = <InlineSpan>[];
     for (final range in ranges) {
-      children.addAll(_plain(at, range.start, composing, style));
+      children.addAll(_plain(shown, at, range.start, composing, style));
       children
         ..add(
           WidgetSpan(
@@ -102,13 +108,13 @@ class InlineEmojiController extends TextEditingController {
         )
         ..add(
           TextSpan(
-            text: text.substring(range.start + 1, range.end),
+            text: shown.substring(range.start + 1, range.end),
             style: const TextStyle(fontSize: _hiddenFontSize),
           ),
         );
       at = range.end;
     }
-    children.addAll(_plain(at, text.length, composing, style));
+    children.addAll(_plain(shown, at, shown.length, composing, style));
     return TextSpan(style: style, children: children);
   }
 
@@ -122,6 +128,7 @@ class InlineEmojiController extends TextEditingController {
 
   /// The text from [from] to [to], with the part the keyboard is composing underlined as a field does.
   List<InlineSpan> _plain(
+    String shown,
     int from,
     int to,
     TextRange composing,
@@ -130,14 +137,14 @@ class InlineEmojiController extends TextEditingController {
     if (from >= to) return const [];
     final inStart = composing.isValid ? composing.start.clamp(from, to) : to;
     final inEnd = composing.isValid ? composing.end.clamp(from, to) : to;
-    if (inStart >= inEnd) return [TextSpan(text: text.substring(from, to))];
+    if (inStart >= inEnd) return [TextSpan(text: shown.substring(from, to))];
     return [
-      if (inStart > from) TextSpan(text: text.substring(from, inStart)),
+      if (inStart > from) TextSpan(text: shown.substring(from, inStart)),
       TextSpan(
-        text: text.substring(inStart, inEnd),
+        text: shown.substring(inStart, inEnd),
         style: const TextStyle(decoration: TextDecoration.underline),
       ),
-      if (inEnd < to) TextSpan(text: text.substring(inEnd, to)),
+      if (inEnd < to) TextSpan(text: shown.substring(inEnd, to)),
     ];
   }
 }

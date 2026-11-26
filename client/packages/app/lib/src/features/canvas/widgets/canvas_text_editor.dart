@@ -18,7 +18,7 @@ import '../providers/canvas_pen_style.dart';
 import '../providers/canvas_text_props.dart';
 import '../../composer/widgets/composer_shortcode_convert.dart';
 import '../../emoji/providers/emoji_catalog_provider.dart';
-import 'canvas_inline_emoji_controller.dart';
+import '../../emoji/widgets/inline_emoji_controller.dart';
 import 'canvas_selection_bar.dart';
 import 'canvas_text_content.dart';
 import 'canvas_text_style_options.dart';
