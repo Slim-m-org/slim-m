@@ -103,6 +103,7 @@ pub(crate) fn moves_permissions(event: &Event) -> bool {
         | Event::VoiceRemoved { .. }
         | Event::VoiceNotice { .. }
         | Event::SoundboardPlayed { .. }
+        | Event::TtsFailed { .. }
         // Internal to the module event consumer; it moves no permission.
         | Event::VoiceSessionClosed { .. } => false,
         Event::Stamped { event, .. } => moves_permissions(event),
@@ -145,6 +146,7 @@ pub(super) fn is_ephemeral(event: &Event) -> bool {
         | Event::WatchTick { .. }
         | Event::EphemeralMessage { .. }
         | Event::SoundboardPlayed { .. }
+        | Event::TtsFailed { .. }
         | Event::InteractionCreated { .. }
         | Event::InteractionAnswered { .. }
         | Event::ConnectorRun(_)

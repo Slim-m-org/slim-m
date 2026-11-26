@@ -211,7 +211,7 @@ async fn serve(config: config::Config, logging: &'static logging::Logging) -> an
     let dock = http::dock::Dock::new(&config);
     let code_runner = code_runner::CodeRunner::new(&config)?;
     let call_audio = call_audio::CallAudio::new(config.listener_settings()?);
-    let tts = tts::TtsService::of(&call_audio, voice.clone());
+    let tts = tts::TtsService::of(&call_audio, voice.clone(), hub.clone());
     let state = state::AppState {
         store,
         auth,

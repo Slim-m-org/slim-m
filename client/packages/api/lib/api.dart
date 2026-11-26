@@ -203,6 +203,7 @@ export 'src/events.dart'
         VoiceRemoved,
         VoiceRemovalReason,
         SoundboardPlayed,
+        TtsFailed,
         VoiceParticipantJoined,
         VoiceParticipantLeft,
         VoiceScreenShareChanged,

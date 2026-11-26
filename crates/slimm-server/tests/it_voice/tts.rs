@@ -26,6 +26,8 @@ use support::fake_sfu::{RecordingRoomService, spawn_sfu};
 struct Fake {
     spoken: Mutex<Vec<Dispatch>>,
     available: AtomicBool,
+    /// Makes every line fail once the speaker is asked to say it.
+    fail: AtomicBool,
     release: Semaphore,
     active: AtomicUsize,
     most_at_once: AtomicUsize,
@@ -36,6 +38,7 @@ impl Fake {
         Arc::new(Self {
             spoken: Mutex::default(),
             available: AtomicBool::new(true),
+            fail: AtomicBool::new(false),
             release: Semaphore::new(released),
             active: AtomicUsize::new(0),
             most_at_once: AtomicUsize::new(0),
@@ -68,7 +71,10 @@ impl Speaker for Handle {
             fake.spoken.lock().unwrap().push(dispatch);
             fake.release.acquire().await.unwrap().forget();
             fake.active.fetch_sub(1, Ordering::SeqCst);
-            Ok(())
+            match fake.fail.load(Ordering::SeqCst) {
+                true => Err(SpeakError::Failed),
+                false => Ok(()),
+            }
         })
     }
 }
@@ -76,6 +82,7 @@ impl Speaker for Handle {
 struct Rig {
     store: Store,
     router: Router,
+    state: AppState,
     room: RecordingRoomService,
     fake: Arc<Fake>,
     channel: String,
@@ -92,17 +99,21 @@ async fn rig_with(fake: Arc<Fake>, configured: bool) -> Rig {
     register_account(&store, "owner").await;
     let channel = store.create_channel("lounge", "voice").await.unwrap();
     let voice = VoiceService::for_test(&sfu, "key", "a-secret-at-least-32-chars-long!");
-    let tts = match configured {
-        true => TtsService::new(Arc::new(Handle(Arc::clone(&fake))), voice.clone(), None),
-        false => TtsService::disabled(),
-    };
-    let state: AppState = support::app::builder(store.clone())
-        .voice(voice)
-        .tts(tts)
+    let mut state: AppState = support::app::builder(store.clone())
+        .voice(voice.clone())
         .build();
+    if configured {
+        state.tts = TtsService::new(
+            Arc::new(Handle(Arc::clone(&fake))),
+            voice,
+            state.hub.clone(),
+            None,
+        );
+    }
     Rig {
         store,
-        router: http::router(state),
+        router: http::router(state.clone()),
+        state,
         room,
         fake,
         channel: channel.id.to_string(),
@@ -335,4 +346,45 @@ async fn a_speaker_who_left_the_call_before_their_turn_is_skipped() {
         vec!["first"],
         "bob left, so his line is dropped"
     );
+}
+
+#[tokio::test]
+async fn a_line_that_fails_after_it_was_accepted_tells_only_who_typed_it() {
+    let rig = rig().await;
+    rig.fake.fail.store(true, Ordering::SeqCst);
+    let alice = rig.caller("alice", true).await;
+    let bob = rig.caller("bob", true).await;
+    let addr = support::ws::serve(rig.state.clone()).await;
+    let mut sockets = Vec::new();
+    for account in [&alice, &bob] {
+        let ctx = rig
+            .store
+            .authenticate(&account.token)
+            .await
+            .unwrap()
+            .unwrap();
+        let (ticket, _) = rig.store.mint_ws_ticket(&ctx).await.unwrap();
+        sockets.push(support::ws::connect(addr, &ticket).await);
+    }
+    let mut bob_socket = sockets.pop().unwrap();
+    let mut alice_socket = sockets.pop().unwrap();
+    assert_eq!(rig.say(&alice, "hello").await.0, StatusCode::ACCEPTED);
+    let frame = support::ws::read_frame_of_type(&mut alice_socket, "tts.failed").await;
+    assert_eq!(frame["channel_id"], rig.channel);
+    support::ws::settle(&mut bob_socket).await;
+    support::ws::assert_no_frame_of_type(&mut bob_socket, "tts.failed").await;
+}
+
+#[tokio::test]
+async fn a_line_that_is_spoken_sends_no_failure() {
+    let rig = rig().await;
+    let alice = rig.caller("alice", true).await;
+    let addr = support::ws::serve(rig.state.clone()).await;
+    let ctx = rig.store.authenticate(&alice.token).await.unwrap().unwrap();
+    let (ticket, _) = rig.store.mint_ws_ticket(&ctx).await.unwrap();
+    let mut socket = support::ws::connect(addr, &ticket).await;
+    assert_eq!(rig.say(&alice, "hello").await.0, StatusCode::ACCEPTED);
+    assert_eq!(rig.spoken(1).await, vec!["hello"]);
+    support::ws::settle(&mut socket).await;
+    support::ws::assert_no_frame_of_type(&mut socket, "tts.failed").await;
 }

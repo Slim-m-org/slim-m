@@ -44,4 +44,13 @@ void main() {
     await expectLater(
         api.speakTts('c1', 'hi'), throwsA(isA<NotConfiguredException>()));
   });
+
+  test('a tts.failed frame parses, and one without a channel does not', () {
+    final event = ServerEvent.parse(
+        jsonEncode({'type': 'tts.failed', 'channel_id': 'c1'}));
+    expect(event, isA<TtsFailed>());
+    expect((event as TtsFailed).channelId, 'c1');
+    expect(ServerEvent.parse(jsonEncode({'type': 'tts.failed'})),
+        isNot(isA<TtsFailed>()));
+  });
 }

@@ -4,6 +4,7 @@
 /// refusal stays in the field with an inline reason.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -15,6 +16,7 @@ import 'package:slimm_app/src/features/composer/widgets/composer_autocomplete_it
 import 'package:slimm_app/src/features/composer/widgets/composer_autocomplete_query.dart';
 import 'package:slimm_app/src/features/composer/widgets/composer_tts_command.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
+import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
 import 'package:slimm_test_support/slimm_test_support.dart';
@@ -54,6 +56,7 @@ class _TextSends extends Sends {
 
 Future<(TextEditingController, _TextSends, List<String>)> _pump(
   WidgetTester tester, {
+  Stream<api.ServerEvent> events = const Stream.empty(),
   required bool inCall,
   required Future<http.Response> Function(http.Request) answer,
 }) async {
@@ -73,6 +76,7 @@ Future<(TextEditingController, _TextSends, List<String>)> _pump(
         return answer(request);
       }, session: ref.watch(sessionProvider)),
       extraOverrides: [
+        liveEventsProvider.overrideWithValue(events),
         voiceControllerProvider.overrideWith(
           (ref) => FixedVoiceController(
             ref,
@@ -207,5 +211,24 @@ void main() {
     expect(controller.text, '/tts ');
     expect(sends.count, 0);
     expect(log, isEmpty);
+  });
+
+  testWidgets('a line that failed after it was accepted says so, only here', (
+    tester,
+  ) async {
+    final events = StreamController<api.ServerEvent>.broadcast();
+    addTearDown(events.close);
+    await _pump(
+      tester,
+      inCall: true,
+      events: events.stream,
+      answer: (_) async => _json(202, {'ahead': 0}),
+    );
+    events.add(const api.TtsFailed(channelId: 'c2'));
+    await pumpFrames(tester);
+    expect(find.text("Couldn't speak that line."), findsNothing);
+    events.add(const api.TtsFailed(channelId: 'c1'));
+    await pumpFrames(tester);
+    expect(find.text("Couldn't speak that line."), findsOneWidget);
   });
 }

@@ -23785,6 +23785,7 @@ components:
         - $ref: "#/components/schemas/VoiceRemoved"
         - $ref: "#/components/schemas/VoiceNotice"
         - $ref: "#/components/schemas/SoundboardPlayed"
+        - $ref: "#/components/schemas/TtsFailed"
         - $ref: "#/components/schemas/ServerPong"
         - $ref: "#/components/schemas/ServerError"
     CanvasObjectPlaced:
@@ -25627,6 +25628,23 @@ components:
           type: string
           format: uuid
         player_id:
+          type: string
+          format: uuid
+
+    TtsFailed:
+      type: object
+      required: [type, channel_id]
+      description: >
+        A line the account asked `/tts` to speak was accepted with 202 and then
+        could not be spoken: synthesis failed, the room refused the speaker, or
+        the voice went away. Delivered only to the connections of the account
+        that typed it, never persisted, with no catch-up. The client says so in
+        the composer.
+      properties:
+        type:
+          type: string
+          enum: [tts.failed]
+        channel_id:
           type: string
           format: uuid
 

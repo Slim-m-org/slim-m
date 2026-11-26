@@ -85,7 +85,10 @@ The five-second refill is longer than the soundboard's three seconds because a l
 
 A line whose speaker has left the call by its turn is dropped, so a queue never speaks for someone who is gone.
 A listener that cannot be reached or has no voice marks speech unavailable for 30 seconds; the next line is then refused at once with 501 instead of waiting out a timeout.
-Failures after a line was accepted (the room refused, synthesis failed) are logged on the server and nothing is spoken; the text still reaches the chat.
+A failure after a line was accepted (synthesis failed, the room refused the speaker, the voice went away, a token could not be minted) is logged and told to the person who typed it, and only them: the server publishes a private, ephemeral `tts.failed` event with the channel id, the same shape as `soundboard.played` but addressed to one account, never persisted and with no catch-up.
+The client shows "Couldn't speak that line." in the composer's inline error band of that channel.
+The text still reaches the chat, because the client posts it as soon as the route accepted the line.
+A speaker who left the call before their turn is dropped without a notice, since they are no longer there to read it.
 
 ## Permissions and the guards
 
@@ -130,15 +133,17 @@ The cost is that a client which dies between the two calls speaks a line that is
   Declined.
 - **Under the invoker's own identity.**
   Not possible, as above.
-- **A new client-visible event for "speaking" and failures.**
-  A private websocket frame per line would add a frame type, a hub event and a client handler for what the participant tile already shows.
-  Left out; it can be added if failures after acceptance prove common.
+- **A client-visible event for "speaking".**
+  The participant tile already shows that, so only the failure case has an event.
 
 ## Consequences
 
 - The listener image grows by about 52 MB and its first start downloads 63 MB more.
   A deployment without the listener is unchanged.
 - The server image is unchanged.
+- Rollout: `main-builds.yml` builds the listener image on a change under `crates/slimm-listener/` or `docker/listener*` and pushes `:latest` (amd64 only), and the live listener container carries the Watchtower label, so the 5-minute poll replaces it by itself.
+  The compose file needs nothing new: the image's own `PIPER_*` defaults apply, the voice lands in the existing `listener_models` volume at `/models`, and the container's 1.5 GB limit and 4 CPUs already cover Piper's extra 200 MB.
+  The first start after the update downloads the 63 MB voice from Hugging Face, so the host needs outbound HTTPS, as it already does for the speech model.
 - A call briefly shows a participant the server's roster does not list.
   The client's roster-gap check only looks for people the server lists and the call does not show, so an extra participant is harmless to it.
   The speech tile's menu offers the volume and mute-for-me controls like any voice, and no profile actions, because the identity is not a member.
@@ -148,4 +153,3 @@ The cost is that a client which dies between the two calls speaks a line that is
 
 - Per-person voice choice, and more than one voice per deployment.
 - Speaking in languages other than the voice's.
-- Showing a failure after acceptance to the person who typed it.

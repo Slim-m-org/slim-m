@@ -17,6 +17,7 @@ use std::time::{Duration, Instant};
 pub use self::listener::ListenerSpeaker;
 use self::queue::{Queues, Taken};
 use crate::call_audio::CallAudio;
+use crate::hub::{Event, Hub};
 use crate::ids::{ChannelId, UserId};
 use crate::voice::{Listing, VoiceService};
 
@@ -79,6 +80,7 @@ pub enum Refusal {
 struct Inner {
     speaker: Arc<dyn Speaker>,
     voice: VoiceService,
+    hub: Hub,
     livekit_url: Option<String>,
     queues: Mutex<Queues>,
     checked: Mutex<Option<(Instant, bool)>>,
@@ -96,9 +98,9 @@ impl TtsService {
     }
 
     /// Speech through the listener when one is configured.
-    pub fn of(call_audio: &CallAudio, voice: VoiceService) -> Self {
+    pub fn of(call_audio: &CallAudio, voice: VoiceService, hub: Hub) -> Self {
         match ListenerSpeaker::of(call_audio) {
-            Some(speaker) => Self::new(Arc::new(speaker), voice, call_audio.livekit_url()),
+            Some(speaker) => Self::new(Arc::new(speaker), voice, hub, call_audio.livekit_url()),
             None => Self::disabled(),
         }
     }
@@ -106,12 +108,14 @@ impl TtsService {
     pub fn new(
         speaker: Arc<dyn Speaker>,
         voice: VoiceService,
+        hub: Hub,
         livekit_url: Option<String>,
     ) -> Self {
         Self {
             inner: Some(Arc::new(Inner {
                 speaker,
                 voice,
+                hub,
                 livekit_url,
                 queues: Mutex::default(),
                 checked: Mutex::default(),
@@ -172,6 +176,7 @@ impl Inner {
             Ok(token) => token,
             Err(err) => {
                 tracing::warn!(?err, "could not mint a speech token");
+                self.tell_failed(line);
                 return;
             }
         };
@@ -180,11 +185,22 @@ impl Inner {
             token: token.token,
             text: line.text.clone(),
         };
-        match self.speaker.speak(dispatch).await {
-            Ok(()) => {}
-            Err(SpeakError::Unavailable) => *lock(&self.checked) = None,
-            Err(err) => tracing::warn!(?err, channel = %line.channel_id, "a line was not spoken"),
+        let Err(err) = self.speaker.speak(dispatch).await else {
+            return;
+        };
+        if err == SpeakError::Unavailable {
+            *lock(&self.checked) = None;
         }
+        tracing::warn!(?err, channel = %line.channel_id, "a line was not spoken");
+        self.tell_failed(line);
+    }
+
+    /// Tells the person who typed `line`, and no one else, that it was not spoken.
+    fn tell_failed(&self, line: &Line) {
+        self.hub.publish(Event::TtsFailed {
+            user_id: line.user_id,
+            channel_id: line.channel_id,
+        });
     }
 }
 
