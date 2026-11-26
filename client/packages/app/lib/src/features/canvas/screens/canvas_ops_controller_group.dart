@@ -75,7 +75,7 @@ extension CanvasOpsControllerGroup on CanvasOpsController {
     final redone = <_MoveStep>[];
     final remaining = <_MoveStep>[];
     for (final step in steps) {
-      _entryGone = false;
+      _history.clearGone();
       final before = await _moveTo(
         step.objectId,
         step.x,
@@ -85,14 +85,14 @@ extension CanvasOpsControllerGroup on CanvasOpsController {
         'undone',
       );
       if (before == null) {
-        if (!_entryGone) remaining.add(step);
+        if (!_history.entryGone) remaining.add(step);
       } else {
         redone.add(
           _MoveStep(step.objectId, before.x, before.y, before.w, before.h),
         );
       }
     }
-    _entryGone = false;
+    _history.clearGone();
     // A retry only repeats the steps that did not land.
     steps
       ..clear()
@@ -105,7 +105,7 @@ extension CanvasOpsControllerGroup on CanvasOpsController {
     final undone = <_MoveStep>[];
     final remaining = <_MoveStep>[];
     for (final step in steps) {
-      _entryGone = false;
+      _history.clearGone();
       final before = await _moveTo(
         step.objectId,
         step.x,
@@ -115,19 +115,19 @@ extension CanvasOpsControllerGroup on CanvasOpsController {
         'redone',
       );
       if (before == null) {
-        if (!_entryGone) remaining.add(step);
+        if (!_history.entryGone) remaining.add(step);
       } else {
         undone.add(
           _MoveStep(step.objectId, before.x, before.y, before.w, before.h),
         );
       }
     }
-    _entryGone = false;
+    _history.clearGone();
     steps
       ..clear()
       ..addAll(remaining);
     if (remaining.isEmpty && undone.isEmpty) {
-      _entryGone = true;
+      _history.markGone();
       return null;
     }
     return remaining.isEmpty ? _MoveGroupEntry(undone) : null;

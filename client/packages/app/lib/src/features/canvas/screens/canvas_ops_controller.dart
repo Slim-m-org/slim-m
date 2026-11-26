@@ -8,7 +8,6 @@
 library;
 
 import 'dart:async';
-import 'dart:collection';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
@@ -18,6 +17,7 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../../ids.dart';
 import 'canvas_commit_queue.dart';
+import 'canvas_history.dart';
 import '../widgets/canvas_note_sizing.dart';
 import 'canvas_object_op_chain.dart';
 import '../providers/canvas_object_inputs.dart';
@@ -50,12 +50,6 @@ part 'canvas_ops_controller_erase.dart';
 
 /// Delete, which is always for good, and the undo that places its rows again.
 part 'canvas_ops_controller_purge.dart';
-
-/// How many gestures [CanvasOpsController] can reverse. About the product,
-/// not the memory: a deeper stack that dies on pane close is a promise the
-/// UI cannot keep.
-@visibleForTesting
-const int undoStackDepth = 32;
 
 /// How far apart the eraser tests along a sweep, under a thin stroke's reach.
 const double _sweepStepPx = 4;
@@ -134,7 +128,6 @@ class CanvasOpsController {
   });
 
   bool _disposed = false;
-  bool _historyBusy = false;
 
   /// How the board lays a note's text out, so a note grows to the room its rendered Markdown takes.
   NoteSpanBuilder? noteSpans;
@@ -166,19 +159,16 @@ class CanvasOpsController {
     if (error is api.TransportException) unawaited(onUnknownOutcome?.call());
   }
 
-  /// Set when a history step found its object deleted elsewhere, so the entry is dropped rather than retried.
-  bool _entryGone = false;
-
   /// A history step whose object is missing here, with nothing to send, drops its entry.
   Null _gone() {
-    if (_historyBusy) _entryGone = true;
+    _history.markGone();
     return null;
   }
 
   /// A history step on an object the server no longer has is skipped quietly; any other failure is reported.
   void _reportHistoryFailure(api.ApiException error, String message) {
-    if (_historyBusy && error is api.NotFoundException) {
-      _entryGone = true;
+    if (error is api.NotFoundException && _history.isBusy) {
+      _history.markGone();
     } else {
       onError(message);
     }
@@ -207,17 +197,23 @@ class CanvasOpsController {
   /// Called for an object this controller placed again, so its bitmap is fetched.
   final void Function(api.CanvasObject object)? onObjectPlaced;
 
-  final Queue<_UndoEntry> _undoStack = Queue<_UndoEntry>();
-  final Queue<_RedoEntry> _redoStack = Queue<_RedoEntry>();
-
-  // Bumped by every fresh edit so an undo still in flight cannot refill a redo stack the edit just cleared.
-  int _editEpoch = 0;
+  late final CanvasHistory<_UndoEntry, _RedoEntry> _history = CanvasHistory(
+    CanvasHistoryHost(
+      undoStep: _undoStep,
+      redoStep: _redoStep,
+      isSkipped: (redo) => redo is _Skipped,
+      isNoRedo: (redo) => redo is _NoRedo,
+      isNoUndo: (undo) => undo is _NoUndo,
+      isDisposed: () => _disposed,
+      onError: (message) => onError(message),
+    ),
+  );
   final Set<String> _dragBatch = <String>{};
   _DragState? _drag;
   _ResizeState? _resize;
 
-  bool get canUndo => _undoStack.isNotEmpty;
-  bool get canRedo => _redoStack.isNotEmpty;
+  bool get canUndo => _history.canUndo;
+  bool get canRedo => _history.canRedo;
 
   /// Records a just-drawn gesture's object ids so [undo] can reverse it as
   /// one unit, matching what one continuous stroke split into.
@@ -269,30 +265,7 @@ class CanvasOpsController {
   }
 
   /// Reverses the most recent drawn or erased gesture and makes it available to [redo]; an entry leaves the stack only once its reversal succeeded.
-  Future<void> undo() async {
-    if (_historyBusy) return;
-    _historyBusy = true;
-    try {
-      var skipped = 0;
-      while (_undoStack.isNotEmpty && !_disposed) {
-        final epoch = _editEpoch;
-        final entry = _undoStack.last;
-        _entryGone = false;
-        final redo = await _undoStep(entry);
-        if (redo == null && !_entryGone) return;
-        _undoStack.remove(entry);
-        if (redo == null || redo is _Skipped) {
-          skipped++;
-          continue;
-        }
-        if (redo is! _NoRedo && epoch == _editEpoch) _pushRedo(redo);
-        return;
-      }
-      if (skipped > 0) onError('Nothing left to undo is still on the board.');
-    } finally {
-      _historyBusy = false;
-    }
-  }
+  Future<void> undo() => _history.undo();
 
   Future<_RedoEntry?> _undoStep(_UndoEntry entry) => switch (entry) {
     _DrawEntry(:final objectIds) => _undoDraw(objectIds),
@@ -327,38 +300,9 @@ class CanvasOpsController {
     _NoUndo() => Future.value(const _NoRedo()),
   };
 
-  void _pushRedo(_RedoEntry redo) {
-    _redoStack.addLast(redo);
-    while (_redoStack.length > undoStackDepth) {
-      _redoStack.removeFirst();
-    }
-  }
-
   /// Re-applies the most recently undone gesture, or does nothing if there
   /// is none. Any fresh edit since the undo has already dropped it.
-  Future<void> redo() async {
-    if (_historyBusy || _redoStack.isEmpty) return;
-    _historyBusy = true;
-    var dropped = 0;
-    try {
-      while (_redoStack.isNotEmpty && !_disposed) {
-        final entry = _redoStack.last;
-        _entryGone = false;
-        final undoEntry = await _redoStep(entry);
-        if (undoEntry == null && !_entryGone) return;
-        _redoStack.remove(entry);
-        if (undoEntry == null) {
-          dropped++;
-          continue;
-        }
-        if (undoEntry is! _NoUndo) _pushUndo(undoEntry, keepRedo: true);
-        return;
-      }
-      if (dropped > 0) onError('Nothing left to redo is still on the board.');
-    } finally {
-      _historyBusy = false;
-    }
-  }
+  Future<void> redo() => _history.redo();
 
   Future<_UndoEntry?> _redoStep(_RedoEntry entry) => switch (entry) {
     _RedoRestore(:final opIds, :final objectIds) => _redoRestore(
@@ -514,14 +458,6 @@ class CanvasOpsController {
     }
   }
 
-  void _pushUndo(_UndoEntry entry, {bool keepRedo = false}) {
-    if (!keepRedo) {
-      _editEpoch++;
-      _redoStack.clear();
-    }
-    _undoStack.addLast(entry);
-    while (_undoStack.length > undoStackDepth) {
-      _undoStack.removeFirst();
-    }
-  }
+  void _pushUndo(_UndoEntry entry, {bool keepRedo = false}) =>
+      _history.pushUndo(entry, keepRedo: keepRedo);
 }
