@@ -232,6 +232,15 @@ mod tests {
     }
 
     #[test]
+    fn an_avif_loses_its_position_the_same_way() {
+        let avif = include_bytes!("../../../tests/fixtures/tiny_gps.avif");
+        assert!(has(avif, &GPS));
+        let out = strip(avif, Metadata::RemoveLocation).unwrap();
+        assert_eq!(out.len(), avif.len());
+        assert!(!has(&out, &GPS));
+    }
+
+    #[test]
     fn a_truncated_file_does_not_panic() {
         for len in (0..SOURCE.len()).step_by(7) {
             let _ = strip(&SOURCE[..len], Metadata::RemoveAll);

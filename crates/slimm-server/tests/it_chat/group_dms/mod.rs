@@ -12,3 +12,4 @@ mod limits;
 mod live;
 mod membership;
 mod rig;
+mod timeout_guard;

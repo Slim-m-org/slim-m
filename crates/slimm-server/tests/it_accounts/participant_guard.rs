@@ -111,3 +111,21 @@ async fn a_timed_out_manager_cannot_mint_a_bot_token() {
     let (status, _) = t.call("POST", &revoke, &token, None).await;
     assert_eq!(status, StatusCode::NO_CONTENT, "revoking a bot stays open");
 }
+
+#[tokio::test]
+async fn a_timed_out_member_cannot_add_a_transcript_mark_or_note() {
+    let t = TestApp::start("slimm-guard-marks").await;
+    let token = t.member.token.clone();
+    let uri = format!(
+        "/voice/transcripts/{}/marks/{}",
+        uuid::Uuid::now_v7(),
+        uuid::Uuid::now_v7()
+    );
+    let note = json!({ "kind": "note", "text": "look here" });
+    let (status, _) = t.call("PUT", &uri, &token, Some(note.clone())).await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "no such transcript");
+
+    time_out(&t, t.member.id).await;
+    let (status, refused) = t.call("PUT", &uri, &token, Some(note)).await;
+    assert_timed_out(status, &refused, "a note");
+}

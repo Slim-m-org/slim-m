@@ -39,6 +39,27 @@ void main() {
     },
   );
 
+  test('a timeout says how long is left and why', () async {
+    final failure = await runGuarded(
+      whatFailed: 'open a conversation with Bo',
+      action: () async => throw api.ForbiddenException(
+        'timed out',
+        code: api.ForbiddenException.timedOutCode,
+        timedOutUntil: DateTime.now()
+            .add(const Duration(hours: 2, minutes: 30))
+            .millisecondsSinceEpoch,
+        timeoutReason: 'cool off',
+      ),
+    );
+    expect(
+      failure,
+      startsWith(
+        'Could not open a conversation with Bo: you are timed out for another',
+      ),
+    );
+    expect(failure, endsWith('Reason: cool off.'));
+  });
+
   test('a transport failure never leaks the exception string', () async {
     final failure = await runGuarded(
       whatFailed: 'revoke the invite',
