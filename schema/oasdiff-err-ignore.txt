@@ -58,3 +58,7 @@ POST /channels/{channelId}/voice/room added the new `canvas` enum value to the `
 GET /roles/{roleId}/preview added the new `canvas` enum value to the `channels/items/kind` response property for the response status `200`
 GET /version added the new `canvas_export` enum value to the `capabilities/items/` response property for the response status `200`
 GET /version added the new `canvas_viewers` enum value to the `capabilities/items/` response property for the response status `200`
+POST /auth/login the response property `refresh_token` became optional for the status `200`
+POST /auth/refresh the response property `refresh_token` became optional for the status `200`
+POST /auth/register the response property `refresh_token` became optional for the status `200`
+POST /auth/totp/verify the response property `refresh_token` became optional for the status `200`

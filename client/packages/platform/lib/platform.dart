@@ -21,6 +21,7 @@ export 'src/safe_file_name.dart' show safeFileName;
 export 'src/clipboard_image_writer.dart';
 export 'src/browser_attention.dart';
 export 'src/cross_tab.dart';
+export 'src/tab_channel.dart';
 export 'src/device_name.dart';
 export 'src/device_push_keys.dart';
 export 'src/fcm_token_channel.dart';

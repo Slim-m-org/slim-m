@@ -48,6 +48,12 @@ const uploadAnswerDeadline = Duration(minutes: 10);
 /// Methods a repeat cannot double up: a POST might already have landed.
 const _replayable = {'GET', 'HEAD', 'PUT', 'DELETE'};
 
+/// Set to `cookie` by a web client whose refresh token lives in an HttpOnly cookie.
+const _webSessionHeader = 'x-slimm-web-session';
+
+/// Names the account whose cookie a web client's refresh reads.
+const _webAccountHeader = 'x-slimm-account';
+
 extension SlimmApiTransport on SlimmApi {
   Future<Object?> send(
     String method,
@@ -166,6 +172,7 @@ extension SlimmApiTransport on SlimmApi {
     required bool authenticated,
   }) {
     final request = http.Request(method, uri)..followRedirects = !unvouched;
+    if (webSession) _nameCookieFlow(request);
     if (bytes != null) {
       // An upload (an attachment or an avatar): the request body is the raw
       // bytes, never JSON, though the response below still is.
@@ -183,6 +190,15 @@ extension SlimmApiTransport on SlimmApi {
       request.headers['authorization'] = 'Bearer $token';
     }
     return request;
+  }
+
+  /// Tells the server this tab is on the cookie flow, and which account's cookie a refresh reads.
+  void _nameCookieFlow(http.Request request) {
+    request.headers[_webSessionHeader] = 'cookie';
+    if (request.url.path != '/auth/refresh') return;
+    if (session.tokens?.userId case final account?) {
+      request.headers[_webAccountHeader] = account;
+    }
   }
 
   bool _isSuccess(http.Response response, bool expectNoContent) {

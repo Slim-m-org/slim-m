@@ -37,6 +37,10 @@ import '../widgets/channel_attachment_drop_zone.dart';
 import '../widgets/channel_header.dart';
 import '../../composer/widgets/composer_attachments.dart' show StagedSend;
 import '../../composer/widgets/composer_text_controller.dart';
+import '../../composer/widgets/composer_shortcode_convert.dart'
+    show canonicalCustomEmojiText;
+import '../../emoji/providers/emoji_catalog_provider.dart'
+    show customEmojiIndexProvider;
 import 'channel_composer_area.dart';
 import 'channel_draft_saver.dart';
 import 'channel_read_marker.dart';
@@ -97,7 +101,9 @@ class ChannelScreen extends ConsumerStatefulWidget {
 
 class _ChannelScreenState extends ConsumerState<ChannelScreen>
     implements ArrivalReader {
-  final _composer = ComposerTextController();
+  late final _composer = ComposerTextController(
+    index: () => ref.read(customEmojiIndexProvider),
+  );
 
   /// The message the next send will reply to, if any. Cleared by sending,
   /// by an explicit cancel, and by switching channels - a reply is scoped to
@@ -220,6 +226,10 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen>
   Future<void> _send(StagedSend attachments) async {
     final attachmentIds = attachments.ids;
     final text = _composer.text.trim();
+    final sent = canonicalCustomEmojiText(
+      text,
+      ref.read(customEmojiIndexProvider),
+    );
     // A staged file is a message on its own, so only a send carrying neither
     // text nor attachment is the one to drop.
     if (text.isEmpty && attachmentIds.isEmpty) return;
@@ -241,7 +251,7 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen>
       id: newMessageId(),
       channelId: widget.channelId,
       authorId: container.read(sessionProvider).tokens?.userId ?? '',
-      content: text,
+      content: sent,
       attachmentIds: attachmentIds,
       spoilerIds: attachments.spoilerIds,
       replyToId: replyToId,

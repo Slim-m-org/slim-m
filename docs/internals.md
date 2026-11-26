@@ -295,11 +295,11 @@ The class is still `ThisDeviceOnly`, so nothing rides into iCloud or a backup.
 macOS and Windows used to sit on that same file, back when this reasoning was written for "desktop" as a whole rather than for Linux specifically.
 Both ship a real OS-backed keychain with the same always-present guarantee as the phone platforms, so there is no longer a reason to leave them on the weaker fallback; [migrateLegacyFileSecretsIfNeeded] is the one-time move for an install that already has secrets sitting in that file from before this change.
 
-The web build does use flutter_secure_storage, because its browser backend is the only storage a browser has: values are AES-GCM encrypted under a key that itself lives in `localStorage`, so this is obfuscation against a casual look, not secrecy against script running on the same origin.
-It is also refused outright outside a secure context, so a plain-http LAN server gets no persisted session at all.
-The web client is served at `/app` by real deployments, so this is a shipped weakness, not a test-harness detail: one script injection on the origin yields the 30-day refresh token, not only a 15-minute access token.
-The CSP (`script-src 'self' 'wasm-unsafe-eval'`) is what makes that injection hard.
-Decision 0141 sets out the options for moving the refresh token out of script's reach and is waiting for the owner.
+The web build still uses flutter_secure_storage for the local database key and the account list, but not for the session: values there are AES-GCM encrypted under a key that itself lives in `localStorage`, so that is obfuscation against a casual look, not secrecy against script running on the same origin.
+The web client's refresh token therefore never reaches it.
+The server sets the token as an HttpOnly, Secure, SameSite=Strict `__Host-` cookie, the access token stays in memory, and storage holds only the public account id (decision 0141).
+One script injection on the origin can then use the 15-minute access token the tab holds, but cannot read the 30-day refresh token.
+A plain-http LAN address or a server on another origin cannot use the cookie, so there a tab keeps nothing and a reload signs in again.
 
 ## Voice call generations
 

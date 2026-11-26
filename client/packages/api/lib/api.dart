@@ -111,7 +111,7 @@ export 'src/client.dart'
         SlimmApiVoiceRooms,
         SlimmApiWatchSession,
         SlimmApiWebhooks;
-export 'src/session_store.dart' show SessionStore, SessionSync;
+export 'src/session_store.dart' show PeerTokens, SessionStore, SessionSync;
 export 'src/connection_test.dart';
 export 'src/windows_roots.dart';
 export 'src/upload_source.dart';
