@@ -18,7 +18,7 @@ const MIN_ROUTES: usize = 200;
 /// Routes that need no guard, grouped by the one reason each group shares.
 const EXEMPT: &[(&str, &[&str])] = &[
     (
-        "Own account, device and preference self-service that only the caller, or a moderator reading a report, ever sees",
+        "Own account, device and preference self-service that only the caller, or a moderator reading a report, ever sees; a speed test only measures the caller's own link and stores nothing",
         &[
             "POST /auth/ws-ticket",
             "POST /auth/logout",
@@ -76,6 +76,7 @@ const EXEMPT: &[(&str, &[&str])] = &[
             "POST /me/links/discord/complete",
             "DELETE /me/links/discord",
             "POST /space/rules/accept",
+            "POST /diagnostics/upload",
         ],
     ),
     (
@@ -98,7 +99,7 @@ const EXEMPT: &[(&str, &[&str])] = &[
         ],
     ),
     (
-        "Content checked against SEND_MESSAGES, ATTACH_FILES, ADD_REACTIONS, CONNECT or SPEAK, which both holds subtract",
+        "Content checked against SEND_MESSAGES, ATTACH_FILES, ADD_REACTIONS, CONNECT or SPEAK, which both holds subtract; a group DM rename reads SEND_MESSAGES, and the call-audio and transcript requests read CONNECT, in the same call",
         &[
             "POST /channels/{channel_id}/messages",
             "PATCH /channels/{channel_id}/messages/{message_id}",
@@ -122,6 +123,10 @@ const EXEMPT: &[(&str, &[&str])] = &[
             "POST /channels/{channel_id}/voice/room",
             "POST /channels/{channel_id}/voice/soundboard/{clip_id}/play",
             "POST /channels/{channel_id}/module-rooms/{module_id}/inputs",
+            "PATCH /dms/groups/{channel_id}",
+            "POST /channels/{channel_id}/voice/call-audio",
+            "PUT /channels/{channel_id}/voice/call-audio/consent",
+            "POST /channels/{channel_id}/voice/transcript",
         ],
     ),
     (
@@ -243,23 +248,13 @@ const EXEMPT: &[(&str, &[&str])] = &[
         &["POST /invites/{code}/redeem"],
     ),
     (
-        "Not yet decided: each needs its own policy and is left to a later change",
+        "Acting as something other than a member, or only inside a call the caller already holds: a connector answers a run a member started under the guard, and only that run's own waiting member sees the answer; a bot drives a watch session only while its call heartbeat, which CONNECT gates, is live; a viewer reports only its own player on a call it is on; a room's owner is checked against the timeout in the handler and anyone else needs MANAGE_CHANNELS",
         &[
             "POST /connectors/me/runs/{runId}",
-            "PUT /channels/{channelId}/watch-session/viewing",
-            "POST /channels/{channelId}/watch-session/tick",
             "PUT /channels/{channelId}/watch-session",
-            "POST /dms/{user_id}",
-            "POST /dms/groups",
-            "PATCH /dms/groups/{channel_id}",
-            "DELETE /dms/groups/{channel_id}",
-            "POST /dms/groups/{channel_id}/members",
+            "POST /channels/{channelId}/watch-session/tick",
+            "PUT /channels/{channelId}/watch-session/viewing",
             "PATCH /channels/{channel_id}/room",
-            "POST /diagnostics/upload",
-            "POST /channels/{channel_id}/voice/call-audio",
-            "PUT /channels/{channel_id}/voice/call-audio/consent",
-            "POST /channels/{channel_id}/voice/transcript",
-            "PUT /voice/transcripts/{transcript_id}/marks/{mark_id}",
         ],
     ),
 ];
