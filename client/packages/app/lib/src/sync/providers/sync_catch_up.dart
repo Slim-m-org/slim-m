@@ -14,6 +14,7 @@ import '../../features/messages/providers/message_extras.dart';
 import '../../features/messages/providers/message_ops_sync.dart';
 import '../../features/messages/providers/retention_policy.dart';
 import '../../providers/rate_limit_retry.dart';
+import 'unlisted_thread_catch_up.dart';
 
 /// Cursors per `/sync` request, under the server's 200-scope ceiling.
 const syncScopeChunk = 150;
@@ -42,6 +43,10 @@ class SyncCatchUp {
 
   final _held = <String, Message>{};
   final _batches = StreamController<List<Message>>.broadcast();
+  final _threads = UnlistedThreadCatchUp();
+
+  /// A live frame for a thread this device holds no row for, so a reconnect can ask what followed it.
+  void noteUnlistedThread(Message message) => _threads.noteLive(message);
 
   /// Messages a reconnect's catch-up stored, which no live frame announced.
   Stream<List<Message>> get reconnectBatches => _batches.stream;
@@ -86,11 +91,33 @@ class SyncCatchUp {
       if (!_isCurrent(generation)) return;
       if (first) onFirstRound?.call();
       first = false;
-      if (behind.isEmpty || (shouldStop?.call() ?? false)) return;
+      if (behind.isEmpty || (shouldStop?.call() ?? false)) {
+        await _holdMissedThreadMessages(generation, api);
+        return;
+      }
       only = behind;
       // Next tick rather than straight through, so a long backlog does not block the first paint.
       await Future<void>.delayed(Duration.zero);
       if (!_isCurrent(generation)) return;
+    }
+  }
+
+  /// Holds what the tracked threads missed, for the alerts a reconnect raises.
+  /// A failure keeps their cursors, so the next catch-up asks again.
+  Future<void> _holdMissedThreadMessages(int generation, SlimmApi api) async {
+    try {
+      final missed = await _threads.missed(api);
+      if (!_isCurrent(generation)) return;
+      for (final message in missed) {
+        _held[message.id] = message;
+      }
+    } on ApiException catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.sync,
+        'Could not catch up threads after a reconnect; asking again next time',
+        error,
+        stack,
+      );
     }
   }
 

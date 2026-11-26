@@ -50,6 +50,7 @@ import 'desktop_message_text_settings.dart';
 import 'desktop_notification_text.dart';
 import '../../providers/app_lifecycle.dart';
 import '../../providers/live_events.dart';
+import '../../features/channels/providers/mounted_channels.dart';
 import '../../features/members/providers/member_presence.dart'
     show memberProfileOverridesProvider, membersProvider;
 import '../../features/members/providers/mention_names.dart'
@@ -118,13 +119,24 @@ class _DesktopMessageNotifier {
 
   Future<void> _onMessageCreated(api.Message message) async {
     // Skip while focused: a foreground app shows unread in the rail already, but only for the account on screen.
-    if (_watching) return;
+    if (_watching && !await _mayBeUnseenThread(message.channelId)) return;
 
     final alert = await _ref.read(messageAlertPolicyProvider).evaluate(message);
     if (alert == null || disposed) return;
+    // A thread has no rail row, so a focused window only has it on screen while its panel is open.
+    if (_watching && !alert.isThread) return;
     final text = await _textFor(message, isDm: alert.isDm);
     if (disposed) return;
     _present(text, message.channelId, mentionsSelf: alert.mentionsSelf);
+  }
+
+  /// Whether [channelId] may be a thread whose panel is closed, so nothing on screen shows its reply.
+  Future<bool> _mayBeUnseenThread(String channelId) async {
+    if (_ref.read(mountedChannelsProvider).isOpen(channelId)) return false;
+    final row = await (await _ref.read(
+      storeProvider.future,
+    )).channelRow(channelId);
+    return row == null || row.parentMessageId != null;
   }
 
   /// One banner per conversation for what a reconnect's catch-up stored: only DMs and mentions, as a missed ordinary message is not worth waking anyone.

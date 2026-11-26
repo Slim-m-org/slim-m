@@ -6,7 +6,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
-import 'package:slimm_data/data.dart';
+import 'package:slimm_data/data.dart' hide Message;
 
 import '../../features/auth/providers/account_state_refresh.dart';
 import '../../features/channels/providers/arrival_readers.dart';
@@ -25,6 +25,7 @@ class SyncEventApplier {
     this._channelRefresher,
     this._reconcile,
     this._resyncAfterLag,
+    this._noteUnlisted,
   );
 
   final Ref _ref;
@@ -36,6 +37,9 @@ class SyncEventApplier {
 
   /// The server cut this connection for lagging.
   final Future<void> Function() _resyncAfterLag;
+
+  /// A live message in a channel this device holds no row for, so catch-up can ask what followed it.
+  final void Function(Message message) _noteUnlisted;
 
   /// Channels a refresh on this connection did not bring into the store, such
   /// as threads, which the channel list never names.
@@ -162,6 +166,9 @@ class SyncEventApplier {
     final message = event.message;
     await _materialise(message.channelId, api, store, isCurrent);
     if (!isCurrent()) return;
+    if (unlistedChannels.contains(message.channelId)) {
+      _noteUnlisted(message);
+    }
     final placed = (id: message.id, seq: message.seq);
     if (await _cannotPlace(message.channelId, placed, store, isCurrent)) {
       return;

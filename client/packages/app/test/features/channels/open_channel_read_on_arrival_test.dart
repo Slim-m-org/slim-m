@@ -41,6 +41,7 @@ final _applier = Provider<SyncEventApplier>(
     ChannelRefresher(),
     () async {},
     () async {},
+    (_) {},
   ),
 );
 
