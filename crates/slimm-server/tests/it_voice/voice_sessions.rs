@@ -44,6 +44,10 @@ async fn world(prefix: &str) -> World {
     store.bootstrap_deployment(user).await.unwrap();
     let other = store.create_user("kiki", "Kiki").await.unwrap().id;
     let channel = store.create_channel("voice", "voice").await.unwrap().id;
+    // A member on a live device is what a real join is; without one the join check evicts them.
+    for member in [user, other] {
+        store.open_session(member, "phone").await.unwrap();
+    }
     World {
         app,
         store,
