@@ -41,6 +41,10 @@ Picking one, or finishing a filter with a space, turns it into a chip under the 
 With any chip the palette searches messages only, 25 at a time with a row that loads more.
 While it does, the keys themselves are offered when the field is empty or the word being typed could become one; after a finished word the hits come first, so Enter opens one.
 
+Enter opens the highlighted row, which starts on the first one: a channel or person whose name matches, else the first message hit.
+The last row, `See all results for "x"`, and Shift+Enter list every message hit for the typed text instead, with no channels or people; editing the text leaves that list.
+The footer shows Shift+Enter; a phone has the row.
+
 Keys: arrows move, Enter picks, Tab completes a suggestion (and otherwise moves between sections), Backspace in an empty field removes the last chip, Esc closes.
 Under an on-screen keyboard the panel ends at the keyboard's top edge, and the keyboard's enter key or a drag on the results puts the keyboard away without opening anything; only a hardware Enter picks.
 Below `kCompactWidth` the palette is the pull-down panel with Cancel in place of Esc, chips under the field; see `docs/design/desktop-vs-mobile.md`.

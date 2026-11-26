@@ -32,7 +32,6 @@ import '../../../widgets/run_guarded.dart';
 import '../../members/providers/member_presence.dart' show membersProvider;
 import '../../members/providers/presence_view.dart' show aroundUserIdsProvider;
 import '../../messages/providers/message_search_query.dart';
-import '../../voice/providers/transcript_search.dart';
 import '../../../providers/providers.dart';
 import '../../../providers/store_stream.dart';
 import '../../members/providers/user_profiles.dart';
@@ -40,15 +39,15 @@ import '../../channels/widgets/channel_rail.dart' show selectedChannelId;
 import '../../channels/widgets/category_tree.dart' show categoryPaths;
 import '../providers/conversation_search_memory.dart';
 import '../providers/palette_message_search.dart';
+import '../providers/palette_transcript_search.dart';
 import '../providers/palette_query.dart';
 import 'command_palette_compact.dart';
 import 'command_palette_items.dart';
 import 'command_palette_results.dart';
 import 'command_palette_sections.dart';
+import 'palette_section_builder.dart';
 import 'command_palette_rows.dart';
 import 'palette_filter_chips.dart';
-import 'palette_filter_suggestions.dart';
-import 'palette_transcript_items.dart';
 import '../../../widgets/rise_fade_transition.dart';
 import '../../members/providers/mention_names.dart' show mentionNamesProvider;
 
@@ -130,13 +129,12 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
     ..addListener(() => setState(() {}));
   String _query = '';
   int _highlighted = 0;
-  List<api.TranscriptHit> _transcriptResults = const [];
-
-  /// Retires a transcript search still in flight when the query moves on.
-  int _transcriptGeneration = 0;
-
-  /// Waits out the same pause as the message search, so one pause sends both.
-  Timer? _transcriptTimer;
+  bool _fullResults = false;
+  late final _transcripts = PaletteTranscriptSearch(
+    ref.read,
+    limit: paletteResultLimit,
+    pause: paletteSearchDebounce,
+  )..addListener(() => setState(() {}));
 
   /// The last frame's flat result list, for key handlers, which run outside build.
   List<PaletteResultItem> _visible = const [];
@@ -149,7 +147,7 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
 
   @override
   void dispose() {
-    _transcriptTimer?.cancel();
+    _transcripts.dispose();
     _messages.dispose();
     _field.dispose();
     super.dispose();
@@ -157,6 +155,21 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
 
   /// With chips the palette is a message search, and nothing else.
   bool get _filtering => _field.filters.isNotEmpty;
+
+  /// Chips, or "See all results" on plain text, leave only message hits.
+  bool get _messagesOnly => _filtering || _fullResults;
+
+  /// Lists every message hit for the typed text, with no channels or people.
+  void _showFullResults() {
+    if (_filtering || _field.typingValue) return;
+    final text = parsePaletteQuery(_query);
+    if (text.scope != PaletteScope.all || text.text.isEmpty) return;
+    setState(() {
+      _fullResults = true;
+      _highlighted = 0;
+    });
+    _search();
+  }
 
   /// Puts [prefix] in front of the query, as if typed, to list one section whole.
   void _scopeTo(String prefix) =>
@@ -175,6 +188,7 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
     setState(() {
       _query = _field.text;
       _highlighted = 0;
+      _fullResults = false;
     });
     if (widget.scope case final scope?) {
       ref
@@ -186,12 +200,10 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
   }
 
   void _search() {
-    _transcriptTimer?.cancel();
-    _transcriptGeneration++;
-    _transcriptResults = const [];
+    _transcripts.clear();
     if (_field.typingValue) {
       _messages.clear();
-    } else if (_filtering) {
+    } else if (_messagesOnly) {
       final parsed = parseSearchQuery(_query, filters: _field.filters);
       final scopeOnly =
           parsed.text.isEmpty &&
@@ -219,30 +231,9 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
             debounce: paletteSearchDebounce,
           ),
         );
-        _transcriptTimer = Timer(
-          paletteSearchDebounce,
-          () => unawaited(_searchTranscripts(text.text)),
-        );
+        _transcripts.schedule(text.text);
       }
     }
-  }
-
-  void _flushTranscripts() {
-    if (_transcriptTimer?.isActive ?? false) {
-      _transcriptTimer!.cancel();
-      unawaited(_searchTranscripts(parsePaletteQuery(_query).text));
-    }
-  }
-
-  Future<void> _searchTranscripts(String query) async {
-    final generation = _transcriptGeneration;
-    final hits = await searchTranscriptHits(
-      ref.read,
-      query,
-      limit: paletteResultLimit,
-    );
-    if (!mounted || generation != _transcriptGeneration) return;
-    setState(() => _transcriptResults = hits);
   }
 
   void _close() => Navigator.of(context).pop();
@@ -280,7 +271,7 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
       unawaited(_runHighlighted());
       return;
     }
-    _flushTranscripts();
+    _transcripts.flush(parsePaletteQuery(_query).text);
     unawaited(_messages.flush());
     _field.focusNode.unfocus();
   }
@@ -292,7 +283,7 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
     var item = _visible.elementAtOrNull(_highlighted);
     final hit = item == null || item.kind == PaletteKind.message;
     if (hit && !_messages.current) {
-      _flushTranscripts();
+      _transcripts.flush(parsePaletteQuery(_query).text);
       await _messages.flush();
       await WidgetsBinding.instance.endOfFrame;
       if (!mounted) return;
@@ -323,6 +314,8 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
     return {
       const SingleActivator(LogicalKeyboardKey.arrowDown): () => _move(1),
       const SingleActivator(LogicalKeyboardKey.arrowUp): () => _move(-1),
+      const SingleActivator(LogicalKeyboardKey.enter, shift: true):
+          _showFullResults,
       const SingleActivator(LogicalKeyboardKey.tab): () => _tab(1),
       const SingleActivator(LogicalKeyboardKey.tab, shift: true): () =>
           _tab(-1),
@@ -339,7 +332,7 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
     final permissions = ref.watch(myPermissionsProvider);
     // Re-read every build, so a resize crossing it while open swaps shells live.
     final compact = MediaQuery.sizeOf(context).width < kCompactWidth;
-    final label = _filtering
+    final label = _messagesOnly
         ? 'Search messages'
         : 'Search channels, people and messages';
 
@@ -421,7 +414,7 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
     return CallbackShortcuts(bindings: _bindings(), child: shell);
   }
 
-  Widget _animatedResults(_ResultInputs inputs) {
+  Widget _animatedResults(PaletteResultInputs inputs) {
     // Keyed on the query and chips: arrow keys and late-arriving message hits update in place, only typing crossfades.
     return MaybeAnimatedSize(
       duration: AppMotion.fast,
@@ -439,54 +432,22 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
     );
   }
 
-  List<PaletteSection> _sections(_ResultInputs inputs) {
-    final channelsById = {for (final c in inputs.channels) c.id: c};
-    final parsed = parsePaletteQuery(_query);
-    final query = parsed.text;
-    final everything = parsed.scope == PaletteScope.all;
-    return paletteSections((
-      query: _query,
-      filtering: _filtering,
-      typingValue: _field.typingValue,
-      suggestions: fieldSuggestions(
-        _field,
-        filtering: _filtering,
-        members: inputs.members,
-        channels: inputs.channels,
-      ),
-      suggestionsLabel: filterSuggestionsLabel(_field.word),
-      messages: _messages,
-      messageItems: buildMessageItems(
-        _messages.results,
+  List<PaletteSection> _sections(PaletteResultInputs inputs) =>
+      buildPaletteSections((
+        inputs: inputs,
+        query: _query,
+        field: _field,
+        fullResults: _fullResults,
+        messages: _messages,
+        transcriptHits: _transcripts.results,
         currentChannelId: widget.currentChannelId,
-        channelsById: channelsById,
         mentionNames: ref.watch(mentionNamesProvider),
-      ),
-      channels: channelSections(
-        inputs.channels,
-        query,
-        selfDisplayName: inputs.me?.displayName,
-        categoryNames: inputs.categoryNames,
-        currentChannelId: widget.currentChannelId,
-        showAll: everything ? () => _scopeTo('#') : null,
-      ),
-      people: buildMemberItems(
-        inputs.members,
-        query,
-        inputs.me?.id,
         around: ref.watch(aroundUserIdsProvider),
-        limit: everything ? paletteResultLimit : palettePeopleScopeLimit,
-        showAll: everything ? () => _scopeTo('@') : null,
-      ),
-      transcripts: buildTranscriptItems(
-        _transcriptResults,
-        channelsById: channelsById,
-      ),
-      actions: buildActionItems(query, inputs.permissions),
-    ));
-  }
+        showFullResults: _showFullResults,
+        scopeTo: _scopeTo,
+      ));
 
-  Widget _buildResults(_ResultInputs inputs) {
+  Widget _buildResults(PaletteResultInputs inputs) {
     resolveAuthorProfiles(ref, _messages.results.map((m) => m.authorId));
     final query = _filtering ? _query : parsePaletteQuery(_query).text;
     final sections = _sections(inputs);
@@ -518,18 +479,8 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
         forbidden: asked && _messages.forbidden,
         failed: _messages.failed && !_field.typingValue,
         retry: () => _messages.retry(),
-        announcement: paletteAnnouncement(_messages, _filtering, query),
+        announcement: paletteAnnouncement(_messages, _messagesOnly, query),
       ),
     );
   }
 }
-
-/// Everything the results list is built from, bundled so two builders share it.
-typedef _ResultInputs = ({
-  List<Channel> channels,
-  Map<String, String> categoryNames,
-  List<api.UserProfile> members,
-  api.Me? me,
-  int permissions,
-  bool compact,
-});
