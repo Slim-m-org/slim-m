@@ -60,9 +60,12 @@ api.Channel channelFromGroupDm(
 }
 
 /// A refused group action says the server's own reason (a block, the rules
-/// not accepted, a removal) instead of the generic "not allowed".
+/// not accepted, a removal) instead of the generic "not allowed"; a timeout
+/// keeps its own wording, with the time left.
 String describeGroupDmFailure(String whatFailed, api.ForbiddenException e) =>
-    'Could not $whatFailed. ${sentenceCase(e.message)}';
+    e.code == api.ForbiddenException.timedOutCode
+    ? describeApiFailure(whatFailed, e)
+    : 'Could not $whatFailed. ${sentenceCase(e.message)}';
 
 Future<void> _store(
   ProviderContainer container,

@@ -18,6 +18,16 @@ const _unreachable =
     'Could not start the group: the server could not be reached. '
     'Nothing was changed.';
 
+/// The refusal a timed-out member gets, with the lift time and reason the server sends.
+Map<String, Object?> _timedOutBody() => {
+  'error': 'timed out',
+  'code': 'timed_out',
+  'timed_out_until': DateTime.now()
+      .add(const Duration(hours: 2, minutes: 30))
+      .millisecondsSinceEpoch,
+  'timeout_reason': 'cool off',
+};
+
 final _start = find.text('Start group with 3 people');
 
 /// Taps [target] and waits until the server has seen one more write.
@@ -78,6 +88,26 @@ void main() {
         findsOneWidget,
       );
       expect(find.textContaining('block'), findsNothing);
+    });
+
+    testWidgets('a timeout is explained with the time left and its reason', (
+      tester,
+    ) async {
+      final server = await open(tester);
+      server.failNext = jsonResponse(_timedOutBody(), 403);
+      await tester.tap(personTile('u1'));
+      await tester.tap(personTile('u2'));
+      await tester.pump();
+      await _tapWrite(tester, server, _start);
+
+      expect(
+        find.textContaining(
+          'Could not start the group: you are timed out for another',
+        ),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Reason: cool off'), findsOneWidget);
+      expect(_start, findsOneWidget, reason: 'the sheet stays open');
     });
 
     testWidgets('a retry after a lost reply asks for the same group', (
@@ -159,6 +189,20 @@ void main() {
         find.text(
           'Could not add them to the group. A block between two of these people stops '
           'them sharing a group.',
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('a timeout is explained when adding someone', (tester) async {
+      final server = await open(tester);
+      server.failNext = jsonResponse(_timedOutBody(), 403);
+      await tester.ensureVisible(personTile('u3'));
+      await _tapWrite(tester, server, personTile('u3'));
+
+      expect(
+        find.textContaining(
+          'Could not add them to the group: you are timed out for another',
         ),
         findsOneWidget,
       );
