@@ -149,12 +149,12 @@ void main() {
       },
     );
 
-    testWidgets('the canvas keeps a bot in the mic menu at ${entry.key}', (
+    testWidgets('the canvas keeps a bot in the More menu at ${entry.key}', (
       tester,
     ) async {
       final s = await pumpCallScreen(tester, entry.value, canvas: true);
 
-      await tester.longPress(find.bySemanticsLabel(RegExp('^Mute')));
+      await tester.tap(find.bySemanticsLabel('More'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Jellyfin controls'));
       await tester.pumpAndSettle();

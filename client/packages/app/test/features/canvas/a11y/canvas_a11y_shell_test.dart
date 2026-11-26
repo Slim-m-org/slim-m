@@ -82,25 +82,29 @@ void main() {
     await teardown(tester, s.container, s.db);
   });
 
-  a11yTest('closing the canvas from the keyboard puts focus on Open canvas', (
-    tester,
-  ) async {
-    final s = await _openCanvasInShell(tester);
-    expect(await tabTo(tester, 'Close canvas'), isTrue);
+  a11yTest(
+    'closing the canvas from the More menu by keyboard keeps focus in the dock',
+    (tester) async {
+      final s = await _openCanvasInShell(tester);
+      expect(await tabTo(tester, RegExp(r'^More$')), isTrue);
+      await pressKey(tester, LogicalKeyboardKey.enter);
+      await settle(tester);
+      expect(await arrowTo(tester, 'Close canvas'), isTrue);
 
-    await pressKey(tester, LogicalKeyboardKey.enter);
-    await settle(tester);
+      await pressKey(tester, LogicalKeyboardKey.enter);
+      await settle(tester);
 
-    expect(s.container.read(canvasOpenProvider), isNull);
-    expect(
-      focusedName(tester),
-      contains('Open canvas'),
-      reason:
-          'the button that took the Close slot is where focus belongs; '
-          'instead the next Tab starts again from the top of the screen',
-    );
-    await teardown(tester, s.container, s.db);
-  });
+      expect(s.container.read(canvasOpenProvider), isNull);
+      expect(
+        focusedName(tester),
+        anyOf(contains('More'), contains('Open canvas')),
+        reason:
+            'focus stays on the dock instead of starting again from the top '
+            'of the screen',
+      );
+      await teardown(tester, s.container, s.db);
+    },
+  );
 
   a11yTest('the Participants sheet takes keyboard focus in the real shell', (
     tester,

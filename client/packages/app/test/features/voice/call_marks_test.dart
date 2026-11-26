@@ -24,8 +24,7 @@ import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_idle/call_marks_list.dart';
 import 'package:slimm_app/src/features/voice/widgets/call_mark_chip.dart';
 import 'package:slimm_app/src/features/voice/widgets/call_note_sheet.dart';
-import 'package:slimm_app/src/features/voice/widgets/captions_button.dart';
-import 'package:slimm_app/src/features/voice/widgets/mark_button.dart';
+import 'package:slimm_app/src/features/voice/widgets/transcript_menu.dart';
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
@@ -165,28 +164,36 @@ class _NoLines extends CallTranscriptController {
 Widget _dock() => Consumer(
   builder: (context, ref, _) => Column(
     children: [
-      if (canUseCaptions(ref, 'voice-1')) const MarkButton(),
+      if (canUseCaptions(ref, 'voice-1'))
+        TranscriptDockButton(menuContext: context),
       const CallMarkChipView(channelId: 'voice-1'),
     ],
   ),
 );
 
 void main() {
-  testWidgets('the Mark button marks the moment and the chip says so', (
-    tester,
-  ) async {
-    final rig = await _pump(tester, _dock());
+  testWidgets(
+    'Mark in the Transcript menu marks the moment and the chip says so',
+    (tester) async {
+      final rig = await _pump(tester, _dock());
 
-    await tester.tap(find.byKey(markButtonKey));
-    await tester.pump();
-    await tester.pump();
+      await tester.tap(find.byTooltip('Transcript'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(find.byKey(markButtonKey));
+      await tester.pump();
+      await tester.pump();
 
-    expect(rig.requests.single, startsWith('PUT /voice/transcripts/t1/marks/'));
-    expect(rig.requests.single, endsWith('{"kind":"mark"}'));
-    expect(find.text('Marked'), findsOneWidget);
-    await tester.pump(callMarkChipFor);
-    expect(find.text('Marked'), findsNothing, reason: 'the chip clears');
-  });
+      expect(
+        rig.requests.single,
+        startsWith('PUT /voice/transcripts/t1/marks/'),
+      );
+      expect(rig.requests.single, endsWith('{"kind":"mark"}'));
+      expect(find.text('Marked'), findsOneWidget);
+      await tester.pump(callMarkChipFor);
+      expect(find.text('Marked'), findsNothing, reason: 'the chip clears');
+    },
+  );
 
   testWidgets('a note retried after a failure is the same mark', (
     tester,
@@ -258,15 +265,16 @@ void main() {
     expect(saveDisabled(), isTrue, reason: '501 code points, 75 graphemes');
   });
 
-  testWidgets('no button without VIEW_TRANSCRIPTS or a running transcript', (
-    tester,
-  ) async {
-    await _pump(tester, _dock(), bits: Perm.viewChannel);
-    expect(find.byKey(markButtonKey), findsNothing);
-    await tester.pumpWidget(const SizedBox.shrink());
-    await _pump(tester, _dock(), transcribed: false);
-    expect(find.byKey(markButtonKey), findsNothing);
-  });
+  testWidgets(
+    'no Transcript button without VIEW_TRANSCRIPTS or a running transcript',
+    (tester) async {
+      await _pump(tester, _dock(), bits: Perm.viewChannel);
+      expect(find.byTooltip('Transcript'), findsNothing);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await _pump(tester, _dock(), transcribed: false);
+      expect(find.byTooltip('Transcript'), findsNothing);
+    },
+  );
 
   testWidgets('a shortcut with no transcript running only says so', (
     tester,

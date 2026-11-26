@@ -35,6 +35,12 @@ String _hint(AppAction action) {
   return keys.isEmpty ? '' : ' (${keys.join('+')})';
 }
 
+Future<void> _openMore(WidgetTester tester) async {
+  await tester.tap(find.bySemanticsLabel('More'));
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 300));
+}
+
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
@@ -307,7 +313,7 @@ void main() {
       const VoiceFlags(state: VoiceSessionState.connected),
       session: InertSession()..canFlipCamera = true,
     );
-    expect(find.byTooltip('Switch camera'), findsNothing);
+    expect(find.bySemanticsLabel('More'), findsNothing);
 
     await pumpControls(
       tester,
@@ -316,7 +322,8 @@ void main() {
     );
     // The first tree's auto-disposed providers are released on a zero timer.
     await tester.pump();
-    expect(find.byTooltip('Switch camera'), findsOneWidget);
+    await _openMore(tester);
+    expect(find.text('Switch camera'), findsOneWidget);
   });
 
   testWidgets(
@@ -337,7 +344,7 @@ void main() {
         session: session,
       );
 
-      expect(find.byTooltip('Switch camera'), findsNothing);
+      expect(find.bySemanticsLabel('More'), findsNothing);
     },
   );
 
@@ -360,7 +367,8 @@ void main() {
         session: session,
       );
 
-      expect(find.byTooltip('Switch camera'), findsOneWidget);
+      await _openMore(tester);
+      expect(find.text('Switch camera'), findsOneWidget);
     },
   );
 
@@ -374,7 +382,8 @@ void main() {
       session: session,
     );
 
-    await tester.tap(find.byTooltip('Switch camera'));
+    await _openMore(tester);
+    await tester.tap(find.text('Switch camera'));
     await tester.pumpAndSettle();
 
     expect(session.cameraSwitchCalls, ['flip']);
@@ -397,7 +406,8 @@ void main() {
       session: session,
     );
 
-    await tester.tap(find.byTooltip('Switch camera'));
+    await _openMore(tester);
+    await tester.tap(find.text('Switch camera'));
     // pump, not pumpAndSettle: the switch button's pending spinner never settles while the sheet awaits a choice.
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
@@ -422,13 +432,14 @@ void main() {
       const VoiceFlags(state: VoiceSessionState.connected, cameraEnabled: true),
       session: session,
     );
-    expect(find.byTooltip('Switch camera'), findsOneWidget);
+    await _openMore(tester);
+    expect(find.text('Switch camera'), findsOneWidget);
 
     // A camera unplugged mid-call: the button still reflects the count at mount, but the next enumeration finds only one.
     session.cameraDeviceList = const [
       CameraDevice(id: 'cam-1', label: 'Built-in webcam'),
     ];
-    await tester.tap(find.byTooltip('Switch camera'));
+    await tester.tap(find.text('Switch camera'));
     await tester.pumpAndSettle();
 
     expect(session.cameraSwitchCalls, ['select:cam-1']);

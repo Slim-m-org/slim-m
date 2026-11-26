@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// [VoiceCallDock]: the canvas toggle it adds beside [CallControls], its own
+/// [VoiceCallDock]: the canvas toggle it adds to More beside [CallControls], its own
 /// DM self-gating, and the narrow-width fold that keeps a crowded row from
 /// overflowing rather than shrinking any control below its 44dp floor.
 ///
@@ -24,8 +24,26 @@ const _connectedWithCamera = VoiceFlags(
   cameraEnabled: true,
 );
 
+Future<void> _openMore(WidgetTester tester) async {
+  await tester.tap(find.bySemanticsLabel('More'));
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 300));
+}
+
+Future<void> _pick(WidgetTester tester, String row) async {
+  await _openMore(tester);
+  await tester.tap(find.text(row));
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 300));
+}
+
+int _rows(WidgetTester tester) => tester
+    .widget<FloatingDockCard>(find.bySubtype<FloatingDockCard>())
+    .rows
+    .length;
+
 void main() {
-  testWidgets('the toggle opens the canvas, then closes it, at desktop width', (
+  testWidgets('More opens the canvas, then closes it, at desktop width', (
     tester,
   ) async {
     final container = await pumpVoiceCallDock(
@@ -35,19 +53,15 @@ void main() {
     );
 
     expect(container.read(canvasOpenProvider), isNull);
-
-    await tester.tap(find.bySemanticsLabel('Open canvas'));
-    await tester.pump();
+    await _pick(tester, 'Open canvas');
     expect(container.read(canvasOpenProvider), 'c1');
 
-    await tester.tap(find.bySemanticsLabel('Close canvas'));
     await tester.pump();
+    await _pick(tester, 'Close canvas');
     expect(container.read(canvasOpenProvider), isNull);
   });
 
-  testWidgets('the toggle reaches the same provider at phone width', (
-    tester,
-  ) async {
+  testWidgets('More reaches the same provider at phone width', (tester) async {
     final container = await pumpVoiceCallDock(
       tester,
       _connected,
@@ -56,88 +70,47 @@ void main() {
       touch: true,
     );
 
-    await tester.tap(find.bySemanticsLabel('Open canvas'));
-    await tester.pump();
+    await _pick(tester, 'Open canvas');
     expect(container.read(canvasOpenProvider), 'c1');
     expect(tester.takeException(), isNull);
   });
 
   testWidgets(
-    'no toggle at all when canvas is not this call\'s to open - a DM call, '
-    'CanvasCallDock passing null for its own reason',
+    'no toggle and no More when canvas is not this call\'s to open - a DM '
+    'call, CanvasCallDock passing null for its own reason',
     (tester) async {
       await pumpVoiceCallDock(tester, _connected, canvasChannelId: null);
 
       expect(find.bySemanticsLabel('Open canvas'), findsNothing);
-      expect(
-        tester.widget<FloatingDockCard>(find.byType(FloatingDockCard)).rows,
-        hasLength(1),
-      );
+      expect(find.bySemanticsLabel('More'), findsNothing);
+      expect(_rows(tester), 1);
     },
   );
 
-  testWidgets('the row stays one line at 380 when the camera is off, rather than '
-      'folding when nothing forced it to', (tester) async {
+  testWidgets('the row stays one line at 380 with the camera on and a second '
+      'camera to switch to', (tester) async {
     await pumpVoiceCallDock(
       tester,
-      _connected,
+      _connectedWithCamera,
       canvasChannelId: 'c1',
       width: 380,
       touch: true,
+      session: InertSession()..canFlipCamera = true,
     );
 
-    expect(
-      tester.widget<FloatingDockCard>(find.byType(FloatingDockCard)).rows,
-      hasLength(1),
-      reason:
-          'mic, deafen, camera, share, leave, the divider and the toggle all fit at 380 '
-          'with the camera off; folding here would be needless crowding '
-          'in the other direction',
-    );
+    expect(_rows(tester), 1, reason: 'Switch camera lives in More');
     expect(tester.takeException(), isNull);
+    await _openMore(tester);
+    expect(find.text('Switch camera'), findsOneWidget);
+    expect(find.text('Open canvas'), findsOneWidget);
   });
 
   testWidgets(
-    'the toggle spills into a row of its own, rather than overflowing the first '
-    'one or hiding in the mic menu, once the camera is on at 380',
+    'the fold threshold is exact: one pixel narrower than what the row with '
+    'More needs puts More in a row above, still reachable',
     (tester) async {
-      // A bare-flip platform: this test is about the row's fold width, not the picker platform's async device count.
-      await pumpVoiceCallDock(
-        tester,
-        _connectedWithCamera,
-        canvasChannelId: 'c1',
-        width: 380,
-        touch: true,
-        session: InertSession()..canFlipCamera = true,
-      );
-
-      expect(
-        tester.widget<FloatingDockCard>(find.byType(FloatingDockCard)).rows,
-        hasLength(2),
-        reason:
-            'mic, deafen, camera, switch camera, share, leave and the toggle no '
-            'longer fit one line at 380, so the toggle gets a row above',
-      );
-      expect(find.bySemanticsLabel('Open canvas'), findsOneWidget);
-      expect(
-        tester.takeException(),
-        isNull,
-        reason: 'a genuine RenderFlex overflow throws during the pump above',
-      );
-
-      // Folding the toggle must not have clipped or stolen a neighbor's hit area.
-      await tester.tap(find.bySemanticsLabel(RegExp(r'^Mute')));
-      await tester.tap(find.bySemanticsLabel('Switch camera'));
-      expect(tester.takeException(), isNull);
-    },
-  );
-
-  testWidgets(
-    'the fold threshold is exact: one pixel narrower than what the camera-off '
-    'row needs spills it, one pixel is not enough to avoid needing to',
-    (tester) async {
-      // 6 controls at 52dp (44dp plus AppFocusRing's 8dp), 5 gaps of 8dp, plus the card's 24dp padding and 2dp border: 312+40+1+24+2, the 1 being what the divider before leave adds over a plain gap.
-      const exact = 379.0;
+      // 6 controls at 52dp, no gaps, the leave divider (4+1+4) and the card's 8dp side padding and 2dp border.
+      const exact = 331.0;
       await pumpVoiceCallDock(
         tester,
         _connected,
@@ -145,11 +118,12 @@ void main() {
         width: exact,
         touch: true,
       );
+      expect(_rows(tester), 1);
+      final onRow = tester.getRect(find.bySemanticsLabel('More'));
       expect(
-        tester.widget<FloatingDockCard>(find.byType(FloatingDockCard)).rows,
-        hasLength(1),
+        onRow.center.dy,
+        tester.getRect(find.bySemanticsLabel('Mute')).center.dy,
       );
-      expect(find.bySemanticsLabel('Open canvas'), findsOneWidget);
 
       await pumpVoiceCallDock(
         tester,
@@ -158,11 +132,12 @@ void main() {
         width: exact - 1,
         touch: true,
       );
+      expect(_rows(tester), 2);
       expect(
-        tester.widget<FloatingDockCard>(find.byType(FloatingDockCard)).rows,
-        hasLength(2),
+        tester.getRect(find.bySemanticsLabel('More')).bottom,
+        lessThanOrEqualTo(tester.getRect(find.bySemanticsLabel('Mute')).top),
       );
-      expect(find.bySemanticsLabel('Open canvas'), findsOneWidget);
+      expect(tester.takeException(), isNull);
 
       // The dock watches an autodispose provider; unmounting it here lets its dispose timer run before the test ends.
       await tester.pumpWidget(const SizedBox.shrink());

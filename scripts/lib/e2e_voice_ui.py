@@ -56,6 +56,17 @@ _PAGE_AUDIO_STATE = """JSON.stringify({
       .map(r => [r.track.id.slice(0, 12), r.track.readyState])])})"""
 
 
+def click_in_more(client, label):
+    """Picks a row of the call dock's More menu, which holds what the dock row does not."""
+    client.click(L.DOCK_MORE, exact=True, settle=1)
+    client.click(label)
+
+
+def close_canvas(client):
+    """The dock lists Close canvas under More."""
+    click_in_more(client, L.CLOSE_CANVAS)
+
+
 def leave_if_in_call(*clients):
     for c in clients:
         if c.find(L.LEAVE_CALL):

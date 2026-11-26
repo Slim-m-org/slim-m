@@ -80,6 +80,7 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
       cameraOnJoin: prefs.getBool(VoiceSettingKeys.cameraOnJoin) ?? false,
       mirrorSelfView: prefs.getBool(VoiceSettingKeys.mirrorSelfView) ?? true,
       showCaptions: prefs.getBool(VoiceSettingKeys.showCaptions) ?? false,
+      dockPinned: prefs.getStringList(VoiceSettingKeys.dockPinned) ?? const [],
       pushToTalkEnabled:
           prefs.getBool(VoiceSettingKeys.pushToTalkEnabled) ?? false,
       // Any key a person picked; `V` for voice until they pick one.
@@ -264,6 +265,17 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
     state = state.copyWith(showCaptions: enabled);
     final prefs = await _ref.read(preferencesProvider.future);
     await prefs.setBool(VoiceSettingKeys.showCaptions, enabled);
+  }
+
+  Future<void> setDockPinned(String id, bool pinned) async {
+    final next = [
+      for (final kept in state.dockPinned)
+        if (kept != id) kept,
+      if (pinned) id,
+    ];
+    state = state.copyWith(dockPinned: next);
+    final prefs = await _ref.read(preferencesProvider.future);
+    await prefs.setStringList(VoiceSettingKeys.dockPinned, next);
   }
 
   Future<void> setPauseVideoWhenMinimised(bool enabled) async {

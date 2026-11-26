@@ -36,6 +36,9 @@ class _CountingPrefs extends Fake implements SharedPreferences {
 
   @override
   double? getDouble(String key) => null;
+
+  @override
+  List<String>? getStringList(String key) => null;
 }
 
 class _Rig {

@@ -15,7 +15,7 @@ import 'package:slimm_app/src/features/voice/providers/call_transcript.dart';
 import 'package:slimm_app/src/features/voice/providers/live_call_transcript.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_settings_controller.dart';
 import 'package:slimm_app/src/features/voice/widgets/call_captions_strip.dart';
-import 'package:slimm_app/src/features/voice/widgets/captions_button.dart';
+import 'package:slimm_app/src/features/voice/widgets/transcript_menu.dart';
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -118,7 +118,8 @@ Future<ProviderContainer> _pump(
           body: Consumer(
             builder: (context, ref, _) => Column(
               children: [
-                if (canUseCaptions(ref, 'voice-1')) const CaptionsButton(),
+                if (canUseCaptions(ref, 'voice-1'))
+                  TranscriptDockButton(menuContext: context),
                 const CallCaptionsStrip(channelId: 'voice-1'),
               ],
             ),
@@ -215,17 +216,21 @@ void main() {
     testWidgets('no captions and no button when $why', (tester) async {
       final container = await _pump(tester, overrides);
       expect(find.byKey(callCaptionsKey), findsNothing);
-      expect(find.byTooltip('Show captions'), findsNothing);
+      expect(find.byTooltip('Transcript'), findsNothing);
       expect(container.read(liveCallTranscriptIdProvider('voice-1')), isNull);
     });
   }
 
-  testWidgets('the button turns captions on, off by default', (tester) async {
+  testWidgets('the Transcript menu turns captions on, off by default', (
+    tester,
+  ) async {
     await _pump(tester, _overrides(session: _session(), captionsOn: false));
     expect(find.byKey(callCaptionsKey), findsNothing);
-    await tester.tap(find.byTooltip('Show captions'));
+    await tester.tap(find.byTooltip('Transcript'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('Captions'));
     await tester.pump();
     expect(find.byKey(callCaptionsKey), findsOneWidget);
-    expect(find.byTooltip('Hide captions'), findsOneWidget);
   });
 }
