@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 export interface Stack {
@@ -39,6 +39,16 @@ export function assertLocalStack(): void {
   });
 }
 
-export function readStack(): Stack {
+/** The stack as the boot script wrote it: plain http, for the suite's own calls to the server. */
+export function readRawStack(): Stack {
   return JSON.parse(readFileSync(stackFile(), 'utf8')) as Stack;
+}
+
+/** The stack as a browser reaches it: web build and server behind the one https origin once the front is up. */
+export function readStack(): Stack {
+  const stack = readRawStack();
+  const originFile = path.join(workDir(), 'secure-origin.txt');
+  if (!existsSync(originFile)) return stack;
+  const origin = readFileSync(originFile, 'utf8').trim();
+  return { ...stack, api: origin, web: origin };
 }

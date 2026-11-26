@@ -7,6 +7,11 @@ Nothing is mocked.
 `scripts/e2e-stack.sh` boots a LiveKit SFU in Docker, the release server binary, the Flutter web build, and a seeded deployment with two accounts (`alice` and `bob`) and a voice channel.
 Each test opens one browser context per user, so each user has their own video.
 
+The browsers reach the web build and the server through one https origin that the suite starts itself (`src/secure-front.ts`, a throwaway certificate, `openssl` on the PATH).
+The web client keeps its sign-in in a Secure, SameSite=Strict cookie, which only works over https on the page's own origin, so two plain-http ports would leave every user signed out on reload.
+Calls the suite makes itself, outside a browser, still use the plain-http addresses in `stack.json`.
+Each test hands its signed-in session to the next one, because a cookie session is renewed on every load and the old copy stops working.
+
 ## Run it
 
 You need Docker, Rust, Flutter (the version in `client/pubspec.yaml`), Python 3, Node 22 and `curl`.

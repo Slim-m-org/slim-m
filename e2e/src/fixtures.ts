@@ -43,6 +43,7 @@ async function openUser(
   const context = await browser.newContext({
     permissions: ['microphone', 'camera'],
     baseURL: stack.web,
+    ignoreHTTPSErrors: true,
     storageState,
     recordVideo: { dir: testInfo.outputPath(`video-${name}`), size: { width: 1280, height: 900 } },
   });
@@ -60,12 +61,28 @@ async function openBoth(browser: Browser, stack: Stack, testInfo: TestInfo, sess
   return { alice, bob };
 }
 
+const REFRESH_COOKIE_PREFIX = '__Host-slimm_rt_';
+
+/**
+ * Keeps the session a user ended the test with for the next test to start from.
+ *
+ * Every load of the web client spends its refresh cookie and is given a new one, so a copy taken
+ * after sign-in is dead once any test has used it. A user who ended signed out keeps the earlier copy.
+ */
+async function carryOverSession(app: FlutterApp, sessions: Record<UserName, StorageState>): Promise<void> {
+  const state = await app.page.context().storageState({ indexedDB: true });
+  if (state.cookies.some((cookie) => cookie.name.startsWith(REFRESH_COOKIE_PREFIX))) {
+    sessions[app.name as UserName] = state;
+  }
+}
+
 /** Closes the user's context, which finalises their video, and attaches the video. */
-async function closeBoth(users: Users, testInfo: TestInfo): Promise<void> {
+async function closeBoth(users: Users, testInfo: TestInfo, sessions?: Record<UserName, StorageState>): Promise<void> {
   await settleVideo();
   await Promise.all(
     Object.values(users).map(async (app) => {
       const { page } = app;
+      if (sessions) await carryOverSession(app, sessions);
       await page.context().close();
       const video = page.video();
       if (video) await testInfo.attach(`${app.name}.webm`, { path: await video.path(), contentType: 'video/webm' });
@@ -127,7 +144,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
     async ({ browser, stack }, use) => {
       const sessions = {} as Record<UserName, StorageState>;
       for (const name of USERS) {
-        const context = await browser.newContext({ baseURL: stack.web });
+        const context = await browser.newContext({ baseURL: stack.web, ignoreHTTPSErrors: true });
         const app = new FlutterApp(await context.newPage(), name);
         await app.open(stack.web);
         await signIn(app, stack, name);
@@ -152,7 +169,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
       await Promise.all(Object.values(users).map((app) => app.see(L.TEXT_CHANNEL)));
     });
     await use(users);
-    await closeBoth(users, testInfo);
+    await closeBoth(users, testInfo, sessions);
   },
 });
 
