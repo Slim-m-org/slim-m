@@ -112,19 +112,25 @@ void main() {
   testWidgets('More offers no Show in dock where nothing can be pinned', (
     tester,
   ) async {
-    SharedPreferences.setMockInitialValues({
-      'slimm.voice.dock_pinned': ['soundboard', 'canvas'],
-    });
     await _pump(tester, 390);
     await _openMore(tester);
     expect(find.text('Soundboard'), findsOneWidget);
-    expect(find.text('Show in dock'), findsNothing);
+    expect(find.text('Show in dock'), findsNothing, reason: 'no pin fits');
     await _settleOut(tester);
 
     SharedPreferences.setMockInitialValues({});
     await _pump(tester, 1280);
     await _openMore(tester);
     expect(find.text('Show in dock'), findsOneWidget);
+    await tester.tap(find.text('Show in dock'));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('Soundboard').last);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(
+      _button('Soundboard'),
+      findsOneWidget,
+      reason: 'the pin lands inline',
+    );
     await _settleOut(tester);
   });
 

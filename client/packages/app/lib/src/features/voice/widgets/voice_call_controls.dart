@@ -70,6 +70,7 @@ class CallControls extends ConsumerStatefulWidget {
     this.tight = false,
     this.spilledOnly = false,
     this.inlineExtras = true,
+    this.pinRoom = true,
     this.hints = true,
     this.ownsShortcuts = true,
   });
@@ -87,6 +88,9 @@ class CallControls extends ConsumerStatefulWidget {
 
   /// False sends every optional control, pinned ones included, to the More menu, for a card with no room beside the primary row.
   final bool inlineExtras;
+
+  /// False when pinning one more control would not fit the row, so "Show in dock" is not offered.
+  final bool pinRoom;
 
   /// False in a dock with tools directly above, which a hint bubble would cover.
   final bool hints;
@@ -188,6 +192,7 @@ class _CallControlsState extends ConsumerState<CallControls> {
         voiceSettingsControllerProvider.select((s) => s.dockPinned),
       ),
       inlineAllowed: widget.inlineExtras,
+      pinRoom: widget.pinRoom,
     );
     final gap = dockButtonGap(context);
     if (widget.spilledOnly) {

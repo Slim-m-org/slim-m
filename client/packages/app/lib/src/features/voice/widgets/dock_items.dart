@@ -109,10 +109,13 @@ class DockSplit {
 }
 
 /// [inlineAllowed] false sends every item to More, for a row with no room beside the primary controls.
+///
+/// [pinRoom] false means pinning one more item would not fit, so only items already pinned stay on the pin list.
 DockSplit splitDockItems(
   List<DockItem> items, {
   required List<String> pinned,
   required bool inlineAllowed,
+  bool pinRoom = true,
 }) {
   bool inRow(DockItem item) =>
       inlineAllowed && (item.keepInline || pinned.contains(item.id));
@@ -129,7 +132,7 @@ DockSplit splitDockItems(
     pinnable: [
       if (inlineAllowed)
         for (final item in items)
-          if (!item.keepInline) item,
+          if (!item.keepInline && (pinRoom || pinned.contains(item.id))) item,
     ],
   );
 }

@@ -97,6 +97,7 @@ List<Widget> callRowsWithExtras(
     toggle: options.toggle,
   );
   final fit = callRowFitFor(context, ref, options, extras: extras);
+  final pinRoom = callRowPinRoom(context, ref, options, extras: extras);
   final hasMore =
       fit == DockFit.tight &&
       splitDockItems(
@@ -112,6 +113,7 @@ List<Widget> callRowsWithExtras(
         extras: extras,
         inlineExtras: false,
         spilledOnly: true,
+        pinRoom: pinRoom,
         hints: false,
         ownsShortcuts: false,
       ),
@@ -120,6 +122,7 @@ List<Widget> callRowsWithExtras(
       voice: options.voice,
       extras: extras,
       inlineExtras: fit != DockFit.moreOnly,
+      pinRoom: pinRoom,
       tight: fit == DockFit.tight,
       hints: options.hints,
     ),
@@ -129,6 +132,20 @@ List<Widget> callRowsWithExtras(
 /// How much of a call row fits.
 enum DockFit { pinned, moreOnly, tight }
 
+/// Whether the row holds [split]'s inline items at [options]'s width.
+bool _rowFits(BuildContext context, CallRowOptions options, DockSplit split) {
+  final CallRowOptions(:width, :controller, :voice) = options;
+  final shareCaret =
+      voice.screenSharing && controller.video.screenShareNeedsSource;
+  return callRowFits(
+    context,
+    width,
+    optionalCount: split.buttonCount,
+    shareCaret: shareCaret,
+    musicCaret: split.inline.any((i) => i.id == 'music'),
+  );
+}
+
 /// The widest form of the row for [options] that fits: pinned items inline, only More, or More in a row above with no carets.
 DockFit callRowFitFor(
   BuildContext context,
@@ -136,27 +153,52 @@ DockFit callRowFitFor(
   CallRowOptions options, {
   required List<DockItem> extras,
 }) {
-  final CallRowOptions(:width, :controller, :voice) = options;
-  final shareCaret =
-      voice.screenSharing && controller.video.screenShareNeedsSource;
-  bool fits(DockSplit split) => callRowFits(
-    context,
-    width,
-    optionalCount: split.buttonCount,
-    shareCaret: shareCaret,
-    musicCaret: split.inline.any((i) => i.id == 'music'),
-  );
   final items = _itemsFor(context, ref, options, extras);
   final pinned = ref.watch(
     voiceSettingsControllerProvider.select((s) => s.dockPinned),
   );
-  if (fits(splitDockItems(items, pinned: pinned, inlineAllowed: true))) {
+  if (_rowFits(
+    context,
+    options,
+    splitDockItems(items, pinned: pinned, inlineAllowed: true),
+  )) {
     return DockFit.pinned;
   }
-  if (fits(splitDockItems(items, pinned: pinned, inlineAllowed: false))) {
+  if (_rowFits(
+    context,
+    options,
+    splitDockItems(items, pinned: pinned, inlineAllowed: false),
+  )) {
     return DockFit.moreOnly;
   }
   return DockFit.tight;
+}
+
+/// Whether every control still in More would land inline if pinned, by the same fit [callRowFitFor] applies.
+bool callRowPinRoom(
+  BuildContext context,
+  WidgetRef ref,
+  CallRowOptions options, {
+  required List<DockItem> extras,
+}) {
+  final items = _itemsFor(context, ref, options, extras);
+  final pinned = ref.watch(
+    voiceSettingsControllerProvider.select((s) => s.dockPinned),
+  );
+  return [
+    for (final item in items)
+      if (!item.keepInline && !pinned.contains(item.id)) item,
+  ].every(
+    (candidate) => _rowFits(
+      context,
+      options,
+      splitDockItems(
+        items,
+        pinned: [...pinned, candidate.id],
+        inlineAllowed: true,
+      ),
+    ),
+  );
 }
 
 List<DockItem> _itemsFor(
