@@ -18,13 +18,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/accounts/providers/account_host.dart';
 import '../features/accounts/providers/account_providers.dart';
-import '../features/voice/providers/call_restore.dart';
 import '../providers/providers.dart';
 import 'close_behavior.dart';
 import 'desktop_window_controller.dart';
 import 'desktop_window_port.dart';
+import 'desktop_window_raiser.dart';
 import 'popout/popout_windowing.dart' show NativeMainWindow;
-import 'quit_step.dart';
+import 'desktop_quit_flow.dart';
 import 'providers/close_to_tray_preference.dart';
 import 'display_server.dart';
 import 'first_run_tray_notice.dart';
@@ -70,9 +70,11 @@ class DesktopWindowShell {
        _presenter = presenter ?? LinuxWindowPresenter(),
        _active = active,
        _framelessApplied = frameless,
-       _beforeExit = beforeExit,
-       _forceExit = forceExit,
-       _quitStepTimeout = quitStepTimeout;
+       _quitFlow = DesktopQuitFlow(
+         beforeExit: beforeExit,
+         forceExit: forceExit,
+         stepTimeout: quitStepTimeout,
+       );
 
   /// Shared by every step here, and the one port [TitleBar] drags, minimizes
   /// and maximizes through; the native listener must be registered only once.
@@ -118,6 +120,12 @@ class DesktopWindowShell {
   final Future<Duration?> Function() _splashMappedProbe;
   final SecondInstanceChannel _secondInstances;
   final LinuxWindowPresenter _presenter;
+  late final _raiser = DesktopWindowRaiser(
+    port: port,
+    presenter: _presenter,
+    secondInstances: _secondInstances,
+    platform: () => _chromePlatform,
+  );
 
   /// The fullscreen holds taken on this window, shared by every video surface.
   final fullscreenHolds = FullscreenHolds();
@@ -125,49 +133,20 @@ class DesktopWindowShell {
   /// The native window controller [registerListenersAndTray] builds, for geometry persistence.
   DesktopWindowController? get windowController => _controller;
 
-  /// What must not outlive this process: the Linux share audio mix, which would pause the media players feeding it.
-  final Future<void> Function() _beforeExit;
-
-  final void Function() _forceExit;
-
-  /// A quit step that never answers is given up on, so the window can still close.
-  final Duration _quitStepTimeout;
-
-  Future<void>? _quitting;
+  final DesktopQuitFlow _quitFlow;
 
   /// Writes any pending geometry, ends a share's audio mix, then destroys the window through [port].
   ///
   /// Single-flight: a second trigger gets the quit already running. Every step is
   /// isolated so one failure cannot keep the window open; the process exits regardless.
-  Future<void> quit(DesktopWindowPort port) => _quitting ??= _quit(port);
-
-  Future<void> _runStep(String what, Future<void> Function() step) =>
-      runQuitStep(what, _quitStepTimeout, step);
-
-  Future<void> _quit(DesktopWindowPort port) async {
-    await _runStep('forget the call', _forgetCall);
-    await _runStep('end the share audio', _beforeExit);
-    await _runStep('save the window position', () async {
-      await _controller?.flush();
-    });
-    try {
-      await port.destroy();
-    } catch (error, stack) {
-      AppLog.warning(
-        LogTag.platform,
-        'Could not close the window on quit',
-        error: error,
-        stack: stack,
-      );
-      _forceExit();
-    }
-  }
+  Future<void> quit(DesktopWindowPort port) => _quitFlow.quit(
+    port,
+    flushGeometry: () async => _controller?.flush(),
+    accounts: () => _accounts,
+  );
 
   /// Starts a fresh copy through [port] once a share's audio mix has ended, as [quit] does.
-  Future<void> relaunch(DesktopWindowPort port) async {
-    await _beforeExit();
-    await port.relaunch();
-  }
+  Future<void> relaunch(DesktopWindowPort port) => _quitFlow.relaunch(port);
 
   DesktopWindowController? _controller;
   DesktopTrayController? _trayController;
@@ -408,43 +387,16 @@ class DesktopWindowShell {
   /// launch was turned away in favour of this process. `main.dart` calls this
   /// right after [applyInitialGeometry], before there is a [ProviderContainer],
   /// since a second launch can race the very start of this process.
-  void registerSecondInstanceHandler() {
-    final platform = currentDesktopPlatform();
-    if (platform == null) return;
-    if (platform == DesktopPlatform.linux) _presenter.start();
-    _secondInstances.register(raise);
-  }
+  void registerSecondInstanceHandler() => _raiser.register();
 
   /// Fires each time another launch hands over to this running instance.
-  Stream<void> get secondLaunches => _secondInstances.launches;
+  Stream<void> get secondLaunches => _raiser.launches;
 
   /// The `slimm://` links later launches handed to this instance.
-  Stream<Uri> get forwardedLinks => _secondInstances.links;
+  Stream<Uri> get forwardedLinks => _raiser.links;
 
   /// Brings the window forward for a notification click or a second launch.
-  ///
-  /// show() un-hides a tray-hidden window; restore() raises a minimised one.
-  /// On Linux the window is first presented under the banner's activation token, which Wayland needs.
-  /// On Windows restore() also un-maximizes, and show() already brings the
-  /// window forward there, so only a minimised window is restored.
-  Future<void> raise() async {
-    final platform = _chromePlatform ?? currentDesktopPlatform();
-    if (currentDesktopPlatform() == null) return;
-    try {
-      if (platform == DesktopPlatform.linux) await _presenter.present();
-      await port.show();
-      if (platform != DesktopPlatform.windows || await port.isMinimized()) {
-        await port.restore();
-      }
-    } catch (error, stack) {
-      AppLog.swallowed(
-        LogTag.platform,
-        'Could not bring the window to the front',
-        error,
-        stack,
-      );
-    }
-  }
+  Future<void> raise() => _raiser.raise();
 
   /// Wires geometry persistence, close-to-tray/minimise and the tray icon, all
   /// of which need [container] for the running call's state.
@@ -519,28 +471,6 @@ class DesktopWindowShell {
     final notice = await screen.read(firstRunTrayNoticeProvider.future);
     if (notice.hasBeenShown(action)) return;
     screen.read(firstRunTrayNoticeCloseActionProvider.notifier).state = action;
-  }
-
-  /// A deliberate quit, so no call it leaves, in any Space, comes back on the next start.
-  Future<void> _forgetCall() async {
-    final containers = {
-      for (final space in _accounts?.accounts ?? const <AccountRuntime>[])
-        space.container,
-      ?_accounts?.active?.container,
-    };
-    for (final container in containers) {
-      try {
-        final restore = await container.read(callRestoreProvider.future);
-        await restore.markQuit();
-      } catch (error, stack) {
-        AppLog.warning(
-          LogTag.platform,
-          'Could not forget the call on quit',
-          error: error,
-          stack: stack,
-        );
-      }
-    }
   }
 
   /// The account on screen owns the settings a close acts on; the first one built may be gone.
