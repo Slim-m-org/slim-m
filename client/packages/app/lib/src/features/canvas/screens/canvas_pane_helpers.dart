@@ -94,6 +94,7 @@ extension _CanvasPaneHelpers on _CanvasPaneState {
     tool: () => _tool,
     noteSpans: () => _ops.noteSpans,
     mayRestyle: (id) => _mayRestyleHere(id),
+    placeText: (world) => _text.place(world),
   );
 
   CanvasNoteEditing get _notes => _notesHelper ??= CanvasNoteEditing(

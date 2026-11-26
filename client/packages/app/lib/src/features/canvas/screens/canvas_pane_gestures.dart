@@ -363,13 +363,36 @@ extension _CanvasPaneGestures on _CanvasPaneState {
   Widget _groupBar(bool manageCanvas) => CanvasMultiSelectionBar(
     document: _document,
     armed: _tool == CanvasTool.pan,
-    mayDelete: () =>
-        !_spectating &&
-        _document.multiSelection.ids.value.any(
-          (id) => manageCanvas || !_ops.isLocked(id),
-        ),
+    mayDelete: () => _groupMayDelete(manageCanvas),
     onDelete: () => unawaited(_onDeletePicked()),
+    onAlign: (mode) => unawaited(_onAlignPicked(mode)),
   );
+
+  Future<void> _onAlignPicked(CanvasAlign mode) async {
+    final picked = _document.multiSelection.ids.value.toList();
+    final manageCanvas = ref
+        .read(myChannelPermissionsProvider(widget.channelId))
+        .hasPermission(Perm.manageCanvas);
+    await _ops.alignObjects(
+      picked,
+      mode,
+      manageCanvas: manageCanvas,
+      selfId: ref.read(meProvider).valueOrNull?.id,
+    );
+    _refresh();
+  }
+
+  CanvasGroupActions _groupActions(bool manageCanvas) => CanvasGroupActions(
+    onAlign: (mode) => unawaited(_onAlignPicked(mode)),
+    onDelete: () => unawaited(_onDeletePicked()),
+    mayDelete: () => _groupMayDelete(manageCanvas),
+  );
+
+  bool _groupMayDelete(bool manageCanvas) =>
+      !_spectating &&
+      _document.multiSelection.ids.value.any(
+        (id) => manageCanvas || !_ops.isLocked(id),
+      );
 
   /// Deletes everything picked together by the drag box or a modifier click, as one undo step.
   Future<void> _onDeletePicked() async {

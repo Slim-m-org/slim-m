@@ -178,22 +178,51 @@ extension CanvasOpsControllerGroup on CanvasOpsController {
     required bool manageCanvas,
     required String? selfId,
   }) {
-    final from = <String, ObjectBox>{};
-    for (final id in ids) {
-      final bounds = document.objectBounds(id);
-      final mine = manageCanvas || document.authorIdOf(id) == selfId;
-      if (bounds == null || !mine || isLocked(id)) continue;
-      if (document.kindOf(id) == CanvasObjectKind.stroke) continue;
-      from[id] = bounds;
-    }
+    final from = _movableBoxes(ids, manageCanvas, selfId);
     if (from.isEmpty) return false;
     _groupDrag = _GroupDragState(from, world);
     return true;
   }
 
-  void _dragGroup(Offset world) {
+  /// The boxes of those of [ids] this person may move: not locked, not ink, and theirs unless [manageCanvas].
+  Map<String, ObjectBox> _movableBoxes(
+    Iterable<String> ids,
+    bool manageCanvas,
+    String? selfId,
+  ) {
+    final boxes = <String, ObjectBox>{};
+    for (final id in ids) {
+      final bounds = document.objectBounds(id);
+      final mine = manageCanvas || document.authorIdOf(id) == selfId;
+      if (bounds == null || !mine || isLocked(id)) continue;
+      if (document.kindOf(id) == CanvasObjectKind.stroke) continue;
+      boxes[id] = bounds;
+    }
+    return boxes;
+  }
+
+  /// Aligns or distributes the movable members of [ids] as one undo step; the ones it leaves where they are send nothing.
+  Future<void> alignObjects(
+    Iterable<String> ids,
+    CanvasAlign mode, {
+    required bool manageCanvas,
+    required String? selfId,
+  }) async {
+    final from = _movableBoxes(ids, manageCanvas, selfId);
+    final to = alignBoxes(from, mode);
+    for (final MapEntry(:key, :value) in to.entries) {
+      final box = document.boxOnBoard(key, value.x, value.y, value.w, value.h);
+      if (box == from[key]) continue;
+      document.moveObject(key, box.x, box.y, box.w, box.h);
+    }
+    document.refresh();
+    await _commitMoves(from);
+  }
+
+  void _dragGroup(Offset world, {bool lockAxis = false}) {
     final drag = _groupDrag!;
     var delta = world - drag.anchor;
+    if (lockAxis) delta = _alongLongerAxis(delta);
     final board = document.board;
     if (board != null) delta = _keptOnBoard(drag, delta, board);
     drag.delta = delta;
@@ -231,15 +260,19 @@ extension CanvasOpsControllerGroup on CanvasOpsController {
     document.refresh();
   }
 
-  /// Sends each member's move one after another and records the ones that landed as one undo step.
   Future<void> _commitGroupDrag() async {
     final drag = _groupDrag!;
     _groupDrag = null;
     if (drag.delta == Offset.zero) return;
+    await _commitMoves(drag.from);
+  }
+
+  /// Sends the move of each of [from] that now sits elsewhere, one after another, and records the ones that landed as one undo step.
+  Future<void> _commitMoves(Map<String, ObjectBox> from) async {
     final done = <_MoveStep>[];
-    for (final MapEntry(:key, :value) in drag.from.entries) {
+    for (final MapEntry(:key, :value) in from.entries) {
       final to = document.objectBounds(key);
-      if (to == null) continue;
+      if (to == null || to == value) continue;
       final ok = await _commitBounds(
         key,
         value,
@@ -248,7 +281,7 @@ extension CanvasOpsControllerGroup on CanvasOpsController {
         record: false,
       );
       if (!ok) {
-        _cancelRest(drag, done);
+        _cancelRest(from, done);
         break;
       }
       done.add(_MoveStep(key, value.x, value.y, value.w, value.h));
@@ -257,12 +290,17 @@ extension CanvasOpsControllerGroup on CanvasOpsController {
   }
 
   /// Puts back the members a failed commit never reached, so the board matches the server.
-  void _cancelRest(_GroupDragState drag, List<_MoveStep> done) {
+  void _cancelRest(Map<String, ObjectBox> from, List<_MoveStep> done) {
     final sent = done.map((s) => s.objectId).toSet();
-    for (final MapEntry(:key, :value) in drag.from.entries) {
+    for (final MapEntry(:key, :value) in from.entries) {
       if (sent.contains(key)) continue;
       document.moveObject(key, value.x, value.y, value.w, value.h);
     }
     document.refresh();
   }
+
+  /// [delta] with its shorter component dropped, so a drag holds to the horizontal or the vertical.
+  Offset _alongLongerAxis(Offset delta) => delta.dx.abs() >= delta.dy.abs()
+      ? Offset(delta.dx, 0)
+      : Offset(0, delta.dy);
 }

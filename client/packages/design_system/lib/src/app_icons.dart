@@ -290,6 +290,18 @@ abstract final class AppIcons {
   static const IconData bringToFront = LucideIcons.bringToFront300;
   static const IconData sendToBack = LucideIcons.sendToBack300;
 
+  /// Aligning and distributing a group of canvas objects.
+  static const IconData alignLeft = LucideIcons.alignStartVertical300;
+  static const IconData alignCentre = LucideIcons.alignCenterVertical300;
+  static const IconData alignRight = LucideIcons.alignEndVertical300;
+  static const IconData alignTop = LucideIcons.alignStartHorizontal300;
+  static const IconData alignMiddle = LucideIcons.alignCenterHorizontal300;
+  static const IconData alignBottom = LucideIcons.alignEndHorizontal300;
+  static const IconData distributeHorizontally =
+      LucideIcons.alignHorizontalDistributeCenter300;
+  static const IconData distributeVertically =
+      LucideIcons.alignVerticalDistributeCenter300;
+
   /// A record of what happened: the canvas's text activity log, and a voice
   /// channel's call details (who was in when, what happened, what was said).
   static const IconData activityLog = LucideIcons.history300;

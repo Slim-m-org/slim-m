@@ -18,7 +18,6 @@ library;
 
 import 'dart:async';
 
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -26,7 +25,10 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../../widgets/context_menu_focus.dart';
 import '../providers/canvas_edge_style.dart';
+import '../widgets/canvas_align_menu.dart';
 import 'canvas_edge_menu.dart';
+import 'canvas_group_actions.dart';
+import 'canvas_touch_hold.dart';
 import 'canvas_edge_gesture.dart' show canvasEdgeAttachable;
 import 'canvas_object_locks.dart';
 import 'canvas_tool_wheel_layer.dart';
@@ -129,6 +131,9 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
   Offset _anchor = Offset.zero;
   String? _target;
 
+  /// Whether the open menu is for the objects picked together rather than one.
+  bool _inGroup = false;
+
   /// Non-null exactly while the empty-space menu is open: where a note lands once picked. Never set with `_target`.
   Offset? _emptySpaceWorld;
 
@@ -140,51 +145,12 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
 
   @override
   void dispose() {
-    _holdTimer?.cancel();
+    _hold.cancel();
     widget.requests.removeListener(_onRequest);
     super.dispose();
   }
 
-  final Set<int> _heldPointers = {};
-  Timer? _holdTimer;
-  int? _holdPointer;
-  Offset _holdLocal = Offset.zero;
-  Offset _holdGlobal = Offset.zero;
-
-  /// A touch or pen held still opens the menu. A timer here rather than a
-  /// long-press recognizer: a recognizer joins the gesture arena, and one
-  /// held finger would then reject the surface's pinch, or fire for a mouse.
-  void _holdDown(PointerDownEvent event) {
-    _heldPointers.add(event.pointer);
-    _cancelHold();
-    final touchLike =
-        event.kind == PointerDeviceKind.touch ||
-        event.kind == PointerDeviceKind.stylus;
-    if (_heldPointers.length != 1 || !touchLike) return;
-    _holdPointer = event.pointer;
-    _holdLocal = event.localPosition;
-    _holdGlobal = event.position;
-    _holdTimer = Timer(kLongPressTimeout, () {
-      _holdTimer = null;
-      _onLongPress(_holdLocal, _holdGlobal);
-    });
-  }
-
-  void _holdMove(PointerMoveEvent event) {
-    if (event.pointer != _holdPointer) return;
-    if ((event.localPosition - _holdLocal).distance > kTouchSlop) _cancelHold();
-  }
-
-  void _holdEnd(PointerEvent event) {
-    _heldPointers.remove(event.pointer);
-    if (event.pointer == _holdPointer) _cancelHold();
-  }
-
-  void _cancelHold() {
-    _holdTimer?.cancel();
-    _holdTimer = null;
-    _holdPointer = null;
-  }
+  late final _hold = CanvasTouchHold(onHold: _onLongPress);
 
   void _onRequest() {
     final id = widget.requests.objectId;
@@ -242,10 +208,13 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
 
   void _openFor(String id, {required Offset? pointerGlobal}) {
     if (widget.readOnly) return;
-    if (widget.tool == CanvasTool.pan) {
+    final group = widget.document.multiSelection.ids.value;
+    final inGroup = group.length > 1 && group.contains(id);
+    if (widget.tool == CanvasTool.pan && !inGroup) {
       widget.document.selectedObjectId.value = id;
     }
     setState(() {
+      _inGroup = inGroup;
       _target = id;
       _emptySpaceWorld = null;
       _anchor = _anchorOffset(id, pointerGlobal);
@@ -258,6 +227,7 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
     final overlayObject = Overlay.of(context).context.findRenderObject();
     final overlay = overlayObject is RenderBox ? overlayObject : null;
     setState(() {
+      _inGroup = false;
       _target = null;
       _emptySpaceWorld = world;
       _anchor = overlay?.globalToLocal(pointerGlobal) ?? Offset.zero;
@@ -383,10 +353,10 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
         excludeFromSemantics: true,
         child: Listener(
           behavior: HitTestBehavior.translucent,
-          onPointerDown: _holdDown,
-          onPointerMove: _holdMove,
-          onPointerUp: _holdEnd,
-          onPointerCancel: _holdEnd,
+          onPointerDown: _hold.down,
+          onPointerMove: _hold.move,
+          onPointerUp: _hold.end,
+          onPointerCancel: _hold.end,
           child: SizedBox.expand(
             // The badges ride on this full-surface layer; they take no pointer, so the hit catcher above is unchanged.
             child: switch (CanvasObjectLocksScope.maybeOf(context)) {
@@ -411,7 +381,19 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
       (widget.document.kindOf(id) == CanvasObjectKind.note ||
           widget.document.kindOf(id) == CanvasObjectKind.text);
 
+  Widget _groupMenu() {
+    final actions = CanvasGroupActionsScope.maybeOf(context);
+    return canvasGroupMenu(
+      count: widget.document.multiSelection.ids.value.length,
+      mayDelete: actions?.mayDelete() ?? false,
+      onAlign: actions?.onAlign ?? (_) {},
+      onDelete: actions?.onDelete ?? () {},
+      close: _close,
+    );
+  }
+
   Widget _objectMenu() {
+    if (_inGroup) return _groupMenu();
     final locks = CanvasObjectLocksScope.maybeOf(context);
     final id = _target;
     if (id != null && widget.document.edges.isAlive(id)) {

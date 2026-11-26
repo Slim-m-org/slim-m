@@ -8,6 +8,8 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../../providers/dock_reservation.dart';
+import '../../../widgets/context_menu_region.dart';
+import 'canvas_align_menu.dart';
 import 'canvas_selection_bar.dart';
 
 class CanvasMultiSelectionBar extends ConsumerWidget {
@@ -17,6 +19,7 @@ class CanvasMultiSelectionBar extends ConsumerWidget {
     required this.armed,
     required this.mayDelete,
     required this.onDelete,
+    required this.onAlign,
   });
 
   final CanvasDocument document;
@@ -27,6 +30,9 @@ class CanvasMultiSelectionBar extends ConsumerWidget {
   /// Whether this person may delete anything in the group.
   final bool Function() mayDelete;
   final VoidCallback onDelete;
+
+  /// Aligns or distributes the picked objects.
+  final ValueChanged<CanvasAlign> onAlign;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -57,6 +63,7 @@ class CanvasMultiSelectionBar extends ConsumerWidget {
               count: picked.ids.value.length,
               mayDelete: mayDelete(),
               onDelete: onDelete,
+              onAlign: onAlign,
             ),
           ),
         );
@@ -91,11 +98,13 @@ class _Bar extends StatelessWidget {
     required this.count,
     required this.mayDelete,
     required this.onDelete,
+    required this.onAlign,
   });
 
   final int count;
   final bool mayDelete;
   final VoidCallback onDelete;
+  final ValueChanged<CanvasAlign> onAlign;
 
   @override
   Widget build(BuildContext context) {
@@ -125,6 +134,7 @@ class _Bar extends StatelessWidget {
                 '$count selected',
                 style: AppText.ui.copyWith(color: tokens.textPrimary),
               ),
+              if (mayDelete) _AlignButton(count: count, onAlign: onAlign),
               if (mayDelete)
                 FocusableTapTarget(
                   semanticLabel: 'Delete selection',
@@ -145,6 +155,65 @@ class _Bar extends StatelessWidget {
                   ),
                 ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Opens the Align and Distribute menu over the bar.
+class _AlignButton extends StatefulWidget {
+  const _AlignButton({required this.count, required this.onAlign});
+
+  final int count;
+  final ValueChanged<CanvasAlign> onAlign;
+
+  @override
+  State<_AlignButton> createState() => _AlignButtonState();
+}
+
+class _AlignButtonState extends State<_AlignButton> {
+  final _region = GlobalKey<ContextMenuRegionState>();
+
+  /// Opens just under the button, since a tap that came from the keyboard or a screen reader has no pointer to anchor to.
+  void _toggle() {
+    final box = context.findRenderObject() as RenderBox?;
+    final below = box?.localToGlobal(Offset(0, box.size.height));
+    _region.currentState?.toggle(at: below);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return ContextMenuRegion(
+      key: _region,
+      ownsFocusNode: false,
+      enableLongPress: false,
+      menuWidth: 220,
+      itemsBuilder: (context, close) => canvasAlignItems(
+        count: widget.count,
+        onAlign: widget.onAlign,
+        close: close,
+      ),
+      sheetSemanticLabel: 'Align',
+      child: Tooltip(
+        message: 'Align',
+        excludeFromSemantics: true,
+        child: FocusableTapTarget(
+          semanticLabel: 'Align',
+          onTap: _toggle,
+          builder: (context, focused, hovered) => Container(
+            padding: const EdgeInsets.all(AppSpacing.s8),
+            decoration: BoxDecoration(
+              color: hovered ? tokens.surfaceSunken : Colors.transparent,
+              borderRadius: BorderRadius.circular(AppRadii.control),
+            ),
+            child: Icon(
+              AppIcons.alignLeft,
+              size: AppSizes.icon20,
+              color: tokens.textPrimary,
+            ),
           ),
         ),
       ),

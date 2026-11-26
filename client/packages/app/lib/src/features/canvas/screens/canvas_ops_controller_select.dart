@@ -185,8 +185,13 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
   /// With [snap], the moved box (or the dragged corner) pulls onto other
   /// visible boxes' edges and centres; the pointer-to-box anchor is untouched,
   /// so releasing [snap] mid-drag releases the box immediately.
-  void dragSelect(Offset world, {required bool lockAspect, bool snap = false}) {
-    if (_groupDrag != null) return _dragGroup(world);
+  void dragSelect(
+    Offset world, {
+    required bool lockAspect,
+    bool snap = false,
+    bool lockAxis = false,
+  }) {
+    if (_groupDrag != null) return _dragGroup(world, lockAxis: lockAxis);
     final resize = _resize;
     if (resize != null) {
       final point = snap
@@ -218,8 +223,11 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
     }
     final drag = _drag;
     if (drag == null) return;
-    final x = drag.fromX + (world.dx - drag.anchor.dx);
-    final y = drag.fromY + (world.dy - drag.anchor.dy);
+    final step = lockAxis
+        ? _alongLongerAxis(world - drag.anchor)
+        : world - drag.anchor;
+    final x = drag.fromX + step.dx;
+    final y = drag.fromY + step.dy;
     final shift = snap
         ? _snapped(drag.objectId, Rect.fromLTWH(x, y, drag.fromW, drag.fromH))
         : _unsnapped();

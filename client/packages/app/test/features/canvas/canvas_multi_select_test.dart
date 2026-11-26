@@ -80,7 +80,82 @@ Future<void> _key(WidgetTester tester, LogicalKeyboardKey key) async {
 Set<String> _picked(WidgetTester tester) =>
     surfaceDocument(tester).multiSelection.all;
 
+Future<void> _rightClick(WidgetTester tester, Offset world) async {
+  final gesture = await tester.startGesture(
+    screenFor(tester, world),
+    kind: PointerDeviceKind.mouse,
+    buttons: kSecondaryMouseButton,
+  );
+  await gesture.up();
+  await tester.pump();
+  await tester.pump();
+}
+
 void main() {
+  testWidgets('Shift held while dragging a note keeps it on one axis', (
+    tester,
+  ) async {
+    await _pump(tester);
+    final document = surfaceDocument(tester);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await _drag(tester, const Offset(410, 20), const Offset(470, 40));
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+
+    expect(document.objectBounds('n2')!.y, 10);
+    expect(document.objectBounds('n2')!.x, closeTo(460, 1.5));
+  });
+
+  testWidgets('the selection bar aligns the pick, one undo takes it back', (
+    tester,
+  ) async {
+    final fixture = await _pump(tester);
+    await _drag(tester, const Offset(290, 60), const Offset(430, 0));
+
+    await tester.tap(find.bySemanticsLabel('Align'));
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.text('Align right'));
+    await tester.pump();
+    await tester.pump();
+
+    final moves = fixture.postedOps.where((op) => op['kind'] == 'move');
+    expect(moves.map((op) => op['object_id']), ['n1']);
+    expect(surfaceDocument(tester).objectBounds('n1')!.x, 400);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await _key(tester, LogicalKeyboardKey.keyZ);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    expect(surfaceDocument(tester).objectBounds('n1')!.x, 300);
+  });
+
+  testWidgets(
+    'right-clicking one of the pick offers align and delete for all',
+    (tester) async {
+      final fixture = await _pump(tester);
+      await _drag(tester, const Offset(290, 60), const Offset(430, 0));
+
+      await _rightClick(tester, const Offset(410, 20));
+      expect(find.text('Distribute horizontally'), findsOneWidget);
+      expect(_picked(tester), {'n1', 'n2'});
+      await tester.tap(find.text('Align left'));
+      await tester.pump();
+      await tester.pump();
+
+      expect(surfaceDocument(tester).objectBounds('n2')!.x, 300);
+      expect(
+        fixture.postedOps.where((op) => op['kind'] == 'move'),
+        hasLength(1),
+      );
+
+      await _rightClick(tester, const Offset(310, 20));
+      await tester.tap(find.text('Delete'));
+      await tester.pump();
+      await tester.pump();
+      expect(fixture.deletedObjects, unorderedEquals(['n1', 'n2']));
+    },
+  );
+
   testWidgets('a mouse on a narrow window drags a box at once, not a pan', (
     tester,
   ) async {

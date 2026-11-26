@@ -161,4 +161,97 @@ void main() {
     expect(rig.document.objectBounds('b')!.x, 300);
     expect(rig.requests, isEmpty);
   });
+
+  test('Shift locks a group drag to its longer axis', () async {
+    final rig = _Rig()
+      ..place(_note('a', 100))
+      ..place(_note('b', 300));
+    rig.grab(['a', 'b']);
+
+    rig.ops.dragSelect(const Offset(60, 20), lockAspect: false, lockAxis: true);
+    await rig.ops.endSelect();
+
+    expect(rig.document.objectBounds('a')!.x, 160);
+    expect(rig.document.objectBounds('a')!.y, 100);
+    expect(rig.document.objectBounds('b')!.y, 100);
+  });
+
+  test('Shift locks a single drag to its longer axis', () async {
+    final rig = _Rig()..place(_note('a', 100));
+    rig.ops.beginSelect(
+      const Offset(110, 110),
+      manageCanvas: false,
+      selfId: 'me',
+    );
+
+    rig.ops.dragSelect(
+      const Offset(120, 190),
+      lockAspect: false,
+      lockAxis: true,
+    );
+    await rig.ops.endSelect();
+
+    expect(rig.document.objectBounds('a')!.x, 100);
+    expect(rig.document.objectBounds('a')!.y, 180);
+  });
+
+  test(
+    'aligning left sends one move per object that shifts, as one undo',
+    () async {
+      final rig = _Rig()
+        ..place(_note('a', 100))
+        ..place(_note('b', 300))
+        ..place(_note('c', 500));
+
+      await rig.ops.alignObjects(
+        ['a', 'b', 'c'],
+        CanvasAlign.left,
+        manageCanvas: false,
+        selfId: 'me',
+      );
+
+      expect(rig.document.objectBounds('b')!.x, 100);
+      expect(rig.document.objectBounds('c')!.x, 100);
+      expect(rig.requests.map((r) => r['object_id']), ['b', 'c']);
+      await rig.ops.undo();
+      expect(rig.document.objectBounds('b')!.x, 300);
+      expect(rig.document.objectBounds('c')!.x, 500);
+      expect(rig.ops.canUndo, isFalse);
+    },
+  );
+
+  test('a locked or foreign object stays put through an align', () async {
+    final rig = _Rig(locked: {'b'})
+      ..place(_note('a', 100))
+      ..place(_note('b', 300))
+      ..place(_note('c', 500, authorId: 'other'))
+      ..place(_note('d', 700));
+
+    await rig.ops.alignObjects(
+      ['a', 'b', 'c', 'd'],
+      CanvasAlign.right,
+      manageCanvas: false,
+      selfId: 'me',
+    );
+
+    expect(rig.document.objectBounds('b')!.x, 300);
+    expect(rig.document.objectBounds('c')!.x, 500);
+    expect(rig.document.objectBounds('a')!.x, 700);
+  });
+
+  test('distributing two objects sends nothing', () async {
+    final rig = _Rig()
+      ..place(_note('a', 100))
+      ..place(_note('b', 300));
+
+    await rig.ops.alignObjects(
+      ['a', 'b'],
+      CanvasAlign.distributeHorizontally,
+      manageCanvas: false,
+      selfId: 'me',
+    );
+
+    expect(rig.requests, isEmpty);
+    expect(rig.ops.canUndo, isFalse);
+  });
 }
