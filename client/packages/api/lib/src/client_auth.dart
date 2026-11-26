@@ -141,7 +141,9 @@ extension SlimmApiAuth on SlimmApi {
         '/auth/refresh',
         authenticated: false,
         body: {
-          'refresh_token': current.refreshToken,
+          // A web session's token is in the cookie; only a pre-cookie one is still sent, once.
+          if (current.refreshToken.isNotEmpty)
+            'refresh_token': current.refreshToken,
           if (clientReport case final report?) ...{
             'client_kind': report.kind,
             if (report.version case final version?) 'client_version': version,

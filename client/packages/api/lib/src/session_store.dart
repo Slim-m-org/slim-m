@@ -180,7 +180,13 @@ class SessionStore {
       if (adoptSignOut) adopt(null);
       return null;
     }
-    if (stored.refreshToken == held.refreshToken) return null;
+    // A web tab's stored hint has no token to take up: its cookie is already shared by every tab.
+    final sameAccount = stored.userId == held.userId;
+    if (sameAccount &&
+        (stored.refreshToken.isEmpty ||
+            stored.refreshToken == held.refreshToken)) {
+      return null;
+    }
     adopt(stored);
     return stored;
   }

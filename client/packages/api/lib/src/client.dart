@@ -116,6 +116,7 @@ class SlimmApi {
     DirectRoute? directRoute,
     TrustGate? trustGate,
     bool unvouched = false,
+    bool webSession = false,
   }) : this._(
           baseUrl: baseUrl,
           session: session ?? SessionStore(),
@@ -124,6 +125,7 @@ class SlimmApi {
               directRoute ?? (httpClient == null ? DirectRoute(baseUrl) : null),
           trustGate: trustGate,
           unvouched: unvouched,
+          webSession: webSession,
         );
 
   SlimmApi._({
@@ -133,6 +135,7 @@ class SlimmApi {
     required DirectRoute? route,
     required this.trustGate,
     required this.unvouched,
+    required this.webSession,
   }) : link = ApiLink(
           client: httpClient ?? route?.httpClient ?? http.Client(),
           route: route,
@@ -150,6 +153,12 @@ class SlimmApi {
   /// A server nobody has vouched for yet: no redirect is followed and no
   /// reply is read past [unvouchedReplyBytes].
   final bool unvouched;
+
+  /// Whether this browser tab leaves its refresh token to the server's HttpOnly cookie (decision 0141).
+  ///
+  /// The tab then holds only an access token, and every call names the cookie flow so the server sets,
+  /// reads and clears the cookie for it.
+  final bool webSession;
 
   /// Completes once the session may be sent to this server.
   Future<void> awaitTrust() async {

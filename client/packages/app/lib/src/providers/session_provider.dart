@@ -8,6 +8,7 @@ import 'package:slimm_platform/platform.dart';
 
 import '../features/accounts/providers/account_slot.dart';
 import 'providers.dart';
+import 'web_session.dart';
 
 /// The session, shared by everything that talks to the server so a refresh in
 /// one place is seen everywhere.
@@ -36,11 +37,18 @@ final sessionProvider = Provider<SessionStore>((ref) {
   String handle() => slot == null
       ? sessionTokenHandle
       : slot.accountFor(ref.read(serverUrlProvider)).sessionHandle;
-  final store = SessionStore(
+  late final SessionStore store;
+  store = SessionStore(
     sync: TabSessionSync(tabs, () async {
+      // Nothing is stored in this mode, so another tab's write says nothing about this tab's session.
+      if (ref.read(webSessionModeProvider) == WebSessionMode.memory) {
+        return store.tokens;
+      }
       final stored = await keyStore.read(handle());
       if (stored == null) return null;
-      return TokenPair.fromJson(jsonDecode(stored) as Map<String, dynamic>);
+      return TokenPair.fromStoredJson(
+        jsonDecode(stored) as Map<String, dynamic>,
+      );
     }),
     onChange: (tokens) async {
       final serverUrl = tokens == null ? null : ref.read(serverUrlProvider);
@@ -51,6 +59,7 @@ final sessionProvider = Provider<SessionStore>((ref) {
           sessionHandle,
           tokens,
           slot == null ? serverUrl : null,
+          ref.read(webSessionModeProvider),
         );
       } catch (error, stack) {
         reportFailure(LogTag.auth, 'save the sign-in', error, stack);
@@ -89,12 +98,17 @@ Future<void> _persistSession(
   String handle,
   TokenPair? tokens,
   Uri? serverUrl,
+  WebSessionMode mode,
 ) async {
-  if (tokens == null) {
+  final stored = tokens == null ? null : sessionToStore(mode, tokens);
+  if (stored == null) {
     await keyStore.delete(handle);
+    if (tokens != null && serverUrl != null) {
+      await keyStore.put(serverUrlHandle, serverUrl.toString());
+    }
     return;
   }
-  await keyStore.put(handle, jsonEncode(tokens.toJson()));
+  await keyStore.put(handle, stored);
   if (serverUrl != null) {
     await keyStore.put(serverUrlHandle, serverUrl.toString());
   }

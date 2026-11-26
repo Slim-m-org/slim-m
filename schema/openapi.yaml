@@ -246,6 +246,8 @@ paths:
     post:
       operationId: register
       tags: [auth]
+      parameters:
+        - $ref: "#/components/parameters/WebSession"
       summary: Create an account and open a session.
       description: >
         The first account to register on an unclaimed deployment also claims it,
@@ -290,6 +292,8 @@ paths:
     post:
       operationId: login
       tags: [auth]
+      parameters:
+        - $ref: "#/components/parameters/WebSession"
       summary: Open a session with a username and password.
       security: []
       requestBody:
@@ -364,6 +368,9 @@ paths:
     post:
       operationId: refresh
       tags: [auth]
+      parameters:
+        - $ref: "#/components/parameters/WebSession"
+        - $ref: "#/components/parameters/WebAccount"
       summary: Exchange a refresh token for a new pair.
       description: >
         Rotation is single-use: the presented token is spent and a new pair
@@ -411,6 +418,8 @@ paths:
     post:
       operationId: logout
       tags: [auth]
+      parameters:
+        - $ref: "#/components/parameters/WebSession"
       summary: Revoke the calling session.
       description: >
         Revocation is immediate: the session's bearer token stops resolving on
@@ -427,6 +436,8 @@ paths:
     delete:
       operationId: deleteAccount
       tags: [auth]
+      parameters:
+        - $ref: "#/components/parameters/WebSession"
       summary: Delete the calling account.
       description: >
         Purges personal data, clears authorship from content left in shared
@@ -668,6 +679,8 @@ paths:
     post:
       operationId: verifyTotpChallenge
       tags: [auth]
+      parameters:
+        - $ref: "#/components/parameters/WebSession"
       summary: Finish a sign-in that /auth/login answered with a challenge.
       description: >
         Unauthenticated, like /auth/reset: the caller has no session yet. The
@@ -1886,6 +1899,8 @@ paths:
     delete:
       operationId: removeDevice
       tags: [safety]
+      parameters:
+        - $ref: "#/components/parameters/WebSession"
       summary: Sign a device out.
       description: >
         Only ever the caller's own device: a device id on someone else's
@@ -14648,6 +14663,32 @@ components:
       description: An opaque access token from register, login, or refresh.
 
   parameters:
+    WebSession:
+      name: x-slimm-web-session
+      in: header
+      required: false
+      description: >
+        Sent as `cookie` by the web client (decision 0141). The refresh token
+        then travels in an HttpOnly, Secure, SameSite=Strict cookie named
+        `__Secure-slimm_rt_<user_id>` with `Path=/auth/refresh`, and is left out
+        of the response body. A sign-in or refresh sets the cookie; sign-out,
+        removing the current device, deleting the account and a refused refresh
+        clear it. Other clients send nothing and are unchanged. A cookie refresh
+        without this header is refused, which is the CSRF guard beside SameSite.
+      schema:
+        type: string
+        enum: [cookie]
+    WebAccount:
+      name: x-slimm-account
+      in: header
+      required: false
+      description: >
+        The account whose cookie a web client's refresh reads, so several
+        accounts in one browser never share a cookie. Required with
+        `x-slimm-web-session` when the body carries no `refresh_token`.
+      schema:
+        type: string
+        format: uuid
     ChannelId:
       name: channelId
       in: path
@@ -15315,7 +15356,7 @@ components:
 
     TokenPair:
       type: object
-      required: [user_id, access_token, refresh_token, access_expires_at]
+      required: [user_id, access_token, access_expires_at]
       properties:
         user_id:
           type: string
@@ -15325,7 +15366,7 @@ components:
           description: Bearer token for authenticated requests. Short-lived.
         refresh_token:
           type: string
-          description: Single-use token that rotates on each refresh.
+          description: Single-use token that rotates on each refresh. Absent for a web client, whose token is in an HttpOnly cookie.
         access_expires_at:
           type: integer
           format: int64
@@ -15508,10 +15549,10 @@ components:
 
     RefreshRequest:
       type: object
-      required: [refresh_token]
       properties:
         refresh_token:
           type: string
+          description: Required unless a web client sends its cookie instead.
         client_kind:
           type: string
           nullable: true

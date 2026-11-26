@@ -219,8 +219,9 @@ async fn disable(
 async fn verify(
     _limited: RateLimited<TOTP>,
     State(state): State<AppState>,
+    headers: axum::http::HeaderMap,
     Json(body): Json<VerifyRequest>,
-) -> Result<Json<super::auth::TokenResponse>, ApiError> {
+) -> Result<axum::response::Response, ApiError> {
     let install_id = super::auth::parse_install_id(body.install_id.as_deref())?;
     let completed = state
         .store
@@ -251,7 +252,10 @@ async fn verify(
             "a sign-in spent a TOTP recovery code"
         );
     }
-    Ok(Json(super::auth::token_response(&signed_in.tokens)))
+    Ok(super::auth::web_session::session_response(
+        &headers,
+        &signed_in.tokens,
+    ))
 }
 
 /// Clears another member's factor. Requires ADMINISTRATOR.
