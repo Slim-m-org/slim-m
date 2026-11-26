@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.139.1](https://github.com/Slim-m-org/slim-m/compare/client-v0.139.0...client-v0.139.1) (2026-11-26)
+
+
+### Bug Fixes
+
+* canvas note bar, inline emoji, escape and dots, fullscreen annotate, thread mentions, photo metadata and flaky tests ([#2499](https://github.com/Slim-m-org/slim-m/issues/2499)) ([5c8b628](https://github.com/Slim-m-org/slim-m/commit/5c8b628e30027358fcecfc3e0bb97db266ab81f4))
+
 ## [0.139.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.138.0...client-v0.139.0) (2026-11-25)
 
 
