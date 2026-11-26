@@ -45,6 +45,7 @@ import '../../messages/widgets/image_drop_zone.dart'
     show DroppedImage, RefusedDrop, readDroppedImage;
 import '../../../providers/phone_landscape.dart';
 import '../../../permissions.dart';
+import '../widgets/canvas_multi_selection_bar.dart';
 import '../../members/widgets/member_pane.dart'
     show memberPaneVisibleProvider, memberPaneWanted;
 import '../../../routing/breakpoints.dart';
@@ -423,6 +424,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
                 onTextStyle: _text.restyle,
                 textEditing: _editingNoteId != null || _text.draft != null,
                 textEditor: _textEditor(),
+                groupBar: _groupBar(manageCanvas),
               ),
               onNotePlace: (world, [size]) => _notes.placeDraft(world, size),
               onTextPlace: _text.place,

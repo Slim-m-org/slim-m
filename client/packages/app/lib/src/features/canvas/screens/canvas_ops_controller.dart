@@ -211,6 +211,7 @@ class CanvasOpsController {
   final Set<String> _dragBatch = <String>{};
   _DragState? _drag;
   _ResizeState? _resize;
+  _GroupDragState? _groupDrag;
 
   bool get canUndo => _history.canUndo;
   bool get canRedo => _history.canRedo;
@@ -243,25 +244,7 @@ class CanvasOpsController {
       await eraseEdge(objectId);
       return;
     }
-    final mark = document.groupOf(objectId);
-    final members = mark.length > 1 ? mark : [objectId];
-    final immediate = <String>[];
-    for (final member in members) {
-      if (pinned(member)) continue;
-      switch (commits.undoPlacement(member)) {
-        case UndoPlacementOutcome.cancelled:
-          document.kill(member);
-        case UndoPlacementOutcome.armed:
-          document.removeObject(member);
-        case UndoPlacementOutcome.unresolved:
-          document.removeObject(member);
-          immediate.add(member);
-      }
-    }
-    document.refresh();
-    if (immediate.isEmpty) return;
-    final purged = await _purge(immediate, 'That could not be deleted.');
-    if (purged.rows.isNotEmpty) _pushUndo(_PurgeEntry(purged.rows));
+    await deleteObjects([objectId], manageCanvas: manageCanvas);
   }
 
   /// Reverses the most recent drawn or erased gesture and makes it available to [redo]; an entry leaves the stack only once its reversal succeeded.

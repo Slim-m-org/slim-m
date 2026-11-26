@@ -26,6 +26,15 @@ class _RedoMoveGroup extends _RedoEntry {
   final List<_MoveStep> to;
 }
 
+/// Several objects picked up together: each one's box when the drag began, and the press that began it.
+class _GroupDragState {
+  _GroupDragState(this.from, this.anchor);
+
+  final Map<String, ObjectBox> from;
+  final Offset anchor;
+  Offset delta = Offset.zero;
+}
+
 /// Pause between bring-in requests, so a big batch does not trip the rate limit.
 const Duration _bringInPace = Duration(milliseconds: 60);
 
@@ -131,5 +140,129 @@ extension CanvasOpsControllerGroup on CanvasOpsController {
       return null;
     }
     return remaining.isEmpty ? _MoveGroupEntry(undone) : null;
+  }
+
+  /// Deletes [ids] for good, a whole mark at a time, as one undo step; a locked one is passed over unless [manageCanvas].
+  Future<void> deleteObjects(
+    Iterable<String> ids, {
+    bool manageCanvas = false,
+  }) async {
+    bool pinned(String id) => !manageCanvas && isLocked(id);
+    final members = <String>{};
+    for (final id in ids) {
+      final mark = document.groupOf(id);
+      members.addAll(mark.length > 1 ? mark : [id]);
+    }
+    final immediate = <String>[];
+    for (final member in members.where((id) => !pinned(id))) {
+      switch (commits.undoPlacement(member)) {
+        case UndoPlacementOutcome.cancelled:
+          document.kill(member);
+        case UndoPlacementOutcome.armed:
+          document.removeObject(member);
+        case UndoPlacementOutcome.unresolved:
+          document.removeObject(member);
+          immediate.add(member);
+      }
+    }
+    document.refresh();
+    if (immediate.isEmpty) return;
+    final purged = await _purge(immediate, 'That could not be deleted.');
+    if (purged.rows.isNotEmpty) _pushUndo(_PurgeEntry(purged.rows));
+  }
+
+  /// Picks up every one of [ids] this person may move, to be dragged by [dragSelect]; false when none can be.
+  bool beginGroupDrag(
+    Offset world,
+    Iterable<String> ids, {
+    required bool manageCanvas,
+    required String? selfId,
+  }) {
+    final from = <String, ObjectBox>{};
+    for (final id in ids) {
+      final bounds = document.objectBounds(id);
+      final mine = manageCanvas || document.authorIdOf(id) == selfId;
+      if (bounds == null || !mine || isLocked(id)) continue;
+      if (document.kindOf(id) == CanvasObjectKind.stroke) continue;
+      from[id] = bounds;
+    }
+    if (from.isEmpty) return false;
+    _groupDrag = _GroupDragState(from, world);
+    return true;
+  }
+
+  void _dragGroup(Offset world) {
+    final drag = _groupDrag!;
+    var delta = world - drag.anchor;
+    final board = document.board;
+    if (board != null) delta = _keptOnBoard(drag, delta, board);
+    drag.delta = delta;
+    for (final MapEntry(:key, :value) in drag.from.entries) {
+      document.moveObject(
+        key,
+        value.x + delta.dx,
+        value.y + delta.dy,
+        value.w,
+        value.h,
+      );
+    }
+    document.refresh();
+  }
+
+  /// The drag [delta], held so the group's joint box stays inside [board] and the members keep their places relative to each other.
+  Offset _keptOnBoard(_GroupDragState drag, Offset delta, Rect board) {
+    final joint = drag.from.values
+        .map((b) => Rect.fromLTWH(b.x, b.y, b.w, b.h))
+        .reduce((a, b) => a.expandToInclude(b));
+    double held(double d, double lo, double hi) =>
+        lo > hi ? 0 : d.clamp(lo, hi).toDouble();
+    return Offset(
+      held(delta.dx, board.left - joint.left, board.right - joint.right),
+      held(delta.dy, board.top - joint.top, board.bottom - joint.bottom),
+    );
+  }
+
+  void _cancelGroupDrag() {
+    final drag = _groupDrag!;
+    _groupDrag = null;
+    for (final MapEntry(:key, :value) in drag.from.entries) {
+      document.moveObject(key, value.x, value.y, value.w, value.h);
+    }
+    document.refresh();
+  }
+
+  /// Sends each member's move one after another and records the ones that landed as one undo step.
+  Future<void> _commitGroupDrag() async {
+    final drag = _groupDrag!;
+    _groupDrag = null;
+    if (drag.delta == Offset.zero) return;
+    final done = <_MoveStep>[];
+    for (final MapEntry(:key, :value) in drag.from.entries) {
+      final to = document.objectBounds(key);
+      if (to == null) continue;
+      final ok = await _commitBounds(
+        key,
+        value,
+        to,
+        'That could not be moved.',
+        record: false,
+      );
+      if (!ok) {
+        _cancelRest(drag, done);
+        break;
+      }
+      done.add(_MoveStep(key, value.x, value.y, value.w, value.h));
+    }
+    if (done.isNotEmpty) _pushUndo(_MoveGroupEntry(done));
+  }
+
+  /// Puts back the members a failed commit never reached, so the board matches the server.
+  void _cancelRest(_GroupDragState drag, List<_MoveStep> done) {
+    final sent = done.map((s) => s.objectId).toSet();
+    for (final MapEntry(:key, :value) in drag.from.entries) {
+      if (sent.contains(key)) continue;
+      document.moveObject(key, value.x, value.y, value.w, value.h);
+    }
+    document.refresh();
   }
 }

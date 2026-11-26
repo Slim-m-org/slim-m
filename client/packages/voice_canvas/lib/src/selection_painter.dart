@@ -39,6 +39,8 @@ class SelectionPainter extends CustomPainter {
           document,
           document.selectedObjectId,
           document.snapGuides,
+          document.multiSelection.ids,
+          document.multiSelection.marquee,
         ]));
 
   final CanvasDocument document;
@@ -52,6 +54,8 @@ class SelectionPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     _paintGuides(canvas);
+    _paintPicked(canvas);
+    _paintMarquee(canvas);
     final id = document.selectedObjectId.value;
     if (id == null) return;
     final bounds = document.objectBounds(id);
@@ -91,6 +95,44 @@ class SelectionPainter extends CustomPainter {
       canvas.drawRect(handle, fill);
       canvas.drawRect(handle, border);
     }
+  }
+
+  Rect _screenRect(Rect world) {
+    final camera = document.camera;
+    return Rect.fromLTWH(
+      (world.left - camera.x) * camera.zoom,
+      (world.top - camera.y) * camera.zoom,
+      world.width * camera.zoom,
+      world.height * camera.zoom,
+    );
+  }
+
+  /// Every object picked together gets an outline and no handles, since a resize acts on one.
+  void _paintPicked(Canvas canvas) {
+    final line = Paint()
+      ..color = outline
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+    for (final id in document.multiSelection.ids.value) {
+      final b = document.objectBounds(id);
+      if (b == null) continue;
+      canvas.drawRect(_screenRect(Rect.fromLTWH(b.x, b.y, b.w, b.h)), line);
+    }
+  }
+
+  void _paintMarquee(Canvas canvas) {
+    final box = document.multiSelection.marquee.value;
+    if (box == null) return;
+    final screen = _screenRect(box);
+    canvas
+      ..drawRect(screen, Paint()..color = outline.withValues(alpha: 0.1))
+      ..drawRect(
+        screen,
+        Paint()
+          ..color = outline
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1,
+      );
   }
 
   void _paintGuides(Canvas canvas) {

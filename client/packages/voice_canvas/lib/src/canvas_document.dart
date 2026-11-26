@@ -19,6 +19,7 @@ import 'package:flutter/painting.dart';
 import 'canvas_board.dart';
 import 'canvas_edges.dart';
 import 'canvas_external_pointers.dart';
+import 'canvas_multi_selection.dart';
 import 'canvas_note_style.dart';
 import 'canvas_paint_order.dart';
 import 'canvas_removed_ids.dart';
@@ -107,6 +108,11 @@ class CanvasDocument extends ChangeNotifier {
 
   /// The one object selected for a resize or reorder, or null; a notifier so the selection painter repaints with no widget rebuild.
   final ValueNotifier<String?> selectedObjectId = ValueNotifier<String?>(null);
+
+  /// The objects picked together by a drag box or a modifier click, and the box being drawn.
+  late final CanvasMultiSelection multiSelection = CanvasMultiSelection(
+    selectedObjectId,
+  );
 
   /// The one object this client's own pointer is dragging or resizing, shorter-lived than [selectedObjectId]; the painter gives it the elevation shadow.
   final ValueNotifier<String?> elevatedObjectId = ValueNotifier<String?>(null);
@@ -365,6 +371,7 @@ class CanvasDocument extends ChangeNotifier {
   /// A dying object must not stay offered a resize, reorder or delete.
   void _releaseSelection(String id) {
     if (selectedObjectId.value == id) selectedObjectId.value = null;
+    multiSelection.release(id);
     if (elevatedObjectId.value == id) elevatedObjectId.value = null;
   }
 
@@ -447,6 +454,7 @@ class CanvasDocument extends ChangeNotifier {
     outsideBoardCount.value = 0;
     objectCount.value = 0;
     selectedObjectId.value = null;
+    multiSelection.clear();
     elevatedObjectId.value = null;
     _heldLive.clear();
     _maxStrokeWidth = 0;
@@ -512,6 +520,7 @@ class CanvasDocument extends ChangeNotifier {
     _disposeImages();
     objectCount.dispose();
     outsideBoardCount.dispose();
+    multiSelection.dispose();
     selectedObjectId.dispose();
     elevatedObjectId.dispose();
     editingObjectId.dispose();

@@ -186,6 +186,7 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
   /// visible boxes' edges and centres; the pointer-to-box anchor is untouched,
   /// so releasing [snap] mid-drag releases the box immediately.
   void dragSelect(Offset world, {required bool lockAspect, bool snap = false}) {
+    if (_groupDrag != null) return _dragGroup(world);
     final resize = _resize;
     if (resize != null) {
       final point = snap
@@ -298,6 +299,7 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
   Future<void> endSelect() async {
     document.elevatedObjectId.value = null;
     document.snapGuides.value = const [];
+    if (_groupDrag != null) return _commitGroupDrag();
     final resize = _resize;
     _resize = null;
     if (resize != null) {
@@ -331,6 +333,10 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
   ({String id, ObjectBox box})? cancelSelect() {
     document.elevatedObjectId.value = null;
     document.snapGuides.value = const [];
+    if (_groupDrag != null) {
+      _cancelGroupDrag();
+      return null;
+    }
     final resize = _resize;
     final drag = _drag;
     _resize = null;

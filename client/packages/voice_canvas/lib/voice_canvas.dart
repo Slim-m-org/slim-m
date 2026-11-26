@@ -46,6 +46,7 @@ export 'src/canvas_eraser_ring.dart';
 export 'src/ellipse_path.dart';
 export 'src/canvas_gesture_controller.dart';
 export 'src/canvas_scene.dart';
+export 'src/canvas_multi_selection.dart';
 export 'src/canvas_snap.dart';
 export 'src/canvas_stroke_drafts.dart';
 export 'src/canvas_surface.dart';
