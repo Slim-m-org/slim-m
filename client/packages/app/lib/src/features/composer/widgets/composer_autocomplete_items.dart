@@ -98,6 +98,7 @@ List<AutocompleteSuggestion> autocompleteSuggestions({
   List<api.App> apps = const [],
   List<api.ChannelBotCommand> botCommands = const [],
   bool gifSearch = false,
+  bool tts = false,
 }) => switch (query.kind) {
   AutocompleteKind.emoji => _emoji(query.term, custom),
   AutocompleteKind.mention => _mentions(
@@ -112,6 +113,7 @@ List<AutocompleteSuggestion> autocompleteSuggestions({
     apps,
     botCommands,
     gifSearch: gifSearch,
+    tts: tts,
   ),
   AutocompleteKind.botCommand => _botCommandRows(
     query.term,
@@ -319,7 +321,14 @@ List<AutocompleteSuggestion> _commandRows(
   List<api.App> apps,
   List<api.ChannelBotCommand> botCommands, {
   bool gifSearch = false,
+  bool tts = false,
 }) => [
+  if (tts && (term.isEmpty || 'tts'.startsWith(term)))
+    const AutocompleteSuggestion(
+      insert: '/tts ',
+      label: '/tts',
+      detail: 'speak a line in the call',
+    ),
   if (gifSearch && (term.isEmpty || 'gif'.startsWith(term)))
     const AutocompleteSuggestion(
       insert: '/gif ',

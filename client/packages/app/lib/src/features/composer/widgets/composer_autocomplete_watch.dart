@@ -11,6 +11,9 @@ import '../../../providers/admin_providers.dart';
 import '../../../providers/providers.dart';
 import '../../channels/providers/channel_permissions.dart';
 import '../../members/providers/member_presence.dart' show membersProvider;
+import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
+
+import '../../voice/providers/voice_controller.dart';
 import 'composer_autocomplete_items.dart';
 import 'composer_autocomplete_query.dart';
 
@@ -38,5 +41,11 @@ List<AutocompleteSuggestion> watchAutocompleteSuggestions(
     apps: apps,
     botCommands: botCommands,
     gifSearch: gifSearch,
+    tts: ref.watch(
+      voiceControllerProvider.select(
+        (v) =>
+            v.state == VoiceSessionState.connected && v.channelId == channelId,
+      ),
+    ),
   );
 }

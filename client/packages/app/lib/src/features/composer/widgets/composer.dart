@@ -51,6 +51,7 @@ import 'composer_slash.dart';
 import 'composer_text_stats.dart';
 import '../../emoji/widgets/emoji_picker.dart';
 import 'composer_gif_command.dart';
+import 'composer_tts_command.dart';
 import '../../../widgets/text_insert.dart';
 import '../../messages/widgets/typing_indicator.dart';
 
@@ -359,6 +360,13 @@ class _ComposerState extends ConsumerState<Composer> {
       _openGifSearch(gifQuery);
       return;
     }
+    final spoken = await speakComposedTts(
+      ref: ref,
+      channelId: widget.channelId,
+      controller: widget.controller,
+      fail: _reportCommandError,
+    );
+    if (!spoken) return;
     final staging = _attachments;
     final bool handled;
     _commandRunning = true;
