@@ -43,7 +43,9 @@ final serverVersionReadProvider = FutureProvider<VersionRead>((ref) async {
         error,
         stack,
       );
-      if (!serverAnswered(error)) return (version: null, answered: false);
+      if (!serverAnswered(error) || serverBusy(error)) {
+        return (version: null, answered: false);
+      }
       if (attempt >= delays.length) return (version: null, answered: true);
       await Future<void>.delayed(delays[attempt]);
     }

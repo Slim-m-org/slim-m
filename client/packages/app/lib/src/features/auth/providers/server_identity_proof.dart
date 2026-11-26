@@ -36,19 +36,23 @@ typedef IdentityReading = ({
 });
 
 /// Whether [error] came from a server that answered, not from one nothing came back from.
-///
-/// A rate limit or a shed request says nothing about the key, so it is no answer either.
 bool serverAnswered(Object error) =>
-    (error is! api.TransportException ||
-        error is api.UnreadableReplyException) &&
-    error is! api.RateLimitedException &&
-    error is! api.UnavailableException;
+    error is! api.TransportException || error is api.UnreadableReplyException;
+
+/// Whether [error] is a server saying it is busy, which says nothing about its key.
+///
+/// Only an ambient recheck of a signed-in session may read this as no verdict; a caller about to send a secret must not.
+bool serverBusy(Object error) =>
+    error is api.RateLimitedException || error is api.UnavailableException;
 
 /// Asks [client] to sign a fresh challenge and checks it against [identity]'s key.
+///
+/// [ambient] is a recheck of a session already signed in: a busy server is then no answer, not an unproven one.
 Future<IdentityAnswer> challengeIdentity(
   api.SlimmApi client,
-  api.ServerIdentity identity,
-) async {
+  api.ServerIdentity identity, {
+  bool ambient = false,
+}) async {
   final random = Random.secure();
   final challenge = Uint8List.fromList(
     List.generate(32, (_) => random.nextInt(256)),
@@ -63,7 +67,7 @@ Future<IdentityAnswer> challengeIdentity(
       error,
       stack,
     );
-    return serverAnswered(error)
+    return serverAnswered(error) && !(ambient && serverBusy(error))
         ? IdentityAnswer.unproven
         : IdentityAnswer.unanswered;
   }

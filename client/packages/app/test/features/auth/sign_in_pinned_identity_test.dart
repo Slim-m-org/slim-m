@@ -134,6 +134,7 @@ void main() {
 
   for (final (name, status, body) in [
     ('a 500', 500, ''),
+    ('a 429', 429, '{"error":"slow down"}'),
     ('a 503', 503, '{"error":"down"}'),
     ('a 403', 403, '{"error":"no"}'),
   ]) {
