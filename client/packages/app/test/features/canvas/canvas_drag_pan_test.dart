@@ -13,9 +13,11 @@ import 'canvas_pane_harness.dart';
 
 void main() {
   for (final kind in [PointerDeviceKind.touch, PointerDeviceKind.mouse]) {
-    testWidgets('one ${kind.name} drag on empty board pans a zoomed board', (
-      tester,
-    ) async {
+    final pans = kind != PointerDeviceKind.mouse;
+    final result = pans
+        ? 'pans a zoomed board'
+        : 'draws a box and leaves the camera';
+    testWidgets('one ${kind.name} drag on empty board $result', (tester) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
@@ -41,6 +43,7 @@ void main() {
       await tester.pump();
 
       final after = document.camera;
+      if (!pans) return expect(after, before);
       expect(after.x, greaterThan(before.x + 1));
       expect(after.y, greaterThan(before.y + 1));
     });

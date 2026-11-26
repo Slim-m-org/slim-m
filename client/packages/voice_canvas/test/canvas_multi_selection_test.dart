@@ -34,7 +34,7 @@ CanvasDocument _board() {
     ..applyPlaced(_box('b', 100, 0))
     ..applyPlaced(_box('far', 500, 500))
     ..applyPlaced(
-      CanvasStrokeInput(
+      const CanvasStrokeInput(
         id: 'ink',
         seq: 1,
         zIndex: 1,
@@ -42,7 +42,7 @@ CanvasDocument _board() {
         y: 20,
         w: 10,
         h: 10,
-        points: const [0, 0, 10, 10],
+        points: [0, 0, 10, 10],
         width: 3,
         colorKey: 'annotation',
       ),
