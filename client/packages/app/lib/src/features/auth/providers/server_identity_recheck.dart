@@ -109,12 +109,10 @@ class ServerIdentityChange extends AsyncNotifier<IdentityMismatch?> {
     if (identity == null) return _missing;
     if (identity.publicKey != pinned) return IdentityMismatch(identity);
 
-    final answer = await challengeIdentity(
-      ref.read(apiProvider),
-      identity,
-      ambient: true,
-    );
-    if (answer == IdentityAnswer.unanswered) return unanswered(pinned);
+    final answer = await challengeIdentity(ref.read(apiProvider), identity);
+    if (answer == IdentityAnswer.unanswered || answer == IdentityAnswer.busy) {
+      return unanswered(pinned);
+    }
     final reading = (answer: answer, identity: identity);
     return await holdsPinnedKey(keyStore, server, pinned, reading)
         ? null

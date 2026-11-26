@@ -19,6 +19,9 @@ enum IdentityAnswer {
   /// It answered, but not with a slim-m `/version`.
   notSlim,
 
+  /// It said it is busy (429 or 503), which says nothing about its key.
+  busy,
+
   /// A slim-m server that gave no valid proof, as one older than the challenge does.
   unproven,
 
@@ -41,18 +44,15 @@ bool serverAnswered(Object error) =>
 
 /// Whether [error] is a server saying it is busy, which says nothing about its key.
 ///
-/// Only an ambient recheck of a signed-in session may read this as no verdict; a caller about to send a secret must not.
+/// An ambient recheck of a signed-in session reads it as no verdict; a caller about to send a secret asks again first.
 bool serverBusy(Object error) =>
     error is api.RateLimitedException || error is api.UnavailableException;
 
 /// Asks [client] to sign a fresh challenge and checks it against [identity]'s key.
-///
-/// [ambient] is a recheck of a session already signed in: a busy server is then no answer, not an unproven one.
 Future<IdentityAnswer> challengeIdentity(
   api.SlimmApi client,
-  api.ServerIdentity identity, {
-  bool ambient = false,
-}) async {
+  api.ServerIdentity identity,
+) async {
   final random = Random.secure();
   final challenge = Uint8List.fromList(
     List.generate(32, (_) => random.nextInt(256)),
@@ -67,7 +67,8 @@ Future<IdentityAnswer> challengeIdentity(
       error,
       stack,
     );
-    return serverAnswered(error) && !(ambient && serverBusy(error))
+    if (serverBusy(error)) return IdentityAnswer.busy;
+    return serverAnswered(error)
         ? IdentityAnswer.unproven
         : IdentityAnswer.unanswered;
   }
@@ -128,6 +129,7 @@ Future<bool> holdsPinnedKey(
     case IdentityAnswer.unproven:
       return await keyStore.read(handle) != pinned;
     case IdentityAnswer.unanswered ||
+        IdentityAnswer.busy ||
         IdentityAnswer.notSlim ||
         IdentityAnswer.disproven:
       return false;
