@@ -247,7 +247,7 @@ class _SpeakerSection extends ConsumerWidget {
           ),
         SettingsToggleRow(
           label: 'Show captions',
-          description: 'Shows what is said in calls that are transcribed.',
+          description: 'Turns captions on when a call is transcribed.',
           value: ref.watch(
             voiceSettingsControllerProvider.select((s) => s.showCaptions),
           ),

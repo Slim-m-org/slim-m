@@ -13,6 +13,7 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../../providers/dock_reservation.dart';
 import '../../../widgets/dock_height_reporter.dart';
+import '../../voice/providers/call_captions.dart';
 import '../../voice/widgets/call_captions_strip.dart';
 import '../../voice/widgets/hold_music_badge.dart';
 import 'canvas_call_dock.dart';
@@ -196,7 +197,9 @@ class _CanvasCaptions extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (!captionsShown(ref, channelId)) return const SizedBox.shrink();
+    if (!ref.watch(captionsShownProvider(channelId))) {
+      return const SizedBox.shrink();
+    }
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: canvasCaptionsMaxWidth),
       child: SizedBox(

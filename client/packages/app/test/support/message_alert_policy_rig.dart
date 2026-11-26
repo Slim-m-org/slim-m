@@ -229,7 +229,9 @@ class AlertRig {
           },
       ]);
     }
-    if (path == '/channels/thread-1/thread-parent') {
+    // `thread-2` is a thread this device holds no row for, any other id a channel that is not one.
+    if (path == '/channels/thread-1/thread-parent' ||
+        path == '/channels/thread-2/thread-parent') {
       threadParentRequests.add(path);
       if (parentFails) return alertJson({'error': 'boom'}, 500);
       return alertJson({
@@ -237,6 +239,10 @@ class AlertRig {
         'parent_message_id': 'pm1',
         'parent_deleted': false,
       });
+    }
+    if (path.endsWith('/thread-parent')) {
+      threadParentRequests.add(path);
+      return alertJson({'parent_deleted': false});
     }
     return alertJson(const <Object>[]);
   }

@@ -11,11 +11,12 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/channels/providers/channel_permissions.dart';
 import 'package:slimm_app/src/features/members/providers/user_profiles.dart';
 import 'package:slimm_app/src/features/voice/providers/call_audio.dart';
+import 'package:slimm_app/src/features/voice/providers/call_captions.dart';
 import 'package:slimm_app/src/features/voice/providers/call_transcript.dart';
 import 'package:slimm_app/src/features/voice/providers/live_call_transcript.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_settings_controller.dart';
 import 'package:slimm_app/src/features/voice/widgets/call_captions_strip.dart';
-import 'package:slimm_app/src/features/voice/widgets/transcript_menu.dart';
+import 'package:slimm_app/src/features/voice/widgets/captions_menu.dart';
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -118,8 +119,12 @@ Future<ProviderContainer> _pump(
           body: Consumer(
             builder: (context, ref, _) => Column(
               children: [
-                if (canUseCaptions(ref, 'voice-1'))
-                  TranscriptDockButton(menuContext: context),
+                if (ref.watch(captionsControlProvider('voice-1')) !=
+                    CaptionsControl.hidden)
+                  CaptionsDockButton(
+                    menuContext: context,
+                    channelId: 'voice-1',
+                  ),
                 const CallCaptionsStrip(channelId: 'voice-1'),
               ],
             ),
@@ -207,7 +212,6 @@ void main() {
       'a module hears the call',
       _overrides(session: _session(transcriptId: null)),
     ),
-    ('people are still asked', _overrides(session: _session(on: false))),
     (
       'the member may not read transcripts',
       _overrides(session: _session(), bits: Perm.viewChannel),
@@ -216,20 +220,25 @@ void main() {
     testWidgets('no captions and no button when $why', (tester) async {
       final container = await _pump(tester, overrides);
       expect(find.byKey(callCaptionsKey), findsNothing);
-      expect(find.byTooltip('Transcript'), findsNothing);
+      expect(find.byTooltip('Captions'), findsNothing);
       expect(container.read(liveCallTranscriptIdProvider('voice-1')), isNull);
     });
   }
 
-  testWidgets('the Transcript menu turns captions on, off by default', (
+  testWidgets('people still being asked show no captions yet', (tester) async {
+    await _pump(tester, _overrides(session: _session(on: false)));
+    expect(find.byKey(callCaptionsKey), findsNothing);
+  });
+
+  testWidgets('the Captions menu turns captions on, off by default', (
     tester,
   ) async {
     await _pump(tester, _overrides(session: _session(), captionsOn: false));
     expect(find.byKey(callCaptionsKey), findsNothing);
-    await tester.tap(find.byTooltip('Transcript'));
+    await tester.tap(find.byTooltip('Captions'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(find.text('Captions'));
+    await tester.tap(find.text('Show captions'));
     await tester.pump();
     expect(find.byKey(callCaptionsKey), findsOneWidget);
   });

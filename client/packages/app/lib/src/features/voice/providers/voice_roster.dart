@@ -73,6 +73,15 @@ final voiceSelfSeenProvider = StateProvider<Map<String, DateTime>>(
   (ref) => const {},
 );
 
+/// This account's own entry in [channelId]'s room while it is in the call on another device, else null.
+///
+/// The per-channel roster hides this account, so a surface that shows the
+/// call (the rail) reads it here and marks it as elsewhere.
+final voiceSelfElsewhereProvider =
+    StateProvider.family<api.VoiceRosterParticipant?, String>(
+      (ref, channelId) => null,
+    );
+
 /// Who the server reports as connected to [channelId]'s voice room.
 ///
 /// A hidden participant is never in this list for any viewer but themselves;
@@ -128,7 +137,7 @@ final voiceRosterProvider = StreamProvider.autoDispose
         onCallStart: (start) =>
             ref.read(voiceRosterStartProvider(channelId).notifier).state =
                 start,
-        onSelf: (present) => _markSelf(ref, channelId, present),
+        onSelf: (self) => _markSelf(ref, channelId, self),
       );
       unawaited(poller.tick());
 
@@ -157,7 +166,9 @@ final voiceRosterProvider = StreamProvider.autoDispose
       return controller.stream;
     });
 
-void _markSelf(Ref ref, String channelId, bool present) {
+void _markSelf(Ref ref, String channelId, api.VoiceRosterParticipant? self) {
+  final present = self != null;
+  ref.read(voiceSelfElsewhereProvider(channelId).notifier).state = self;
   final notifier = ref.read(voiceSelfSeenProvider.notifier);
   final seen = {...notifier.state};
   if (present) {
@@ -193,7 +204,7 @@ class _RosterPoller {
   final bool Function() isLive;
   final bool Function() isVisible;
   final void Function(DateTime? start) onCallStart;
-  final void Function(bool present) onSelf;
+  final void Function(api.VoiceRosterParticipant? self) onSelf;
   Timer? _timer;
   bool _stopped = false;
   int _consecutiveFailures = 0;
@@ -211,7 +222,9 @@ class _RosterPoller {
           : roster.where((p) => p.userId != selfId).toList(growable: false);
       if (_controller.isClosed) return;
       if (selfId != null) {
-        onSelf(roster.any((p) => p.userId == selfId && !p.thisDevice));
+        onSelf(
+          roster.where((p) => p.userId == selfId && !p.thisDevice).firstOrNull,
+        );
       }
       final age = snapshot.callAge;
       onCallStart(

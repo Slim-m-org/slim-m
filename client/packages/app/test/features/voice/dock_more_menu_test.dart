@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The call dock keeps the primary controls and one More button, whatever the call offers.
 ///
-/// Soundboard, the canvas toggle and the transcript entry live in More; a pinned item
-/// returns to the dock, and captions being on keeps the transcript entry there too.
+/// Soundboard, the canvas toggle and the Captions entry live in More; a pinned item
+/// returns to the dock, and captions being on keeps the Captions entry there too.
 library;
 
 import 'package:flutter/material.dart';
@@ -76,10 +76,9 @@ void main() {
       expect(tester.takeException(), isNull);
       for (final gone in [
         'Soundboard',
-        'Show captions',
         'Mark this moment',
         'Open canvas',
-        'Transcript',
+        'Captions',
       ]) {
         expect(_button(gone), findsNothing, reason: '$gone is in More');
       }
@@ -98,12 +97,12 @@ void main() {
       await tester.pump(const Duration(seconds: 10));
     });
 
-    testWidgets('More at $width lists soundboard, canvas and transcript '
+    testWidgets('More at $width lists soundboard, canvas and captions '
         'inside the window', (tester) async {
       await _pump(tester, width);
       await _openMore(tester);
       expect(tester.takeException(), isNull);
-      for (final row in ['Soundboard', 'Open canvas', 'Transcript']) {
+      for (final row in ['Soundboard', 'Open canvas', 'Captions']) {
         final rect = tester.getRect(find.text(row).first);
         expect(rect.left, greaterThanOrEqualTo(0), reason: row);
         expect(rect.right, lessThanOrEqualTo(width), reason: row);
@@ -119,24 +118,24 @@ void main() {
     });
   }
 
-  testWidgets('captions on keeps the Transcript button in the dock beside '
+  testWidgets('captions on keeps the Captions button in the dock beside '
       'share', (tester) async {
     final container = await _pump(tester, 1280);
     await container
         .read(voiceSettingsControllerProvider.notifier)
         .setShowCaptions(true);
     await tester.pump();
-    final transcript = tester.getRect(_button('Transcript'));
+    final captionsButton = tester.getRect(_button('Captions'));
     final share = tester.getRect(_button('Share a screen'));
     final more = tester.getRect(_button('More'));
-    expect(transcript.left, greaterThanOrEqualTo(share.right));
-    expect(transcript.right, lessThanOrEqualTo(more.left));
-    expect(transcript.center.dy, closeTo(share.center.dy, 0.5));
+    expect(captionsButton.left, greaterThanOrEqualTo(share.right));
+    expect(captionsButton.right, lessThanOrEqualTo(more.left));
+    expect(captionsButton.center.dy, closeTo(share.center.dy, 0.5));
     await tester.pumpWidget(const SizedBox());
     await tester.pump(const Duration(seconds: 10));
   });
 
-  testWidgets('the Transcript menu holds the captions switch and Mark', (
+  testWidgets('the Captions menu holds the captions switch and Mark', (
     tester,
   ) async {
     final container = await _pump(tester, 1280);
@@ -144,10 +143,10 @@ void main() {
         .read(voiceSettingsControllerProvider.notifier)
         .setShowCaptions(true);
     await tester.pump();
-    await tester.tap(_button('Transcript'));
+    await tester.tap(_button('Captions'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-    final captions = tester.getRect(find.text('Captions'));
+    final captions = tester.getRect(find.text('Show captions'));
     final mark = tester.getRect(find.textContaining('Mark this moment'));
     expect(captions.top, lessThan(mark.top), reason: 'captions lead the menu');
     expect(captions.right, lessThanOrEqualTo(1280));

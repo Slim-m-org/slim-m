@@ -20,6 +20,9 @@ import 'package:slimm_platform/platform.dart'
     show AppAction, userShortcutOverrides;
 import 'package:slimm_rtc/rtc.dart';
 
+import 'package:slimm_app/src/features/voice/widgets/captions_menu.dart'
+    show captionsSwitchKey;
+
 import 'voice_call_controls_harness.dart';
 
 const _voice = VoiceFlags(state: VoiceSessionState.connected, channelId: 'c1');
@@ -134,7 +137,7 @@ void main() {
     await _settleOut(tester);
   });
 
-  testWidgets('captions switched on inside Transcript leave the menu open', (
+  testWidgets('captions switched on inside Captions leave the menu open', (
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({
@@ -148,16 +151,20 @@ void main() {
     addTearDown(() => userShortcutOverrides = const {});
     await _pump(tester, 1280);
     await _openMore(tester);
-    await tester.tap(find.text('Transcript'));
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('Captions'), findsOneWidget);
-
     await tester.tap(find.text('Captions'));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byKey(captionsSwitchKey), findsOneWidget);
+
+    await tester.tap(find.byKey(captionsSwitchKey));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(_button('Transcript'), findsOneWidget, reason: 'now in the dock');
-    expect(find.text('Captions'), findsOneWidget, reason: 'menu stays put');
+    expect(_button('Captions'), findsOneWidget, reason: 'now in the dock');
+    expect(
+      find.byKey(captionsSwitchKey),
+      findsOneWidget,
+      reason: 'menu stays put',
+    );
     expect(find.text('Mark this moment (Ctrl+K)'), findsOneWidget);
     await _settleOut(tester);
   });

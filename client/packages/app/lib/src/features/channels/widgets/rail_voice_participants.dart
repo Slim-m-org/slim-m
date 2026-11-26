@@ -15,6 +15,8 @@ import 'package:slimm_rtc/rtc.dart';
 
 import '../../members/providers/user_profiles.dart';
 import '../../../widgets/context_menu_region.dart';
+import '../../voice/providers/voice_roster.dart'
+    show voiceSelfElsewhereProvider;
 import '../../voice/widgets/call_participant_tiles.dart'
     show kParticipantMenuWidth;
 import '../../voice/widgets/participant_call_menu.dart';
@@ -106,7 +108,12 @@ class _ParticipantRowState extends ConsumerState<_ParticipantRow> {
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final participant = widget.participant;
+    final selfId = ref.watch(
+      voiceSelfElsewhereProvider(widget.channelId).select((p) => p?.userId),
+    );
+    final elsewhere = !participant.isLocal && participant.identity == selfId;
     final glyphs = [
+      if (elsewhere) AppIcons.deviceLaptop,
       if (participant.isScreenSharing) AppIcons.screenShare,
       if (participant.isCameraOn) AppIcons.camera,
       if (participant.isMuted) AppIcons.micOff,
@@ -136,7 +143,14 @@ class _ParticipantRowState extends ConsumerState<_ParticipantRow> {
           ),
           for (final glyph in glyphs) ...[
             const SizedBox(width: AppSpacing.s4),
-            Icon(glyph, size: _glyphSize, color: tokens.textSecondary),
+            Icon(
+              glyph,
+              size: _glyphSize,
+              color: tokens.textSecondary,
+              semanticLabel: glyph == AppIcons.deviceLaptop
+                  ? 'On another device'
+                  : null,
+            ),
           ],
         ],
       ),

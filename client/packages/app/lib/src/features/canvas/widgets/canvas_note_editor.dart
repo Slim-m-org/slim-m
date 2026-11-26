@@ -12,7 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-import 'canvas_inline_emoji_controller.dart';
+import '../../emoji/widgets/inline_emoji_controller.dart';
 import 'canvas_note_sizing.dart';
 import 'canvas_note_field.dart';
 

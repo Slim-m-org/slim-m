@@ -235,12 +235,7 @@ class VoiceChannelRow extends ConsumerWidget {
     // A joined call already has this live; an unjoined one polls for it below.
     final participants = inCall
         ? ref.watch(voiceParticipantsProvider)
-        : ref
-                  .watch(voiceRosterProvider(channel.id))
-                  .valueOrNull
-                  ?.map(voiceRosterAsParticipant)
-                  .toList(growable: false) ??
-              const <VoiceParticipant>[];
+        : ref.watch(railUnjoinedParticipantsProvider(channel.id));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -340,6 +335,18 @@ class _ReadChatButton extends StatelessWidget {
     );
   }
 }
+
+/// Who the rail lists under a voice channel this device has not joined: the
+/// room's other people, and this account first when it is in the call on another device.
+final railUnjoinedParticipantsProvider = Provider.autoDispose
+    .family<List<VoiceParticipant>, String>((ref, channelId) {
+      final others = ref.watch(voiceRosterProvider(channelId)).valueOrNull;
+      final self = ref.watch(voiceSelfElsewhereProvider(channelId));
+      return [
+        if (self != null) voiceRosterAsParticipant(self),
+        ...?others?.map(voiceRosterAsParticipant),
+      ];
+    });
 
 /// A roster snapshot carries no live speaking signal, so that flag is false
 /// rather than guessed; the rest is read straight off the roster entry (see

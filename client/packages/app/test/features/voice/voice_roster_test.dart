@@ -52,7 +52,7 @@ ProviderContainer _containerWith(
   return container;
 }
 
-http.Response _roster(List<Map<String, String>> participants) =>
+http.Response _roster(List<Map<String, Object>> participants) =>
     http.Response(jsonEncode({'participants': participants}), 200);
 
 void main() {
@@ -163,7 +163,7 @@ void main() {
         MockClient(
           (_) async => _roster([
             // What the server still answers moments after a force-quit.
-            {'user_id': 'u-me', 'display_name': 'Me'},
+            {'user_id': 'u-me', 'display_name': 'Me', 'this_device': true},
             {'user_id': 'u1', 'display_name': 'Alice'},
           ]),
         ),
@@ -179,6 +179,57 @@ void main() {
             'a client that never rejoined must not see itself listed as '
             'though it were already in the call',
       );
+      sub.close();
+    });
+  });
+
+  test(
+    'this account on another device is kept out of the roster but exposed',
+    () {
+      fakeAsync((async) {
+        final container = _containerWith(
+          MockClient(
+            (_) async => _roster([
+              {'user_id': 'u-me', 'display_name': 'Me', 'this_device': false},
+              {'user_id': 'u1', 'display_name': 'Alice'},
+            ]),
+          ),
+        );
+        final sub = container.listen(
+          voiceRosterProvider('general'),
+          (_, __) {},
+        );
+        async.flushMicrotasks();
+
+        expect(
+          container
+              .read(voiceRosterProvider('general'))
+              .value
+              ?.map((p) => p.userId),
+          ['u1'],
+        );
+        expect(
+          container.read(voiceSelfElsewhereProvider('general'))?.displayName,
+          'Me',
+        );
+        sub.close();
+      });
+    },
+  );
+
+  test('this device\'s own leftover is not another device', () {
+    fakeAsync((async) {
+      final container = _containerWith(
+        MockClient(
+          (_) async => _roster([
+            {'user_id': 'u-me', 'display_name': 'Me', 'this_device': true},
+          ]),
+        ),
+      );
+      final sub = container.listen(voiceRosterProvider('general'), (_, __) {});
+      async.flushMicrotasks();
+
+      expect(container.read(voiceSelfElsewhereProvider('general')), isNull);
       sub.close();
     });
   });

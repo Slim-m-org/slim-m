@@ -143,6 +143,16 @@ Future<NotifierSetup> wireNotifier({List<Override> extra = const []}) async {
             'preference': body['preference'],
           });
         }
+        if (request.url.path == '/channels/thread-1/thread-parent') {
+          return _json({
+            'parent_channel_id': 'group-1',
+            'parent_message_id': 'pm1',
+            'parent_deleted': false,
+          });
+        }
+        if (request.url.path.endsWith('/thread-parent')) {
+          return _json({'parent_deleted': false});
+        }
         if (request.url.path.endsWith('/me')) {
           return _json({
             'id': 'me',

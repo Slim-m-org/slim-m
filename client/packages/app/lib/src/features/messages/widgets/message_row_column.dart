@@ -192,6 +192,7 @@ class MessageRowColumn extends ConsumerWidget {
     final progress = ref.watch(messageEditProgressProvider(message.id));
     return MessageEditField(
       initialContent: message.content,
+      emojiIndex: customEmoji,
       onSubmit: callbacks.onSubmitEdit,
       onCancel: callbacks.onCancelEdit,
       saving: progress.saving,

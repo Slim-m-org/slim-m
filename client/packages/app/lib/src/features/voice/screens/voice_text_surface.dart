@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// What the voice channel's chat pane holds: the channel's chat, and while
-/// the call is transcribed for this member (decision 0113), a "Chat |
-/// Transcript" choice above it. The same surface fills the docked pane and the
+/// the call is transcribed for this member and they asked to see it
+/// (decision 0113), a "Chat | Transcript" choice above it. The same surface fills the docked pane and the
 /// compact swapped view (desktop-vs-mobile.md law 1 and rule 2).
 library;
 
@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../channels/screens/channel_screen.dart';
+import '../providers/call_captions.dart';
 import '../providers/live_call_transcript.dart';
 import '../providers/voice_text_tab.dart';
 import '../widgets/live_transcript_view.dart';
@@ -26,7 +27,10 @@ class VoiceTextSurface extends ConsumerWidget {
     // See ChannelScreen.showHeader's own doc for why this pane omits its own header.
     final chat = ChannelScreen(channelId: channelId, showHeader: false);
     final transcriptId = ref.watch(liveCallTranscriptIdProvider(channelId));
-    if (transcriptId == null) return chat;
+    if (transcriptId == null ||
+        !ref.watch(transcriptPaneOfferedProvider(channelId))) {
+      return chat;
+    }
     final tab = ref.watch(voiceTextTabProvider);
     final tokens = Theme.of(context).extension<AppTokens>()!;
     return Column(

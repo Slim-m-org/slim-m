@@ -17,13 +17,28 @@ import '../providers/call_audio.dart';
 import 'call_dock_button.dart';
 
 /// The dock row holding the control, or null when there is nothing to start.
+///
+/// The server transcript is asked from the Captions control, not here; a
+/// refusal of that ask still shows here, as the only row that has the room.
 Widget? callAudioStartRow(WidgetRef ref, String? channelId) {
   if (channelId == null) return null;
   final model = ref.watch(callAudioProvider(channelId));
-  final status = model.status;
   if (model.session != null) return null;
-  if (status.startable.isEmpty && !status.transcribable) return null;
-  return CallAudioStartControl(channelId: channelId);
+  if (model.status.startable.isNotEmpty) {
+    return CallAudioStartControl(channelId: channelId);
+  }
+  final error = model.error;
+  return error == null ? null : AppErrorState(message: error);
+}
+
+/// Asks in a sheet whether to transcribe the call, since everyone is asked next.
+Future<bool> confirmTranscribeCall(BuildContext context) async {
+  final picked = await showAppSheet<_Pick>(
+    context,
+    scrolls: true,
+    builder: (context) => const _ConfirmSheet(modules: [], transcribable: true),
+  );
+  return picked is _Transcript;
 }
 
 class CallAudioStartControl extends ConsumerWidget {
@@ -37,23 +52,20 @@ class CallAudioStartControl extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final model = ref.watch(callAudioProvider(channelId));
     final startable = model.status.startable;
-    final transcribable = model.status.transcribable;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         CallDockButton(
           key: buttonKey,
           icon: AppIcons.callAudio,
-          tooltip: switch ((transcribable, startable.length)) {
-            (true, 0) => 'Transcribe this call',
-            (false, 1) => 'Turn on ${startable.single.moduleName}',
-            _ => 'Let a module hear this call',
-          },
+          tooltip: startable.length == 1
+              ? 'Turn on ${startable.single.moduleName}'
+              : 'Let a module hear this call',
           active: false,
           pending: model.busy,
           onPressed: model.busy
               ? () {}
-              : () => _choose(context, ref, startable, transcribable),
+              : () => _choose(context, ref, startable),
         ),
         if (model.error case final message?)
           Padding(
@@ -68,20 +80,19 @@ class CallAudioStartControl extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
     List<api.CallAudioModule> startable,
-    bool transcribable,
   ) async {
     final picked = await showAppSheet<_Pick>(
       context,
       scrolls: true,
       builder: (context) =>
-          _ConfirmSheet(modules: startable, transcribable: transcribable),
+          _ConfirmSheet(modules: startable, transcribable: false),
     );
     final controller = ref.read(callAudioProvider(channelId).notifier);
     switch (picked) {
       case null:
         return;
       case _Transcript():
-        await controller.requestTranscript();
+        return;
       case _Module(:final module):
         await controller.request(module.moduleId);
     }

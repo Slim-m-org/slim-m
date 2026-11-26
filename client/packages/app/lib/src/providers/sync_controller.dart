@@ -81,6 +81,7 @@ class SyncController extends StateNotifier<SyncStatus> {
       _channelRefresher,
       reconcile,
       _reconnector.resyncAfterLag,
+      _catchUp.noteUnlistedThread,
     );
     final session = _ref.read(sessionProvider);
     // Subscribe before reading the current value, so a change landing between the two is never missed.

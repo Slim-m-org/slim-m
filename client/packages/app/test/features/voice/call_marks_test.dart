@@ -24,7 +24,8 @@ import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_idle/call_marks_list.dart';
 import 'package:slimm_app/src/features/voice/widgets/call_mark_chip.dart';
 import 'package:slimm_app/src/features/voice/widgets/call_note_sheet.dart';
-import 'package:slimm_app/src/features/voice/widgets/transcript_menu.dart';
+import 'package:slimm_app/src/features/voice/providers/call_captions.dart';
+import 'package:slimm_app/src/features/voice/widgets/captions_menu.dart';
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
@@ -164,8 +165,9 @@ class _NoLines extends CallTranscriptController {
 Widget _dock() => Consumer(
   builder: (context, ref, _) => Column(
     children: [
-      if (canUseCaptions(ref, 'voice-1'))
-        TranscriptDockButton(menuContext: context),
+      if (ref.watch(captionsControlProvider('voice-1')) !=
+          CaptionsControl.hidden)
+        CaptionsDockButton(menuContext: context, channelId: 'voice-1'),
       const CallMarkChipView(channelId: 'voice-1'),
     ],
   ),
@@ -173,11 +175,11 @@ Widget _dock() => Consumer(
 
 void main() {
   testWidgets(
-    'Mark in the Transcript menu marks the moment and the chip says so',
+    'Mark in the Captions menu marks the moment and the chip says so',
     (tester) async {
       final rig = await _pump(tester, _dock());
 
-      await tester.tap(find.byTooltip('Transcript'));
+      await tester.tap(find.byTooltip('Captions'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
       await tester.tap(find.byKey(markButtonKey));
@@ -266,13 +268,13 @@ void main() {
   });
 
   testWidgets(
-    'no Transcript button without VIEW_TRANSCRIPTS or a running transcript',
+    'no Captions button without VIEW_TRANSCRIPTS or a running transcript',
     (tester) async {
       await _pump(tester, _dock(), bits: Perm.viewChannel);
-      expect(find.byTooltip('Transcript'), findsNothing);
+      expect(find.byTooltip('Captions'), findsNothing);
       await tester.pumpWidget(const SizedBox.shrink());
       await _pump(tester, _dock(), transcribed: false);
-      expect(find.byTooltip('Transcript'), findsNothing);
+      expect(find.byTooltip('Captions'), findsNothing);
     },
   );
 

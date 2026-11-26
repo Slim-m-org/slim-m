@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Typing a completed `:name:` in the composer: a standard emoji becomes its
-/// glyph at the closing colon, a custom one gets a preview above the field,
-/// and the stored text stays what the member typed everywhere else.
+/// glyph at the closing colon, a custom one is drawn in place with no preview
+/// above the field, and the stored text stays what the member typed.
 library;
 
 import 'dart:collection';
@@ -9,6 +9,7 @@ import 'dart:collection';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:slimm_app/src/features/composer/widgets/composer_text_controller.dart';
 import 'package:slimm_app/src/features/emoji/providers/emoji_catalog_provider.dart';
 import 'package:slimm_app/src/features/emoji/widgets/custom_emoji_image.dart';
 
@@ -20,7 +21,8 @@ const emoji = harness.custom;
 const _bug = '\u{1F41B}';
 
 final _field = find.byWidgetPredicate((w) => w is TextField);
-final _preview = find.byWidgetPredicate((w) => w is CustomEmojiImage);
+final _drawn = find.byWidgetPredicate((w) => w is CustomEmojiImage);
+final _bar = find.byKey(const Key('composer-shortcode-preview'));
 
 /// A Space emoji index that counts how often its names are copied out.
 class _CountingIndex extends MapBase<String, String> {
@@ -61,24 +63,28 @@ class _CountingIndex extends MapBase<String, String> {
 void main() {
   late TextEditingController controller;
   late Sends sends;
+  var names = <String, String>{};
 
   setUp(() {
     SharedPreferences.setMockInitialValues({});
-    controller = TextEditingController();
+    names = {};
+    controller = ComposerTextController(index: () => names);
     sends = Sends();
   });
 
   tearDown(() => controller.dispose());
 
-  Future<void> pump(WidgetTester tester, {List<String> custom = const []}) =>
-      tester.pumpWidget(
-        composerHarness(
-          controller: controller,
-          sends: sends,
-          platform: TargetPlatform.linux,
-          customEmoji: [for (final n in custom) emoji(n)],
-        ),
-      );
+  Future<void> pump(WidgetTester tester, {List<String> custom = const []}) {
+    names = {for (final n in custom) n: 'e-$n'};
+    return tester.pumpWidget(
+      composerHarness(
+        controller: controller,
+        sends: sends,
+        platform: TargetPlatform.linux,
+        customEmoji: [for (final n in custom) emoji(n)],
+      ),
+    );
+  }
 
   testWidgets('the closing colon turns a standard shortcode into its glyph', (
     tester,
@@ -140,19 +146,19 @@ void main() {
     expect(controller.text, '```\n:bug:');
   });
 
-  testWidgets('a custom emoji keeps its text and shows a preview', (
+  testWidgets('a custom emoji keeps its text and is drawn in place', (
     tester,
   ) async {
     await pump(tester, custom: ['bug']);
-    expect(find.byType(CustomEmojiImage), findsNothing);
+    expect(_drawn, findsNothing);
 
     await tester.enterText(find.byType(TextField), ':bug');
     await tester.enterText(find.byType(TextField), ':bug:');
     await tester.pump();
 
     expect(controller.text, ':bug:', reason: 'the Space emoji wins the name');
-    expect(find.byType(CustomEmojiImage), findsOneWidget);
-    expect(find.text(':bug:'), findsWidgets);
+    expect(_drawn, findsOneWidget);
+    expect(_bar, findsNothing);
   });
 
   testWidgets('typing copies the Space emoji names once, not per keystroke', (
@@ -175,19 +181,19 @@ void main() {
     }
     await tester.pump();
 
-    expect(_preview, findsOneWidget);
+    expect(_bar, findsNothing);
     expect(index.nameCopies, 1);
   });
 
-  testWidgets('the preview goes when the shortcode does', (tester) async {
+  testWidgets('the emoji goes when the shortcode does', (tester) async {
     await pump(tester, custom: ['bug']);
     await tester.enterText(_field, ':bug:');
     await tester.pump();
-    expect(_preview, findsOneWidget);
+    expect(_drawn, findsOneWidget);
 
     await tester.enterText(_field, 'bug');
     await tester.pump();
 
-    expect(_preview, findsNothing);
+    expect(_drawn, findsNothing);
   });
 }

@@ -11,3 +11,8 @@ enum VoiceTextTab { chat, transcript }
 final voiceTextTabProvider = StateProvider<VoiceTextTab>(
   (ref) => VoiceTextTab.chat,
 );
+
+/// Whether the voice channel's docked chat pane is open, at desktop widths.
+/// Defaults closed: opening a voice channel keeps the call stage at full
+/// width until a member asks for the pane.
+final voiceChatPaneVisibleProvider = StateProvider<bool>((ref) => false);

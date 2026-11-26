@@ -3,18 +3,20 @@
 /// row rather than in its More menu.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../widgets/control_menu_entries.dart';
 import '../../../widgets/control_options_menu.dart';
+import '../providers/call_captions.dart';
 import '../providers/voice_flags.dart';
-import '../providers/voice_settings_controller.dart';
+import 'captions_menu.dart';
 import 'dock_item.dart';
 import 'soundboard_button.dart';
 import 'soundboard_picker.dart';
-import 'transcript_menu.dart';
 
 /// Every optional control this call offers, in the order More lists them.
 ///
@@ -30,9 +32,8 @@ List<DockItem> buildDockItems(
   required VoidCallback switchCamera,
 }) {
   final channelId = voice.channelId;
-  final showCaptions = ref.watch(
-    voiceSettingsControllerProvider.select((s) => s.showCaptions),
-  );
+  final captionsOn =
+      channelId != null && ref.watch(captionsOnProvider(channelId));
   return [
     if (canUseSoundboard(ref, channelId))
       DockItem(
@@ -47,23 +48,38 @@ List<DockItem> buildDockItems(
           ),
         ],
       ),
-    if (canUseCaptions(ref, channelId))
+    if (channelId != null &&
+        ref.watch(captionsControlProvider(channelId)) != CaptionsControl.hidden)
       DockItem(
-        id: 'transcript',
-        name: 'Transcript',
-        keepInline: showCaptions,
-        inline: TranscriptDockButton(menuContext: context),
-        entries: [
-          ControlSubmenu(
-            label: 'Transcript',
-            icon: AppIcons.callCaptions,
-            value: showCaptions ? 'On' : null,
-            panel: (_, close) => Column(
-              mainAxisSize: MainAxisSize.min,
-              children: transcriptMenuItems(context, ref, close),
+        id: 'captions',
+        name: 'Captions',
+        keepInline: captionsOn,
+        inline: CaptionsDockButton(menuContext: context, channelId: channelId),
+        entries: switch (ref.watch(captionsControlProvider(channelId))) {
+          // A submenu holding one row is a page for nothing, so that row is the More row.
+          CaptionsControl.startable => [
+            ControlSwitch(
+              label: 'Show captions',
+              value: captionsOn,
+              onChanged: (_) =>
+                  unawaited(askToTranscribe(context, () {}, channelId)),
             ),
-          ),
-        ],
+          ],
+          CaptionsControl.pending => [
+            ControlInline((_) => CaptionsPendingRow(channelId: channelId)),
+          ],
+          _ => [
+            ControlSubmenu(
+              label: 'Captions',
+              icon: AppIcons.callCaptions,
+              value: captionsOn ? 'On' : null,
+              panel: (_, close) => Column(
+                mainAxisSize: MainAxisSize.min,
+                children: captionsMenuItems(context, ref, close, channelId),
+              ),
+            ),
+          ],
+        },
       ),
     ...extras,
     if (canSwitch)
