@@ -137,12 +137,18 @@ class PushActionEndCall extends PushAction {
   const PushActionEndCall();
 }
 
+/// A channel was read on another device: take down what this device shows for it.
+class PushActionClearRead extends PushAction {
+  const PushActionClearRead();
+}
+
 /// Decides what a push's [data] should do, before anything native is ever
 /// touched - so the whole kind-to-action decision, including the branch a
 /// `call` kind takes, has a unit test that needs neither a plugin nor an
 /// Android device, the same reason [genericAlertTextFor] is its own function.
 PushAction actionFor(Map<String, dynamic> data) {
   if (data['kind'] == 'call_end') return const PushActionEndCall();
+  if (data['kind'] == 'read') return const PushActionClearRead();
   if (data['kind'] == 'call') {
     return PushActionIncomingCall(
       callId: callIdFor(data),
@@ -160,6 +166,25 @@ PushAction actionFor(Map<String, dynamic> data) {
 String previewTitle(PushPreviewText preview) => preview.channel == null
     ? preview.title
     : '${preview.title} in #${preview.channel}';
+
+/// The notification id [envelope]'s conversation shows under, or null when it names none.
+int? conversationNotificationId(PushEnvelope? envelope) {
+  final channelId = envelope?.channelId;
+  if (channelId == null || channelId.isEmpty) return null;
+  return previewNotificationId(channelId);
+}
+
+/// The notification id a `read` push takes down, or null when its envelope will not open, names
+/// no channel or is stale, since a replayed old one must not clear a newer notification.
+Future<int?> readClearIdFor(
+  Map<String, dynamic> data,
+  KeyStore keys, {
+  required DateTime now,
+}) async {
+  final envelope = await _openEnvelope(data, keys);
+  if (envelope == null || envelope.isStale(now)) return null;
+  return conversationNotificationId(envelope);
+}
 
 /// One preview to show: its text and the id it shows under.
 typedef OpenedPreview = ({PushPreviewText text, int notificationId});
@@ -257,7 +282,7 @@ Future<void> showPush(
         preview?.text.body ?? text,
         channel: channel,
         title: preview == null ? null : previewTitle(preview.text),
-        id: preview?.notificationId,
+        id: preview?.notificationId ?? conversationNotificationId(envelope),
         payload: tapPayloadFor(envelope),
       );
     case PushActionIncomingCall():
@@ -268,5 +293,8 @@ Future<void> showPush(
       );
     case PushActionEndCall():
       await calls.endIncomingCalls();
+    case PushActionClearRead():
+      final id = await readClearIdFor(data, keys, now: DateTime.now());
+      if (id != null) await notifications.cancelShown({id});
   }
 }

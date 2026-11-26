@@ -21,6 +21,30 @@ pub(super) async fn advance_and_announce(
     Ok(())
 }
 
+/// [`advance_and_announce`] for a read the caller's own device made: when the marker moved, the
+/// account's other devices are pushed so those not running clear the channel's notifications.
+pub(super) async fn advance_announce_and_push(
+    state: &AppState,
+    ctx: &crate::store::SessionContext,
+    channel_id: ChannelId,
+    seq: i64,
+) -> Result<(), ApiError> {
+    let moved = crate::read_announce::advance_and_announce(
+        &state.store,
+        &state.hub,
+        ctx.user_id,
+        channel_id,
+        seq,
+    )
+    .await?;
+    if moved {
+        state
+            .push
+            .notify_read(state.store.clone(), ctx.user_id, channel_id, ctx.device_id);
+    }
+    Ok(())
+}
+
 /// Your own message is never unread to you, on this device or any other.
 ///
 /// Best-effort: the message already landed, a missed marker only leaves a

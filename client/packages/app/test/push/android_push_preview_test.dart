@@ -118,6 +118,96 @@ void main() {
     expect(preview.text.body, 'Media volume is at 95%');
   });
 
+  group('a read push', () {
+    Map<String, Object?> read({String channelId = 'c1', int? sentAt}) => {
+      'domain': 'slim-m.push.v1',
+      'version': 1,
+      'kind': 'read',
+      'channel_id': channelId,
+      'sent_at': sentAt ?? _now.millisecondsSinceEpoch,
+    };
+
+    test('is its own action and shows nothing', () {
+      expect(actionFor({'kind': 'read'}), isA<PushActionClearRead>());
+    });
+
+    test('takes down the notification its channel shows under', () async {
+      final data = {'kind': 'read', 'payload': _payload(read(channelId: 'c2'))};
+
+      expect(
+        await readClearIdFor(data, await _store(), now: _now),
+        previewNotificationId('c2'),
+      );
+    });
+
+    test(
+      'shares an id with a message of that channel, preview or not',
+      () async {
+        final keys = await _store();
+        final message = {'payload': _payload(_envelope(channelId: 'c1'))};
+        final cleared = await readClearIdFor(
+          {'payload': _payload(read())},
+          keys,
+          now: _now,
+        );
+
+        expect(
+          (await openPreview(message, keys, now: _now))!.notificationId,
+          cleared,
+        );
+        expect(
+          conversationNotificationId(
+            await openPushPayload(
+              _payload({
+                'domain': 'slim-m.push.v1',
+                'version': 1,
+                'channel_id': 'c1',
+              }),
+              keys,
+            ),
+          ),
+          cleared,
+        );
+      },
+    );
+
+    test(
+      'clears nothing when it cannot be opened, names no channel or is stale',
+      () async {
+        final keys = await _store();
+        final old = _now.subtract(const Duration(minutes: 30));
+
+        expect(await readClearIdFor({'kind': 'read'}, keys, now: _now), isNull);
+        expect(
+          await readClearIdFor(
+            {'payload': _payload(read())},
+            InMemoryKeyStore(),
+            now: _now,
+          ),
+          isNull,
+        );
+        expect(
+          await readClearIdFor(
+            {
+              'payload': _payload({...read()}..remove('channel_id')),
+            },
+            keys,
+            now: _now,
+          ),
+          isNull,
+        );
+        expect(
+          await readClearIdFor(
+            {'payload': _payload(read(sentAt: old.millisecondsSinceEpoch))},
+            keys,
+            now: _now,
+          ),
+          isNull,
+        );
+      },
+    );
+  });
+
   group('incomingCallFor', () {
     Map<String, Object?> ring({String? name}) => {
       'domain': 'slim-m.push.v1',

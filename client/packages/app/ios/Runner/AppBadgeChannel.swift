@@ -37,15 +37,53 @@ enum AppBadgeChannel {
     result(nil)
   }
 
+  /// A silent `read` push: the sealed envelope names a channel read on another device, so this
+  /// one takes that channel's delivered notifications down and sets the badge to what is left.
+  /// Anything that does not open as a fresh `read` is ignored, and `completion` always runs.
+  static func applyReadPush(_ userInfo: [AnyHashable: Any], completion: @escaping () -> Void) {
+    guard let channelId = readChannelId(in: userInfo) else {
+      completion()
+      return
+    }
+    let center = UNUserNotificationCenter.current()
+    center.getDeliveredNotifications { delivered in
+      let ours = delivered.filter { $0.request.content.threadIdentifier == channelId }
+      if !ours.isEmpty {
+        center.removeDeliveredNotifications(withIdentifiers: ours.map { $0.request.identifier })
+      }
+      setBadge(
+        BadgeCount.afterRead(
+          channelId: channelId,
+          deliveredThreads: delivered.map { $0.request.content.threadIdentifier }))
+      completion()
+    }
+  }
+
+  private static func readChannelId(in userInfo: [AnyHashable: Any]) -> String? {
+    guard let encoded = userInfo["payload"] as? String,
+      let sealed = Data(base64Encoded: encoded),
+      let privateKey = PushKeychain.privateKey(),
+      let plaintext = PushSealedBox.open([UInt8](sealed), privateKey: privateKey),
+      let envelope = PushEnvelope.decode(plaintext),
+      envelope.kind == "read", !envelope.isStale(),
+      let channelId = envelope.channelId, !channelId.isEmpty
+    else { return nil }
+    return channelId
+  }
+
+  private static func setBadge(_ count: Int) {
+    if #available(iOS 16.0, *) {
+      UNUserNotificationCenter.current().setBadgeCount(count) { _ in }
+    } else {
+      DispatchQueue.main.async { UIApplication.shared.applicationIconBadgeNumber = count }
+    }
+  }
+
   /// Sets the badge and drops delivered notifications of channels that are
   /// read, so the extension's next count starts from what is really unread.
   private static func sync(count: Int, readChannelIds: Set<String>) {
     let center = UNUserNotificationCenter.current()
-    if #available(iOS 16.0, *) {
-      center.setBadgeCount(count) { _ in }
-    } else {
-      DispatchQueue.main.async { UIApplication.shared.applicationIconBadgeNumber = count }
-    }
+    setBadge(count)
     center.getDeliveredNotifications { delivered in
       let stale = delivered.filter { readChannelIds.contains($0.request.content.threadIdentifier) }
       if !stale.isEmpty {

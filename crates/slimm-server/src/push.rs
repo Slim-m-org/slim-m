@@ -49,6 +49,7 @@ mod envelope;
 mod mention_grammar;
 // pub(crate): crate::mentions reuses resolved_mentions directly rather than reimplementing it.
 mod preview_text;
+mod read_clear;
 pub(crate) mod recipients;
 mod relay;
 mod sealing;
@@ -62,7 +63,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use crate::config::Config;
-use crate::ids::{CallRingId, ChannelId, MessageId, Seq, UserId};
+use crate::ids::{CallRingId, ChannelId, DeviceId, MessageId, Seq, UserId};
 use crate::presence::PresenceTracker;
 use crate::store::Store;
 
@@ -86,6 +87,7 @@ const DEFAULT_DEBOUNCE_WINDOW_MS: i64 = 10_000;
 pub struct PushSender {
     inner: Option<Arc<Enabled>>,
     debounce: Arc<Debounce>,
+    read_clear: Arc<read_clear::ReadClearGate>,
 }
 
 struct Enabled {
@@ -177,7 +179,14 @@ impl PushSender {
         Ok(Self {
             inner,
             debounce: Arc::new(Debounce::new(window_ms)),
+            read_clear: Arc::new(read_clear::ReadClearGate::new(read_clear::DEFAULT_WINDOW)),
         })
+    }
+
+    /// [`Self::new`] with an explicit window for collapsing reads, so tests need not wait it out.
+    pub fn with_read_clear_window(mut self, window: Duration) -> Self {
+        self.read_clear = Arc::new(read_clear::ReadClearGate::new(window));
+        self
     }
 
     /// A sender that never reaches a relay. Distinct from a misconfigured
@@ -187,6 +196,7 @@ impl PushSender {
         Self {
             inner: None,
             debounce: Arc::new(Debounce::new(DEFAULT_DEBOUNCE_WINDOW_MS)),
+            read_clear: Arc::new(read_clear::ReadClearGate::new(read_clear::DEFAULT_WINDOW)),
         }
     }
 
@@ -252,6 +262,30 @@ impl PushSender {
         };
         tokio::spawn(call_ring::deliver(
             enabled, store, channel_id, ring_id, caller_id, callee_id,
+        ));
+    }
+
+    /// Tells `user_id`'s other devices that `channel_id` was read on `origin`, so they take its
+    /// notifications down and fix their badge. Reads in a burst collapse into one push.
+    pub fn notify_read(
+        &self,
+        store: Store,
+        user_id: UserId,
+        channel_id: ChannelId,
+        origin: DeviceId,
+    ) {
+        let Some(enabled) = self.inner.clone() else {
+            return;
+        };
+        let key = (user_id, channel_id, origin);
+        if !self.read_clear.open(key) {
+            return;
+        }
+        tokio::spawn(read_clear::deliver(
+            enabled,
+            self.read_clear.clone(),
+            store,
+            key,
         ));
     }
 

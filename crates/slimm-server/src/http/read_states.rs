@@ -67,7 +67,7 @@ async fn mark_channels_read(
             continue;
         }
         // The store clamps to the channel's newest seq, so MAX means "everything".
-        super::read_sync::advance_and_announce(&state, ctx.user_id, id, i64::MAX).await?;
+        super::read_sync::advance_announce_and_push(&state, &ctx, id, i64::MAX).await?;
         answers.push(ChannelReadStateDto {
             channel_id: id.to_string(),
             state: read_state_for(&state, ctx.user_id, id).await?,

@@ -158,7 +158,7 @@ async fn put_read(
     {
         return Err(ApiError::Forbidden);
     }
-    super::read_sync::advance_and_announce(&state, ctx.user_id, channel_id, req.seq).await?;
+    super::read_sync::advance_announce_and_push(&state, &ctx, channel_id, req.seq).await?;
     Ok(Json(read_state_for(&state, ctx.user_id, channel_id).await?))
 }
 

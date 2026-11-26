@@ -21,6 +21,7 @@ mod harness;
 mod mass_authority;
 mod missed_call;
 mod missed_call_preview;
+mod read_clear;
 mod relay_resend;
 mod reply_ping;
 mod repost_blocks;
