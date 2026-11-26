@@ -37,8 +37,10 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
 
     final aboveBottom = tester.getBottomLeft(find.byKey(_above)).dy;
-    final chips = tester.getRect(find.byType(Wrap));
-    final row = tester.getRect(find.byType(ReactionsRow));
+    final chips = tester.getRect(find.byWidgetPredicate((w) => w is Wrap));
+    final row = tester.getRect(
+      find.byWidgetPredicate((w) => w is ReactionsRow),
+    );
 
     expect(chips.top - aboveBottom, -AppSpacing.s4, reason: 'pulled up a step');
     expect(row.top, aboveBottom, reason: 'the row box starts under the body');
@@ -53,7 +55,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
 
     expect(
-      tester.getSize(find.byType(ReactionsRow)),
+      tester.getSize(find.byWidgetPredicate((w) => w is ReactionsRow)),
       Size.zero,
       reason: 'an unreacted message must occupy no space for reactions',
     );
