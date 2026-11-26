@@ -26,6 +26,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../settings/providers/display_density.dart';
 import '../providers/author_is_bot.dart';
 import '../providers/message_extras.dart' show MessageExtras;
+import '../providers/viewer_mention.dart';
 import '../providers/voice_transcripts.dart';
 import '../../../providers/providers.dart' show sessionProvider;
 import '../../../routing/breakpoints.dart';
@@ -167,6 +168,7 @@ class MessageRow extends ConsumerWidget {
     final copyText = _copyText(ref);
     final pinging = _pinging(
       ref.watch(sessionProvider.select((s) => s.tokens?.userId)),
+      ref.watch(viewerMentionTargetsProvider),
     );
     return HoverReveal(
       enterDelay: kRowHoverIntent,
@@ -225,12 +227,12 @@ class MessageRow extends ConsumerWidget {
   }
 
   /// Whether the row wears the mention band; in a thread a bare reply to the viewer is not one.
-  bool _pinging(String? selfId) {
+  bool _pinging(String? selfId, ViewerMentionTargets viewer) {
     if (!extras.mentionsMe) return false;
     final bareReply =
         inThread &&
         replyTo?.authorId == selfId &&
-        !message.content.contains('@');
+        !contentMentionsViewer(message.content, viewer);
     return !bareReply;
   }
 
