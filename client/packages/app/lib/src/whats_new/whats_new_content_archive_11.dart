@@ -124,4 +124,43 @@ const List<WhatsNewEntry> whatsNewArchiveEntries11 = [
       ),
     ],
   ),
+  WhatsNewEntry(
+    version: '0.140.0',
+    headline: 'A tidier call dock, one Captions control and better threads',
+    points: [
+      WhatsNewPoint(
+        'The call dock keeps the everyday controls and moves the rest into '
+        'More. Use Show in dock to pin one back where it fits.',
+      ),
+      WhatsNewPoint(
+        'The call bar above your profile has mute, deafen and screen share, '
+        'so you can start or stop a share without going back to the call.',
+      ),
+      WhatsNewPoint(
+        'Captions is one control now. If the Space transcribes calls, '
+        'captions just show the transcript; if it asks first, turning '
+        'captions on asks everyone.',
+      ),
+      WhatsNewPoint(
+        'Threads read like the channel: the first message has its date, '
+        'replies group, and only real mentions are highlighted.',
+      ),
+      WhatsNewPoint(
+        'Thread replies notify you after your computer wakes or reconnects, '
+        'and follow the channel\'s notification setting.',
+      ),
+      WhatsNewPoint(
+        'Custom emoji like :name: show as the emoji while you type a '
+        'message or edit one.',
+      ),
+      WhatsNewPoint(
+        'If you are in a call on another device, your other devices show '
+        'you in it.',
+      ),
+      WhatsNewPoint(
+        'On the web, staying signed in now uses a cookie that page scripts '
+        'cannot read.',
+      ),
+    ],
+  ),
 ];
