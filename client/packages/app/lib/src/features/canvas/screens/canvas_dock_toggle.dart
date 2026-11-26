@@ -52,7 +52,7 @@ class _CanvasDockToggleState extends ConsumerState<CanvasDockToggle> {
 
   void _press() {
     if (widget.open && _scope.hasFocus) {
-      ref.read(canvasToggleRefocusProvider.notifier).state = true;
+      armCanvasToggleRefocus(ref.read(canvasToggleRefocusProvider.notifier));
     }
     widget.onPressed();
   }
@@ -100,7 +100,7 @@ DockItem canvasToggleItem({
       label: open ? 'Close canvas' : 'Open canvas',
       icon: AppIcons.canvas,
       onSelected: () {
-        if (open) refocus?.state = true;
+        if (open && refocus != null) armCanvasToggleRefocus(refocus);
         onPressed();
       },
     ),

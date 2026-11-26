@@ -18,12 +18,16 @@ class DockMenuButton extends StatefulWidget {
     required this.sheetLabel,
     this.active = false,
     this.menuWidth = 240,
+    this.onOpenChanged,
   });
 
   final IconData icon;
   final String tooltip;
   final bool active;
   final double menuWidth;
+
+  /// Told when the menu opens and closes.
+  final ValueChanged<bool>? onOpenChanged;
 
   /// Names the compact sheet for a screen reader.
   final String sheetLabel;
@@ -52,7 +56,10 @@ class _DockMenuButtonState extends State<DockMenuButton> {
       opensAbove: true,
       menuWidth: widget.menuWidth,
       tapRegionGroupId: _group,
-      onOpenChanged: (open) => reveal?.pin(open),
+      onOpenChanged: (open) {
+        reveal?.pin(open);
+        widget.onOpenChanged?.call(open);
+      },
       sheetSemanticLabel: widget.sheetLabel,
       itemsBuilder: widget.itemsBuilder,
       child: TapRegion(

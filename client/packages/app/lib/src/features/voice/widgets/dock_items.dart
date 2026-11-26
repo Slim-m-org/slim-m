@@ -70,6 +70,8 @@ List<DockItem> buildDockItems(
       DockItem(
         id: 'switch-camera',
         name: 'Switch camera',
+        // A flip is a one-tap action on a phone; the row only keeps it when it fits.
+        keepInline: AppTouchTargets.of(context),
         inline: switchCameraButton,
         entries: [
           ControlOption(
@@ -86,14 +88,17 @@ List<DockItem> buildDockItems(
 class DockSplit {
   const DockSplit({
     required this.inline,
+    required this.items,
     required this.inMore,
     required this.pinnable,
   });
 
+  /// Every item, current, whichever side of the split it falls on.
+  final List<DockItem> items;
   final List<DockItem> inline;
   final List<DockItem> inMore;
 
-  /// What the "Show in dock" list offers: everything the dock does not force in.
+  /// What the "Show in dock" list offers: empty when the row has no room to pin into.
   final List<DockItem> pinnable;
 
   /// More is drawn while anything is left in it or can be pinned.
@@ -112,6 +117,7 @@ DockSplit splitDockItems(
   bool inRow(DockItem item) =>
       inlineAllowed && (item.keepInline || pinned.contains(item.id));
   return DockSplit(
+    items: items,
     inline: [
       for (final item in items)
         if (inRow(item)) item,
@@ -121,8 +127,9 @@ DockSplit splitDockItems(
         if (!inRow(item)) item,
     ],
     pinnable: [
-      for (final item in items)
-        if (!(inlineAllowed && item.keepInline)) item,
+      if (inlineAllowed)
+        for (final item in items)
+          if (!item.keepInline) item,
     ],
   );
 }

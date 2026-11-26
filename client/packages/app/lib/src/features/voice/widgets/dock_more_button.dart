@@ -17,20 +17,14 @@ import '../../canvas/providers/canvas_toggle_refocus.dart';
 import '../providers/voice_settings_controller.dart';
 import 'call_device_options.dart' show callMenuWidth;
 import 'dock_item.dart';
+import 'dock_items.dart' show DockSplit;
 import 'dock_menu_button.dart';
 
 class DockMoreButton extends ConsumerStatefulWidget {
-  const DockMoreButton({
-    super.key,
-    required this.inMore,
-    required this.pinnable,
-  });
+  const DockMoreButton({super.key, required this.split});
 
-  /// The items the menu lists.
-  final List<DockItem> inMore;
-
-  /// The items the "Show in dock" list can pin.
-  final List<DockItem> pinnable;
+  /// What the menu lists and what "Show in dock" can pin.
+  final DockSplit split;
 
   @override
   ConsumerState<DockMoreButton> createState() => _DockMoreButtonState();
@@ -38,6 +32,9 @@ class DockMoreButton extends ConsumerStatefulWidget {
 
 class _DockMoreButtonState extends ConsumerState<DockMoreButton> {
   final _scope = FocusNode(skipTraversal: true, debugLabel: 'dock more');
+
+  /// The ids the menu listed when it opened, so a toggle inside it (captions on, a pin) cannot pull its own row out from under the pointer.
+  ({Set<String> inMore, Set<String> pinnable})? _openIds;
 
   @override
   void initState() {
@@ -66,6 +63,12 @@ class _DockMoreButtonState extends ConsumerState<DockMoreButton> {
         tooltip: 'More',
         sheetLabel: 'More call controls',
         menuWidth: callMenuWidth,
+        onOpenChanged: (open) => _openIds = open
+            ? (
+                inMore: {for (final i in widget.split.inMore) i.id},
+                pinnable: {for (final i in widget.split.pinnable) i.id},
+              )
+            : null,
         itemsBuilder: (context, close) => [
           for (final entry in _entries())
             ...controlOptionRows(context, entry, close, callMenuWidth),
@@ -74,17 +77,26 @@ class _DockMoreButtonState extends ConsumerState<DockMoreButton> {
     );
   }
 
-  List<ControlOptionEntry> _entries() => [
-    for (final item in widget.inMore) ...item.entries,
-    if (widget.inMore.isNotEmpty && widget.pinnable.isNotEmpty)
-      const ControlOptionDivider(),
-    if (widget.pinnable.isNotEmpty)
-      ControlSubmenu(
-        label: 'Show in dock',
-        icon: AppIcons.pin,
-        panel: (context, close) => _PinList(items: widget.pinnable),
-      ),
-  ];
+  List<ControlOptionEntry> _entries() {
+    final open = _openIds;
+    List<DockItem> listed(List<DockItem> live, Set<String>? frozen) => [
+      for (final item in widget.split.items)
+        if (frozen?.contains(item.id) ?? live.contains(item)) item,
+    ];
+    final inMore = listed(widget.split.inMore, open?.inMore);
+    final pinnable = listed(widget.split.pinnable, open?.pinnable);
+    return [
+      for (final item in inMore) ...item.entries,
+      if (inMore.isNotEmpty && pinnable.isNotEmpty)
+        const ControlOptionDivider(),
+      if (pinnable.isNotEmpty)
+        ControlSubmenu(
+          label: 'Show in dock',
+          icon: AppIcons.pin,
+          panel: (context, close) => _PinList(items: pinnable),
+        ),
+    ];
+  }
 }
 
 class _PinList extends ConsumerWidget {

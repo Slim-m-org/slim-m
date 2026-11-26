@@ -192,7 +192,7 @@ class _CallControlsState extends ConsumerState<CallControls> {
     final gap = dockButtonGap(context);
     if (widget.spilledOnly) {
       return split.hasMore
-          ? DockMoreButton(inMore: split.inMore, pinnable: split.pinnable)
+          ? DockMoreButton(split: split)
           : const SizedBox.shrink();
     }
     final primary = Row(
@@ -230,7 +230,7 @@ class _CallControlsState extends ConsumerState<CallControls> {
           ],
         if (split.hasMore && !widget.tight) ...[
           SizedBox(width: gap),
-          DockMoreButton(inMore: split.inMore, pinnable: split.pinnable),
+          DockMoreButton(split: split),
         ],
       ],
     );
