@@ -123,7 +123,8 @@ extension SlimmApiAttachments on SlimmApi {
   }) async {
     cancel?.throwIfCancelled();
     await awaitTrust();
-    await ensureAccessToken();
+    final refreshing = ensureAccessToken();
+    if (refreshing != null) await refreshing;
     final token = session.tokens?.accessToken;
     final sentBy = session.tokens?.userId;
     if (token == null) throw const UnauthorizedException('not signed in');
@@ -229,7 +230,8 @@ extension SlimmApiAttachments on SlimmApi {
     bool isRetry = false,
   }) async {
     await awaitTrust();
-    await ensureAccessToken();
+    final refreshing = ensureAccessToken();
+    if (refreshing != null) await refreshing;
     final token = session.tokens?.accessToken;
     final sentBy = session.tokens?.userId;
     if (token == null) throw const UnauthorizedException('not signed in');

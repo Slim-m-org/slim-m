@@ -72,7 +72,10 @@ extension SlimmApiTransport on SlimmApi {
       final hold = trustGate?.call();
       if (hold != null) await hold;
     }
-    if (authenticated) await ensureAccessToken();
+    if (authenticated) {
+      final refreshing = ensureAccessToken();
+      if (refreshing != null) await refreshing;
+    }
     final sentWith = session.tokens?.accessToken;
     final sentBy = session.tokens?.userId;
     Future<http.Response> attempt() => _perform(
@@ -203,7 +206,8 @@ extension SlimmApiTransport on SlimmApi {
   }) async {
     final hold = trustGate?.call();
     if (hold != null) await hold;
-    await ensureAccessToken();
+    final refreshing = ensureAccessToken();
+    if (refreshing != null) await refreshing;
     final token = session.tokens?.accessToken;
     final sentBy = session.tokens?.userId;
     if (token == null) {
