@@ -37,11 +37,11 @@ List<Widget> captionsMenuItems(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: switch (inner.watch(captionsControlProvider(channelId))) {
         CaptionsControl.hidden => const [],
-        CaptionsControl.pending => [_PendingRow(channelId: channelId)],
+        CaptionsControl.pending => [CaptionsPendingRow(channelId: channelId)],
         CaptionsControl.startable => [
           _switchRow(
             inner.watch(captionsOnProvider(channelId)),
-            (_) => unawaited(_ask(context, ref, close, channelId)),
+            (_) => unawaited(askToTranscribe(context, ref, close, channelId)),
           ),
         ],
         CaptionsControl.running => [
@@ -88,13 +88,13 @@ List<Widget> captionsMenuItems(
 
 Widget _switchRow(bool on, ValueChanged<bool> onChanged) => AppMenuSwitchRow(
   key: captionsSwitchKey,
-  label: 'Captions',
+  label: 'Show captions',
   value: on,
   onChanged: onChanged,
 );
 
 /// Asks everyone, as the Transcribe control did, and turns captions on once it is asked.
-Future<void> _ask(
+Future<void> askToTranscribe(
   BuildContext context,
   WidgetRef ref,
   VoidCallback close,
@@ -115,8 +115,8 @@ void _viewTranscript(WidgetRef ref, String channelId) {
   ref.read(voiceChatPaneVisibleProvider.notifier).state = true;
 }
 
-class _PendingRow extends ConsumerWidget {
-  const _PendingRow({required this.channelId});
+class CaptionsPendingRow extends ConsumerWidget {
+  const CaptionsPendingRow({super.key, required this.channelId});
 
   final String channelId;
 

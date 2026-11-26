@@ -238,7 +238,7 @@ void main() {
     await tester.tap(find.byTooltip('Captions'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(find.text('Captions'));
+    await tester.tap(find.text('Show captions'));
     await tester.pump();
     expect(find.byKey(callCaptionsKey), findsOneWidget);
   });

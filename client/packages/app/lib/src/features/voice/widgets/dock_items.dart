@@ -3,6 +3,8 @@
 /// row rather than in its More menu.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -53,17 +55,31 @@ List<DockItem> buildDockItems(
         name: 'Captions',
         keepInline: captionsOn,
         inline: CaptionsDockButton(menuContext: context, channelId: channelId),
-        entries: [
-          ControlSubmenu(
-            label: 'Captions',
-            icon: AppIcons.callCaptions,
-            value: captionsOn ? 'On' : null,
-            panel: (_, close) => Column(
-              mainAxisSize: MainAxisSize.min,
-              children: captionsMenuItems(context, ref, close, channelId),
+        entries: switch (ref.watch(captionsControlProvider(channelId))) {
+          // A submenu holding one row is a page for nothing, so that row is the More row.
+          CaptionsControl.startable => [
+            ControlSwitch(
+              label: 'Show captions',
+              value: captionsOn,
+              onChanged: (_) =>
+                  unawaited(askToTranscribe(context, ref, () {}, channelId)),
             ),
-          ),
-        ],
+          ],
+          CaptionsControl.pending => [
+            ControlInline((_) => CaptionsPendingRow(channelId: channelId)),
+          ],
+          _ => [
+            ControlSubmenu(
+              label: 'Captions',
+              icon: AppIcons.callCaptions,
+              value: captionsOn ? 'On' : null,
+              panel: (_, close) => Column(
+                mainAxisSize: MainAxisSize.min,
+                children: captionsMenuItems(context, ref, close, channelId),
+              ),
+            ),
+          ],
+        },
       ),
     ...extras,
     if (canSwitch)
