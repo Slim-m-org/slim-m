@@ -8,7 +8,6 @@
 library;
 
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -29,6 +28,7 @@ import 'preference_controller.dart';
 export 'effective_me.dart';
 export 'session_provider.dart';
 import 'session_provider.dart';
+import 'web_session.dart';
 import 'space_scoped_preferences.dart';
 
 /// The server the user picked, with null meaning one has never been picked on
@@ -200,15 +200,21 @@ Future<void> restoreSession(
     }
     if (stored == null) return;
 
-    final tokens = TokenPair.fromJson(
-      jsonDecode(stored) as Map<String, dynamic>,
-    );
     if (serverUrl == null) {
       // A session with no usable address restores to a connection that can never work.
       throw const FormatException('missing or invalid persisted server url');
     }
     if (container.read(sessionProvider).isSignedIn) return;
+    final tokens = sessionFromStored(
+      container.read(webSessionModeProvider),
+      stored,
+    );
+    if (tokens == null) {
+      await keyStore.delete(sessionTokenHandle);
+      return;
+    }
     container.read(sessionProvider).set(tokens);
+    moveStoredPairToCookie(container, tokens);
     if (note.state != null) {
       note.state = 'stored session restored after a retry';
     }
@@ -278,6 +284,8 @@ final apiProvider = Provider<SlimmApi>((ref) {
           // Read, not watched: the store follows sign-ins itself, and a rebuild would close in-flight requests.
           session: ref.read(sessionProvider),
           trustGate: ref.read(serverIdentityGateProvider).forClient(),
+          webSession:
+              ref.watch(webSessionModeProvider) == WebSessionMode.cookie,
         )
         ..clientReport = (kind: deviceClientKind, version: null)
         ..voiceTab = ref.read(crossTabProvider).tabId;

@@ -115,12 +115,67 @@ class TokenPair {
   /// Unix milliseconds at which [accessToken] stops working.
   final int accessExpiresAt;
 
+  /// Whether this pair still holds a refresh token, which a web tab only does for a pair stored before the cookie.
+  bool get carriesRefreshToken => refreshToken.isNotEmpty;
+
   factory TokenPair.fromJson(Map<String, dynamic> json) => TokenPair(
         userId: json['user_id'] as String,
         accessToken: json['access_token'] as String,
-        refreshToken: json['refresh_token'] as String,
+        // Absent for a web client, whose refresh token is in an HttpOnly cookie.
+        refreshToken: json['refresh_token'] as String? ?? '',
         accessExpiresAt: json['access_expires_at'] as int,
       );
+
+  /// What a web tab keeps between loads: who it is signed in as, and nothing it could sign in with.
+  ///
+  /// The empty access token fails the first call, which refreshes through the cookie.
+  factory TokenPair.signedInHint(String userId) => TokenPair(
+        userId: userId,
+        accessToken: '',
+        refreshToken: '',
+        accessExpiresAt: 0,
+      );
+
+  /// Reads either a full stored pair or a web tab's [toHintJson].
+  factory TokenPair.fromStoredJson(Map<String, dynamic> json) => TokenPair(
+        userId: json['user_id'] as String,
+        accessToken: json['access_token'] as String? ?? '',
+        refreshToken: json['refresh_token'] as String? ?? '',
+        accessExpiresAt: json['access_expires_at'] as int? ?? 0,
+      );
+
+  /// The same session with its refresh token dropped, for one whose legacy token is known to be spent.
+  TokenPair withoutRefreshToken() => TokenPair(
+        userId: userId,
+        accessToken: accessToken,
+        refreshToken: '',
+        accessExpiresAt: accessExpiresAt,
+      );
+
+  /// A peer tab's announcement: the access fields only, whatever else the message carries.
+  factory TokenPair.fromAccessJson(Map<String, dynamic> json) => TokenPair(
+        userId: json['user_id'] as String,
+        accessToken: json['access_token'] as String? ?? '',
+        refreshToken: '',
+        accessExpiresAt: json['access_expires_at'] as int? ?? 0,
+      );
+
+  /// Whether [other] holds the very refresh token this pair does.
+  bool matchesRefreshToken(TokenPair other) =>
+      refreshToken.isNotEmpty && refreshToken == other.refreshToken;
+
+  /// Whether this pair holds an access token to present.
+  bool get hasAccessToken => accessToken.isNotEmpty;
+
+  /// What one tab tells the others after a rotation: the access token, never a refresh token.
+  Map<String, dynamic> toAccessJson() => {
+        'user_id': userId,
+        'access_token': accessToken,
+        'access_expires_at': accessExpiresAt,
+      };
+
+  /// The part of a session safe to keep where page script can read it: the account id alone.
+  Map<String, dynamic> toHintJson() => {'user_id': userId};
 
   /// For persisting the session locally, in a platform key store rather than
   /// a log or anywhere else these secrets could linger in plain text.
