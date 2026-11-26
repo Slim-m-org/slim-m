@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart' show ScreenShareSource, VoiceSessionState;
 
+import '../providers/call_share_memory.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
 import '../providers/voice_settings_controller.dart'
@@ -38,37 +39,29 @@ class CallShareFlow {
   /// The share button, which the source picker rests above.
   final buttonKey = GlobalKey();
 
-  /// Guards a fast double-tap from opening two source-selection sheets: the
-  /// enumeration and its own sheet run entirely inside [_start], before
-  /// `VoiceScreenShare.setScreenShare` is ever called, so nothing further down
-  /// the stack can catch a re-entrant tap.
-  bool _inFlight = false;
+  /// Kept in the call-scoped provider, so the call screen's flow and the rail's see one record; held directly so a finishing start can clear it after this flow's widget is gone.
+  late final CallShareMemoryController _memory = ref.read(
+    callShareMemoryProvider.notifier,
+  );
 
-  /// Whichever source [_start] last resolved a picker's choice to -
-  /// preselected (never silently reused) the next time the picker opens, so
-  /// report 2's "always goes back to whatever was just chosen" reads as a
-  /// highlighted default instead of nothing worth remembering at all. Reset
-  /// by nothing on purpose: it only ever changes what a fresh sheet opens
-  /// pointing at, never whether one opens.
-  String? _lastSourceId;
-  ScreenShareSource? _lastSource;
+  CallShareMemory get _record => ref.read(callShareMemoryProvider);
 
-  ScreenShareSource? get lastSource => _lastSource;
+  ScreenShareSource? get lastSource => _record.lastSource;
 
   /// Stops a live or requested share (which also ends the recording), or starts one; [changeSource] is the menu's route to a new source, so a bare tap never has to guess which was meant.
   void toggle(BuildContext context) {
-    if (_inFlight) return;
+    if (_record.inFlight) return;
     unawaited(_toggle(context));
   }
 
   void changeSource(BuildContext context) {
-    if (_inFlight) return;
+    if (_record.inFlight) return;
     unawaited(_changeSource(context));
   }
 
   /// Replaces the running share with [source], picked from the menu.
   void pick(BuildContext context, ScreenShareSource source) {
-    if (_inFlight) return;
+    if (_record.inFlight) return;
     unawaited(_start(context, stopFirst: true, preset: source));
   }
 
@@ -116,7 +109,8 @@ class CallShareFlow {
     ScreenShareSource? preset,
   }) async {
     final controller = this.controller();
-    changed(() => _inFlight = true);
+    _memory.begin();
+    changed(() {});
     try {
       // The saved ceiling and audio choice, applied directly rather than asked again.
       final settings = ref.read(voiceSettingsControllerProvider);
@@ -127,7 +121,7 @@ class CallShareFlow {
           : await pickShareSource(
               context,
               controller,
-              lastSourceId: _lastSourceId,
+              lastSourceId: _record.lastSourceId,
               anchorRect: _pickerAnchor(),
             );
       if (!pick.proceed) return;
@@ -138,8 +132,7 @@ class CallShareFlow {
           !(voice.state == VoiceSessionState.connected || voice.rejoining)) {
         return;
       }
-      _lastSourceId = sourceId ?? _lastSourceId;
-      _lastSource = pick.source ?? _lastSource;
+      _memory.remember(id: sourceId, source: pick.source);
       if (stopFirst) await controller.share.setScreenShare(false);
       await controller.share.setScreenShare(
         true,
@@ -150,7 +143,8 @@ class CallShareFlow {
         source: pick.source,
       );
     } finally {
-      if (mounted()) changed(() => _inFlight = false);
+      _memory.end();
+      if (mounted()) changed(() {});
     }
   }
 }
