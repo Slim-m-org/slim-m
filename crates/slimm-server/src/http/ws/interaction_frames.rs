@@ -4,6 +4,7 @@
 
 use super::authorization::{Authorization, read_with_retry};
 use super::frames::ServerFrame;
+use super::interaction_click_frame::InteractionClickFrame;
 use crate::components::form::Form;
 use crate::hub::Event;
 use crate::permissions::Permissions;
@@ -25,20 +26,11 @@ pub(super) async fn authorize(
             input,
         } => Some(
             deliver_to(store, ctx, interaction, interaction.bot_id, || {
-                ServerFrame::InteractionCreated {
-                    interaction_id: interaction.id.to_string(),
-                    channel_id: interaction.channel_id.to_string(),
-                    message_id: interaction.message_id.map(|m| m.to_string()),
-                    custom_id: interaction.custom_id.clone(),
-                    kind: interaction.kind.as_str().to_owned(),
-                    option_id: interaction.option_id.clone(),
-                    user_id: interaction.clicker_id.to_string(),
-                    user_display_name: clicker_display_name.clone(),
-                    created_at: interaction.created_at,
-                    values: input.values.clone(),
-                    fields: input.fields.clone(),
-                    origin_interaction_id: input.origin_id.map(|id| id.to_string()),
-                }
+                ServerFrame::InteractionCreated(InteractionClickFrame::new(
+                    interaction,
+                    clicker_display_name,
+                    input,
+                ))
             })
             .await,
         ),

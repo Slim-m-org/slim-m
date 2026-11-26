@@ -125,33 +125,9 @@ pub(super) enum ServerFrame {
         message_id: String,
         embeds: Vec<crate::http::embeds::EmbedDto>,
     },
-    /// A member used this bot's button, menu entry or call control. Bot
-    /// connections only. `custom_id` is the entry id for the latter two, and a
-    /// call control names no message.
+    /// A member used one of this bot's controls; bot connections only.
     #[serde(rename = "interaction.created")]
-    InteractionCreated {
-        interaction_id: String,
-        channel_id: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        message_id: Option<String>,
-        custom_id: String,
-        kind: String,
-        /// The choice made on a call control that offers options.
-        #[serde(skip_serializing_if = "Option::is_none")]
-        option_id: Option<String>,
-        user_id: String,
-        user_display_name: String,
-        created_at: i64,
-        /// The values chosen from a select menu.
-        #[serde(skip_serializing_if = "Vec::is_empty")]
-        values: Vec<String>,
-        /// A submitted form's answers by field `custom_id`.
-        #[serde(skip_serializing_if = "std::collections::BTreeMap::is_empty")]
-        fields: std::collections::BTreeMap<String, String>,
-        /// The press the form was opened on, on a submitted form.
-        #[serde(skip_serializing_if = "Option::is_none")]
-        origin_interaction_id: Option<String>,
-    },
+    InteractionCreated(super::interaction_click_frame::InteractionClickFrame),
     /// A bot opened a form for this account's click.
     #[serde(rename = "interaction.form")]
     InteractionForm {

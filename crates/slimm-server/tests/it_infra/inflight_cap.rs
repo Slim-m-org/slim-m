@@ -11,7 +11,7 @@ use axum::extract::State;
 use axum::http::header::RETRY_AFTER;
 use axum::http::{Request, StatusCode};
 use axum::routing::get;
-use slimm_server::http::cap_inflight;
+use slimm_server::http::load_limits::cap_inflight;
 use tokio::sync::Semaphore;
 use tower::ServiceExt;
 

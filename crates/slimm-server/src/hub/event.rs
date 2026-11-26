@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! The [`Event`] enum: every fact `Hub::publish` can carry to a connection.
 //!
-//! Split out of `hub.rs` once that file reached the 500-line hard ceiling;
-//! `Event`'s own doc comments are the closest thing this protocol has to a
-//! spec for what a live frame may say, which is why none of them were
-//! shortened to make room instead.
+//! Its doc comments are the closest thing this protocol has to a spec for what a live frame says.
 
 use std::sync::Arc;
 
@@ -17,6 +14,7 @@ mod canvas;
 mod connector_run;
 mod message;
 mod module_room;
+mod notification_reason;
 mod presence_change;
 mod role_change;
 
@@ -24,6 +22,7 @@ pub use canvas::CanvasEvent;
 pub use connector_run::ConnectorRunRequest;
 pub use message::MessageEvent;
 pub use module_room::{ModuleRoomChange, RoomJson};
+pub use notification_reason::{AccountNotificationScope, VoiceRemovalReason};
 pub use presence_change::PresenceChange;
 pub use role_change::{RoleChange, RoleLook};
 
@@ -502,37 +501,4 @@ pub enum Event {
     /// A moderation event with its number, added by [`crate::hub::Hub::publish`]
     /// and never built by a handler. See `hub::moderation_seq`.
     Stamped { seq: u64, event: Box<Event> },
-}
-
-/// Why the server ended a member's call, as [`Event::VoiceRemoved`] carries it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum VoiceRemovalReason {
-    /// The member joined a call on another device.
-    OtherDevice,
-}
-
-impl VoiceRemovalReason {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::OtherDevice => "other_device",
-        }
-    }
-}
-
-/// Which of an account's notification state [`Event::AccountNotificationsChanged`] says moved.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AccountNotificationScope {
-    /// The weekly windows, off-hours mode, snooze or either allow-list.
-    Schedule,
-    /// The account-wide `everything` / `mentions` / `nothing` default.
-    Preference,
-}
-
-impl AccountNotificationScope {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Schedule => "schedule",
-            Self::Preference => "preference",
-        }
-    }
 }

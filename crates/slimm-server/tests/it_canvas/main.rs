@@ -9,6 +9,7 @@ mod canvas_cursor_live;
 mod canvas_deleted_channel;
 mod canvas_edge_permissions;
 mod canvas_edges;
+mod canvas_edges_lifecycle;
 mod canvas_erased_reclaim;
 mod canvas_export;
 mod canvas_export_access;

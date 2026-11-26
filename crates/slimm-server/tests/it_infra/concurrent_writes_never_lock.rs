@@ -32,8 +32,10 @@ fn every_transaction_says_whether_it_writes() {
                 pending.push(path);
                 continue;
             }
-            // store.rs is where the two doors themselves are defined.
-            if path.extension().is_none_or(|ext| ext != "rs") || path == src.join("store.rs") {
+            // pool_access.rs is where the two doors themselves are defined.
+            if path.extension().is_none_or(|ext| ext != "rs")
+                || path == src.join("store/pool_access.rs")
+            {
                 continue;
             }
             let source = std::fs::read_to_string(&path).expect("read source");

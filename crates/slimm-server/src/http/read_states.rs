@@ -10,10 +10,10 @@ use axum::routing::{get, post};
 use serde::{Deserialize, Serialize};
 
 use super::AppState;
+use super::channel_read::{ReadStateDto, read_state_for};
 use super::error::ApiError;
 use super::extract::{AUTHED_READ, AuthedLimited, Json, WRITE};
 use super::message_validation::parse_uuid;
-use super::sync::{ReadStateDto, read_state_for};
 use crate::ids::ChannelId;
 use crate::permissions::Permissions;
 
