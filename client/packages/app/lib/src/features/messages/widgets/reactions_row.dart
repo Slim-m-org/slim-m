@@ -90,13 +90,8 @@ class ReactionsRow extends StatefulWidget {
   /// is an overlay rather than reserving the space: reserving it would buy
   /// back exactly the cost this avoided.
   ///
-  /// Pulled tight against the body above by [AppSpacing.s4] - the closest
-  /// step to the few pixels of line-height leftover a real device still
-  /// showed at a flush 0 - as a [Transform.translate] rather than a negative
-  /// [Padding], which asserts its insets are non-negative. That is safe here
-  /// specifically because [FailedRow] is this row's only possible sibling
-  /// below it in [MessageRow]'s column, and the two never render together:
-  /// both key off `_unsent`, and this row only ever shows once that is false.
+  /// Sits where the column puts it, with no pull toward the body above, so
+  /// the gap over the chips and the gap under them are the same step.
   @override
   State<ReactionsRow> createState() => _ReactionsRowState();
 }
@@ -170,36 +165,32 @@ class _ReactionsRowState extends State<ReactionsRow> {
     final live = {for (final r in widget.reactions) r.emoji: r};
     if (live.isEmpty && _exiting.isEmpty) return const SizedBox.shrink();
 
-    // See the negative-inset note on this class's own doc comment above.
     return SelectionContainer.disabled(
-      child: Transform.translate(
-        offset: const Offset(0, -AppSpacing.s4),
-        child: Wrap(
-          spacing: _reactionChipSpacing,
-          runSpacing: _reactionChipSpacing,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            // Keyed by emoji: an arriving chip pops once, and never replays.
-            for (final emoji in _order)
-              if (live[emoji] case final reaction?)
-                _ChipPop(
-                  key: ValueKey('reaction-$emoji'),
-                  child: _chip(reaction, exiting: false),
-                )
-              else if (_exiting[emoji] case final reaction?)
-                _ChipExit(
-                  key: ValueKey('reaction-exit-$emoji'),
-                  onDone: () {
-                    if (!mounted) return;
-                    setState(() {
-                      _exiting.remove(emoji);
-                      _order = [..._order]..remove(emoji);
-                    });
-                  },
-                  child: _chip(reaction, exiting: true),
-                ),
-          ],
-        ),
+      child: Wrap(
+        spacing: _reactionChipSpacing,
+        runSpacing: _reactionChipSpacing,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          // Keyed by emoji: an arriving chip pops once, and never replays.
+          for (final emoji in _order)
+            if (live[emoji] case final reaction?)
+              _ChipPop(
+                key: ValueKey('reaction-$emoji'),
+                child: _chip(reaction, exiting: false),
+              )
+            else if (_exiting[emoji] case final reaction?)
+              _ChipExit(
+                key: ValueKey('reaction-exit-$emoji'),
+                onDone: () {
+                  if (!mounted) return;
+                  setState(() {
+                    _exiting.remove(emoji);
+                    _order = [..._order]..remove(emoji);
+                  });
+                },
+                child: _chip(reaction, exiting: true),
+              ),
+        ],
       ),
     );
   }

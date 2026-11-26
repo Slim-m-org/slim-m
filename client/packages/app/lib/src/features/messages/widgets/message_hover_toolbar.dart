@@ -66,28 +66,32 @@ class MessageHoverToolbar extends StatelessWidget {
           ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s4),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                RovingStop(
-                  builder: (_, node) => EmojiPickerButton(
-                    focusNode: node,
-                    onSelect: onPickReaction,
+            // Labels open above the plate: below it they land on the row's own text.
+            child: TooltipTheme(
+              data: TooltipTheme.of(context).copyWith(preferBelow: false),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  RovingStop(
+                    builder: (_, node) => EmojiPickerButton(
+                      focusNode: node,
+                      onSelect: onPickReaction,
+                    ),
                   ),
-                ),
-                if (actions.canReply)
-                  _slot(replyKey, AppIcons.reply, 'Reply', actions.onReply),
-                if (actions.canOpenThread)
-                  _slot(
-                    threadKey,
-                    AppIcons.thread,
-                    'Reply in thread',
-                    actions.onOpenThread,
-                  ),
-                if (actions.canEdit)
-                  _slot(editKey, AppIcons.edit, 'Edit', actions.onEdit),
-                const _OverflowSlot(),
-              ],
+                  if (actions.canReply)
+                    _slot(replyKey, AppIcons.reply, 'Reply', actions.onReply),
+                  if (actions.canOpenThread)
+                    _slot(
+                      threadKey,
+                      AppIcons.thread,
+                      'Reply in thread',
+                      actions.onOpenThread,
+                    ),
+                  if (actions.canEdit)
+                    _slot(editKey, AppIcons.edit, 'Edit', actions.onEdit),
+                  const _OverflowSlot(),
+                ],
+              ),
             ),
           ),
         ),

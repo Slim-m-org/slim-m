@@ -111,3 +111,13 @@ class RetryId {
     _id = null;
   }
 }
+
+/// The send time a UUIDv7 carries in its leading 48 bits, or null for an id that is not one.
+DateTime? uuidV7Time(String? id) {
+  if (id == null || id.length != 36 || id[14] != '7') return null;
+  final millis = int.tryParse(
+    id.substring(0, 8) + id.substring(9, 13),
+    radix: 16,
+  );
+  return millis == null ? null : DateTime.fromMillisecondsSinceEpoch(millis);
+}

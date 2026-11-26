@@ -1,20 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The gap above the reactions row, reported as sitting a few pixels too
-/// low on a real phone.
-///
-/// `AppSpacing` has no negative step, so the fix pulls the row tight by the
-/// smallest positive one (`s4`) applied as a top offset, rather than a
-/// hardcoded pixel count. Measured against a plain spacer above it, not
-/// against `MessageBody`'s own text: a font's line-height leftover would
-/// make the raw gap depend on glyph metrics this test has no business
-/// asserting on.
-///
-/// The offset is a `Transform.translate`, not a negative `Padding` (which
-/// asserts non-negative insets and throws). A transform repositions its
-/// child at paint time without moving its own render box, so the gap has to
-/// be measured from the chips themselves - `Wrap`, the row's one child -
-/// rather than from `ReactionsRow`'s own position, which stays exactly
-/// where it would have been at a flush 0.
+/// The reactions row sits flush under what is above it. It once pulled up by
+/// one step with a paint-time transform, which left the same step of dead
+/// space under the chips and made the gaps above and below them uneven.
 library;
 
 import 'package:flutter/material.dart';
@@ -39,33 +26,25 @@ Widget _harness(List<api.ReactionSummary> reactions) => MaterialApp(
 );
 
 void main() {
-  testWidgets(
-    'the reactions row overlaps the row above it by one spacing step',
-    (tester) async {
-      await tester.pumpWidget(
-        _harness([
-          const api.ReactionSummary(
-            emoji: '\u{1F44D}',
-            count: 1,
-            reacted: false,
-          ),
-        ]),
-      );
-      await tester.pumpAndSettle();
+  testWidgets('the reactions row sits flush under the row above it', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness([
+        const api.ReactionSummary(emoji: '\u{1F44D}', count: 1, reacted: false),
+      ]),
+    );
+    await tester.pumpAndSettle();
 
-      final aboveBottom = tester.getBottomLeft(find.byKey(_above)).dy;
-      // The chips, not ReactionsRow's own box: see the library doc above.
-      final reactionsTop = tester.getTopLeft(find.byType(Wrap)).dy;
+    final aboveBottom = tester.getBottomLeft(find.byKey(_above)).dy;
+    final reactionsTop = tester.getTopLeft(find.byType(Wrap)).dy;
 
-      expect(
-        reactionsTop - aboveBottom,
-        -AppSpacing.s4,
-        reason:
-            'the gap above the reactions row should be pulled tight by the '
-            'existing s4 step, not left flush or offset by an invented value',
-      );
-    },
-  );
+    expect(
+      reactionsTop - aboveBottom,
+      0,
+      reason: 'no pull over the body, so no phantom gap under the chips',
+    );
+  });
 
   testWidgets('a message with no reactions renders no reactions row', (
     tester,

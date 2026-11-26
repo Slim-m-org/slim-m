@@ -2,22 +2,21 @@
 /// The message a thread hangs off, shown as the transcript's first item so a
 /// thread never reads as a conversation with no visible subject.
 ///
-/// Laid out like an ordinary message row (the pane gutter, a 36px avatar, the
-/// author line over the text) rather than as a boxed quote, so the original
-/// reads as the start of the conversation and the first reply sits directly
-/// under it. It is not a [MessageRow]: the thread-parent payload carries no
-/// timestamp or attachments to give one, and the row's own redesign is in
-/// flight. A hairline under it separates the original from the replies.
+/// Laid out like an ordinary message row (the pane gutter, the density's
+/// avatar, the author and time line over the text) so the original reads as
+/// the start of the conversation and the first reply sits directly under it.
+/// It is not a [MessageRow]: the thread-parent payload carries no timestamp
+/// or reactions to give one, so the time is read from the message's UUIDv7 id.
 library;
-
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_data/data.dart' show Message;
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../ids.dart';
 import '../../../message_preview.dart';
 import '../../channels/providers/threads.dart';
 import '../../settings/providers/display_density.dart';
@@ -33,7 +32,9 @@ import 'author_label.dart';
 import 'bounded_fade_box.dart';
 import 'message_inline.dart' show rewriteMentions;
 import 'message_jump.dart';
+import 'message_row_identity.dart';
 import 'message_text.dart';
+import '../../members/widgets/role_color.dart';
 import '../../members/widgets/user_avatar.dart';
 
 /// How much of the parent's own text is shown before it is cut off.
@@ -146,19 +147,12 @@ class ThreadParentCard extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                AuthorNameLine(
-                  name: name,
-                  profile: resolution.profile,
-                  style: AppText.body.copyWith(
-                    color: tokens.textPrimary,
-                    fontWeight: AppWeights.semi,
-                  ),
-                ),
+                _header(name, resolution.profile, tokens),
                 if (hasText)
                   BoundedFadeBox(
                     key: const ValueKey('thread-parent-body'),
                     maxHeight: threadParentMaxBodyHeight,
-                    fadeColor: tokens.surfaceSunken,
+                    fadeColor: tokens.surfaceBase,
                     child: MessageBody(
                       content: content,
                       knownUsernames: knownUsernamesFrom(members),
@@ -213,13 +207,11 @@ class ThreadParentCard extends ConsumerWidget {
 
     // The focus ring reserves its own space around a jumpable card; take it out of the padding so the avatar still lines up with the replies' gutter.
     final ringInset = onJump == null ? 0.0 : focusRingGap + focusRingWidth;
-    // The tinted block reaches past the gutter by its own padding, so the avatar inside still lines up with the replies'.
-    final blockPadding = math.min(AppSpacing.s12, gutter - ringInset);
     final padded = Padding(
       padding: EdgeInsets.fromLTRB(
-        gutter - ringInset - blockPadding,
+        gutter - ringInset,
         density.listRowGap - ringInset,
-        gutter - ringInset - blockPadding,
+        gutter - ringInset,
         0,
       ),
       child: Semantics(
@@ -227,19 +219,7 @@ class ThreadParentCard extends ConsumerWidget {
         label: onJump != null
             ? '$semanticLabel, go to the original'
             : semanticLabel,
-        child: ExcludeSemantics(
-          // A tinted block rather than a rule under it: the transcript's day separator is the only line between parent and replies.
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: tokens.surfaceSunken,
-              borderRadius: BorderRadius.circular(AppRadii.card),
-            ),
-            child: Padding(
-              padding: EdgeInsets.all(blockPadding),
-              child: IgnorePointer(child: body),
-            ),
-          ),
-        ),
+        child: ExcludeSemantics(child: IgnorePointer(child: body)),
       ),
     );
 
@@ -253,6 +233,32 @@ class ThreadParentCard extends ConsumerWidget {
         onFocusChange: onFocusChange,
         borderRadius: BorderRadius.circular(AppRadii.control),
         child: padded,
+      ),
+    );
+  }
+
+  /// The channel row's own name-then-time line; the time is left off when the id carries none.
+  Widget _header(String name, api.UserProfile? profile, AppTokens tokens) {
+    final sentAt = uuidV7Time(parent.parentMessageId);
+    final nameStyle = AppText.body.copyWith(
+      color: memberNameColor(profile, tokens.surfaceBase) ?? tokens.textPrimary,
+      fontWeight: AppWeights.semi,
+    );
+    if (sentAt == null) {
+      return AuthorNameLine(name: name, profile: profile, style: nameStyle);
+    }
+    return MessageRowHeader(
+      key: MessageRowHeader.headerKey,
+      message: Message(
+        id: parent.parentMessageId!,
+        channelId: parent.parentChannelId ?? '',
+        authorId: parent.parentAuthorId,
+        authorDisplayName: parent.parentAuthorDisplayName,
+        seq: 0,
+        content: '',
+        createdAt: sentAt.millisecondsSinceEpoch,
+        pending: false,
+        failed: false,
       ),
     );
   }
