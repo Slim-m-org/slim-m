@@ -35,8 +35,16 @@ class CallShareMemory {
   );
 }
 
-class CallShareMemoryController extends StateNotifier<CallShareMemory> {
-  CallShareMemoryController() : super(const CallShareMemory());
+class CallShareMemoryController extends Notifier<CallShareMemory> {
+  /// Forgotten whenever the call changes, so one call's source never preselects in the next.
+  @override
+  CallShareMemory build() {
+    ref.listen(
+      voiceFlagsProvider.select((v) => v.channelId),
+      (_, _) => reset(),
+    );
+    return const CallShareMemory();
+  }
 
   void begin() => state = state.copyWith(inFlight: true);
 
@@ -48,13 +56,7 @@ class CallShareMemoryController extends StateNotifier<CallShareMemory> {
   void reset() => state = const CallShareMemory();
 }
 
-/// Forgotten whenever the call changes, so one call's source never preselects in the next.
 final callShareMemoryProvider =
-    StateNotifierProvider<CallShareMemoryController, CallShareMemory>((ref) {
-      final controller = CallShareMemoryController();
-      ref.listen(
-        voiceFlagsProvider.select((v) => v.channelId),
-        (_, _) => controller.reset(),
-      );
-      return controller;
-    });
+    NotifierProvider<CallShareMemoryController, CallShareMemory>(
+      CallShareMemoryController.new,
+    );
