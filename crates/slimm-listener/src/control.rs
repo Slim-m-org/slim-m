@@ -25,12 +25,15 @@ use tokio::task::JoinHandle;
 use crate::config::Config;
 use crate::protocol::{self, Command, DecodeError, Report};
 use crate::session::SessionCommand;
+use crate::speak::Speaker;
 use crate::stt::Pool;
 
 /// No frame from the server for this long means it is gone.
 pub const SILENCE_LIMIT: Duration = Duration::from_secs(5);
 /// How long sessions get to leave their rooms once the connection ends.
 const LEAVE_WITHIN: Duration = Duration::from_secs(3);
+/// Lines spoken at once across every call; Piper is CPU-bound and a room join is slow.
+const SPEECHES_AT_ONCE: usize = 2;
 
 /// What the real listener does for `start`: join the room and run the session.
 pub struct Launch {
@@ -61,6 +64,9 @@ pub struct Control {
     silence: Duration,
     /// One voice-message clip at a time, so retries of an abandoned one cannot crowd out calls.
     clips: Arc<tokio::sync::Semaphore>,
+    speaker: Option<Arc<Speaker>>,
+    /// One spoken line at a time; the server queues per call, this bounds the sum.
+    speeches: Arc<tokio::sync::Semaphore>,
 }
 
 /// Holds the single control slot; dropping it frees the slot, however the
@@ -128,7 +134,25 @@ impl Control {
             connected: Arc::new(AtomicBool::new(false)),
             silence: SILENCE_LIMIT,
             clips: Arc::new(tokio::sync::Semaphore::new(1)),
+            speaker: None,
+            speeches: Arc::new(tokio::sync::Semaphore::new(SPEECHES_AT_ONCE)),
         }
+    }
+
+    /// Turns on `/v1/speak`; without it that route answers 501.
+    pub fn with_speaker(mut self, speaker: Speaker) -> Self {
+        self.speaker = Some(Arc::new(speaker));
+        self
+    }
+
+    pub(crate) fn speaker(&self) -> Option<Arc<Speaker>> {
+        self.speaker.clone()
+    }
+
+    pub(crate) async fn speech_turn(
+        &self,
+    ) -> Result<tokio::sync::OwnedSemaphorePermit, tokio::sync::AcquireError> {
+        Arc::clone(&self.speeches).acquire_owned().await
     }
 
     /// How long the server may stay quiet before it counts as gone.
@@ -159,6 +183,15 @@ impl Control {
                 "/v1/transcribe",
                 post(crate::transcribe::handler)
                     .layer(DefaultBodyLimit::max(crate::transcribe::MAX_BODY_BYTES))
+                    .route_layer(middleware::from_fn_with_state(
+                        self.clone(),
+                        crate::transcribe::require_secret,
+                    )),
+            )
+            .route(
+                "/v1/speak",
+                get(crate::speak::status)
+                    .post(crate::speak::handler)
                     .route_layer(middleware::from_fn_with_state(
                         self.clone(),
                         crate::transcribe::require_secret,

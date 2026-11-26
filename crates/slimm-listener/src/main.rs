@@ -20,7 +20,11 @@ async fn main() -> anyhow::Result<()> {
     let transcriber = load_transcriber(&config)?;
     let pool = Arc::new(Pool::new(transcriber, config.threads));
     let launcher = slimm_listener::launch::real()?;
-    let app = Control::new(Arc::clone(&config), pool, launcher).router();
+    let mut control = Control::new(Arc::clone(&config), pool, launcher);
+    if let Some(speaker) = load_speaker(&config)? {
+        control = control.with_speaker(speaker);
+    }
+    let app = control.router();
     let listener = tokio::net::TcpListener::bind(config.listen).await?;
     tracing::info!(addr = %config.listen, model = %config.model.display(), "listening");
     axum::serve(listener, app)
@@ -41,4 +45,24 @@ fn load_transcriber(config: &Config) -> anyhow::Result<Arc<dyn slimm_listener::s
 #[cfg(not(feature = "whisper"))]
 fn load_transcriber(_: &Config) -> anyhow::Result<Arc<dyn slimm_listener::stt::Transcriber>> {
     anyhow::bail!("this build has no speech engine; build with the whisper feature")
+}
+
+#[cfg(feature = "livekit-room")]
+fn load_speaker(config: &Config) -> anyhow::Result<Option<slimm_listener::speak::Speaker>> {
+    let Some(piper) = &config.piper else {
+        return Ok(None);
+    };
+    tracing::info!(voice = %piper.model.display(), "speech enabled");
+    Ok(Some(slimm_listener::speak::Speaker {
+        synthesizer: Arc::new(slimm_listener::piper::Piper::new(
+            piper.bin.clone(),
+            piper.model.clone(),
+        )?),
+        stage: Arc::new(slimm_listener::stage::LiveKitStage),
+    }))
+}
+
+#[cfg(not(feature = "livekit-room"))]
+fn load_speaker(_: &Config) -> anyhow::Result<Option<slimm_listener::speak::Speaker>> {
+    Ok(None)
 }
