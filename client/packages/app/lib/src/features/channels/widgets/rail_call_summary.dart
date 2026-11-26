@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The rail footer's call row: back to a call live elsewhere, and Leave without
-/// going there. See docs/decisions/0111-personal-space-is-called-notes.md.
+/// The rail footer's call bar: back to a call live elsewhere, and its mute,
+/// deafen, screen share and Leave without going there. See
+/// docs/decisions/0111-personal-space-is-called-notes.md.
 library;
 
 import 'dart:async';
@@ -21,6 +22,8 @@ import '../../voice/providers/voice_controller.dart';
 import '../../voice/providers/voice_flags.dart';
 import '../../voice/widgets/call_dock_button.dart';
 import '../../voice/widgets/call_participant_tiles.dart';
+import 'rail_call_share_button.dart';
+import 'rail_footer_controls.dart';
 import 'rail_footer_press_target.dart';
 
 /// The summary's root, for tests to find it without matching its type.
@@ -41,6 +44,7 @@ class RailCallRow extends ConsumerWidget {
     return _CallRow(
       channelName: ref.watch(channelByIdProvider(channelId)).valueOrNull?.name,
       voice: voice,
+      controller: ref.read(voiceControllerProvider.notifier),
       onOpen: () async {
         // A no-op for a real voice channel; load-bearing for a DM.
         ref.read(dmCallOpenProvider.notifier).state = channelId;
@@ -65,6 +69,8 @@ class RailCommunityCallRow extends StatelessWidget {
     builder: (context, call) => _CallRow(
       channelName: call.channelName,
       voice: call.voice,
+      controller: call.controller,
+      otherAccount: entry.container,
       community: call.community,
       onOpen: call.open,
       onLeave: () => unawaited(call.controller.leave()),
@@ -72,39 +78,33 @@ class RailCommunityCallRow extends StatelessWidget {
   );
 }
 
-/// The call's speaker glyph over the avatar column, its channel and timer,
-/// and Leave last, over the gear.
+/// The call's channel and timer, then its mic, deafen, share and Leave.
 class _CallRow extends StatelessWidget {
   const _CallRow({
     required this.channelName,
     required this.voice,
+    required this.controller,
     required this.onOpen,
     required this.onLeave,
     this.community,
+    this.otherAccount,
   });
 
   final String? channelName;
   final VoiceFlags voice;
+  final VoiceController controller;
   final String? community;
+
+  /// The container of the community holding the call, when it is not on screen.
+  final ProviderContainer? otherAccount;
   final Future<void> Function() onOpen;
   final VoidCallback onLeave;
 
   @override
   Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
     return Row(
       key: railCallRowKey,
       children: [
-        // The avatar column's own width, so the glyph sits over the avatar.
-        SizedBox(
-          width: AppSizes.rowTouch,
-          child: Icon(
-            AppIcons.voice,
-            size: AppSizes.icon20,
-            color: tokens.accent,
-          ),
-        ),
-        const SizedBox(width: 9),
         Expanded(
           child: RailCallSummary(
             key: railCallSummaryKey,
@@ -115,31 +115,20 @@ class _CallRow extends StatelessWidget {
             onOpen: onOpen,
           ),
         ),
-        _OverGear(child: railLeaveCallButton(onLeave)),
+        RailVoiceToggles(otherAccount: otherAccount),
+        RailCallShareButton(
+          voice: voice,
+          controller: controller,
+          ownAccount: otherAccount == null,
+        ),
+        // The chip's hover fill is ink, which the footer's own fill would otherwise paint over.
+        Material(
+          type: MaterialType.transparency,
+          child: railLeaveCallButton(onLeave),
+        ),
       ],
     );
   }
-}
-
-/// Holds [child] in the gear's own footprint, so a dock chip, whose focus ring
-/// keeps its gap outside the chip, still centres over the gear below it.
-class _OverGear extends StatelessWidget {
-  const _OverGear({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) => SizedBox.square(
-    dimension: AppTouchTargets.of(context)
-        ? AppSizes.rowTouch
-        : AppSizes.rowPointer,
-    child: OverflowBox(
-      maxWidth: double.infinity,
-      maxHeight: double.infinity,
-      // The chip's hover fill is ink, which the footer's own fill would otherwise paint over.
-      child: Material(type: MaterialType.transparency, child: child),
-    ),
-  );
 }
 
 /// The call's channel and duration, a tap target back to the call.
@@ -245,13 +234,41 @@ class _SecondLine extends StatelessWidget {
           ),
         if (screenSharing)
           Flexible(
-            child: Text(
-              ' - sharing',
-              overflow: TextOverflow.ellipsis,
+            child: _WholeOrAbsent(
+              text: ' - sharing',
               style: AppText.micro.copyWith(color: tokens.accent),
             ),
           ),
       ],
+    );
+  }
+}
+
+/// [text] drawn only when all of it fits the room left, never as a stub.
+class _WholeOrAbsent extends StatelessWidget {
+  const _WholeOrAbsent({required this.text, required this.style});
+
+  final String text;
+  final TextStyle style;
+
+  @override
+  Widget build(BuildContext context) {
+    final scaler = MediaQuery.textScalerOf(context);
+    return LayoutBuilder(
+      builder: (context, room) {
+        final painter = TextPainter(
+          text: TextSpan(
+            text: text,
+            style: DefaultTextStyle.of(context).style.merge(style),
+          ),
+          textDirection: Directionality.of(context),
+          textScaler: scaler,
+          maxLines: 1,
+        )..layout();
+        final fits = painter.width <= room.maxWidth;
+        painter.dispose();
+        return fits ? Text(text, maxLines: 1, style: style) : const SizedBox();
+      },
     );
   }
 }

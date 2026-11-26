@@ -168,9 +168,7 @@ void main() {
 
   for (final width in [ChannelRail.compactWidth, 240.0, 264.0, 320.0]) {
     testWidgets('a call elsewhere takes its own row directly above an '
-        'unchanged user bar at $width wide, Leave last over the gear', (
-      tester,
-    ) async {
+        'unchanged user bar at $width wide, Leave last', (tester) async {
       late double idleBar;
       await withFooter(tester, const VoiceState(), width: width, () async {
         idleBar = tester.getSize(bar).height;
@@ -196,18 +194,11 @@ void main() {
           reason: 'Leave last',
         );
         expect(
-          leave.center.dx,
+          tester.getRect(find.byKey(railCallSummaryKey)).left,
           moreOrLessEquals(
-            tester.getCenter(find.bySemanticsLabel('Personal settings')).dx,
+            tester.getRect(find.bySemanticsLabel('Change your status')).left,
           ),
-          reason: 'Leave sits over the gear',
-        );
-        expect(
-          tester.getCenter(find.byIcon(AppIcons.voice)).dx,
-          moreOrLessEquals(
-            tester.getCenter(find.bySemanticsLabel('Change your status')).dx,
-          ),
-          reason: 'the speaker glyph sits over the avatar',
+          reason: 'the name starts at the avatar column, with no glyph before',
         );
       });
     });

@@ -228,9 +228,9 @@ class RailUserFooter extends ConsumerWidget {
 
   /// The channel currently shown beside or instead of this rail. A call
   /// already live in that channel has its own full call UI, so the call row
-  /// (name, duration, leave) is gated on this; mic and deafen are not, since
-  /// they control whichever call is live regardless of which channel is on
-  /// screen. It is also what lights the Notes button.
+  /// (name, duration, mic, deafen, share, leave) is gated on this; with no call
+  /// row, mic and deafen stay in this bar, since they control whichever call is
+  /// live regardless of which channel is on screen. It is also what lights the Notes button.
   ///
   /// This row's status line is the person's own presence word from
   /// [presenceForProvider], whatever the socket is doing: the Space's
@@ -261,7 +261,10 @@ class RailUserFooter extends ConsumerWidget {
     } else {
       callRow = null;
     }
-    final toggles = RailVoiceToggles(otherAccount: otherCommunity?.container);
+    // A call bar carries mic and deafen itself; the profile row has them only without one.
+    final Widget toggles = callRow == null
+        ? const RailVoiceToggles()
+        : const SizedBox.shrink();
     final recording = recordingElsewhere(context, ref, activeChannelId);
     return _FooterStack(
       recordingRow: recording == null
