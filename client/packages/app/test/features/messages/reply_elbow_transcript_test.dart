@@ -201,7 +201,9 @@ void main() {
         );
       });
 
-      testWidgets('a thread draws its replies the same way', (tester) async {
+      testWidgets('a thread repeats no quote above its replies', (
+        tester,
+      ) async {
         await _pump(
           tester,
           [
@@ -214,19 +216,9 @@ void main() {
         );
         expect(_grouped('t2'), isFalse);
         for (final id in ['t2', 't3']) {
-          final quote = tester.getRect(
-            _in(id, find.byKey(ReplyQuote.quoteKey)),
-          );
-          final header = tester.getRect(_header(id));
-          final elbow = tester.getRect(_in(id, find.byKey(ReplyElbow.lineKey)));
-          expect(quote.bottom, lessThanOrEqualTo(header.top), reason: id);
-          expect(elbow.bottom, _avatar(tester, id).top, reason: id);
+          expect(_in(id, find.byKey(ReplyQuote.quoteKey)), findsNothing);
+          expect(_in(id, find.byKey(ReplyElbow.lineKey)), findsNothing);
         }
-        expect(
-          _in('t3', find.text('Message unavailable')),
-          findsOneWidget,
-          reason: 'the thread root lives in the parent channel',
-        );
       });
     });
   }

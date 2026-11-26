@@ -79,6 +79,7 @@ Widget transcriptMessageRow(
     replyTo: byId[message.replyToId],
     replyParentAdjacent: message.replyToId == n.previous?.id,
     editing: editing,
+    inThread: transcript.channelIsThread,
     actions: transcript.actionsFor(message, extras.threadChannelId != null),
   );
 }

@@ -36,14 +36,17 @@ const int _quoteMaxRunes = 120;
 /// Whether [message] draws its reply context at all.
 ///
 /// A bot answering a command it was just sent drops the echo: the command is
-/// already the line above it.
+/// already the line above it. Inside a thread no reply draws one: the whole
+/// panel is the conversation, so a quote only repeats what sits just above.
 bool showsReplyQuote({
   required Message message,
   required Message? parent,
   required bool authorIsBot,
   required bool parentAdjacent,
+  bool inThread = false,
 }) =>
     message.replyToId != null &&
+    !inThread &&
     !(authorIsBot && parentAdjacent && _isCommand(parent));
 
 bool _isCommand(Message? parent) {
