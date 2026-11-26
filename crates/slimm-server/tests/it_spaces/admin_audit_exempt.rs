@@ -265,6 +265,7 @@ pub const EXEMPT_ROUTES: &[(&str, &str, &str)] = &[
     ("POST", "/channels/{channel_id}/voice/call-audio", OWN_DATA),
     ("POST", "/channels/{channel_id}/voice/heartbeat", OWN_DATA),
     ("POST", "/channels/{channel_id}/voice/ring", OWN_DATA),
+    ("POST", "/channels/{channel_id}/voice/tts", OWN_DATA),
     (
         "POST",
         "/channels/{channel_id}/voice/ring/decline",

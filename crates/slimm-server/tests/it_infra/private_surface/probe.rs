@@ -234,7 +234,7 @@ fn loaded_body(private: &Private, template: &str, channel: &str, message: &str) 
             "values": {}, "body": "hello", "position_ms": 0, "app_version": "1",
             "manifest": "hello", "days": [], "push_token": "hello", "off_hours_mode": "hello",
             "entry_id": "hello", "props": {}, "fields": [], "locked": false,
-            "push_public_key": "hello", "sent_to_back": false,
+            "push_public_key": "hello", "sent_to_back": false, "text": "hello",
         }),
         json!({
             "user_ids": private.users, "user_id": private.users[0], "target_id": private.users[0],
