@@ -31,6 +31,21 @@ class CanvasDockGroupDivider extends StatelessWidget {
   }
 }
 
+/// A divider with more room either side, between the drawing tools and the call controls.
+class CanvasDockSectionDivider extends StatelessWidget {
+  const CanvasDockSectionDivider({super.key});
+
+  @override
+  Widget build(BuildContext context) => const Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      SizedBox(width: AppSpacing.s16),
+      DockVerticalDivider(),
+      SizedBox(width: AppSpacing.s16),
+    ],
+  );
+}
+
 /// [groups] as one row's children: the button gap inside a group, a divider between groups.
 List<Widget> canvasDockGroups(BuildContext context, List<List<Widget>> groups) {
   final gap = SizedBox(width: canvasDockButtonGap(context));

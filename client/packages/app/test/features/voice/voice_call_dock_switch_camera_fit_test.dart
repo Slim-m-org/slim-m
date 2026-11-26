@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The dock's one-row fit counts the switch camera button only when it is
-/// actually drawn, not whenever the camera is on.
+/// More lists Switch camera only when a second camera exists, and holding it
+/// never costs the dock its one row.
 library;
 
 import 'package:flutter_test/flutter_test.dart';
@@ -15,57 +15,63 @@ const _cameraOn = VoiceFlags(
   cameraEnabled: true,
 );
 
-// Six 52dp controls (mic, deafen, camera, share, leave, toggle), five 8dp gaps, the leave divider, card padding and border.
-const _sixControls = 379.0;
+// Six 52dp controls (mic, deafen, camera, share, More, leave), no gaps, the leave divider, card padding and border.
+const _sixControls = 331.0;
+
+Future<void> _openMore(WidgetTester tester) async {
+  await tester.tap(find.bySemanticsLabel('More'));
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 300));
+}
 
 void main() {
-  testWidgets(
-    'a lone camera keeps the toggle on the row with no switch button',
-    (tester) async {
-      await pumpVoiceCallDock(
-        tester,
-        _cameraOn,
-        canvasChannelId: 'c1',
-        width: _sixControls,
-        touch: true,
-        session: InertSession()
-          ..cameraDeviceList = const [CameraDevice(id: 'a', label: 'Cam A')],
-      );
-      await tester.pump();
+  testWidgets('a lone camera offers no switch row in More, and the dock stays '
+      'one row', (tester) async {
+    await pumpVoiceCallDock(
+      tester,
+      _cameraOn,
+      canvasChannelId: 'c1',
+      width: _sixControls,
+      touch: true,
+      session: InertSession()
+        ..cameraDeviceList = const [CameraDevice(id: 'a', label: 'Cam A')],
+    );
+    await tester.pump();
+    await _openMore(tester);
 
-      expect(find.bySemanticsLabel('Switch camera'), findsNothing);
-      expect(
-        tester.widget<FloatingDockCard>(find.byType(FloatingDockCard)).rows,
-        hasLength(1),
-      );
-    },
-  );
+    expect(find.text('Switch camera'), findsNothing);
+    expect(find.text('Open canvas'), findsOneWidget);
+    expect(
+      tester.widget<FloatingDockCard>(find.bySubtype<FloatingDockCard>()).rows,
+      hasLength(1),
+    );
+  });
 
-  testWidgets(
-    'a second camera shows the switch button and spills the toggle into a row above',
-    (tester) async {
-      await pumpVoiceCallDock(
-        tester,
-        _cameraOn,
-        canvasChannelId: 'c1',
-        width: _sixControls,
-        touch: true,
-        session: InertSession()
-          ..cameraDeviceList = const [
-            CameraDevice(id: 'a', label: 'Cam A'),
-            CameraDevice(id: 'b', label: 'Cam B'),
-          ],
-      );
-      await tester.pump();
-      await tester.pump();
+  testWidgets('a second camera adds Switch camera to More, still one row', (
+    tester,
+  ) async {
+    await pumpVoiceCallDock(
+      tester,
+      _cameraOn,
+      canvasChannelId: 'c1',
+      width: _sixControls,
+      touch: true,
+      session: InertSession()
+        ..cameraDeviceList = const [
+          CameraDevice(id: 'a', label: 'Cam A'),
+          CameraDevice(id: 'b', label: 'Cam B'),
+        ],
+    );
+    await tester.pump();
+    await tester.pump();
+    await _openMore(tester);
 
-      expect(find.bySemanticsLabel('Switch camera'), findsOneWidget);
-      expect(
-        tester.widget<FloatingDockCard>(find.byType(FloatingDockCard)).rows,
-        hasLength(2),
-      );
-      expect(find.bySemanticsLabel('Open canvas'), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    },
-  );
+    expect(find.text('Switch camera'), findsOneWidget);
+    expect(find.text('Open canvas'), findsOneWidget);
+    expect(
+      tester.widget<FloatingDockCard>(find.bySubtype<FloatingDockCard>()).rows,
+      hasLength(1),
+    );
+    expect(tester.takeException(), isNull);
+  });
 }

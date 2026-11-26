@@ -54,9 +54,9 @@ import 'share_options_menu.dart';
 import 'screen_stamps_received_sheet.dart';
 import '../../canvas/providers/armed_stamp.dart'
     show canvasStampsSupportedProvider;
-import 'captions_button.dart';
-import 'mark_button.dart';
-import 'soundboard_button.dart';
+import 'dock_item.dart';
+import 'dock_items.dart';
+import 'dock_more_button.dart';
 import '../../../widgets/shortcut_label.dart';
 
 export 'call_dock_button.dart';
@@ -66,10 +66,10 @@ class CallControls extends ConsumerStatefulWidget {
     super.key,
     required this.controller,
     required this.voice,
-    this.extraControl,
+    this.extras = const [],
     this.tight = false,
     this.spilledOnly = false,
-    this.menuExtras = const [],
+    this.inlineExtras = true,
     this.hints = true,
     this.ownsShortcuts = true,
   });
@@ -79,20 +79,20 @@ class CallControls extends ConsumerStatefulWidget {
   /// False for a second copy laid over the first, such as a full screen video's dock, which must not take the call shortcuts from it.
   final bool ownsShortcuts;
 
-  /// For a card too narrow to hold them all: camera switch, soundboard, captions, mark and the extra control leave this row, and the mic's caret gives way to a long press.
+  /// For a card too narrow for More beside the primary row: the carets give way to a long press and the optional controls leave this row.
   final bool tight;
 
-  /// Draws only the controls a [tight] row leaves out, as a card row of their own above it.
+  /// Draws only the More button, as a card row of its own above a [tight] row.
   final bool spilledOnly;
+
+  /// False sends every optional control, pinned ones included, to the More menu, for a card with no room beside the primary row.
+  final bool inlineExtras;
 
   /// False in a dock with tools directly above, which a hint bubble would cover.
   final bool hints;
 
-  /// Controls folded into the mic menu so the row stays one line.
-  final List<ControlOptionEntry> menuExtras;
-
-  /// One more control, drawn straight after share - the canvas toggle.
-  final Widget? extraControl;
+  /// Controls a caller adds to the optional set, such as the canvas toggle.
+  final List<DockItem> extras;
 
   /// Only the flags half of the call: this row never has any use for the
   /// roster, and typing it this way keeps a future caller from threading it
@@ -170,37 +170,38 @@ class _CallControlsState extends ConsumerState<CallControls> {
     // mainAxisSize.min: this row sizes to its own content now that it has no
     // full-width bar to fill, so whatever floating card embeds it - alone or
     // beside a canvas's own controls - can size itself to match.
-    final switchCamera =
-        voice.cameraEnabled && canSwitchCamera(ref, widget.controller)
-        ? _switchCameraButton(context)
-        : null;
-    final extra = widget.extraControl;
-    final soundboard = canUseSoundboard(ref, voice.channelId)
-        ? SoundboardButton(channelId: voice.channelId!)
-        : null;
-    final captions = canUseCaptions(ref, voice.channelId)
-        ? const CaptionsButton()
-        : null;
-    final mark = captions != null ? const MarkButton() : null;
+    final canSwitch =
+        voice.cameraEnabled && canSwitchCamera(ref, widget.controller);
+    final split = splitDockItems(
+      buildDockItems(
+        context,
+        ref,
+        voice: voice,
+        extras: widget.extras,
+        canSwitch: canSwitch,
+        switchCameraButton: canSwitch
+            ? _switchCameraButton(context)
+            : const SizedBox.shrink(),
+        switchCamera: () => unawaited(_switchCamera(context)),
+      ),
+      pinned: ref.watch(
+        voiceSettingsControllerProvider.select((s) => s.dockPinned),
+      ),
+      inlineAllowed: widget.inlineExtras,
+    );
+    final gap = dockButtonGap(context);
     if (widget.spilledOnly) {
-      final spilled = [?switchCamera, ?soundboard, ?captions, ?mark, ?extra];
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (var i = 0; i < spilled.length; i++) ...[
-            if (i > 0) const SizedBox(width: AppSpacing.s8),
-            spilled[i],
-          ],
-        ],
-      );
+      return split.hasMore
+          ? DockMoreButton(inMore: split.inMore, pinnable: split.pinnable)
+          : const SizedBox.shrink();
     }
     final primary = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         _micGroup(voice, listenOnly, micCaret: micCaret),
-        const SizedBox(width: AppSpacing.s8),
+        SizedBox(width: gap),
         _deafenButton(voice),
-        const SizedBox(width: AppSpacing.s8),
+        SizedBox(width: gap),
         CameraOptionsMenu(
           controller: widget.controller,
           cameraOn: voice.cameraEnabled,
@@ -208,12 +209,8 @@ class _CallControlsState extends ConsumerState<CallControls> {
           showCaret: micCaret,
           child: _cameraButton(voice, listenOnly, holdOpens: !micCaret),
         ),
-        if (switchCamera != null && !widget.tight) ...[
-          const SizedBox(width: AppSpacing.s8),
-          switchCamera,
-        ],
         // At touch density the pair's leading half sits flush right in its hit box, so the gap before it is widened to keep the row's rhythm.
-        SizedBox(width: pairedAtTouch ? AppSpacing.s16 : AppSpacing.s8),
+        SizedBox(width: pairedAtTouch ? gap + AppSpacing.s8 : gap),
         DockHintAnchor(
           target: DockHintTarget.share,
           enabled: widget.hints && listenOnly == null && !showCaret,
@@ -226,21 +223,14 @@ class _CallControlsState extends ConsumerState<CallControls> {
             child: _shareButton(context, voice, showCaret: showCaret),
           ),
         ),
-        if (soundboard != null && !widget.tight) ...[
-          const SizedBox(width: AppSpacing.s8),
-          soundboard,
-        ],
-        if (captions != null && !widget.tight) ...[
-          const SizedBox(width: AppSpacing.s8),
-          captions,
-        ],
-        if (mark != null && !widget.tight) ...[
-          const SizedBox(width: AppSpacing.s8),
-          mark,
-        ],
-        if (extra != null && !widget.tight) ...[
-          const SizedBox(width: AppSpacing.s8),
-          extra,
+        if (!widget.tight)
+          for (final item in split.inline) ...[
+            SizedBox(width: gap),
+            item.inline,
+          ],
+        if (split.hasMore && !widget.tight) ...[
+          SizedBox(width: gap),
+          DockMoreButton(inMore: split.inMore, pinnable: split.pinnable),
         ],
       ],
     );
@@ -267,7 +257,6 @@ class _CallControlsState extends ConsumerState<CallControls> {
             !pushToTalk,
         child: MicOptionsMenu(
           showCaret: micCaret,
-          extraOptions: widget.menuExtras,
           destructive: micCallDestructive(ref, voice, listenOnly),
           child: MicCallButton(
             voice: voice,

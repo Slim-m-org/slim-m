@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A solo call on a phone: the canvas toggle and the music button sit on the
-/// dock itself, in a row above the call row, not inside the mic menu. Width
-/// decides (desktop-vs-mobile.md, the one rule).
+/// A solo call on a phone: the canvas toggle and the music rows sit in the More
+/// menu, whose button is in the dock (above the call row when the row is too
+/// narrow), not inside the mic menu. Width decides (desktop-vs-mobile.md, the
+/// one rule).
 library;
 
 import 'package:flutter/material.dart';
@@ -26,7 +27,7 @@ const _me = VoiceParticipant(
 void main() {
   for (final size in const [Size(390, 844), Size(360, 780)]) {
     testWidgets(
-      'solo call at ${size.width.toInt()}: canvas and music are on the dock',
+      'solo call at ${size.width.toInt()}: canvas and music are in More',
       (tester) async {
         tester.view.physicalSize = size;
         tester.view.devicePixelRatio = 1;
@@ -43,17 +44,19 @@ void main() {
         );
 
         expect(tester.takeException(), isNull);
-        expect(find.bySemanticsLabel('Open canvas'), findsOneWidget);
-        expect(find.bySemanticsLabel(RegExp('^Play music')), findsOneWidget);
+        expect(find.bySemanticsLabel('Open canvas'), findsNothing);
         expect(
-          tester.widget<FloatingDockCard>(find.byType(FloatingDockCard)).rows,
-          hasLength(2),
-          reason: 'decision 0047: the dock is at most two rows',
+          tester
+              .widget<FloatingDockCard>(find.bySubtype<FloatingDockCard>())
+              .rows,
+          hasLength(size.width == 390 ? 1 : 2),
+          reason:
+              'More fits beside the controls at 390, takes a row above at 360',
         );
 
-        final card = tester.getRect(find.byType(FloatingDockCard));
-        final buttons = find.byType(CallDockButton);
-        expect(buttons, findsNWidgets(7));
+        final card = tester.getRect(find.bySubtype<FloatingDockCard>());
+        final buttons = find.bySubtype<CallDockButton>();
+        expect(buttons, findsNWidgets(6));
         for (final e in buttons.evaluate()) {
           final r = tester.getRect(find.byElementPredicate((x) => x == e));
           expect(r.width, greaterThanOrEqualTo(AppSizes.rowTouch));
@@ -63,6 +66,13 @@ void main() {
             isTrue,
           );
         }
+
+        await tester.pump(const Duration(milliseconds: 400));
+        await tester.tap(find.bySemanticsLabel('More'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(find.text('Open canvas'), findsOneWidget);
+        expect(find.text('Play music'), findsOneWidget);
       },
     );
   }

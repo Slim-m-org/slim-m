@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A phone-width call dock that cannot hold the soundboard gives it a row of its own above the call row, with leave still beside the row it ends.
+/// A phone-width call dock that cannot hold More beside the primary controls gives it a row of its own above them, with leave still beside the row it ends.
 /// At 390 px a break-it tester saw the soundboard alone under the camera and leave floating between the two lines.
 library;
 
@@ -38,7 +38,7 @@ void main() {
       await tester.pump();
       final reason = 'at $width px';
       expect(tester.takeException(), isNull, reason: reason);
-      final soundboard = tester.getRect(_button('Soundboard'));
+      final more = tester.getRect(_button('More'));
       final deafen = tester.getRect(_button('Deafen'));
       final leave = tester.getRect(_button('Leave call'));
       expect(
@@ -47,9 +47,9 @@ void main() {
         reason: 'leave ends the call row $reason',
       );
       expect(
-        soundboard.center.dy,
+        more.center.dy,
         anyOf(closeTo(deafen.center.dy, 0.5), lessThan(deafen.top)),
-        reason: 'the soundboard is on the call row or above it $reason',
+        reason: 'More is on the call row or above it $reason',
       );
     }
     await tester.pumpWidget(const SizedBox());

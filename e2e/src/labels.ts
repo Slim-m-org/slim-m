@@ -153,6 +153,8 @@ export const L = {
   "RENAME_MEMBER": "Rename...",
   "NICKNAME_FIELD": "Nickname",
   "SAVE_NAME": "Save name",
+  "DOCK_MORE": "More",
+  "SOUNDBOARD": "Soundboard",
   "OPEN_CANVAS": "Open canvas",
   "CLOSE_CANVAS": "Close canvas",
   "PEN_TOOL": "Pen",

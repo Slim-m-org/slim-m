@@ -10,6 +10,10 @@ library;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+/// The space between two buttons of a call row: touch chips already carry their own room.
+double dockButtonGap(BuildContext context) =>
+    AppTouchTargets.of(context) ? 0 : AppSpacing.s8;
+
 class CallDockButton extends StatelessWidget {
   const CallDockButton({
     super.key,

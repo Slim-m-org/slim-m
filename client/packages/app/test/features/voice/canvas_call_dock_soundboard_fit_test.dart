@@ -41,7 +41,7 @@ Future<void> _expectNoOverlap(
   await tester.pump();
   final reason = 'width $width, camera $cameraOn';
   expect(tester.takeException(), isNull, reason: reason);
-  expect(find.bySemanticsLabel('Soundboard'), findsOneWidget, reason: reason);
+  expect(find.bySemanticsLabel('More'), findsOneWidget, reason: reason);
   final rects = [
     for (final e in find.bySubtype<CallDockButton>().evaluate())
       tester.getRect(find.byElementPredicate((x) => x == e)),

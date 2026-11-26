@@ -92,7 +92,7 @@ void main() {
     );
   }
 
-  testWidgets('with the canvas open the canvas button reads Close canvas, '
+  testWidgets('with the canvas open More lists Close canvas, '
       'closes it, and there is no separate close X', (tester) async {
     var closed = 0;
     await pumpCanvasCallDock(
@@ -103,8 +103,11 @@ void main() {
 
     expect(find.bySemanticsLabel('Open canvas'), findsNothing);
     expect(find.byIcon(AppIcons.dismiss), findsNothing);
-    expect(find.bySemanticsLabel('Close canvas'), findsOneWidget);
-    await tester.tap(find.bySemanticsLabel('Close canvas'));
+    expect(find.bySemanticsLabel('Close canvas'), findsNothing);
+    await tester.tap(find.bySemanticsLabel('More'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('Close canvas'));
     expect(closed, 1);
   });
 

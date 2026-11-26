@@ -13,6 +13,10 @@ library;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+/// The card's side padding: touch chips carry their own 8dp of room, so the card gives up most of its own.
+double dockCardSidePadding(BuildContext context) =>
+    AppTouchTargets.of(context) ? AppSpacing.s4 : AppSpacing.s12;
+
 /// A floating, rounded, shadowed card holding one or more rows of controls,
 /// each row separated by a hairline divider.
 ///
@@ -80,8 +84,8 @@ class FloatingDockCard extends StatelessWidget {
       // Load-bearing, not tidiness - see this file's own library doc.
       excludeFromSemantics: true,
       child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.s12,
+        padding: EdgeInsets.symmetric(
+          horizontal: dockCardSidePadding(context),
           vertical: AppSpacing.s4,
         ),
         decoration: BoxDecoration(

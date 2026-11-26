@@ -127,16 +127,20 @@ void main() {
     expect(find.bySemanticsLabel('Open canvas'), findsNothing);
   });
 
-  testWidgets('the call dock keeps its canvas toggle while the canvas is on', (
-    tester,
-  ) async {
-    await pumpVoiceCallDock(
-      tester,
-      const VoiceFlags(state: VoiceSessionState.connected),
-      canvasChannelId: 'c1',
-      extraOverrides: [_channel(_row('voice', canvas: true, voice: true))],
-    );
-    await tester.pump();
-    expect(find.bySemanticsLabel('Open canvas'), findsOneWidget);
-  });
+  testWidgets(
+    'the call dock keeps its canvas entry in More while the canvas is on',
+    (tester) async {
+      await pumpVoiceCallDock(
+        tester,
+        const VoiceFlags(state: VoiceSessionState.connected),
+        canvasChannelId: 'c1',
+        extraOverrides: [_channel(_row('voice', canvas: true, voice: true))],
+      );
+      await tester.pump();
+      await tester.tap(find.bySemanticsLabel('More'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('Open canvas'), findsOneWidget);
+    },
+  );
 }

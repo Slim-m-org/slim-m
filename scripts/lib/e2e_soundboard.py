@@ -85,7 +85,7 @@ def _wait_for_plays(client, count, timeout=PLAY_TIMEOUT):
 
 
 def _play_from_the_dock(client):
-    client.click("Soundboard", settle=1.5)
+    ui.click_in_more(client, L.SOUNDBOARD)
     client.click(STARTER_CLIP, settle=0.5)
     client.dismiss_overlay()
 

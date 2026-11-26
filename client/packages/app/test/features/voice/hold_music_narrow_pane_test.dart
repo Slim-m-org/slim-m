@@ -128,12 +128,10 @@ Widget _canvasDockAndBadge(ProviderContainer container) => Stack(
   ],
 );
 
-/// The music is either its own button or, on a dock too narrow for one, rows in the mic's long-press menu.
+/// The dock carries the music as rows in its More menu.
 Future<void> _expectMusicReachable(WidgetTester tester) async {
-  if (find.bySemanticsLabel('Play music while alone').evaluate().isNotEmpty) {
-    return;
-  }
-  await tester.longPress(find.bySemanticsLabel(RegExp('^Mute')));
+  await _settle(tester);
+  await tester.tap(find.bySemanticsLabel('More'));
   await _settle(tester);
   expect(find.text('Play music'), findsOneWidget);
 }

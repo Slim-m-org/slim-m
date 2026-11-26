@@ -12,6 +12,7 @@ import '../../../widgets/control_options_menu.dart';
 import '../../../widgets/control_swatch_row.dart' show ControlOptionEntry;
 import 'bot_call_controls.dart';
 import 'call_dock_button.dart';
+import 'dock_item.dart';
 
 /// How many chips [botCallChipsFor] draws for [channelId], for the dock's fit check.
 int botCallChipCount(WidgetRef ref, String channelId) =>
@@ -53,6 +54,18 @@ Widget? botCallChipsFor(WidgetRef ref, String channelId) {
         ),
       ],
     ],
+  );
+}
+
+/// The bots' controls as one optional dock item: chips when pinned, rows in More otherwise.
+DockItem? botCallItemFor(WidgetRef ref, String channelId) {
+  final chips = botCallChipsFor(ref, channelId);
+  if (chips == null) return null;
+  return DockItem(
+    id: 'bots',
+    name: 'Bot controls',
+    inline: chips,
+    entries: botCallMenuOptions(ref, channelId),
   );
 }
 
