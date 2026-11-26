@@ -19,15 +19,17 @@ const messageGroupWindow = Duration(minutes: 1);
 /// A continuation of the same author's previous message inside
 /// [messageGroupWindow] drops its avatar and header. A webhook posting under a
 /// different username starts a new group so its label shows, and so does a
-/// reply, whose context line joins to its own avatar.
+/// reply, whose context line joins to its own avatar. Inside a thread
+/// ([inThread]) no reply draws that line, so a reply groups like any message.
 bool isGrouped(
   Message message,
   Message? previous, {
   String? webhookUsername,
   String? previousWebhookUsername,
+  bool inThread = false,
 }) =>
     previous != null &&
-    message.replyToId == null &&
+    (inThread || message.replyToId == null) &&
     previous.authorId == message.authorId &&
     webhookUsername?.trim() == previousWebhookUsername?.trim() &&
     (message.createdAt - previous.createdAt).abs() <

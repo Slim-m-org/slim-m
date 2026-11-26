@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/messages/providers/message_extras_model.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_hover_toolbar.dart';
+import 'package:slimm_data/data.dart' show Message;
 import 'package:slimm_app/src/features/messages/widgets/message_row.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_row_identity.dart';
 import 'package:slimm_app/src/features/messages/widgets/reply_quote.dart';
@@ -113,6 +114,51 @@ void main() {
 
         expect(await heights(true), await heights(false));
       });
+
+      testWidgets(
+        'consecutive replies from one author in a thread share one header',
+        (tester) async {
+          final replies = [
+            rigMessage('m1', 1, 'nick'),
+            rigMessage('r1', 2, 'taka', replyTo: 'm1'),
+            rigMessage('r2', 3, 'taka', replyTo: 'm1'),
+            rigMessage('r3', 4, 'taka', replyTo: 'm1'),
+          ];
+          final plain = [
+            rigMessage('m1', 1, 'nick'),
+            rigMessage('r1', 2, 'taka'),
+            rigMessage('r2', 3, 'taka'),
+            rigMessage('r3', 4, 'taka'),
+          ];
+          Future<(List<int>, List<double>)> measure(
+            List<Message> messages,
+            bool thread,
+          ) async {
+            await pumpRig(tester, messages, width: width, thread: thread);
+            const ids = ['r1', 'r2', 'r3'];
+            final result = (
+              [
+                for (final id in ids)
+                  _in(
+                    id,
+                    find.byKey(MessageRowHeader.headerKey),
+                  ).evaluate().length,
+              ],
+              [
+                for (final id in ids)
+                  tester.getSize(find.byKey(ValueKey(id))).height,
+              ],
+            );
+            await settleRig(tester);
+            return result;
+          }
+
+          final inThread = await measure(replies, true);
+          expect(inThread.$1, [1, 0, 0], reason: 'one header for the run');
+          expect(inThread.$2, (await measure(plain, true)).$2);
+          expect((await measure(replies, false)).$1, [1, 1, 1]);
+        },
+      );
 
       testWidgets(
         'a bare reply to me wears no band in a thread, in a channel it does',

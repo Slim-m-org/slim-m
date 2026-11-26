@@ -214,7 +214,7 @@ void main() {
           width: width,
           thread: true,
         );
-        expect(_grouped('t2'), isFalse);
+        expect(_grouped('t2'), isTrue, reason: 'no quote, so it groups');
         for (final id in ['t2', 't3']) {
           expect(_in(id, find.byKey(ReplyQuote.quoteKey)), findsNothing);
           expect(_in(id, find.byKey(ReplyElbow.lineKey)), findsNothing);

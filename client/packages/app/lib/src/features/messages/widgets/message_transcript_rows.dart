@@ -51,6 +51,7 @@ Widget transcriptMessageRow(
           n.previous,
           webhookUsername: extras.webhookUsername,
           previousWebhookUsername: webhooks.previous,
+          inThread: transcript.channelIsThread,
         ) &&
         !newDay,
     showNewDivider: startsUnread(
@@ -97,6 +98,7 @@ bool _groupContinues(
     message,
     webhookUsername: nextWebhookUsername,
     previousWebhookUsername: extras.webhookUsername,
+    inThread: transcript.channelIsThread,
   );
   return grouped &&
       !isNewDay(next, message, historyKnown: transcript.historyKnown);
