@@ -29,12 +29,17 @@ extension SlimmApiWebSession on SlimmApi {
   /// Refreshes through the cookie before the first call of a web tab that holds only its sign-in hint.
   ///
   /// Every caller waits on the one refresh in flight, so a cold load spends no 401 finding out the token is missing.
-  Future<void> ensureAccessToken() async {
+  /// Null when nothing is needed, so a caller does not give up a turn of the event loop on every request.
+  Future<void>? ensureAccessToken() {
     final held = session.tokens;
-    if (!webSession || held == null || held.hasAccessToken) return;
+    if (!webSession || held == null || held.hasAccessToken) return null;
+    return _refreshForHint(held.userId);
+  }
+
+  Future<void> _refreshForHint(String userId) async {
     await awaitTrust();
     await refresh();
-    requireSameAccount(held.userId);
+    requireSameAccount(userId);
   }
 
   /// Fails when the session now belongs to an account other than [sentBy].
