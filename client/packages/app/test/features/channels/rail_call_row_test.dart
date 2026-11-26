@@ -18,6 +18,8 @@ import 'package:slimm_rtc/rtc.dart';
 import '../../support/async_wait.dart';
 import '../../support/call_elsewhere_fixture.dart';
 import '../../ui_snapshot_support.dart';
+import '../voice/voice_call_controls_harness.dart' show InertSession;
+import '../voice/voice_controller_harness.dart' show FixedVoiceController;
 
 const _footer = SizedBox(
   width: 264,
@@ -116,6 +118,55 @@ void main() {
       other.container.read(voiceControllerProvider).state,
       VoiceSessionState.idle,
     );
+
+    await teardownBoth(tester, here, other);
+  });
+
+  testWidgets("another community's call deafens through that account and "
+      'only offers Stop for its share', (tester) async {
+    final session = InertSession();
+    final other = (await tester.runAsync(
+      () => otherCommunityInCall(
+        extraOverrides: [
+          voiceControllerProvider.overrideWith(
+            (ref) => FixedVoiceController(
+              ref,
+              callInLounge.copyWith(screenSharing: true),
+              session,
+            ),
+          ),
+        ],
+      ),
+    ))!;
+    final here = await hereWithCallElsewhere(other);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: here.container,
+        child: MaterialApp(
+          theme: buildTheme(Brightness.dark, AppTokens.dark),
+          home: const Scaffold(
+            body: Align(alignment: Alignment.bottomLeft, child: _footer),
+          ),
+        ),
+      ),
+    );
+    await pumpFrames(tester, frames: 20);
+
+    await tester.tap(find.bySemanticsLabel('Deafen'));
+    await pumpFrames(tester);
+    expect(find.bySemanticsLabel('Undeafen'), findsOneWidget);
+    expect(other.container.read(voiceControllerProvider).deafened, isTrue);
+    expect(here.container.read(voiceControllerProvider).deafened, isFalse);
+
+    await tester.tap(find.bySemanticsLabel('Screen share options'));
+    await pumpFrames(tester, frames: 20);
+    expect(find.text('Stop sharing'), findsOneWidget);
+    for (final absent in ['Sharing', 'Viewers can draw', 'Show my cursor']) {
+      expect(find.text(absent), findsNothing, reason: absent);
+    }
+    await tester.tap(find.text('Stop sharing'));
+    await pumpFrames(tester);
+    expect(session.screenShareCalls.map((c) => c.enabled), [false]);
 
     await teardownBoth(tester, here, other);
   });

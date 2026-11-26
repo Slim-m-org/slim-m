@@ -229,6 +229,21 @@ void main() {
     });
   }
 
+  testWidgets('the profile name shows at a 200 px rail with the call bar up', (
+    tester,
+  ) async {
+    await withRail(tester, _live, width: 200, (_, _) async {
+      expect(tester.takeException(), isNull, reason: 'no overflow');
+      final name = find.byKey(railFooterNameKey);
+      expect(name, findsOneWidget);
+      final bar = tester.getRect(find.byKey(const Key('rail-footer-padding')));
+      final rect = tester.getRect(name);
+      final notes = tester.getRect(find.bySemanticsLabel('Notes'));
+      expect(rect.left, greaterThanOrEqualTo(bar.left));
+      expect(rect.right, lessThanOrEqualTo(notes.left), reason: 'whole name');
+    });
+  });
+
   for (final (width, touch) in [
     (ChannelRail.compactWidth, false),
     (ChannelRail.expandedWidth, false),
