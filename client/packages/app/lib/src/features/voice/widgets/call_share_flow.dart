@@ -44,7 +44,13 @@ class CallShareFlow {
     callShareMemoryProvider.notifier,
   );
 
-  CallShareMemory get _record => ref.read(callShareMemoryProvider);
+  /// Empty unless the record was made in this call, so one call's source never preselects in the next.
+  CallShareMemory get _record {
+    final record = ref.read(callShareMemoryProvider);
+    return record.channelId == voice().channelId
+        ? record
+        : const CallShareMemory();
+  }
 
   ScreenShareSource? get lastSource => _record.lastSource;
 
@@ -109,7 +115,7 @@ class CallShareFlow {
     ScreenShareSource? preset,
   }) async {
     final controller = this.controller();
-    _memory.begin();
+    _memory.begin(voice().channelId);
     changed(() {});
     try {
       // The saved ceiling and audio choice, applied directly rather than asked again.
@@ -132,7 +138,7 @@ class CallShareFlow {
           !(voice.state == VoiceSessionState.connected || voice.rejoining)) {
         return;
       }
-      _memory.remember(id: sourceId, source: pick.source);
+      _memory.remember(voice.channelId, id: sourceId, source: pick.source);
       if (stopFirst) await controller.share.setScreenShare(false);
       await controller.share.setScreenShare(
         true,

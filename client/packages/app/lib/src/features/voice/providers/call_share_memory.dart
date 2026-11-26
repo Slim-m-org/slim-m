@@ -8,14 +8,16 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_rtc/rtc.dart' show ScreenShareSource;
 
-import 'voice_flags.dart';
-
 class CallShareMemory {
   const CallShareMemory({
+    this.channelId,
     this.lastSourceId,
     this.lastSource,
     this.inFlight = false,
   });
+
+  /// The call this record belongs to; a record for another call reads as empty.
+  final String? channelId;
 
   /// Preselected, never silently reused, the next time the source picker opens.
   final String? lastSourceId;
@@ -25,10 +27,12 @@ class CallShareMemory {
   final bool inFlight;
 
   CallShareMemory copyWith({
+    String? channelId,
     String? lastSourceId,
     ScreenShareSource? lastSource,
     bool? inFlight,
   }) => CallShareMemory(
+    channelId: channelId ?? this.channelId,
     lastSourceId: lastSourceId ?? this.lastSourceId,
     lastSource: lastSource ?? this.lastSource,
     inFlight: inFlight ?? this.inFlight,
@@ -36,24 +40,20 @@ class CallShareMemory {
 }
 
 class CallShareMemoryController extends Notifier<CallShareMemory> {
-  /// Forgotten whenever the call changes, so one call's source never preselects in the next.
   @override
-  CallShareMemory build() {
-    ref.listen(
-      voiceFlagsProvider.select((v) => v.channelId),
-      (_, _) => reset(),
-    );
-    return const CallShareMemory();
-  }
+  CallShareMemory build() => const CallShareMemory();
 
-  void begin() => state = state.copyWith(inFlight: true);
+  CallShareMemory _for(String? channelId) => state.channelId == channelId
+      ? state
+      : CallShareMemory(channelId: channelId);
+
+  void begin(String? channelId) =>
+      state = _for(channelId).copyWith(inFlight: true);
 
   void end() => state = state.copyWith(inFlight: false);
 
-  void remember({String? id, ScreenShareSource? source}) =>
-      state = state.copyWith(lastSourceId: id, lastSource: source);
-
-  void reset() => state = const CallShareMemory();
+  void remember(String? channelId, {String? id, ScreenShareSource? source}) =>
+      state = _for(channelId).copyWith(lastSourceId: id, lastSource: source);
 }
 
 final callShareMemoryProvider =
