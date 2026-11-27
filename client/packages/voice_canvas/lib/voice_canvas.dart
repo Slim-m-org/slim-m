@@ -30,6 +30,8 @@ export 'src/canvas_painters.dart'
         DraftStroke,
         RemoteDraftPainter,
         StrokePainter,
+        noteBaseFontSize,
+        noteBaseFontSizeForWidth,
         noteFontSizeFor,
         noteFontSizeForWidth,
         noteMaxLines,
