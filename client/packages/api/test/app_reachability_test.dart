@@ -39,6 +39,13 @@ import 'package:slimm_test_support/source_gates.dart';
 /// Each of these is a real gap rather than a decision, except the first. They
 /// are listed so the gap is visible and counted, not so it is forgiven.
 const Map<String, String> _allowlist = {
+  'canvasObjectsById': 'reads by id for HTTP-only agents; the app holds the '
+      'region it paints and follows the op stream (2026-11-27)',
+  'canvasObject': 'one object by id for HTTP-only agents; the app already '
+      'holds every object it draws (2026-11-27)',
+  'canvasBoardSummary':
+      'board count and bounds for HTTP-only agents looking for '
+          'empty space; the app paints from the viewport (2026-11-27)',
   'placeCanvasObjects': 'the batch place for bots that draw hundreds of marks; '
       'the app commits one gesture at a time through placeCanvasObject '
       '(2026-11-03)',
