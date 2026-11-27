@@ -171,6 +171,19 @@ A board past the export ceiling answers `409` with `{"code": "canvas_export_too_
 Exports are limited to a few an hour.
 `/version` lists `canvas_export` in `capabilities` on a server that has it.
 
+### Changing many objects at once
+
+`POST /channels/{channelId}/canvas/ops/batch` with `{ "ops": [ ... ] }` takes 1 to 200 ops, each exactly what `POST /channels/{channelId}/canvas/ops` takes for `move`, `edit`, `remove` or `reorder`.
+Tidying a board into columns is one request, and viewers get the moves one event at a time as if you had sent them singly.
+The batch is all or nothing: one refused op rolls everything back, and the error carries that op's zero-based `item_index` and an `item_code` such as `locked` or `not_found`.
+Every op needs its own UUIDv7 `id`, distinct within the batch, and retrying a whole batch answers with the stored ops (`fresh: false`) and sends nothing.
+A batch is charged by op count against the same budget as the place batch, and a timed-out member can still send a batch of removes.
+
+`edit` changes the props of a note, a text box, a connection, a shape or an image.
+A shape's and an image's props merge: a key you leave out keeps its value and `null` deletes it.
+The app draws a shape from `shape`, `flip_x` and `flip_y`, so a colour or a label you add is stored and sent on, and other clients may use it.
+An image's `attachment` cannot be edited; place a new image for a different picture.
+
 ## Member join events
 
 ```json
