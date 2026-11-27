@@ -39,6 +39,7 @@ mod display_name_trim;
 mod download_links;
 mod favorites;
 mod identity;
+mod identity_for_rest_clients;
 mod install_sessions;
 mod invite_code_case;
 mod invite_code_disclosure;

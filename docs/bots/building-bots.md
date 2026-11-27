@@ -41,6 +41,9 @@ Authorization: Bearer slimbot_...
 ```
 
 Call `GET /me` first. It returns the bot's own id and its effective base permissions, which is the cheapest way to confirm the token works and to learn the id you will need to avoid answering yourself.
+`GET /me` also lists the bot's roles (`roles`, `role_ids`, `role_colors`), the same fields `GET /users/{userId}` gives for anyone.
+`GET /members/{userId}` is an alias of `GET /users/{userId}`.
+`GET /me/permissions` returns the bitmask plus `names`, the name of every set bit, so a client needs no bit table; add `?channel_id=` to resolve them in one channel (a channel you cannot view reads as zero).
 
 **Send a real `User-Agent`.** A deployment behind a CDN may refuse a default library user-agent before the request ever reaches slim-m, and what you get back is that CDN's 403 rather than anything from the API.
 Python's `urllib` is the common case: `Python-urllib/3.x` is blocked by Cloudflare's defaults, and the same call with any named user-agent succeeds.

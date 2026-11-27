@@ -926,6 +926,39 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /members/{userId}:
+    parameters:
+      - name: userId
+        in: path
+        required: true
+        description: The member's UUID.
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getMember
+      tags: [users]
+      summary: A single member's profile; the same answer as `getUser`.
+      description: >
+        An alias of `GET /users/{userId}`: same handler, same body, same
+        visibility, including the role fields. A deleted or anonymized account
+        answers 404.
+      responses:
+        "200":
+          description: The member's profile.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
   /members:
     get:
       operationId: listMembers
@@ -1116,6 +1149,48 @@ paths:
       responses:
         "204":
           description: Cleared.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /me/permissions:
+    get:
+      operationId: getOwnPermissions
+      tags: [users]
+      summary: The caller's own resolved permissions, by name.
+      description: >-
+        The bitmask `Me.permissions` gives, plus `names`: the name of every set
+        bit, so a client needs no bit table. The names are stable, and one
+        of: `administrator`, `view_channel`, `send_messages`,
+        `manage_messages`, `manage_channels`, `manage_roles`, `kick_members`,
+        `ban_members`, `create_invite`, `add_reactions`, `attach_files`,
+        `connect`, `speak`, `use_canvas`, `manage_canvas`, `manage_server`,
+        `mention_everyone`, `run_code`, `view_moderation_history`,
+        `move_members`, `view_transcripts`, `use_soundboard`. A timeout is
+        already subtracted.
+
+        With `channel_id`, resolves them in that channel instead, the bits
+        `getChannelPermissions` gives. A channel the caller cannot view
+        answers zero and no names, exactly like a missing one, and the
+        response echoes `channel_id`.
+      parameters:
+        - name: channel_id
+          in: query
+          required: false
+          description: Scope the answer to this channel.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: The caller's permissions.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OwnPermissions"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "429":
@@ -15884,6 +15959,25 @@ components:
             Already has any timeout subtracted, so a client that greys the
             composer on a missing SEND_MESSAGES bit needs no separate rule
             for being timed out; `timed_out_until` is what says why.
+        roles:
+          type: array
+          items:
+            type: string
+          description: >-
+            The caller's role names, as `UserProfile.roles` has them. Absent on
+            servers older than this field.
+        role_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: The same roles as ids, as `UserProfile.role_ids`.
+        role_colors:
+          type: array
+          items:
+            type: [integer, "null"]
+            format: int64
+          description: The same roles' palette colours, as `UserProfile.role_colors`.
         timed_out_until:
           type: [integer, "null"]
           format: int64
@@ -18847,6 +18941,25 @@ components:
       properties:
         prefix:
           type: string
+    OwnPermissions:
+      type: object
+      required: [permissions, names]
+      properties:
+        permissions:
+          type: integer
+          format: int64
+          description: >-
+            The permission bitmask, timeout subtracted: deployment-wide, or in
+            `channel_id` when the request named one.
+        names:
+          type: array
+          items:
+            type: string
+          description: The name of every set bit; see `getOwnPermissions` for the list.
+        channel_id:
+          type: string
+          format: uuid
+          description: The channel the answer is scoped to; present only when the request named one.
     MemberPermissions:
       type: object
       required: [user_id, permissions]
