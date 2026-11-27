@@ -8224,7 +8224,9 @@ paths:
         it is already visible. An attachment never uploaded, already swept as
         an orphan, or not visible to this caller is a 400, the same collapse
         a message's own attachment check already makes. For a `note`, `props`
-        carries `text`; revising it later is an `edit` op (`submitCanvasOp`).
+        carries `text` and optionally `font_size` (8 to 96 logical px; without it the text
+        size is `min(w * 18 / 330, h * 18 / 210)`, the 330x210 card drawing 18 px); revising
+        it later is an `edit` op (`submitCanvasOp`).
         For a `shape`, `props` carries `shape`, one of
         `rectangle`, `ellipse`, `line` or `arrow`; a line or an arrow is
         always the diagonal of the object's own `x`/`y`/`w`/`h` box, so
@@ -8568,8 +8570,10 @@ paths:
         edited, since the upload ownership check ran only at placement.
         Only the keys an edit carries are checked, so a note stored with an odd key can still be edited, and what the op, the response and `canvas.object.edited` carry is the merged result.
         A connection's props merge the same way and are checked as `CanvasEdgeProps` says.
-        A note's known props are `text` (a string), `fill` and `color` (a palette key or `#rrggbb`; `color` may also be `auto`), `fill_opacity` (0 to 1) and `size` (`small`, `medium` or `large`);
-        any other key, `font_size` included, is stored as sent.
+        A note's known props are `text` (a string), `fill` and `color` (a palette key or `#rrggbb`; `color` may also be `auto`), `fill_opacity` (0 to 1), `size` (`small`, `medium` or `large`) and `font_size` (a number from 8 to 96);
+        any other key is stored as sent.
+        `font_size` is the text size in logical px at zoom 1, and the same range applies on place, batch place and edit.
+        Without it the client draws the text at `min(w * 18 / 330, h * 18 / 210)`, so the 330x210 reference card draws 18 px and a wide, short note draws smaller; `size` scales either base.
 
 
         An object locked in place (`lockCanvasObject`) refuses `move`,

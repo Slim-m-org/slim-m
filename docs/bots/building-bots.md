@@ -247,6 +247,15 @@ It names `manage_canvas` for moving, editing, removing or clearing someone else'
 In a batch it sits beside `item_index` and `item_code`.
 A channel you cannot view, a timeout and a locked object answer as before, with no `missing`.
 
+### Note text size
+
+A note's props are `text`, `fill`, `color`, `fill_opacity`, `size` (`small`, `medium` or `large`) and an optional `font_size`.
+`font_size` is the text size in logical pixels at zoom 1, from 8 to 96, and is checked on place, batch place and edit; anything else is a `400`.
+Send `null` in an edit to delete it.
+Without `font_size` the app derives the size from the box: `min(w * 18 / 330, h * 18 / 210)`, so the 330x210 card is the box that draws 18 px text and a wide, short note draws small.
+Set `font_size` to get a readable size in any box, or size the box like the reference card.
+`size` still scales the result, whether the base came from `font_size` or from the box.
+
 ## Member join events
 
 ```json

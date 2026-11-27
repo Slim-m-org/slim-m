@@ -52,7 +52,10 @@ NoteTap? noteTapAt(
   final text = id == null ? null : document.noteTextOf(id);
   if (id == null || bounds == null || text == null || text.isEmpty) return null;
   final style = document.noteStyleOf(id) ?? const CanvasNoteStyle();
-  final fontSize = noteTextSizeOf(noteFontSizeFor(bounds.w, bounds.h), style);
+  final fontSize = noteTextSizeOf(
+    noteBaseFontSize(bounds.w, bounds.h, document.noteFontSizeOf(id)),
+    style,
+  );
   final painter = layoutNoteText(
     spans(
       text,
