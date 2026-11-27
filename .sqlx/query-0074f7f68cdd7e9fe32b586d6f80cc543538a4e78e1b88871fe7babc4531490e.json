@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE access_tokens SET expires_at = MIN(expires_at, ?), confirms_refresh_hash = NULL\n                 WHERE session_id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "0074f7f68cdd7e9fe32b586d6f80cc543538a4e78e1b88871fe7babc4531490e"
+}

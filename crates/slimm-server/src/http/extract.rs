@@ -45,12 +45,20 @@ impl FromRequestParts<AppState> for Authed {
             .and_then(|header| header.strip_prefix("Bearer "))
             .map(str::to_owned)
             .ok_or(ApiError::Unauthorized)?;
-        let ctx = if token.starts_with(BOT_TOKEN_PREFIX) {
+        let is_bot = token.starts_with(BOT_TOKEN_PREFIX);
+        let ctx = if is_bot {
             state.store.authenticate_bot(&token).await?
         } else {
             state.store.authenticate(&token).await?
-        }
-        .ok_or(ApiError::Unauthorized)?;
+        };
+        let Some(ctx) = ctx else {
+            let expired = !is_bot && state.store.access_token_expired(&token).await?;
+            return Err(ApiError::bad_token(if expired {
+                "token_expired"
+            } else {
+                "token_invalid"
+            }));
+        };
         if let Some(grant) = ctx.connector {
             super::connector_gate::check(parts, grant)?;
         }
