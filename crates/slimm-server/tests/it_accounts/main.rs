@@ -6,6 +6,7 @@ mod support;
 #[path = "../totp_support/mod.rs"]
 mod totp_support;
 
+mod access_token_grace;
 mod account;
 mod account_anonymization;
 mod account_anonymization_authorship;

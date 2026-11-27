@@ -337,7 +337,7 @@ async fn login(
     // A credential that could never exist fails like a wrong one, so the error never teaches the policy.
     if validate_username(&req.username).is_err() || validate_password(&req.password).is_err() {
         state.auth.verify_decoy().await?;
-        return Err(ApiError::Unauthorized);
+        return Err(ApiError::bad_credentials());
     }
 
     let credentials = state.store.find_credentials(&req.username).await?;
@@ -366,16 +366,16 @@ async fn login(
     };
 
     let Some((user_id, _)) = credentials else {
-        return Err(ApiError::Unauthorized);
+        return Err(ApiError::bad_credentials());
     };
     if throttled {
         tracing::debug!(%user_id, "auth: sign-in refused, throttled");
-        return Err(ApiError::Unauthorized);
+        return Err(ApiError::bad_credentials());
     }
     if !verified {
         tracing::debug!(%user_id, "auth: sign-in refused, wrong password");
         state.store.record_login_failure(user_id, &source).await?;
-        return Err(ApiError::Unauthorized);
+        return Err(ApiError::bad_credentials());
     }
     state.store.clear_login_throttle(user_id, &source).await?;
 

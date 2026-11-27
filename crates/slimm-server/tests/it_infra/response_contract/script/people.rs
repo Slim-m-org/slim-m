@@ -84,6 +84,21 @@ pub(super) async fn profile_calls(c: &mut Contract, root: &str, admin_id: &str, 
         root,
     )
     .await;
+    c.json(
+        "heartbeatPresence",
+        "PUT",
+        "/presence/heartbeat",
+        root,
+        json!({"status": "away", "ttl_seconds": 30}),
+    )
+    .await;
+    c.bare(
+        "endPresenceHeartbeat",
+        "DELETE",
+        "/presence/heartbeat",
+        root,
+    )
+    .await;
 }
 
 pub(super) async fn safety_calls(c: &mut Contract, root: &str, bob_token: &str, bob_id: &str) {

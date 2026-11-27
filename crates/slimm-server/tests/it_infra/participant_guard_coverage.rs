@@ -85,6 +85,7 @@ const EXEMPT: &[(&str, &[&str])] = &[
             "DELETE /invites/{code}",
             "DELETE /channels/{channel_id}/messages/{message_id}",
             "DELETE /presence/activity",
+            "DELETE /presence/heartbeat",
             "DELETE /me/avatar",
             "DELETE /me/banner",
             "DELETE /messages/{message_id}/reactions/{emoji}",

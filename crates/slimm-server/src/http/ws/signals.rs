@@ -226,7 +226,7 @@ fn status_given(hub: &Hub, viewer: UserId, target: UserId, visibility: Visibilit
     presence::status_for(
         viewer,
         target,
-        visibility,
+        tracker.effective_visibility(target, visibility),
         tracker.is_connected(target),
         tracker.is_idle(target),
     )

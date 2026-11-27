@@ -39,7 +39,7 @@ extension SlimmApiPresence on SlimmApi {
   }
 
   /// Says what the caller is listening to or playing. Held in memory against
-  /// their live socket and never stored.
+  /// their live socket or heartbeat and never stored.
   Future<void> setPresenceActivity(PresenceActivity activity) async {
     await send('PUT', '/presence/activity', body: activity.toJson());
   }
@@ -47,6 +47,31 @@ extension SlimmApiPresence on SlimmApi {
   /// Clears the caller's activity. Idempotent.
   Future<void> clearPresenceActivity() async {
     await send('DELETE', '/presence/activity');
+  }
+
+  /// Keeps the caller present for [ttlSeconds] (1 to 300) without a socket,
+  /// reading as [status] (`online`, `away` or `dnd`) with [activity], until it
+  /// is sent again, ended or lapses. For clients that only speak HTTP.
+  Future<PresenceHeartbeat> heartbeatPresence({
+    String? status,
+    PresenceActivity? activity,
+    int? ttlSeconds,
+  }) async {
+    final json = await send(
+      'PUT',
+      '/presence/heartbeat',
+      body: {
+        if (status != null) 'status': status,
+        if (activity != null) 'activity': activity.toJson(),
+        if (ttlSeconds != null) 'ttl_seconds': ttlSeconds,
+      },
+    );
+    return PresenceHeartbeat.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Ends the caller's heartbeat now. Idempotent.
+  Future<void> endPresenceHeartbeat() async {
+    await send('DELETE', '/presence/heartbeat');
   }
 
   /// Who is shown on every open board the caller can view, in one read.
