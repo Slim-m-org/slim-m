@@ -51,6 +51,13 @@ fn board_routes(channel: ChannelId, object: CanvasObjectId, user: &str) -> Vec<R
                 json!({ "id": CanvasObjectId::generate().to_string(), "kind": "clear", "before_seq": 0 }),
             ),
         ),
+        route(
+            "POST",
+            format!("{base}/ops/batch"),
+            Some(json!({ "ops": [
+                { "id": CanvasObjectId::generate().to_string(), "kind": "remove", "object_ids": [object.to_string()] },
+            ] })),
+        ),
         route("GET", format!("{base}/object-locks"), None),
         route("PUT", format!("{base}/objects/{object}/lock"), None),
         route("DELETE", format!("{base}/objects/{object}/lock"), None),

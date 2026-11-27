@@ -283,6 +283,28 @@ pub(super) async fn channel_calls(c: &mut Contract, root: &str, bob_id: &str) ->
         }),
     )
     .await;
+    // Exercises `CanvasOpBatch` and `CanvasOpBatchResult` with two kinds of op.
+    c.json(
+        "submitCanvasOpBatch",
+        "POST",
+        &format!("/channels/{board}/canvas/ops/batch"),
+        root,
+        json!({ "ops": [
+            {
+                "id": Uuid::now_v7().to_string(),
+                "kind": "move",
+                "object_id": first_object_id,
+                "x": 260.0, "y": 260.0, "w": 40.0, "h": 20.0,
+            },
+            {
+                "id": Uuid::now_v7().to_string(),
+                "kind": "reorder",
+                "object_id": first_object_id,
+                "z_index": 501,
+            },
+        ] }),
+    )
+    .await;
     // Both objects live again, so this page still carries what it had before.
     c.get(
         "listCanvasViewport",

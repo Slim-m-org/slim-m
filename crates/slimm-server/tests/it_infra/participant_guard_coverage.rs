@@ -135,6 +135,7 @@ const EXEMPT: &[(&str, &[&str])] = &[
             "POST /channels/{channel_id}/canvas/objects",
             "POST /channels/{channel_id}/canvas/objects/batch",
             "POST /channels/{channel_id}/canvas/ops",
+            "POST /channels/{channel_id}/canvas/ops/batch",
             "PUT /channels/{channel_id}/canvas/media-slots/{kind}/{user_id}",
             "PUT /channels/{channel_id}/canvas/objects/{object_id}/lock",
             "DELETE /channels/{channel_id}/canvas/objects/{object_id}/lock",

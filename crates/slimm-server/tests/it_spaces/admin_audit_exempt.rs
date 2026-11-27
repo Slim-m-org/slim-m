@@ -228,6 +228,7 @@ pub const EXEMPT_ROUTES: &[(&str, &str, &str)] = &[
         OWN_DATA,
     ),
     ("POST", "/channels/{channel_id}/canvas/ops", OWN_DATA),
+    ("POST", "/channels/{channel_id}/canvas/ops/batch", OWN_DATA),
     ("POST", "/channels/{channelId}/ephemeral-messages", OWN_DATA),
     (
         "POST",

@@ -26,6 +26,7 @@ use serde_json::value::RawValue;
 
 use self::canvas_batch::{MAX_BATCH_BODY_BYTES, place_batch};
 use self::canvas_ops::list_ops;
+use self::canvas_ops_batch::submit_op_batch;
 use self::canvas_ops_write::submit_op;
 use self::canvas_write::{MAX_BODY_BYTES, canvas_read_access, place};
 use super::AppState;
@@ -41,6 +42,7 @@ pub(super) mod canvas_media_slots;
 pub(super) mod canvas_module_tiles;
 pub(super) mod canvas_object_locks;
 pub(super) mod canvas_ops;
+pub(super) mod canvas_ops_batch;
 pub(super) mod canvas_ops_wait;
 pub(super) mod canvas_ops_write;
 pub(super) mod canvas_purge;
@@ -84,6 +86,10 @@ pub fn routes() -> Router<AppState> {
                 .route(
                     "/channels/{channel_id}/canvas/objects/batch",
                     post(place_batch),
+                )
+                .route(
+                    "/channels/{channel_id}/canvas/ops/batch",
+                    post(submit_op_batch),
                 )
                 .layer(DefaultBodyLimit::max(MAX_BATCH_BODY_BYTES)),
         )

@@ -202,6 +202,30 @@ extension SlimmApiCanvas on SlimmApi {
         json, 'POST /channels/$channelId/canvas/ops', CanvasOpResult.fromJson);
   }
 
+  /// Submits up to 200 `move`, `edit`, `remove` and `reorder` ops in one transaction, all or nothing.
+  ///
+  /// Each [CanvasOpInput.id] is an idempotency key, so a retried batch answers with the stored ops.
+  Future<List<CanvasOpResult>> submitCanvasOpBatch(
+    String channelId,
+    List<CanvasOpInput> ops,
+  ) async {
+    final json = await send(
+      'POST',
+      '/channels/$channelId/canvas/ops/batch',
+      body: {
+        'ops': [for (final op in ops) op.toJson()]
+      },
+    );
+    return decodeShape(
+      json,
+      'POST /channels/$channelId/canvas/ops/batch',
+      (map) => [
+        for (final op in map['ops'] as List<dynamic>)
+          CanvasOpResult.fromJson(op as Map<String, dynamic>),
+      ],
+    );
+  }
+
   /// Pages the canvas op stream from [afterSeq] (exclusive): the catch-up
   /// feed a client reconciling after a drop or a reconnect reads, rather
   /// than a full viewport re-read.

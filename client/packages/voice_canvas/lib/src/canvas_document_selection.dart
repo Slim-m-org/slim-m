@@ -167,6 +167,38 @@ extension CanvasDocumentSelection on CanvasDocument {
     return true;
   }
 
+  /// A live shape's primitive and flips, or null if [id] is unknown, removed, or not a shape.
+  ({CanvasShapeKind kind, bool flipX, bool flipY})? shapeOf(String id) {
+    final slot = _slotById[id];
+    final stroke = slot == null ? null : _strokes[slot];
+    final kind = stroke?.shapeKind;
+    if (stroke == null || !stroke.alive || kind == null) return null;
+    return (kind: kind, flipX: stroke.flipX, flipY: stroke.flipY);
+  }
+
+  /// Redraws a live shape from its edited primitive and flips; false if [id] is not a shape.
+  /// The caller repaints with [CanvasDocument.refresh].
+  bool setShape(
+    String id, {
+    required CanvasShapeKind kind,
+    required bool flipX,
+    required bool flipY,
+  }) {
+    final slot = _slotById[id];
+    final stroke = slot == null ? null : _strokes[slot];
+    if (stroke == null ||
+        !stroke.alive ||
+        stroke.kind != CanvasObjectKind.shape) {
+      return false;
+    }
+    stroke
+      ..shapeKind = kind
+      ..flipX = flipX
+      ..flipY = flipY;
+    _changed(stroke);
+    return true;
+  }
+
   /// The lowest and highest `zIndex` this document currently holds live, or
   /// null if it holds nothing.
   ///

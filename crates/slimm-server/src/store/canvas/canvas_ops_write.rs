@@ -142,6 +142,7 @@ pub enum CanvasOpRequest {
 }
 
 /// The result of submitting one op, fresh or replayed.
+#[derive(Clone)]
 pub struct SubmittedOp {
     pub id: CanvasOpId,
     pub seq: i64,
@@ -197,7 +198,7 @@ pub enum SubmitOpError {
     /// `MAX_OBJECT_EXTENT`, or fall outside the bounded world - the same
     /// check a placement itself makes.
     OutOfBounds,
-    /// An `edit` named an object that is neither a note nor a text box.
+    /// An `edit` named an object of a kind that holds no editable props.
     NotEditable,
     /// An `edit` of a text box carried props that [`crate::canvas_text::check_text_props`] refuses.
     BadProps(&'static str),
@@ -252,14 +253,28 @@ impl Store {
         request: CanvasOpRequest,
     ) -> Result<SubmittedOp, SubmitOpError> {
         let mut tx = self.begin_write().await?;
+        let outcome = self
+            .submit_op_in_tx(&mut tx, channel_id, actor_id, op_id, may_moderate, request)
+            .await?;
+        tx.commit().await?;
+        Ok(outcome)
+    }
 
-        if let Some(existing) = fetch_op(&mut tx, op_id).await? {
+    /// One op inside the caller's transaction; the caller commits it or rolls it back.
+    pub(super) async fn submit_op_in_tx(
+        &self,
+        tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+        channel_id: ChannelId,
+        actor_id: UserId,
+        op_id: CanvasOpId,
+        may_moderate: bool,
+        request: CanvasOpRequest,
+    ) -> Result<SubmittedOp, SubmitOpError> {
+        if let Some(existing) = fetch_op(tx, op_id).await? {
             if existing.channel_id != channel_id {
-                tx.commit().await?;
                 return Err(SubmitOpError::NotFound);
             }
-            let affected = affected_count_for(&mut tx, channel_id, &existing).await?;
-            tx.commit().await?;
+            let affected = affected_count_for(tx, channel_id, &existing).await?;
             return Ok(SubmittedOp {
                 id: op_id,
                 seq: existing.seq,
@@ -278,7 +293,7 @@ impl Store {
         }
 
         // Unique, not just `now_ms()`; see `now_ms_unique`'s own doc.
-        let now = self.now_ms_unique(&mut tx).await?;
+        let now = self.now_ms_unique(tx).await?;
         // Only a `restore` sets this; `canvas_op_target` requires exactly that.
         let mut target_op_for_row: Option<CanvasOpId> = None;
         // Only a fresh, effective `move` sets this.
@@ -292,7 +307,7 @@ impl Store {
         let (kind, affected, touched_ids, bound_seq) = match request {
             CanvasOpRequest::Remove(object_ids) => {
                 apply_remove(
-                    &mut tx,
+                    tx,
                     channel_id,
                     actor_id,
                     may_moderate,
@@ -304,7 +319,6 @@ impl Store {
             }
             CanvasOpRequest::Clear { before_seq, scope } => {
                 if !may_moderate {
-                    tx.commit().await?;
                     return Err(SubmitOpError::NotAuthorized);
                 }
                 let params = ClearInTx {
@@ -317,13 +331,11 @@ impl Store {
                     keep: &[],
                     now,
                 };
-                let submitted = clear_in_tx(&mut tx, params).await?;
-                tx.commit().await?;
-                return Ok(submitted);
+                return clear_in_tx(tx, params).await;
             }
             CanvasOpRequest::Restore { target_op } => {
                 target_op_for_row = Some(target_op);
-                apply_restore(&mut tx, channel_id, actor_id, may_moderate, target_op).await?
+                apply_restore(tx, channel_id, actor_id, may_moderate, target_op).await?
             }
             CanvasOpRequest::Move {
                 object_id,
@@ -333,7 +345,7 @@ impl Store {
                 h,
             } => {
                 let outcome = apply_move(
-                    &mut tx,
+                    tx,
                     channel_id,
                     actor_id,
                     may_moderate,
@@ -347,28 +359,15 @@ impl Store {
                 outcome
             }
             CanvasOpRequest::Edit { object_id, props } => {
-                let edited = apply_edit(
-                    &mut tx,
-                    channel_id,
-                    actor_id,
-                    may_moderate,
-                    object_id,
-                    &props,
-                )
-                .await?;
+                let edited =
+                    apply_edit(tx, channel_id, actor_id, may_moderate, object_id, &props).await?;
                 edit_props = edited.props;
                 edited.outcome
             }
             CanvasOpRequest::Reorder { object_id, z_index } => {
-                let outcome = apply_reorder(
-                    &mut tx,
-                    channel_id,
-                    actor_id,
-                    may_moderate,
-                    object_id,
-                    z_index,
-                )
-                .await?;
+                let outcome =
+                    apply_reorder(tx, channel_id, actor_id, may_moderate, object_id, z_index)
+                        .await?;
                 if outcome.1 > 0 {
                     reorder_z = Some(z_index);
                 }
@@ -378,8 +377,7 @@ impl Store {
 
         // An op row exists only for a real state transition; see the module doc.
         if affected == 0 {
-            let seq = current_canvas_seq(&mut tx, channel_id).await?;
-            tx.commit().await?;
+            let seq = current_canvas_seq(tx, channel_id).await?;
             return Ok(SubmittedOp {
                 id: op_id,
                 seq,
@@ -397,7 +395,7 @@ impl Store {
             });
         }
 
-        let seq = next_canvas_seq(&mut tx, channel_id).await?;
+        let seq = next_canvas_seq(tx, channel_id).await?;
 
         let (move_x, move_y, move_w, move_h) = match move_bounds {
             Some((x, y, w, h)) => (Some(x), Some(y), Some(w), Some(h)),
@@ -427,14 +425,12 @@ impl Store {
             None::<i64>,
             now
         )
-        .execute(&mut *tx)
+        .execute(&mut **tx)
         .await?;
 
-        insert_targets_batch(&mut tx, channel_id, seq, &touched_ids).await?;
-        record_cascades(&mut tx, channel_id, seq, &cascaded_ids).await?;
-        record_canvas_audit(&mut tx, channel_id, actor_id, kind, &touched_ids, now).await?;
-
-        tx.commit().await?;
+        insert_targets_batch(tx, channel_id, seq, &touched_ids).await?;
+        record_cascades(tx, channel_id, seq, &cascaded_ids).await?;
+        record_canvas_audit(tx, channel_id, actor_id, kind, &touched_ids, now).await?;
 
         Ok(SubmittedOp {
             id: op_id,

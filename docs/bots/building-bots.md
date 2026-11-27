@@ -186,6 +186,19 @@ All of them need only `VIEW_CHANNEL`, the same as the viewport read, and answer 
 - `GET /channels/{channelId}/canvas/summary` answers `{ "count": 12, "bounds": { "min_x": -40, "min_y": 0, "max_x": 900, "max_y": 600 }, "latest_seq": 31 }`.
   `bounds` is the box around every live object and is `null` on an empty board, so a bot can pick empty space without paging the world.
 
+### Changing many objects at once
+
+`POST /channels/{channelId}/canvas/ops/batch` with `{ "ops": [ ... ] }` takes 1 to 200 ops, each exactly what `POST /channels/{channelId}/canvas/ops` takes for `move`, `edit`, `remove` or `reorder`.
+Tidying a board into columns is one request, and viewers get the moves one event at a time as if you had sent them singly.
+The batch is all or nothing: one refused op rolls everything back, and the error carries that op's zero-based `item_index` and an `item_code` such as `locked` or `not_found`.
+Every op needs its own UUIDv7 `id`, distinct within the batch, and retrying a whole batch answers with the stored ops (`fresh: false`) and sends nothing.
+A batch is charged by op count against the same budget as the place batch, and a timed-out member can still send a batch of removes.
+
+`edit` changes the props of a note, a text box, a connection, a shape or an image.
+A shape's and an image's props merge: a key you leave out keeps its value and `null` deletes it.
+The app draws a shape from `shape`, `flip_x` and `flip_y`, so a colour or a label you add is stored and sent on, and other clients may use it.
+An image's `attachment` cannot be edited; place a new image for a different picture.
+
 ## Member join events
 
 ```json
