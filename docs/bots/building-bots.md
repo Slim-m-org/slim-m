@@ -171,6 +171,21 @@ A board past the export ceiling answers `409` with `{"code": "canvas_export_too_
 Exports are limited to a few an hour.
 `/version` lists `canvas_export` in `capabilities` on a server that has it.
 
+### Reading a board over plain HTTP
+
+A client with no socket can follow and inspect a board with four reads.
+All of them need only `VIEW_CHANNEL`, the same as the viewport read, and answer `403` with `{"code": "canvas_off"}` on a channel with no board.
+
+- `GET /channels/{channelId}/canvas/ops?after_seq=N&wait=25` holds the request open until an op after `N` exists, then answers the usual `{ops, latest_seq, has_more, reset}`.
+  `wait` is whole seconds, clamped to 25 so a proxy or the server's own 30 second timeout never cuts it off.
+  A page that already has ops, and a `reset`, answer at once; running out of time answers the empty page, so loop with the `latest_seq` you got back.
+  A user may park only a few waits at once, and a further one answers `429`.
+- `GET /channels/{channelId}/canvas/objects/{objectId}` answers one live object in the viewport's shape, and `404` for an unknown, removed or other-board id.
+- `GET /channels/{channelId}/canvas/objects?ids=a,b,c` answers those live objects in the viewport's shape.
+  It takes at most 100 ids, leaves unknown or removed ones out, and replaces the rectangle: sending it with `min_x` and friends, `prev_*`, `after_seq` or `cursor_seq` is a `400`.
+- `GET /channels/{channelId}/canvas/summary` answers `{ "count": 12, "bounds": { "min_x": -40, "min_y": 0, "max_x": 900, "max_y": 600 }, "latest_seq": 31 }`.
+  `bounds` is the box around every live object and is `null` on an empty board, so a bot can pick empty space without paging the world.
+
 ## Member join events
 
 ```json
