@@ -51,6 +51,10 @@ const Map<String, String> _allowlist = {
       'contract for third-party clients',
   'memberPermissions': 'bot accounts only: the server answers 403 to a '
       'person, so the app has no use for it (2026-10-18)',
+  'ownPermissions': 'for REST-only clients that cannot decode the bitmask; the '
+      'app reads the bitmask from Me and the channel route (2026-11-27)',
+  'getMember': 'the member-route alias of getUser, for REST-only clients; the '
+      'app resolves profiles through getUser (2026-11-27)',
   'getConnectorSelf': 'a connector\'s own token only: the server answers '
       '403 to a person, so the app has no use for it (2026-11-22)',
   'answerConnectorRun': 'a connector\'s own token only: it answers runs '
