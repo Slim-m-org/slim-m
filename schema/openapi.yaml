@@ -8164,6 +8164,64 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /channels/{channelId}/canvas/ops/batch:
+    parameters:
+      - $ref: "#/components/parameters/ChannelId"
+    post:
+      operationId: submitCanvasOpBatch
+      tags: [canvas]
+      summary: Move, edit, remove or restack many canvas objects in one request.
+      description: >
+        For bots that rearrange a board. `ops` holds 1 to 200 entries, each exactly what
+        `submitCanvasOp` takes for `move`, `edit`, `remove` or `reorder` (any other `kind` is a
+        400), and each checked the same way: `VIEW_CHANNEL` and `USE_CANVAS`, authorship or
+        `MANAGE_CANVAS`, locks, bounds and props. A timeout refuses a batch holding anything but
+        `remove`, as it refuses those ops singly.
+
+
+        The batch is all or nothing: one refused op rolls everything back, and the response is
+        that op's status with its zero-based index as `item_index` (and a stable reason as
+        `item_code`), so a lock is a 409, an absent object a 404 and a malformed op a 400.
+        Nothing is written and nothing is published.
+
+
+        Ops apply in array order in one transaction. Each op that changes something takes its own
+        seq and fans out as the same event a single op sends, in that order, so a viewer needs
+        nothing new to follow it. An op with `affected` 0 takes no seq and sends nothing, as it
+        does singly. Each `id` is an idempotency key as for a single op, and ids must be distinct
+        within one batch: a retried batch answers with the stored ops (`fresh: false`) and sends
+        nothing. The request body is at most 1 MiB.
+
+
+        Rate limiting is by op count, against the same budget as `placeCanvasObjects`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CanvasOpBatch"
+      responses:
+        "201":
+          description: One result per op in request order, fresh or replayed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CanvasOpBatchResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
   /channels/{channelId}/canvas/ops:
     parameters:
       - $ref: "#/components/parameters/ChannelId"
@@ -8285,10 +8343,14 @@ paths:
         its ceiling is a 409, refused inside the same transaction that counts.
 
 
-        `edit` changes a live note's, text box's or connection's props; it is refused under a
-        timeout and with 409 for a locked note, and only those three kinds can be edited.
+        `edit` changes a live note's, text box's, connection's, shape's or image's props; it is refused under a
+        timeout and with 409 for a locked object, and only those five kinds can be edited.
         A text box's props are replaced wholesale and checked the way a placement's are.
         A note's props are merged: a key left out keeps its stored value and a `null` deletes it.
+        A shape's and an image's props merge the same way and are otherwise opaque, as at placement:
+        the app draws a shape from `shape`, `flip_x` and `flip_y`, so any other key (a colour, a label,
+        a caption) is stored and sent on for other clients to use. An image's `attachment` cannot be
+        edited, since the upload ownership check ran only at placement.
         Only the keys an edit carries are checked, so a note stored with an odd key can still be edited, and what the op, the response and `canvas.object.edited` carry is the merged result.
         A connection's props merge the same way and are checked as `CanvasEdgeProps` says.
         A note's known props are `text` (a string), `fill` and `color` (a palette key or `#rrggbb`; `color` may also be `auto`), `fill_opacity` (0 to 1) and `size` (`small`, `medium` or `large`);
@@ -21140,12 +21202,35 @@ components:
           type: object
           additionalProperties: true
           description: >-
-            Required for `edit`. A text box's props replace the old ones; a note's and a
-            connection's (`CanvasEdgeProps`) are merged over them, a key left out keeping its
-            value and a `null` deleting it.
-            Only those three kinds can be edited (400 otherwise); the same 4 KiB
-            limit as a placement applies, to the merged props, and a locked note answers 409.
+            Required for `edit`. A text box's props replace the old ones; a note's, a
+            connection's (`CanvasEdgeProps`), a shape's and an image's are merged over them, a key
+            left out keeping its value and a `null` deleting it.
+            Only those five kinds can be edited (400 otherwise); the same 4 KiB
+            limit as a placement applies, to the merged props, and a locked object answers 409.
+            An image's `attachment` can never change: an edit naming a different one, or
+            `null`, is a 400.
 
+    CanvasOpBatch:
+      type: object
+      required: [ops]
+      properties:
+        ops:
+          type: array
+          minItems: 1
+          maxItems: 200
+          description: >-
+            1 to 200 ops, each as for `submitCanvasOp`, with `kind` one of `move`, `edit`,
+            `remove` or `reorder`. Their `id`s must be distinct.
+          items:
+            $ref: "#/components/schemas/CanvasOpRequest"
+    CanvasOpBatchResult:
+      type: object
+      required: [ops]
+      properties:
+        ops:
+          type: array
+          items:
+            $ref: "#/components/schemas/CanvasOpResult"
     CanvasOpResult:
       type: object
       required: [op, fresh]
