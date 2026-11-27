@@ -12,10 +12,13 @@ use super::error::ApiError;
 use super::extract::{AUTHED_READ, AuthedLimited, Json, Query};
 use super::messages::parse_uuid;
 use crate::ids::{ChannelId, UserId};
+use crate::permissions::names::names_of;
 use crate::permissions::{Permissions, mask_unless_viewable};
 
 pub fn routes() -> Router<AppState> {
-    Router::new().route("/members/{user_id}/permissions", get(get_permissions))
+    Router::new()
+        .route("/members/{user_id}/permissions", get(get_permissions))
+        .route("/me/permissions", get(get_own_permissions))
 }
 
 #[derive(Deserialize)]
@@ -84,4 +87,41 @@ async fn in_channel(
         .permissions_in_channel(user_id, channel_id)
         .await?;
     Ok(mask_unless_viewable(member))
+}
+
+#[derive(Serialize)]
+struct OwnPermissionsDto {
+    /// The caller's bitmask, timeout subtracted: deployment-wide, or in `channel_id`.
+    permissions: i64,
+    /// The name of every set bit, so a client needs no bit table.
+    names: Vec<&'static str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    channel_id: Option<String>,
+}
+
+/// The caller's own resolved permissions by name; a channel they cannot view reads as zero.
+async fn get_own_permissions(
+    AuthedLimited(ctx): AuthedLimited<AUTHED_READ>,
+    State(state): State<AppState>,
+    Query(params): Query<MemberPermissionsParams>,
+) -> Result<Json<OwnPermissionsDto>, ApiError> {
+    let channel_id = params
+        .channel_id
+        .as_deref()
+        .map(|raw| parse_uuid(raw).map(ChannelId))
+        .transpose()?;
+    let permissions = match channel_id {
+        Some(channel_id) => mask_unless_viewable(
+            state
+                .store
+                .permissions_in_channel(ctx.user_id, channel_id)
+                .await?,
+        ),
+        None => state.store.base_permissions(ctx.user_id).await?,
+    };
+    Ok(Json(OwnPermissionsDto {
+        permissions: permissions.bits(),
+        names: names_of(permissions),
+        channel_id: channel_id.map(|id| id.to_string()),
+    }))
 }

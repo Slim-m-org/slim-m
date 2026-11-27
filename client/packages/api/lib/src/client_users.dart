@@ -19,6 +19,18 @@ extension SlimmApiUsers on SlimmApi {
     return Me.fromJson(json as Map<String, dynamic>);
   }
 
+  /// The caller's own resolved permissions by name, deployment-wide or, with
+  /// [channelId], in that channel. A channel the caller cannot view answers
+  /// zero, exactly like a missing one.
+  Future<OwnPermissions> ownPermissions({String? channelId}) async {
+    final json = await send(
+      'GET',
+      '/me/permissions',
+      query: {if (channelId != null) 'channel_id': channelId},
+    );
+    return OwnPermissions.fromJson(json as Map<String, dynamic>);
+  }
+
   /// Updates the caller's own profile fields. Every field is optional, null
   /// meaning "leave it as it is" - a call naming none of them throws a 400.
   /// Pass an empty string for [statusText]/[pronouns]/[about] to clear it
@@ -83,6 +95,12 @@ extension SlimmApiUsers on SlimmApi {
   /// deleted their account.
   Future<UserProfile> getUser(String userId) async {
     final json = await send('GET', '/users/$userId');
+    return UserProfile.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// A single member: the same answer as [getUser], under the member route.
+  Future<UserProfile> getMember(String userId) async {
+    final json = await send('GET', '/members/$userId');
     return UserProfile.fromJson(json as Map<String, dynamic>);
   }
 

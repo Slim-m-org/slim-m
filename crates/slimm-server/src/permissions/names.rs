@@ -38,6 +38,15 @@ pub fn by_name(name: &str) -> Option<Permissions> {
     NAMED.iter().find(|(n, _)| *n == name).map(|(_, p)| *p)
 }
 
+/// The names of every bit set in `permissions`, in table order.
+pub fn names_of(permissions: Permissions) -> Vec<&'static str> {
+    NAMED
+        .iter()
+        .filter(|(_, bit)| permissions.contains(*bit))
+        .map(|(name, _)| *name)
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -52,5 +61,13 @@ mod tests {
         }
         assert_eq!(all, Permissions::ALL);
         assert_eq!(by_name("VIEW_CHANNEL"), None);
+    }
+
+    #[test]
+    fn names_of_lists_exactly_the_set_bits() {
+        assert_eq!(names_of(Permissions::NONE), Vec::<&str>::new());
+        let two = Permissions::SPEAK.union(Permissions::VIEW_CHANNEL);
+        assert_eq!(names_of(two), ["view_channel", "speak"]);
+        assert_eq!(names_of(Permissions::ALL).len(), NAMED.len());
     }
 }
