@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! A note's, text box's or edge's props changed after placement (decision 0072), authorized like a
-//! move: your own object needs nothing more, anyone else's needs `MANAGE_CANVAS`,
-//! and a locked object stays as it is. A note or text box is replaced wholesale; an edge merges
-//! (decision 0137).
+//! A note's, text box's, edge's, shape's or image's props changed after placement (decision 0072),
+//! authorized like a move: your own object needs nothing more, anyone else's needs
+//! `MANAGE_CANVAS`, and a locked object stays as it is. A text box is replaced wholesale; the
+//! rest merge (decision 0137).
 
 use super::canvas_edges::{EdgeError, resolve_edge, set_hull, write_ends};
 use super::canvas_object_locks::locked_among;
@@ -22,17 +22,39 @@ fn edit_text(_stored: &str, props: &str) -> Result<String, SubmitOpError> {
     Ok(props.to_owned())
 }
 
-/// A note is merged over what it stores, so a client that knows fewer props leaves the rest alone.
-fn edit_note(stored: &str, props: &str) -> Result<String, SubmitOpError> {
-    let edit = parse(props)?;
-    crate::canvas_text::check_note_props(&edit).map_err(SubmitOpError::BadProps)?;
-    let merged = crate::canvas_text::merge_props(&parse(stored)?, &edit);
+/// The edit laid over what is stored, so a client that knows fewer props leaves the rest alone.
+fn merge_edit(stored: &str, edit: &Value) -> Result<String, SubmitOpError> {
+    let merged = crate::canvas_text::merge_props(&parse(stored)?, edit);
     let merged = serde_json::to_string(&merged)
         .map_err(|_| SubmitOpError::BadProps("canvas props must be an object"))?;
     if merged.len() > crate::canvas_text::MAX_PROPS_BYTES {
         return Err(SubmitOpError::BadProps("canvas props are too large"));
     }
     Ok(merged)
+}
+
+fn edit_note(stored: &str, props: &str) -> Result<String, SubmitOpError> {
+    let edit = parse(props)?;
+    crate::canvas_text::check_note_props(&edit).map_err(SubmitOpError::BadProps)?;
+    merge_edit(stored, &edit)
+}
+
+/// A shape's props are opaque at placement too, so an edit only has to stay an object under the size cap.
+fn edit_shape(stored: &str, props: &str) -> Result<String, SubmitOpError> {
+    merge_edit(stored, &parse(props)?)
+}
+
+/// An image keeps the attachment it was placed with, since that reference passed the upload ownership check.
+fn edit_image(stored: &str, props: &str) -> Result<String, SubmitOpError> {
+    let edit = parse(props)?;
+    if let Some(attachment) = edit.get("attachment")
+        && parse(stored)?.get("attachment") != Some(attachment)
+    {
+        return Err(SubmitOpError::BadProps(
+            "an image's attachment cannot be edited",
+        ));
+    }
+    merge_edit(stored, &edit)
 }
 
 /// The op outcome and, when something changed, the props now stored.
@@ -76,6 +98,8 @@ pub(in crate::store) async fn apply_edit(
         "note" => edit_note(&found.props, props)?,
         "text" => edit_text(&found.props, props)?,
         "edge" => edit_edge(&found.props, props)?,
+        "shape" => edit_shape(&found.props, props)?,
+        "image" => edit_image(&found.props, props)?,
         _ => return Err(SubmitOpError::NotEditable),
     };
     if !locked_among(tx, &[object_id]).await?.is_empty() {

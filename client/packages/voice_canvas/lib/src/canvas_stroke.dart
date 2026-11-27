@@ -322,15 +322,15 @@ class CanvasStroke {
   /// See [CanvasStrokeInput.textSize]. Mutable since a text box can be restyled.
   String? textSize;
 
-  /// See [CanvasStrokeInput.shapeKind].
-  final CanvasShapeKind? shapeKind;
+  /// See [CanvasStrokeInput.shapeKind]. Mutable since an edit can change a shape.
+  CanvasShapeKind? shapeKind;
 
   /// See [CanvasStrokeInput.groupId].
   final String? groupId;
 
   /// See [CanvasStrokeInput.flipX].
-  final bool flipX;
-  final bool flipY;
+  bool flipX;
+  bool flipY;
 
   /// See [CanvasStrokeInput.fontSize].
   final double? fontSize;
