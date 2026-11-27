@@ -21,7 +21,7 @@ use super::canvas_write::{PlaceParams, ensure_may_draw, place_error_api, validat
 use crate::hub::{CanvasEvent, Event};
 use crate::ids::{CanvasObjectId, ChannelId};
 use crate::ratelimit::Class;
-use crate::store::{BatchError, BatchItem, CanvasObject};
+use crate::store::{BatchError, BatchItem, CanvasObject, PlaceError};
 
 /// Most objects one batch may carry.
 pub(in crate::http) const MAX_BATCH_OBJECTS: usize = 200;
@@ -78,12 +78,6 @@ pub(in crate::http) async fn place_batch(
                 index,
             ));
         }
-        if place.is_edge() {
-            return Err(indexed(
-                ApiError::BadRequest("a connection is placed on its own, not in a batch"),
-                index,
-            ));
-        }
         ids.push(id);
         validated.push(place);
     }
@@ -100,7 +94,12 @@ pub(in crate::http) async fn place_batch(
         .store
         .place_canvas_objects(channel_id, ctx.user_id, &items)
         .await
-        .map_err(|BatchError { index, error }| indexed(place_error_api(error), index))?;
+        .map_err(|BatchError { index, error }| match error {
+            PlaceError::EdgeEndMissing => ApiError::BadRequestDetail(format!(
+                "object {index}: a connection's end is not on the board or placed earlier in this batch"
+            )),
+            error => indexed(place_error_api(error), index),
+        })?;
 
     publish_paced(
         state.hub.clone(),

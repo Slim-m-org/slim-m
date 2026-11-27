@@ -7,6 +7,7 @@
 //! route wired end to end, `feed` is everything below it.
 
 mod batch;
+mod batch_limits;
 mod clear_locks;
 mod clear_scope;
 mod convergence;

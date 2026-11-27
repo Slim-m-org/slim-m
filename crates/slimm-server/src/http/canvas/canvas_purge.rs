@@ -77,7 +77,9 @@ async fn purge(
         Err(SubmitOpError::NotFound) => {
             return Err(ApiError::NotFound("that id is not in this channel"));
         }
-        Err(SubmitOpError::NotAuthorized) => return Err(ApiError::Forbidden),
+        Err(SubmitOpError::NotAuthorized) => {
+            return Err(ApiError::Lacks(Permissions::MANAGE_CANVAS));
+        }
         Err(SubmitOpError::Internal(err)) => return Err(err.into()),
         Err(_) => return Err(ApiError::Conflict("that object could not be erased")),
     }

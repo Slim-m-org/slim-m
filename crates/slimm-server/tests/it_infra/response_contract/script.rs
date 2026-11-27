@@ -17,6 +17,7 @@ mod admin_recovery;
 mod bots;
 mod connectors;
 mod content;
+mod content_canvas_batch;
 mod content_channel_kinds;
 mod content_dm_calls;
 mod content_emoji;
@@ -210,7 +211,7 @@ pub async fn run(c: &mut Contract) {
     profile_calls(c, root, &admin_id, &bob_id).await;
     safety_calls(c, root, bob_token, &bob_id).await;
 
-    let (channel, dm_channel) = channel_calls(c, root, &bob_id).await;
+    let (channel, dm_channel) = channel_calls(c, root, bob_token, &bob_id).await;
     dm_call_ring_calls(c, root, bob_token, &dm_channel).await;
     group_dm_calls(c, root, bob_token, &bob_id).await;
     gif_calls(c, root).await;

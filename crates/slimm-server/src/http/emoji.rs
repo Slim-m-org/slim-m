@@ -247,6 +247,7 @@ fn bulk_refusal(err: BulkAddError, names: &[String]) -> ApiError {
         index: first.index,
         code: first.code,
         items,
+        missing: None,
     }
 }
 

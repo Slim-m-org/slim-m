@@ -18,7 +18,12 @@ use crate::response_contract::world::{Contract, Payload};
 /// Builds the channel the message calls run in, plus the role, overwrite and
 /// direct-message state, and returns that channel's id and the caller's DM
 /// channel id with bob.
-pub(super) async fn channel_calls(c: &mut Contract, root: &str, bob_id: &str) -> (String, String) {
+pub(super) async fn channel_calls(
+    c: &mut Contract,
+    root: &str,
+    member: &str,
+    bob_id: &str,
+) -> (String, String) {
     c.get("listChannels", "/channels", root).await;
     let channel = c
         .json(
@@ -189,19 +194,10 @@ pub(super) async fn channel_calls(c: &mut Contract, root: &str, bob_id: &str) ->
         }),
     )
     .await;
-    c.json(
-        "placeCanvasObjects",
-        "POST",
-        &format!("/channels/{board}/canvas/objects/batch"),
-        root,
-        json!({ "objects": [{
-            "id": Uuid::now_v7().to_string(),
-            "kind": "stroke",
-            "x": 300.0, "y": 300.0, "w": 40.0, "h": 20.0,
-            "props": { "points": [0.0, 0.0, 40.0, 20.0], "width": 3.0, "color": "annotation" },
-        }] }),
-    )
-    .await;
+    let (left, right) = (Uuid::now_v7().to_string(), Uuid::now_v7().to_string());
+    // A connection in a batch names an object placed earlier in the same batch.
+    super::content_canvas_batch::canvas_batch_calls(c, root, member, &board, &first_object_id)
+        .await;
     let removed = c
         .json(
             "submitCanvasOp",

@@ -279,27 +279,125 @@ async fn an_end_in_another_channel_answers_like_a_missing_one() {
     assert_eq!(status, StatusCode::NOT_FOUND);
 }
 
+impl Rig {
+    async fn batch(&self, objects: Vec<Value>) -> (StatusCode, Value) {
+        let response = self
+            .app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri(format!("/channels/{}/canvas/objects/batch", self.channel))
+                    .header("authorization", format!("Bearer {}", self.root))
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        serde_json::to_vec(&json!({ "objects": objects })).unwrap(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let status = response.status();
+        let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        (
+            status,
+            serde_json::from_slice(&bytes).unwrap_or(Value::Null),
+        )
+    }
+}
+
 #[tokio::test]
-async fn a_batch_refuses_an_edge() {
+async fn a_batch_places_an_edge_between_objects_on_the_board_or_placed_earlier() {
+    let rig = rig().await;
+    let a = rig.note(&rig.root, 0.0, 0.0).await;
+    let (b, c) = (id(), id());
+    let (status, body) = rig
+        .batch(vec![
+            note_at(&b, 200.0, 0.0),
+            note_at(&c, 400.0, 0.0),
+            edge(&id(), end(&a), end(&b)),
+            edge(&id(), end(&b), end(&c)),
+        ])
+        .await;
+    assert_eq!(status, StatusCode::CREATED, "{body}");
+    let placed = body["objects"].as_array().unwrap();
+    assert_eq!(placed.len(), 4);
+    assert_eq!(placed[2]["kind"], "edge");
+    assert_eq!(placed[3]["x"].as_f64(), Some(200.0));
+    assert_eq!(placed[3]["w"].as_f64(), Some(300.0));
+    let ends = rig.count("SELECT COUNT(*) FROM canvas_edge_ends").await;
+    assert_eq!(ends, 4);
+}
+
+#[tokio::test]
+async fn a_batch_edge_naming_a_later_or_missing_object_is_a_400_and_places_nothing() {
+    let rig = rig().await;
+    let a = rig.note(&rig.root, 0.0, 0.0).await;
+    let later = id();
+    for body in [
+        vec![
+            note_at(&id(), 0.0, 300.0),
+            edge(&id(), end(&a), end(&later)),
+            note_at(&later, 200.0, 0.0),
+        ],
+        vec![note_at(&id(), 0.0, 300.0), edge(&id(), end(&a), end(&id()))],
+    ] {
+        let (status, response) = rig.batch(body).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{response}");
+        let message = response["error"].as_str().unwrap();
+        assert!(message.starts_with("object 1: "), "{message}");
+    }
+    assert_eq!(rig.count("SELECT COUNT(*) FROM canvas_objects").await, 1);
+}
+
+#[tokio::test]
+async fn a_batch_edge_gets_every_check_a_single_edge_does() {
     let rig = rig().await;
     let a = rig.note(&rig.root, 0.0, 0.0).await;
     let b = rig.note(&rig.root, 200.0, 0.0).await;
-    let response = rig
-        .app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri(format!("/channels/{}/canvas/objects/batch", rig.channel))
-                .header("authorization", format!("Bearer {}", rig.root))
-                .header("content-type", "application/json")
-                .body(Body::from(
-                    serde_json::to_vec(&json!({ "objects": [edge(&id(), end(&a), end(&b))] }))
-                        .unwrap(),
-                ))
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let (_, stroke) = rig
+        .place(&rig.root, crate::canvas_ops::fixtures::stroke(&id()))
+        .await;
+    let stroke = stroke["id"].as_str().unwrap().to_owned();
+    let free = json!({ "x": 1.0, "y": 1.0 });
+    for (edge_body, want) in [
+        (edge(&id(), end(&a), end(&a)), StatusCode::BAD_REQUEST),
+        (edge(&id(), end(&a), end(&stroke)), StatusCode::BAD_REQUEST),
+        (edge(&id(), free.clone(), free), StatusCode::BAD_REQUEST),
+    ] {
+        let (status, response) = rig.batch(vec![edge_body]).await;
+        assert_eq!(status, want, "{response}");
+        let message = response["error"].as_str().unwrap();
+        assert!(message.starts_with("object 0: "), "{message}");
+    }
+    let mut full = Vec::new();
+    for _ in 0..=slimm_server::canvas_edge::MAX_EDGES_PER_OBJECT {
+        full.push(edge(&id(), end(&a), end(&b)));
+    }
+    let (status, response) = rig.batch(full).await;
+    assert_eq!(status, StatusCode::CONFLICT, "{response}");
+    assert!(
+        response["error"]
+            .as_str()
+            .unwrap()
+            .starts_with("object 64: ")
+    );
+}
+
+#[tokio::test]
+async fn a_retried_batch_with_edges_answers_with_the_stored_rows() {
+    let rig = rig().await;
+    let (a, b) = (id(), id());
+    let objects = vec![
+        note_at(&a, 0.0, 0.0),
+        note_at(&b, 200.0, 0.0),
+        edge(&id(), end(&a), end(&b)),
+    ];
+    let (first, one) = rig.batch(objects.clone()).await;
+    let (second, two) = rig.batch(objects).await;
+    assert_eq!((first, second), (StatusCode::CREATED, StatusCode::CREATED));
+    assert_eq!(one, two);
+    assert_eq!(rig.count("SELECT COUNT(*) FROM canvas_edge_ends").await, 2);
 }
