@@ -94,6 +94,10 @@ class AptInstallCache(unittest.TestCase):
         self.assertIn("dpkg -i", calls)
         self.assertNotIn("apt-get", calls)
 
+    def test_a_cached_deb_newer_than_the_image_may_replace_what_it_breaks(self):
+        calls = self.run_script(["libasound2-data.deb", "libasound2t64.deb"], ["libasound2-dev"], ["libasound2-dev"])
+        self.assertIn("dpkg -i --auto-deconfigure", calls)
+
     def test_another_installs_debs_do_not_count_as_a_hit(self):
         calls = self.run_script(["libgpg-error-dev.deb"], [], ["flatpak", "flatpak-builder"])
         self.assertIn("apt-get", calls)
