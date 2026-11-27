@@ -194,7 +194,6 @@ pub(super) async fn channel_calls(
         }),
     )
     .await;
-    let (left, right) = (Uuid::now_v7().to_string(), Uuid::now_v7().to_string());
     // A connection in a batch names an object placed earlier in the same batch.
     super::content_canvas_batch::canvas_batch_calls(c, root, member, &board, &first_object_id)
         .await;
