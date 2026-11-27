@@ -40,6 +40,10 @@ fn board_routes(channel: ChannelId, object: CanvasObjectId, user: &str) -> Vec<R
             Some(json!({ "objects": [place(CanvasObjectId::generate())] })),
         ),
         route("GET", format!("{base}/ops?after_seq=0"), None),
+        route("GET", format!("{base}/ops?after_seq=0&wait=1"), None),
+        route("GET", format!("{base}/objects?ids={object}"), None),
+        route("GET", format!("{base}/objects/{object}"), None),
+        route("GET", format!("{base}/summary"), None),
         route(
             "POST",
             format!("{base}/ops"),

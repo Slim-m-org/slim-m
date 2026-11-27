@@ -14,12 +14,14 @@
 
 use axum::extract::{Path, State};
 use serde::{Deserialize, Serialize};
+use tokio::time::Instant;
 
 use super::super::AppState;
 use super::super::error::ApiError;
 use super::super::extract::{AuthedLimited, CANVAS, Json, Query};
 use super::super::messages::parse_uuid;
 use super::CanvasObjectDto;
+use super::canvas_ops_wait::{WaitSlot, clamp_wait, op_arrived};
 use super::canvas_write::canvas_read_access;
 use crate::ids::ChannelId;
 use crate::permissions::Permissions;
@@ -39,6 +41,8 @@ const MAX_LIMIT: i64 = 200;
 pub(in crate::http) struct ListOpsParams {
     after_seq: i64,
     limit: Option<i64>,
+    /// Seconds to hold an otherwise empty answer open for the next op.
+    wait: Option<u64>,
 }
 
 #[derive(Serialize)]
@@ -233,10 +237,29 @@ pub(in crate::http) async fn list_ops(
     let limit = params.limit.unwrap_or(DEFAULT_LIMIT).clamp(1, MAX_LIMIT);
     let moderates = permissions.contains(Permissions::MANAGE_CANVAS);
 
+    let wait = clamp_wait(params.wait);
+    // Subscribed before the first read, so an op landing between the read and the park still wakes it.
+    let parked = if wait.is_zero() {
+        None
+    } else {
+        Some((WaitSlot::acquire(ctx.user_id)?, state.hub.subscribe()))
+    };
     let mut page = state
         .store
         .list_canvas_ops(channel_id, params.after_seq, limit)
         .await?;
+    if let Some((_slot, mut events)) = parked {
+        let deadline = Instant::now() + wait;
+        while page.ops.is_empty()
+            && !page.reset
+            && op_arrived(&mut events, channel_id, deadline).await
+        {
+            page = state
+                .store
+                .list_canvas_ops(channel_id, params.after_seq, limit)
+                .await?;
+        }
+    }
     let mut placed: Vec<&mut CanvasObject> = page
         .ops
         .iter_mut()

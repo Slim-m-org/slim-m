@@ -1,0 +1,49 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT COUNT(*) AS \"count!: i64\",\n                      MIN(x) AS \"min_x: f64\", MIN(y) AS \"min_y: f64\",\n                      MAX(x + w) AS \"max_x: f64\", MAX(y + h) AS \"max_y: f64\"\n               FROM canvas_objects\n               WHERE channel_id = ? AND deleted_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "name": "count!: i64",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": "Expression"
+      },
+      {
+        "name": "min_x: f64",
+        "ordinal": 1,
+        "type_info": "Float",
+        "origin": "Expression"
+      },
+      {
+        "name": "min_y: f64",
+        "ordinal": 2,
+        "type_info": "Float",
+        "origin": "Expression"
+      },
+      {
+        "name": "max_x: f64",
+        "ordinal": 3,
+        "type_info": "Float",
+        "origin": "Expression"
+      },
+      {
+        "name": "max_y: f64",
+        "ordinal": 4,
+        "type_info": "Float",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "997bbcd6f68d1054b9e30d1a3d67dcf605426c3ff96eda4a404f0140ccff3fbc"
+}

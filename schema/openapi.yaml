@@ -7945,22 +7945,33 @@ paths:
         Objects placed or moved while paging arrive through the op stream, so
         merge pages by object id. `cursor_seq` cannot be combined with the
         `prev_*` parameters or `after_seq`.
+
+
+        The rectangle (all four bounds) is required unless `ids` is sent. With
+        `ids`, the read returns just those objects, in paint order, in the same
+        shape: an id that is unknown, removed or on another board is simply
+        absent, and `has_more` is true only if the response size stopped the
+        list early. `ids` is an alternative to the rectangle, so combining it
+        with any bound, a `prev_*` parameter, `after_seq` or `cursor_seq` is a
+        400, as is more than 100 ids or one that is not a UUID.
       parameters:
+        - name: ids
+          in: query
+          description: >-
+            Comma-separated object ids, at most 100, to read instead of a
+            region. Mutually exclusive with the rectangle and the cursors.
+          schema: { type: string }
         - name: min_x
           in: query
-          required: true
           schema: { type: number, format: double }
         - name: min_y
           in: query
-          required: true
           schema: { type: number, format: double }
         - name: max_x
           in: query
-          required: true
           schema: { type: number, format: double }
         - name: max_y
           in: query
-          required: true
           schema: { type: number, format: double }
         - name: prev_min_x
           in: query
@@ -8164,6 +8175,34 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /channels/{channelId}/canvas/summary:
+    parameters:
+      - $ref: "#/components/parameters/ChannelId"
+    get:
+      operationId: getCanvasSummary
+      tags: [canvas]
+      summary: Count a board's live objects and find the box around them.
+      description: >
+        Requires `VIEW_CHANNEL`, evaluated for this channel, the same gate as
+        the viewport read. One indexed aggregate over the channel's live
+        objects, so a client can find empty space or size a board without
+        reading it. `latest_seq` is read in the same snapshot and is a valid
+        `after_seq` for `listCanvasOps`.
+      responses:
+        "200":
+          description: The board's count, bounds and canvas head.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CanvasSummary"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /channels/{channelId}/canvas/ops:
     parameters:
       - $ref: "#/components/parameters/ChannelId"
@@ -8221,6 +8260,21 @@ paths:
             minimum: 1
             maximum: 200
             default: 100
+        - name: wait
+          in: query
+          description: >-
+            Seconds to hold the request open when there is nothing after
+            `after_seq` yet, a long poll for HTTP-only clients. The read
+            answers as soon as an op for this channel lands, or with the usual
+            empty page once the wait runs out; a page that already has ops, or a
+            `reset`, answers at once. The server clamps it to 25, under the
+            request timeout. A caller may hold only a few waits at once; past
+            that the answer is 429.
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 25
+            default: 0
       responses:
         "200":
           description: The next page of the op stream, or a reset.
@@ -8375,6 +8429,32 @@ paths:
         schema:
           type: string
           format: uuid
+    get:
+      operationId: getCanvasObject
+      tags: [canvas]
+      summary: Read one live canvas object.
+      description: >
+        Requires `VIEW_CHANNEL`, evaluated for this channel, the same gate as
+        the viewport read. The reply is the object exactly as the viewport
+        read shapes it. A 404 means the id is unknown, removed, or belongs to
+        another channel: one answer for all three.
+      responses:
+        "200":
+          description: The live object.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CanvasObject"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
     delete:
       operationId: purgeCanvasObject
       tags: [canvas]
@@ -20928,6 +21008,31 @@ components:
             snapshot. Send back as `after_seq` on the next viewport read, or
             as the cursor into `listCanvasOps` to learn what has changed
             since, removals included.
+
+    CanvasSummary:
+      type: object
+      required: [count, bounds, latest_seq]
+      properties:
+        count:
+          type: integer
+          format: int64
+          description: Live objects on the board.
+        bounds:
+          type: object
+          nullable: true
+          description: >-
+            The box around every live object, edges included; null for an empty
+            board.
+          required: [min_x, min_y, max_x, max_y]
+          properties:
+            min_x: { type: number, format: double }
+            min_y: { type: number, format: double }
+            max_x: { type: number, format: double }
+            max_y: { type: number, format: double }
+        latest_seq:
+          type: integer
+          format: int64
+          description: The channel's highest assigned canvas `seq`.
 
     CanvasOp:
       type: object
