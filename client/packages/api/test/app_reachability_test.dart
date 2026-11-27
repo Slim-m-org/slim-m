@@ -42,6 +42,10 @@ const Map<String, String> _allowlist = {
   'placeCanvasObjects': 'the batch place for bots that draw hundreds of marks; '
       'the app commits one gesture at a time through placeCanvasObject '
       '(2026-11-03)',
+  'heartbeatPresence': 'REST-only presence for bots and agents: the app holds '
+      'a WebSocket, which is its presence (2026-11-27)',
+  'endPresenceHeartbeat': 'the other half of heartbeatPresence, with the same '
+      'API-client-only audience (2026-11-27)',
   'getExport': 'one export by id, for API clients and scripts that follow a '
       'single job; the app holds at most one job per kind and polls the short '
       'list from listExports instead (2026-10-20)',

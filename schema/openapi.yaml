@@ -378,6 +378,11 @@ paths:
         the whole family and its session. A replay moments after a successful
         rotation is treated as the client racing itself and is denied without
         revoking anything.
+        The access token a rotation replaces keeps working for 30 seconds
+        (or until its own expiry, if sooner), so a request already in flight,
+        or a second process sharing the session, does not fail the moment one
+        of them refreshes. Signing out, removing the device, changing the
+        password and a detected replay still end it at once.
       security: []
       requestBody:
         required: true
@@ -991,12 +996,13 @@ paths:
         here to everyone except themselves; asking about your own id always
         returns your true state. An id with nothing live to report (never
         existed, or deleted) is simply absent from the result, the same
-        contract `GET /users` has.
+        contract `GET /users` has. Asking for no ids is a 400, never an empty
+        list, so an empty answer always means nobody asked about is present.
       parameters:
         - name: ids
           in: query
           required: true
-          description: Comma-separated user UUIDs, at most 100.
+          description: Comma-separated user UUIDs, at least 1 and at most 100.
           schema:
             type: string
       responses:
@@ -1072,6 +1078,65 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /presence/heartbeat:
+    put:
+      operationId: heartbeatPresence
+      tags: [presence]
+      summary: Stay present without a socket.
+      description: >
+        For a bot or agent that speaks only HTTP. While unexpired the caller
+        reads as `online` (or the `status` sent) with the `activity` sent, to
+        exactly the viewers who can see their presence, and a change and the
+        expiry fan out over the WebSocket like a socket connecting or closing.
+        Send it again before `ttl_seconds` run out to stay present; the latest
+        call replaces the ttl and status. A heartbeat and a socket together
+        read as present until both are gone, and a durable `away`, `dnd` or
+        `hidden` choice outranks the `status` sent (hidden stays offline to
+        everyone else). `activity` is optional and left as it was when
+        absent; `DELETE /presence/activity` clears it. Held in memory only.
+        Rate limited like `PUT /presence/activity`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PresenceHeartbeatRequest"
+      responses:
+        "200":
+          description: The heartbeat is recorded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PresenceHeartbeat"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: The caller is timed out (code `timed_out`) or has not accepted the rules yet.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    delete:
+      operationId: endPresenceHeartbeat
+      tags: [presence]
+      summary: End the caller's heartbeat now.
+      description: >
+        Idempotent. The caller reads offline at once unless a socket still
+        holds them present.
+      responses:
+        "204":
+          description: Ended, or there was none.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
   /presence/activity:
     put:
       operationId: setPresenceActivity
@@ -1079,8 +1144,10 @@ paths:
       summary: Say what the caller is listening to or playing.
       description: >
         Ephemeral and opt-in on the client: held in memory against the
-        caller's live socket, cleared when the last socket closes, never
-        stored. It reaches exactly the viewers who can already see the
+        caller's live socket, or live `PUT /presence/heartbeat`, cleared when
+        the last of those ends, never stored. A client with no socket and no
+        heartbeat has nothing to hold it against, so the request is accepted
+        and forgotten; send a heartbeat first. It reaches exactly the viewers who can already see the
         caller's presence, through the same rule, so a `hidden` user's
         activity is invisible to everyone else. Title and subtitle are at
         most 128 characters and free of control and direction characters.
@@ -1093,7 +1160,9 @@ paths:
               $ref: "#/components/schemas/PresenceActivity"
       responses:
         "204":
-          description: Accepted, or ignored when the caller has no live socket.
+          description: >
+            Accepted, or ignored when the caller has no live socket and no
+            live heartbeat.
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -15135,7 +15204,14 @@ components:
             not exist, still answers the bare 403 with no code.
             `canvas_export_too_large` and `canvas_export_busy` on a 409 from
             `exportCanvas`: the board holds more objects than one export
-            copies, or another export of it is running. Absent on every
+            copies, or another export of it is running. On a 401: `token_expired`
+            (a bearer access token that lapsed, so refresh it), `token_invalid`
+            (one never issued or since revoked by a sign-out, device removal,
+            password change or detected token reuse, so sign in again) and
+            `bad_credentials` (a sign-in that did not verify, whatever the
+            reason). The two token codes also send `WWW-Authenticate: Bearer
+            error="invalid_token"`; the `error` text stays `invalid credentials`
+            throughout. Absent on every
             other error; read an unknown value as a refusal for another reason.
         timed_out_until:
           type: integer
@@ -18248,6 +18324,34 @@ components:
         theme_id:
           type: string
           nullable: true
+    PresenceHeartbeatRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+          enum: [online, away, dnd]
+          description: What to read as; `online` when absent. Use `PATCH /presence` for `hidden`.
+        activity:
+          $ref: "#/components/schemas/PresenceActivity"
+        ttl_seconds:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 300
+          description: How long this heartbeat keeps the caller present; 60 when absent.
+    PresenceHeartbeat:
+      type: object
+      required: [ttl_seconds, expires_at]
+      properties:
+        ttl_seconds:
+          type: integer
+          format: int32
+          description: The ttl in force.
+        expires_at:
+          type: integer
+          format: int64
+          description: When the caller lapses to offline unless refreshed, unix milliseconds.
     PresenceActivity:
       type: object
       required: [type, title]

@@ -91,6 +91,25 @@ async fn a_timed_out_member_cannot_broadcast_an_activity_but_can_clear_one() {
 }
 
 #[tokio::test]
+async fn a_timed_out_member_cannot_heartbeat_but_can_end_one() {
+    let t = TestApp::start("slimm-guard-heartbeat").await;
+    let token = t.member.token.clone();
+    let body = json!({ "ttl_seconds": 30 });
+    let (status, _) = t
+        .call("PUT", "/presence/heartbeat", &token, Some(body.clone()))
+        .await;
+    assert_eq!(status, StatusCode::OK);
+
+    time_out(&t, t.member.id).await;
+    let (status, refused) = t
+        .call("PUT", "/presence/heartbeat", &token, Some(body))
+        .await;
+    assert_timed_out(status, &refused, "a heartbeat");
+    let (status, _) = t.call("DELETE", "/presence/heartbeat", &token, None).await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+}
+
+#[tokio::test]
 async fn a_timed_out_manager_cannot_mint_a_bot_token() {
     let t = TestApp::start("slimm-guard-bots").await;
     let bot = t

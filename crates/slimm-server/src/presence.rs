@@ -34,9 +34,13 @@ use crate::viewing::ViewingTracker;
 
 mod device_sockets;
 mod devices;
+mod heartbeat;
 
 use devices::DeviceCounts;
 pub use devices::DeviceKind;
+pub use heartbeat::{
+    BeatDue, BeatRecorded, DEFAULT_TTL as HEARTBEAT_DEFAULT_TTL, MAX_TTL as HEARTBEAT_MAX_TTL,
+};
 
 pub mod canvas_viewers;
 pub mod presence_activity;
@@ -157,6 +161,8 @@ struct Entry {
     activity: Option<Activity>,
     /// Live sockets per kind of client, so a viewer can tell phone from desktop.
     devices: DeviceCounts,
+    /// A REST heartbeat holding this entry open, counted among `connections`.
+    beat: Option<heartbeat::Beat>,
 }
 
 impl Default for PresenceTracker {
@@ -215,6 +221,7 @@ impl PresenceTracker {
             visibility: None,
             activity: None,
             devices: DeviceCounts::default(),
+            beat: None,
         });
         let before = entry.devices.signature();
         entry.connections += 1;

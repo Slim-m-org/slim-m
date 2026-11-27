@@ -32,6 +32,7 @@ mod presence_active_frame;
 mod presence_activity;
 mod presence_departure_cost;
 mod presence_device_kinds;
+mod presence_heartbeat;
 mod presence_hidden_connections;
 mod presence_reconnect;
 mod read_state_devices;

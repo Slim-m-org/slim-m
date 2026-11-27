@@ -29,6 +29,7 @@ use crate::presence_activity::Activity;
 use crate::ratelimit::Class;
 
 mod canvas_viewers;
+mod heartbeat;
 
 const BODY_LIMIT: usize = 1024;
 
@@ -44,6 +45,10 @@ pub fn routes() -> Router<AppState> {
         .route(
             "/presence/activity",
             put(set_activity).delete(clear_activity),
+        )
+        .route(
+            "/presence/heartbeat",
+            put(put_heartbeat).delete(delete_heartbeat),
         )
         .layer(DefaultBodyLimit::max(BODY_LIMIT))
 }
@@ -100,6 +105,9 @@ async fn list(
         }
         ids.push(UserId(parse_uuid(part)?));
     }
+    if ids.is_empty() {
+        return Err(ApiError::BadRequest("ids is required"));
+    }
 
     // One batched lookup rather than one per id; see `Store::presence_visibility_many`.
     let visibilities = state.store.presence_visibility_many(&ids).await?;
@@ -112,7 +120,7 @@ async fn list(
         let status = presence::status_for(
             ctx.user_id,
             target,
-            visibility,
+            tracker.effective_visibility(target, visibility),
             tracker.is_connected(target),
             tracker.is_idle(target),
         );
@@ -160,8 +168,8 @@ async fn set_visibility(
     }))
 }
 
-/// Sets what the caller is doing. Held only in memory against their live
-/// socket, so a caller with none is accepted and simply forgotten.
+/// Sets what the caller is doing. Held in memory against their live socket
+/// or heartbeat; a caller with neither is accepted and simply forgotten.
 async fn set_activity(
     Participant(ctx): Participant<PRESENCE_ACTIVITY>,
     State(state): State<AppState>,
@@ -182,6 +190,26 @@ async fn clear_activity(
 ) -> Result<StatusCode, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::PresenceActivity)?;
     announce_if_changed(&state, ctx.user_id, None);
+    Ok(StatusCode::NO_CONTENT)
+}
+
+/// Keeps the caller present without a socket; see [`heartbeat`].
+async fn put_heartbeat(
+    Participant(ctx): Participant<PRESENCE_ACTIVITY>,
+    State(state): State<AppState>,
+    Json(req): Json<heartbeat::HeartbeatRequest>,
+) -> Result<Json<heartbeat::HeartbeatDto>, ApiError> {
+    Ok(Json(heartbeat::record(&state, ctx.user_id, req)?))
+}
+
+/// Ends the caller's heartbeat. Idempotent.
+async fn delete_heartbeat(
+    Authed(ctx): Authed,
+    parts: Parts,
+    State(state): State<AppState>,
+) -> Result<StatusCode, ApiError> {
+    enforce(&state, &parts, Some(&ctx), Class::PresenceActivity)?;
+    heartbeat::end(&state, ctx.user_id);
     Ok(StatusCode::NO_CONTENT)
 }
 

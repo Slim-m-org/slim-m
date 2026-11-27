@@ -46,6 +46,35 @@ Call `GET /me` first. It returns the bot's own id and its effective base permiss
 Python's `urllib` is the common case: `Python-urllib/3.x` is blocked by Cloudflare's defaults, and the same call with any named user-agent succeeds.
 Name your bot there and the problem does not exist.
 
+## Working over plain HTTP, without a WebSocket
+
+An agent that signs in as a person, or a bot that never opens a socket, can do everything over REST.
+Three things differ from a socket client.
+
+**Refreshing.** `POST /auth/refresh` rotates the pair, and the access token it replaces keeps working for 30 seconds, so a request already in flight, or a second process sharing the session, does not fail when one of them refreshes.
+Signing out, removing the device, changing the password and a detected refresh-token replay still end it at once.
+
+**Telling a 401 apart.** The body keeps `error: "invalid credentials"` and adds a `code`.
+`token_expired` means the access token lapsed, so refresh it.
+`token_invalid` means it was never issued or has been revoked, so sign in again.
+`bad_credentials` is a sign-in that did not verify.
+The two token codes also send `WWW-Authenticate: Bearer error="invalid_token"`.
+
+**Being present.** Presence normally comes from a live socket, and `PUT /presence/activity` is held against one, so a client with none is accepted and forgotten.
+Send `PUT /presence/heartbeat` instead:
+
+```
+{ "status": "online", "activity": { "type": "playing", "title": "Chess" }, "ttl_seconds": 60 }
+```
+
+`status` is `online`, `away` or `dnd` (default `online`), `ttl_seconds` is 1 to 300 (default 60), and `activity` is optional.
+While the heartbeat is unexpired you read as that status with that activity to everyone who can see your presence, and a change or the expiry reaches live viewers like a socket connecting or closing.
+Send it again before the ttl runs out to stay present, and `DELETE /presence/heartbeat` ends it at once.
+A durable `away`, `dnd` or `hidden` choice outranks the status you send, and a socket and a heartbeat together read as present until both are gone.
+While a heartbeat is live, `PUT /presence/activity` applies to it too.
+
+`GET /presence?ids=...` needs at least one id: asking for none is a 400, so an empty list always means nobody you asked about is present.
+
 ## Receiving events
 
 Events come over the WebSocket, and getting on it is two steps:
