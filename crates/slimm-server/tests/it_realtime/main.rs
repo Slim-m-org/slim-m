@@ -33,6 +33,7 @@ mod presence_activity;
 mod presence_departure_cost;
 mod presence_device_kinds;
 mod presence_heartbeat;
+mod presence_heartbeat_ends;
 mod presence_hidden_connections;
 mod presence_reconnect;
 mod read_state_devices;

@@ -10,7 +10,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
 use super::{DeviceKind, Entry, PresenceTracker, Visibility, lock};
-use crate::ids::UserId;
+use crate::ids::{SessionId, UserId};
 use crate::presence_activity::Activity;
 
 /// The longest a single heartbeat keeps a user present.
@@ -20,6 +20,8 @@ pub const DEFAULT_TTL: Duration = Duration::from_secs(60);
 
 pub(super) struct Beat {
     expires: Instant,
+    /// The session of the latest heartbeat, whose revocation ends the beat like a closed socket.
+    session: SessionId,
     generation: u64,
     /// A transient status the heartbeat asked for; a durable non-online choice outranks it.
     status: Visibility,
@@ -48,6 +50,7 @@ impl PresenceTracker {
     pub fn beat(
         &self,
         user_id: UserId,
+        session: SessionId,
         ttl: Duration,
         status: Visibility,
         activity: Option<Activity>,
@@ -61,6 +64,7 @@ impl PresenceTracker {
         match entry.beat.as_mut() {
             Some(beat) => {
                 beat.expires = expires;
+                beat.session = session;
                 beat.status = status;
             }
             None => {
@@ -69,6 +73,7 @@ impl PresenceTracker {
                 entry.devices.add(DeviceKind::Unknown);
                 entry.beat = Some(Beat {
                     expires,
+                    session,
                     generation,
                     status,
                 });
@@ -90,6 +95,15 @@ impl PresenceTracker {
     /// Ends `user_id`'s heartbeat at once. Returns whether a viewer could see the change.
     pub fn end_beat(&self, user_id: UserId) -> bool {
         finish_beat(&mut lock(&self.state), user_id)
+    }
+
+    /// The session holding the beat `generation` named, or `None` once that beat is gone.
+    pub fn beat_session(&self, user_id: UserId, generation: u64) -> Option<SessionId> {
+        lock(&self.state)
+            .get(&user_id)
+            .and_then(|entry| entry.beat.as_ref())
+            .filter(|beat| beat.generation == generation)
+            .map(|beat| beat.session)
     }
 
     /// An expiry timer's check: ends the beat when it is due and still the one `generation` named.

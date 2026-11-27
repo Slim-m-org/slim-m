@@ -199,7 +199,12 @@ async fn put_heartbeat(
     State(state): State<AppState>,
     Json(req): Json<heartbeat::HeartbeatRequest>,
 ) -> Result<Json<heartbeat::HeartbeatDto>, ApiError> {
-    Ok(Json(heartbeat::record(&state, ctx.user_id, req)?))
+    Ok(Json(heartbeat::record(
+        &state,
+        ctx.user_id,
+        ctx.session_id,
+        req,
+    )?))
 }
 
 /// Ends the caller's heartbeat. Idempotent.

@@ -10,9 +10,10 @@ use serde::{Deserialize, Serialize};
 use super::AppState;
 use crate::http::error::ApiError;
 use crate::hub::Event;
-use crate::ids::UserId;
+use crate::ids::{SessionId, UserId};
 use crate::presence::{BeatDue, HEARTBEAT_DEFAULT_TTL, HEARTBEAT_MAX_TTL, Visibility};
 use crate::presence_activity::Activity;
+use tokio::sync::broadcast::error::RecvError;
 
 #[derive(Deserialize)]
 pub(super) struct HeartbeatRequest {
@@ -31,6 +32,7 @@ pub(super) struct HeartbeatDto {
 pub(super) fn record(
     state: &AppState,
     user_id: UserId,
+    session: SessionId,
     req: HeartbeatRequest,
 ) -> Result<HeartbeatDto, ApiError> {
     let ttl_seconds = req.ttl_seconds.unwrap_or(HEARTBEAT_DEFAULT_TTL.as_secs());
@@ -53,8 +55,11 @@ pub(super) fn record(
             .map_err(ApiError::BadRequest)?;
     }
 
+    // Subscribed before the beat exists, so a revocation racing it cannot be missed.
+    let events = state.hub.subscribe();
     let recorded = state.hub.presence().beat(
         user_id,
+        session,
         Duration::from_secs(ttl_seconds),
         status,
         req.activity,
@@ -64,7 +69,7 @@ pub(super) fn record(
         state.hub.publish(Event::presence_changed(user_id));
     }
     if let Some((generation, expires)) = recorded.timer {
-        spawn_expiry(state.hub.clone(), user_id, generation, expires);
+        spawn_expiry(state.hub.clone(), events, (user_id, generation), expires);
     }
     Ok(HeartbeatDto {
         ttl_seconds,
@@ -79,12 +84,55 @@ pub(super) fn end(state: &AppState, user_id: UserId) {
     }
 }
 
-/// One timer per heartbeat, which sleeps to each refreshed expiry until the beat lapses.
-fn spawn_expiry(hub: crate::hub::Hub, user_id: UserId, generation: u64, first: Instant) {
+/// Whether `event` takes the heartbeat's session, or its member, away, as it would close a socket.
+fn ends_beat(event: &Event, user_id: UserId, session: SessionId) -> bool {
+    match event {
+        Event::Stamped { event, .. } => ends_beat(event, user_id, session),
+        Event::SessionRevoked(revoked) => *revoked == session,
+        Event::AccountSessionsRevoked { user_id: who, kept } => {
+            *who == user_id && *kept != Some(session)
+        }
+        Event::MemberRemoved { user_id: who, .. } => *who == user_id,
+        _ => false,
+    }
+}
+
+/// One task per heartbeat: sleeps to each refreshed expiry, and ends the beat early on a revocation or removal.
+///
+/// A subscriber that lagged cannot know what it missed, so it ends the beat; the client beats again.
+fn spawn_expiry(
+    hub: crate::hub::Hub,
+    mut events: tokio::sync::broadcast::Receiver<Event>,
+    (user_id, generation): (UserId, u64),
+    first: Instant,
+) {
     tokio::spawn(async move {
         let mut due = first;
         loop {
-            tokio::time::sleep_until(tokio::time::Instant::from_std(due)).await;
+            let ended_early = tokio::select! {
+                () = tokio::time::sleep_until(tokio::time::Instant::from_std(due)) => false,
+                event = events.recv() => match event {
+                    Ok(event) => {
+                        let Some(session) = hub.presence().beat_session(user_id, generation) else {
+                            return;
+                        };
+                        if !ends_beat(&event, user_id, session) {
+                            continue;
+                        }
+                        true
+                    }
+                    Err(RecvError::Lagged(_)) => true,
+                    Err(RecvError::Closed) => return,
+                },
+            };
+            if ended_early {
+                if hub.presence().beat_session(user_id, generation).is_some()
+                    && hub.presence().end_beat(user_id)
+                {
+                    hub.publish(Event::presence_changed(user_id));
+                }
+                return;
+            }
             match hub.presence().beat_due(user_id, generation, Instant::now()) {
                 BeatDue::Later(next) => due = next,
                 BeatDue::Ended { changed } => {
