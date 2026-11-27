@@ -54,6 +54,7 @@ pub(super) mod canvas_ops_apply;
 pub(super) mod canvas_ops_sweep;
 pub(super) mod canvas_ops_write;
 pub(super) mod canvas_purge;
+pub(super) mod canvas_reads;
 pub(super) mod canvas_state_version;
 pub(super) mod canvas_tile_scenes;
 

@@ -41,8 +41,10 @@ pub(super) mod canvas_media_slots;
 pub(super) mod canvas_module_tiles;
 pub(super) mod canvas_object_locks;
 pub(super) mod canvas_ops;
+pub(super) mod canvas_ops_wait;
 pub(super) mod canvas_ops_write;
 pub(super) mod canvas_purge;
+pub(super) mod canvas_reads;
 pub(super) mod canvas_tile_scene;
 pub(super) mod canvas_write;
 
@@ -68,6 +70,14 @@ pub fn routes() -> Router<AppState> {
             "/channels/{channel_id}/canvas/ops",
             get(list_ops).post(submit_op),
         )
+        .route(
+            "/channels/{channel_id}/canvas/objects/{object_id}",
+            get(canvas_reads::object),
+        )
+        .route(
+            "/channels/{channel_id}/canvas/summary",
+            get(canvas_reads::summary),
+        )
         .layer(DefaultBodyLimit::max(MAX_BODY_BYTES))
         .merge(
             Router::new()
@@ -86,10 +96,10 @@ pub fn routes() -> Router<AppState> {
 
 #[derive(Deserialize)]
 struct ViewportParams {
-    min_x: f64,
-    min_y: f64,
-    max_x: f64,
-    max_y: f64,
+    min_x: Option<f64>,
+    min_y: Option<f64>,
+    max_x: Option<f64>,
+    max_y: Option<f64>,
     prev_min_x: Option<f64>,
     prev_min_y: Option<f64>,
     prev_max_x: Option<f64>,
@@ -98,6 +108,27 @@ struct ViewportParams {
     limit: Option<i64>,
     /// Pages the region in `seq` order: objects after this seq, oldest first.
     cursor_seq: Option<i64>,
+    /// Comma-separated object ids to read instead of a region.
+    ids: Option<String>,
+}
+
+impl ViewportParams {
+    fn region_given(&self) -> bool {
+        [self.min_x, self.min_y, self.max_x, self.max_y]
+            .iter()
+            .any(Option::is_some)
+    }
+
+    fn previous_given(&self) -> bool {
+        [
+            self.prev_min_x,
+            self.prev_min_y,
+            self.prev_max_x,
+            self.prev_max_y,
+        ]
+        .iter()
+        .any(Option::is_some)
+    }
 }
 
 #[derive(Serialize)]
@@ -137,7 +168,7 @@ impl From<CanvasObject> for CanvasObjectDto {
 }
 
 #[derive(Serialize)]
-struct ViewportDto {
+pub(super) struct ViewportDto {
     objects: Vec<CanvasObjectDto>,
     /// More objects intersect this viewport than the limit allowed. A client
     /// seeing this should zoom in or raise its limit, not paginate: there is
@@ -164,7 +195,26 @@ async fn viewport(
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
     canvas_read_access(&state, ctx.user_id, channel_id).await?;
 
-    let view = rect(params.min_x, params.min_y, params.max_x, params.max_y)?;
+    if let Some(ids) = &params.ids {
+        if params.region_given()
+            || params.previous_given()
+            || params.after_seq.is_some()
+            || params.cursor_seq.is_some()
+        {
+            return Err(ApiError::BadRequest(
+                "ids cannot be combined with a region, the previous viewport, after_seq or cursor_seq",
+            ));
+        }
+        return canvas_reads::by_ids(&state, ctx.user_id, channel_id, ids).await;
+    }
+    let (Some(min_x), Some(min_y), Some(max_x), Some(max_y)) =
+        (params.min_x, params.min_y, params.max_x, params.max_y)
+    else {
+        return Err(ApiError::BadRequest(
+            "a viewport needs min_x, min_y, max_x and max_y, or ids",
+        ));
+    };
+    let view = rect(min_x, min_y, max_x, max_y)?;
     let previous = match (
         params.prev_min_x,
         params.prev_min_y,

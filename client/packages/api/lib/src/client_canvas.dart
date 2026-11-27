@@ -60,6 +60,44 @@ extension SlimmApiCanvas on SlimmApi {
         CanvasViewport.fromJson);
   }
 
+  /// The live objects among [objectIds] (at most 100) in paint order; ids
+  /// that are unknown or removed are absent.
+  Future<CanvasViewport> canvasObjectsById(
+    String channelId, {
+    required List<String> objectIds,
+  }) async {
+    final json = await send(
+      'GET',
+      '/channels/$channelId/canvas/objects',
+      query: {'ids': objectIds.join(',')},
+    );
+    return decodeShape(json, 'GET /channels/$channelId/canvas/objects',
+        CanvasViewport.fromJson);
+  }
+
+  /// One live object; a 404 means it is unknown, removed or on another board.
+  Future<CanvasObject> canvasObject(String channelId, String objectId) async {
+    final json = await send(
+      'GET',
+      '/channels/$channelId/canvas/objects/$objectId',
+    );
+    return decodeShape(
+      json,
+      'GET /channels/$channelId/canvas/objects/$objectId',
+      CanvasObject.fromJson,
+    );
+  }
+
+  /// The board's live object count and the box around them.
+  Future<CanvasSummary> canvasBoardSummary(String channelId) async {
+    final json = await send('GET', '/channels/$channelId/canvas/summary');
+    return decodeShape(
+      json,
+      'GET /channels/$channelId/canvas/summary',
+      CanvasSummary.fromJson,
+    );
+  }
+
   /// Places one object, idempotent by [id].
   ///
   /// [id] is a client-generated UUIDv7 and is the idempotency key, exactly as
@@ -167,14 +205,19 @@ extension SlimmApiCanvas on SlimmApi {
   /// Pages the canvas op stream from [afterSeq] (exclusive): the catch-up
   /// feed a client reconciling after a drop or a reconnect reads, rather
   /// than a full viewport re-read.
+  ///
+  /// With [wait] seconds the server holds an otherwise empty answer open for
+  /// the next op, for clients that cannot keep a socket.
   Future<CanvasOpsPage> canvasOps(
     String channelId, {
     required int afterSeq,
     int? limit,
+    int? wait,
   }) async {
     final query = <String, String>{
       'after_seq': '$afterSeq',
       if (limit != null) 'limit': '$limit',
+      if (wait != null) 'wait': '$wait',
     };
     final json = await send(
       'GET',

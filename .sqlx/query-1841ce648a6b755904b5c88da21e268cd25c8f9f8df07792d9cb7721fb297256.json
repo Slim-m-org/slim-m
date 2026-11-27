@@ -1,0 +1,146 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT o.id AS \"id!: CanvasObjectId\", o.kind AS \"kind!\",\n                          o.z_index AS \"z_index!: i64\",\n                          o.x AS \"x!: f64\", o.y AS \"y!: f64\",\n                          o.w AS \"w!: f64\", o.h AS \"h!: f64\",\n                          p.props AS \"props!\", o.author_id AS \"author_id: UserId\",\n                          o.seq AS \"seq!: Seq\", o.created_at AS \"created_at!: i64\"\n                   FROM canvas_objects o\n                   JOIN canvas_object_props p ON p.object_id = o.id\n                   WHERE o.id = ? AND o.channel_id = ? AND o.deleted_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: CanvasObjectId",
+        "ordinal": 0,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "canvas_objects",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "kind!",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "canvas_objects",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "name": "z_index!: i64",
+        "ordinal": 2,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "canvas_objects",
+            "name": "z_index"
+          }
+        }
+      },
+      {
+        "name": "x!: f64",
+        "ordinal": 3,
+        "type_info": "Float",
+        "origin": {
+          "Table": {
+            "table": "canvas_objects",
+            "name": "x"
+          }
+        }
+      },
+      {
+        "name": "y!: f64",
+        "ordinal": 4,
+        "type_info": "Float",
+        "origin": {
+          "Table": {
+            "table": "canvas_objects",
+            "name": "y"
+          }
+        }
+      },
+      {
+        "name": "w!: f64",
+        "ordinal": 5,
+        "type_info": "Float",
+        "origin": {
+          "Table": {
+            "table": "canvas_objects",
+            "name": "w"
+          }
+        }
+      },
+      {
+        "name": "h!: f64",
+        "ordinal": 6,
+        "type_info": "Float",
+        "origin": {
+          "Table": {
+            "table": "canvas_objects",
+            "name": "h"
+          }
+        }
+      },
+      {
+        "name": "props!",
+        "ordinal": 7,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "canvas_object_props",
+            "name": "props"
+          }
+        }
+      },
+      {
+        "name": "author_id: UserId",
+        "ordinal": 8,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "canvas_objects",
+            "name": "author_id"
+          }
+        }
+      },
+      {
+        "name": "seq!: Seq",
+        "ordinal": 9,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "canvas_objects",
+            "name": "seq"
+          }
+        }
+      },
+      {
+        "name": "created_at!: i64",
+        "ordinal": 10,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "canvas_objects",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "1841ce648a6b755904b5c88da21e268cd25c8f9f8df07792d9cb7721fb297256"
+}
