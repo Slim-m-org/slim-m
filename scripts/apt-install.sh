@@ -46,8 +46,8 @@ install_from_cache() {
   [[ -n "$DEB_CACHE" ]] || return 1
   local debs=("$DEB_CACHE"/*.deb)
   [[ -f "${debs[0]}" ]] || return 1
-  # dpkg rather than apt: apt refuses a list of local .debs that depend on each other ("Pathname to install is not absolute").
-  timeout "$INSTALL_LIMIT" sudo DEBIAN_FRONTEND=noninteractive dpkg -i "${debs[@]}"
+  # dpkg, since apt refuses a list of local .debs that depend on each other; a cached deb newer than the image's may replace what it breaks.
+  timeout "$INSTALL_LIMIT" sudo DEBIAN_FRONTEND=noninteractive dpkg -i --auto-deconfigure "${debs[@]}"
 }
 
 # A cache that installed cleanly but missed a requested package is not a hit.
