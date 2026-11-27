@@ -302,7 +302,7 @@ There is no CocoaPods cache: the plugin tree is SPM-only and the app tracks no P
 `flutter build ios --simulator --no-codesign --config-only` runs first because xcodebuild needs the generated Flutter config and the plugin registrant to exist before the project will open.
 `--config-only` writes them and resolves the Swift packages without compiling anything, so `xcodebuild build-for-testing` is the only simulator build.
 Until 2026-11-17 this step was a full `flutter build ios --simulator`, which built the app into `build/ios`, and `xcodebuild test` then built it again in its own DerivedData, about 3.8 minutes more.
-The broadcast extension check reads `BroadcastExtension.appex` from that DerivedData once the build is done; it checks every copy it finds, the embedded one included.
+The extension check reads `BroadcastExtension.appex` and `ShareExtension.appex` from that DerivedData once the build is done; it checks every copy it finds, the embedded one included.
 
 The build and the run are separate steps, `build-for-testing` and then `test-without-building` with `-parallel-testing-enabled NO`: the scheme marks `RunnerTests` parallelizable, and xcodebuild would clone and boot more simulators for a suite that runs in seconds.
 The run reads the `.xctestrun` file the build wrote rather than the workspace, since opening the workspace again (about 55 pod targets and the Swift package graph) took 0.8 to 2.5 minutes before the first test.
@@ -381,6 +381,13 @@ This gate turns that into a red PR instead.
 
 Every piece of the screen-share broadcast extension (the Xcode target, its App Group, its Info.plist entries, its embedding in the app bundle) fails silently at runtime when wrong: the button does nothing, or the broadcast starts and sends no frames.
 This step checks the identifiers agree with each other across `project.pbxproj` and both Info.plists rather than merely that each file exists, since that is exactly how this shipped broken once already.
+
+### The iOS share extension is wired up
+
+slim-m appears in the iPhone share sheet only if a chain of pieces all agree, and every break is silent on a phone: the extension target, its embedding in the app, its own bundle id and provisioning profile, the App Group it copies shared files into, the URL scheme it opens the app with, and the channel the app answers on for Dart.
+`scripts/lib/test_ios_share_extension_wired.py` parses `project.pbxproj` with `scripts/lib/pbxproj_parse.py` (no Xcode and no plutil on a Linux runner) and compares those pieces with each other, the way the broadcast check does with text.
+It runs with the other `scripts/lib` tests, so it needs no step of its own.
+What it cannot prove is that the extension compiles or that iOS offers it; `client-ios-ci` builds it, and a TestFlight build on a real iPhone is the only proof of the share sheet itself.
 
 ### Orientation is locked on phones only
 
@@ -1040,7 +1047,7 @@ Emitting only the tag left `--build-name=` empty on every run before that was fi
 Builds the signed ipa and uploads it to TestFlight, under a reviewer-gated environment.
 It is intentionally inert until the signing and App Store Connect secrets exist, and warns and stops rather than faking an upload.
 
-All eight secrets must be present for the job to do real work.
+All nine secrets must be present for the job to do real work.
 The list said six and named six until 2026-08-11, having never been updated when the broadcast extension gained a profile of its own:
 
 - `APP_STORE_CONNECT_KEY_ID` - App Store Connect API key id.
@@ -1051,9 +1058,10 @@ The list said six and named six until 2026-08-11, having never been updated when
 - `IOS_PROVISIONING_PROFILE` - base64 of the app's own `.mobileprovision` profile.
 - `IOS_BROADCAST_PROVISIONING_PROFILE` - the same for the broadcast upload extension.
 - `IOS_NSE_PROVISIONING_PROFILE` - the same for the notification service extension.
+- `IOS_SHARE_PROVISIONING_PROFILE` - the same for the share extension, whose bundle id is `top.npcserver.slimm.ShareExtension` and whose profile is named `slim-m Share Extension App Store`.
 
-The app and both extensions are separately signed bundles, so each needs its own profile.
-A missing one fails the export naming only that bundle id, which sends you looking at the wrong thing, so the gate checks all three before the build rather than at export time.
+The app and its three extensions are separately signed bundles, so each needs its own profile.
+A missing one fails the export naming only that bundle id, which sends you looking at the wrong thing, so the gate checks all four before the build rather than at export time.
 
 The signing identity goes into a throwaway keychain rather than the login one.
 The runner is ephemeral, and a dedicated keychain keeps the private key out of any shared default that later steps touch.

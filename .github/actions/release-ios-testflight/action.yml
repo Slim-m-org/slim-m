@@ -37,6 +37,8 @@ runs:
           | base64 --decode > "$BROADCAST_PROFILE_PATH"
         NSE_PROFILE_PATH="${RUNNER_TEMP}/build_pp_nse.mobileprovision"
         printf '%s' "$IOS_NSE_PROVISIONING_PROFILE" | base64 --decode > "$NSE_PROFILE_PATH"
+        SHARE_PROFILE_PATH="${RUNNER_TEMP}/build_pp_share.mobileprovision"
+        printf '%s' "$IOS_SHARE_PROVISIONING_PROFILE" | base64 --decode > "$SHARE_PROFILE_PATH"
 
         security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
         security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
@@ -48,11 +50,11 @@ runs:
           -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" >/dev/null
         security list-keychain -d user -s "$KEYCHAIN_PATH"
 
-        # xcodebuild finds a profile by its UUID under this directory, so the file has to be named for the UUID embedded in its own signed plist. One per bundle: the app and both extensions are signed separately, and a missing extension profile fails the export naming only that bundle id.
+        # xcodebuild finds a profile by its UUID under this directory, so the file has to be named for the UUID embedded in its own signed plist. One per bundle: the app and its three extensions are signed separately, and a missing extension profile fails the export naming only that bundle id.
         PROFILE_DIR="${HOME}/Library/MobileDevice/Provisioning Profiles"
         mkdir -p "$PROFILE_DIR"
         INSTALLED=""
-        for pp in "$PROFILE_PATH" "$BROADCAST_PROFILE_PATH" "$NSE_PROFILE_PATH"; do
+        for pp in "$PROFILE_PATH" "$BROADCAST_PROFILE_PATH" "$NSE_PROFILE_PATH" "$SHARE_PROFILE_PATH"; do
           UUID="$(security cms -D -i "$pp" | plutil -extract UUID raw -o - -)"
           NAME="$(security cms -D -i "$pp" | plutil -extract Name raw -o - -)"
           cp "$pp" "${PROFILE_DIR}/${UUID}.mobileprovision"

@@ -319,6 +319,7 @@ jobs:
       IOS_PROVISIONING_PROFILE: ${{ secrets.IOS_PROVISIONING_PROFILE }}
       IOS_BROADCAST_PROVISIONING_PROFILE: ${{ secrets.IOS_BROADCAST_PROVISIONING_PROFILE }}
       IOS_NSE_PROVISIONING_PROFILE: ${{ secrets.IOS_NSE_PROVISIONING_PROFILE }}
+      IOS_SHARE_PROVISIONING_PROFILE: ${{ secrets.IOS_SHARE_PROVISIONING_PROFILE }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -329,11 +330,12 @@ jobs:
              && [ -n "$APP_STORE_CONNECT_PRIVATE_KEY" ] && [ -n "$IOS_SIGNING_CERTIFICATE_P12" ] \
              && [ -n "$IOS_SIGNING_CERTIFICATE_PASSWORD" ] && [ -n "$IOS_PROVISIONING_PROFILE" ] \
              && [ -n "$IOS_BROADCAST_PROVISIONING_PROFILE" ] \
-             && [ -n "$IOS_NSE_PROVISIONING_PROFILE" ]; then
+             && [ -n "$IOS_NSE_PROVISIONING_PROFILE" ] \
+             && [ -n "$IOS_SHARE_PROVISIONING_PROFILE" ]; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
           else
             echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::iOS TestFlight secrets are not configured. Add the App Store Connect API key, signing certificate, and all three provisioning profile secrets (the app's, the broadcast extension's and the notification service extension's) to enable the build and upload. Skipping."
+            echo "::warning::iOS TestFlight secrets are not configured. Add the App Store Connect API key, signing certificate, and all four provisioning profile secrets (the app's, the broadcast extension's, the notification service extension's and the share extension's) to enable the build and upload. Skipping."
           fi
 
       - name: resolve version
