@@ -11,8 +11,8 @@ use std::error::Error as StdError;
 
 use axum::Json;
 use axum::extract::rejection::{BytesRejection, JsonRejection, QueryRejection};
-use axum::http::StatusCode;
-use axum::http::header::RETRY_AFTER;
+use axum::http::header::{RETRY_AFTER, WWW_AUTHENTICATE};
+use axum::http::{HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use serde::Serialize;
 
@@ -147,6 +147,29 @@ struct ErrorBody {
 /// The `code` of an [`ApiError::TimedOut`]; mirrors `ForbiddenException.timedOutCode` in the client.
 const TIMED_OUT_CODE: &str = "timed_out";
 
+/// The `error` text every 401 carries; the `code` beside it is what tells the cases apart.
+const INVALID_CREDENTIALS: &str = "invalid credentials";
+
+impl ApiError {
+    /// A 401 for a bearer token that is no longer good: `token_expired` or `token_invalid`.
+    pub(crate) fn bad_token(code: &'static str) -> Self {
+        ApiError::Coded {
+            status: StatusCode::UNAUTHORIZED,
+            message: INVALID_CREDENTIALS,
+            code,
+        }
+    }
+
+    /// A 401 for a sign-in that did not verify, whatever the reason.
+    pub(crate) fn bad_credentials() -> Self {
+        ApiError::Coded {
+            status: StatusCode::UNAUTHORIZED,
+            message: INVALID_CREDENTIALS,
+            code: "bad_credentials",
+        }
+    }
+}
+
 impl IntoResponse for ApiError {
     fn into_response(mut self) -> Response {
         let items = match &mut self {
@@ -182,7 +205,7 @@ impl IntoResponse for ApiError {
         let (status, error): (StatusCode, Cow<'static, str>) = match self {
             ApiError::BadRequest(message) => (StatusCode::BAD_REQUEST, message.into()),
             ApiError::BadRequestDetail(message) => (StatusCode::BAD_REQUEST, message.into()),
-            ApiError::Unauthorized => (StatusCode::UNAUTHORIZED, "invalid credentials".into()),
+            ApiError::Unauthorized => (StatusCode::UNAUTHORIZED, INVALID_CREDENTIALS.into()),
             ApiError::Forbidden => (StatusCode::FORBIDDEN, "insufficient permissions".into()),
             ApiError::MissingPermissions(_) => (
                 StatusCode::FORBIDDEN,
@@ -246,6 +269,13 @@ impl IntoResponse for ApiError {
             }),
         )
             .into_response();
+        if code.is_some_and(|code| code.starts_with("token_")) && status == StatusCode::UNAUTHORIZED
+        {
+            response.headers_mut().insert(
+                WWW_AUTHENTICATE,
+                HeaderValue::from_static(r#"Bearer error="invalid_token""#),
+            );
+        }
         if let Some(seconds) = retry_after_seconds
             && let Ok(value) = seconds.to_string().parse()
         {

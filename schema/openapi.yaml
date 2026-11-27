@@ -378,6 +378,11 @@ paths:
         the whole family and its session. A replay moments after a successful
         rotation is treated as the client racing itself and is denied without
         revoking anything.
+        The access token a rotation replaces keeps working for 30 seconds
+        (or until its own expiry, if sooner), so a request already in flight,
+        or a second process sharing the session, does not fail the moment one
+        of them refreshes. Signing out, removing the device, changing the
+        password and a detected replay still end it at once.
       security: []
       requestBody:
         required: true
@@ -926,6 +931,39 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /members/{userId}:
+    parameters:
+      - name: userId
+        in: path
+        required: true
+        description: The member's UUID.
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getMember
+      tags: [users]
+      summary: A single member's profile; the same answer as `getUser`.
+      description: >
+        An alias of `GET /users/{userId}`: same handler, same body, same
+        visibility, including the role fields. A deleted or anonymized account
+        answers 404.
+      responses:
+        "200":
+          description: The member's profile.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
   /members:
     get:
       operationId: listMembers
@@ -991,12 +1029,13 @@ paths:
         here to everyone except themselves; asking about your own id always
         returns your true state. An id with nothing live to report (never
         existed, or deleted) is simply absent from the result, the same
-        contract `GET /users` has.
+        contract `GET /users` has. Asking for no ids is a 400, never an empty
+        list, so an empty answer always means nobody asked about is present.
       parameters:
         - name: ids
           in: query
           required: true
-          description: Comma-separated user UUIDs, at most 100.
+          description: Comma-separated user UUIDs, at least 1 and at most 100.
           schema:
             type: string
       responses:
@@ -1072,6 +1111,65 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /presence/heartbeat:
+    put:
+      operationId: heartbeatPresence
+      tags: [presence]
+      summary: Stay present without a socket.
+      description: >
+        For a bot or agent that speaks only HTTP. While unexpired the caller
+        reads as `online` (or the `status` sent) with the `activity` sent, to
+        exactly the viewers who can see their presence, and a change and the
+        expiry fan out over the WebSocket like a socket connecting or closing.
+        Send it again before `ttl_seconds` run out to stay present; the latest
+        call replaces the ttl and status. A heartbeat and a socket together
+        read as present until both are gone, and a durable `away`, `dnd` or
+        `hidden` choice outranks the `status` sent (hidden stays offline to
+        everyone else). `activity` is optional and left as it was when
+        absent; `DELETE /presence/activity` clears it. Held in memory only.
+        Rate limited like `PUT /presence/activity`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PresenceHeartbeatRequest"
+      responses:
+        "200":
+          description: The heartbeat is recorded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PresenceHeartbeat"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: The caller is timed out (code `timed_out`) or has not accepted the rules yet.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    delete:
+      operationId: endPresenceHeartbeat
+      tags: [presence]
+      summary: End the caller's heartbeat now.
+      description: >
+        Idempotent. The caller reads offline at once unless a socket still
+        holds them present.
+      responses:
+        "204":
+          description: Ended, or there was none.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
   /presence/activity:
     put:
       operationId: setPresenceActivity
@@ -1079,8 +1177,10 @@ paths:
       summary: Say what the caller is listening to or playing.
       description: >
         Ephemeral and opt-in on the client: held in memory against the
-        caller's live socket, cleared when the last socket closes, never
-        stored. It reaches exactly the viewers who can already see the
+        caller's live socket, or live `PUT /presence/heartbeat`, cleared when
+        the last of those ends, never stored. A client with no socket and no
+        heartbeat has nothing to hold it against, so the request is accepted
+        and forgotten; send a heartbeat first. It reaches exactly the viewers who can already see the
         caller's presence, through the same rule, so a `hidden` user's
         activity is invisible to everyone else. Title and subtitle are at
         most 128 characters and free of control and direction characters.
@@ -1093,7 +1193,9 @@ paths:
               $ref: "#/components/schemas/PresenceActivity"
       responses:
         "204":
-          description: Accepted, or ignored when the caller has no live socket.
+          description: >
+            Accepted, or ignored when the caller has no live socket and no
+            live heartbeat.
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -1116,6 +1218,48 @@ paths:
       responses:
         "204":
           description: Cleared.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /me/permissions:
+    get:
+      operationId: getOwnPermissions
+      tags: [users]
+      summary: The caller's own resolved permissions, by name.
+      description: >-
+        The bitmask `Me.permissions` gives, plus `names`: the name of every set
+        bit, so a client needs no bit table. The names are stable, and one
+        of: `administrator`, `view_channel`, `send_messages`,
+        `manage_messages`, `manage_channels`, `manage_roles`, `kick_members`,
+        `ban_members`, `create_invite`, `add_reactions`, `attach_files`,
+        `connect`, `speak`, `use_canvas`, `manage_canvas`, `manage_server`,
+        `mention_everyone`, `run_code`, `view_moderation_history`,
+        `move_members`, `view_transcripts`, `use_soundboard`. A timeout is
+        already subtracted.
+
+        With `channel_id`, resolves them in that channel instead, the bits
+        `getChannelPermissions` gives. A channel the caller cannot view
+        answers zero and no names, exactly like a missing one, and the
+        response echoes `channel_id`.
+      parameters:
+        - name: channel_id
+          in: query
+          required: false
+          description: Scope the answer to this channel.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: The caller's permissions.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OwnPermissions"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "429":
@@ -7945,22 +8089,33 @@ paths:
         Objects placed or moved while paging arrive through the op stream, so
         merge pages by object id. `cursor_seq` cannot be combined with the
         `prev_*` parameters or `after_seq`.
+
+
+        The rectangle (all four bounds) is required unless `ids` is sent. With
+        `ids`, the read returns just those objects, in paint order, in the same
+        shape: an id that is unknown, removed or on another board is simply
+        absent, and `has_more` is true only if the response size stopped the
+        list early. `ids` is an alternative to the rectangle, so combining it
+        with any bound, a `prev_*` parameter, `after_seq` or `cursor_seq` is a
+        400, as is more than 100 ids or one that is not a UUID.
       parameters:
+        - name: ids
+          in: query
+          description: >-
+            Comma-separated object ids, at most 100, to read instead of a
+            region. Mutually exclusive with the rectangle and the cursors.
+          schema: { type: string }
         - name: min_x
           in: query
-          required: true
           schema: { type: number, format: double }
         - name: min_y
           in: query
-          required: true
           schema: { type: number, format: double }
         - name: max_x
           in: query
-          required: true
           schema: { type: number, format: double }
         - name: max_y
           in: query
-          required: true
           schema: { type: number, format: double }
         - name: prev_min_x
           in: query
@@ -8164,6 +8319,93 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /channels/{channelId}/canvas/summary:
+    parameters:
+      - $ref: "#/components/parameters/ChannelId"
+    get:
+      operationId: getCanvasSummary
+      tags: [canvas]
+      summary: Count a board's live objects and find the box around them.
+      description: >
+        Requires `VIEW_CHANNEL`, evaluated for this channel, the same gate as
+        the viewport read. One indexed aggregate over the channel's live
+        objects, so a client can find empty space or size a board without
+        reading it. `latest_seq` is read in the same snapshot and is a valid
+        `after_seq` for `listCanvasOps`.
+      responses:
+        "200":
+          description: The board's count, bounds and canvas head.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CanvasSummary"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /channels/{channelId}/canvas/ops/batch:
+    parameters:
+      - $ref: "#/components/parameters/ChannelId"
+    post:
+      operationId: submitCanvasOpBatch
+      tags: [canvas]
+      summary: Move, edit, remove or restack many canvas objects in one request.
+      description: >
+        For bots that rearrange a board. `ops` holds 1 to 200 entries, each exactly what
+        `submitCanvasOp` takes for `move`, `edit`, `remove` or `reorder` (any other `kind` is a
+        400), and each checked the same way: `VIEW_CHANNEL` and `USE_CANVAS`, authorship or
+        `MANAGE_CANVAS`, locks, bounds and props. A timeout refuses a batch holding anything but
+        `remove`, as it refuses those ops singly.
+
+
+        The batch is all or nothing: one refused op rolls everything back, and the response is
+        that op's status with its zero-based index as `item_index` (and a stable reason as
+        `item_code`), so a lock is a 409, an absent object a 404 and a malformed op a 400.
+        Nothing is written and nothing is published.
+
+
+        Ops apply in array order in one transaction. Each op that changes something takes its own
+        seq and fans out as the same event a single op sends, in that order, so a viewer needs
+        nothing new to follow it. An op with `affected` 0 takes no seq and sends nothing, as it
+        does singly. Each `id` is an idempotency key as for a single op, and ids must be distinct
+        within one batch: a retried batch answers with the stored ops (`fresh: false`) and sends
+        nothing. The request body is at most 1 MiB.
+
+
+        Rate limiting is by op count, against the same budget as `placeCanvasObjects`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CanvasOpBatch"
+      responses:
+        "201":
+          description: One result per op in request order, fresh or replayed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CanvasOpBatchResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
   /channels/{channelId}/canvas/ops:
     parameters:
       - $ref: "#/components/parameters/ChannelId"
@@ -8221,6 +8463,21 @@ paths:
             minimum: 1
             maximum: 200
             default: 100
+        - name: wait
+          in: query
+          description: >-
+            Seconds to hold the request open when there is nothing after
+            `after_seq` yet, a long poll for HTTP-only clients. The read
+            answers as soon as an op for this channel lands, or with the usual
+            empty page once the wait runs out; a page that already has ops, or a
+            `reset`, answers at once. The server clamps it to 25, under the
+            request timeout. A caller may hold only a few waits at once; past
+            that the answer is 429.
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 25
+            default: 0
       responses:
         "200":
           description: The next page of the op stream, or a reset.
@@ -8285,10 +8542,14 @@ paths:
         its ceiling is a 409, refused inside the same transaction that counts.
 
 
-        `edit` changes a live note's, text box's or connection's props; it is refused under a
-        timeout and with 409 for a locked note, and only those three kinds can be edited.
+        `edit` changes a live note's, text box's, connection's, shape's or image's props; it is refused under a
+        timeout and with 409 for a locked object, and only those five kinds can be edited.
         A text box's props are replaced wholesale and checked the way a placement's are.
         A note's props are merged: a key left out keeps its stored value and a `null` deletes it.
+        A shape's and an image's props merge the same way and are otherwise opaque, as at placement:
+        the app draws a shape from `shape`, `flip_x` and `flip_y`, so any other key (a colour, a label,
+        a caption) is stored and sent on for other clients to use. An image's `attachment` cannot be
+        edited, since the upload ownership check ran only at placement.
         Only the keys an edit carries are checked, so a note stored with an odd key can still be edited, and what the op, the response and `canvas.object.edited` carry is the merged result.
         A connection's props merge the same way and are checked as `CanvasEdgeProps` says.
         A note's known props are `text` (a string), `fill` and `color` (a palette key or `#rrggbb`; `color` may also be `auto`), `fill_opacity` (0 to 1) and `size` (`small`, `medium` or `large`);
@@ -8375,6 +8636,32 @@ paths:
         schema:
           type: string
           format: uuid
+    get:
+      operationId: getCanvasObject
+      tags: [canvas]
+      summary: Read one live canvas object.
+      description: >
+        Requires `VIEW_CHANNEL`, evaluated for this channel, the same gate as
+        the viewport read. The reply is the object exactly as the viewport
+        read shapes it. A 404 means the id is unknown, removed, or belongs to
+        another channel: one answer for all three.
+      responses:
+        "200":
+          description: The live object.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CanvasObject"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
     delete:
       operationId: purgeCanvasObject
       tags: [canvas]
@@ -15135,7 +15422,14 @@ components:
             not exist, still answers the bare 403 with no code.
             `canvas_export_too_large` and `canvas_export_busy` on a 409 from
             `exportCanvas`: the board holds more objects than one export
-            copies, or another export of it is running. Absent on every
+            copies, or another export of it is running. On a 401: `token_expired`
+            (a bearer access token that lapsed, so refresh it), `token_invalid`
+            (one never issued or since revoked by a sign-out, device removal,
+            password change or detected token reuse, so sign in again) and
+            `bad_credentials` (a sign-in that did not verify, whatever the
+            reason). The two token codes also send `WWW-Authenticate: Bearer
+            error="invalid_token"`; the `error` text stays `invalid credentials`
+            throughout. Absent on every
             other error; read an unknown value as a refusal for another reason.
         timed_out_until:
           type: integer
@@ -15884,6 +16178,25 @@ components:
             Already has any timeout subtracted, so a client that greys the
             composer on a missing SEND_MESSAGES bit needs no separate rule
             for being timed out; `timed_out_until` is what says why.
+        roles:
+          type: array
+          items:
+            type: string
+          description: >-
+            The caller's role names, as `UserProfile.roles` has them. Absent on
+            servers older than this field.
+        role_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: The same roles as ids, as `UserProfile.role_ids`.
+        role_colors:
+          type: array
+          items:
+            type: [integer, "null"]
+            format: int64
+          description: The same roles' palette colours, as `UserProfile.role_colors`.
         timed_out_until:
           type: [integer, "null"]
           format: int64
@@ -18248,6 +18561,34 @@ components:
         theme_id:
           type: string
           nullable: true
+    PresenceHeartbeatRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+          enum: [online, away, dnd]
+          description: What to read as; `online` when absent. Use `PATCH /presence` for `hidden`.
+        activity:
+          $ref: "#/components/schemas/PresenceActivity"
+        ttl_seconds:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 300
+          description: How long this heartbeat keeps the caller present; 60 when absent.
+    PresenceHeartbeat:
+      type: object
+      required: [ttl_seconds, expires_at]
+      properties:
+        ttl_seconds:
+          type: integer
+          format: int32
+          description: The ttl in force.
+        expires_at:
+          type: integer
+          format: int64
+          description: When the caller lapses to offline unless refreshed, unix milliseconds.
     PresenceActivity:
       type: object
       required: [type, title]
@@ -18847,6 +19188,25 @@ components:
       properties:
         prefix:
           type: string
+    OwnPermissions:
+      type: object
+      required: [permissions, names]
+      properties:
+        permissions:
+          type: integer
+          format: int64
+          description: >-
+            The permission bitmask, timeout subtracted: deployment-wide, or in
+            `channel_id` when the request named one.
+        names:
+          type: array
+          items:
+            type: string
+          description: The name of every set bit; see `getOwnPermissions` for the list.
+        channel_id:
+          type: string
+          format: uuid
+          description: The channel the answer is scoped to; present only when the request named one.
     MemberPermissions:
       type: object
       required: [user_id, permissions]
@@ -20929,6 +21289,31 @@ components:
             as the cursor into `listCanvasOps` to learn what has changed
             since, removals included.
 
+    CanvasSummary:
+      type: object
+      required: [count, bounds, latest_seq]
+      properties:
+        count:
+          type: integer
+          format: int64
+          description: Live objects on the board.
+        bounds:
+          type: object
+          nullable: true
+          description: >-
+            The box around every live object, edges included; null for an empty
+            board.
+          required: [min_x, min_y, max_x, max_y]
+          properties:
+            min_x: { type: number, format: double }
+            min_y: { type: number, format: double }
+            max_x: { type: number, format: double }
+            max_y: { type: number, format: double }
+        latest_seq:
+          type: integer
+          format: int64
+          description: The channel's highest assigned canvas `seq`.
+
     CanvasOp:
       type: object
       required: [seq, id, kind, actor_id, created_at]
@@ -21140,12 +21525,35 @@ components:
           type: object
           additionalProperties: true
           description: >-
-            Required for `edit`. A text box's props replace the old ones; a note's and a
-            connection's (`CanvasEdgeProps`) are merged over them, a key left out keeping its
-            value and a `null` deleting it.
-            Only those three kinds can be edited (400 otherwise); the same 4 KiB
-            limit as a placement applies, to the merged props, and a locked note answers 409.
+            Required for `edit`. A text box's props replace the old ones; a note's, a
+            connection's (`CanvasEdgeProps`), a shape's and an image's are merged over them, a key
+            left out keeping its value and a `null` deleting it.
+            Only those five kinds can be edited (400 otherwise); the same 4 KiB
+            limit as a placement applies, to the merged props, and a locked object answers 409.
+            An image's `attachment` can never change: an edit naming a different one, or
+            `null`, is a 400.
 
+    CanvasOpBatch:
+      type: object
+      required: [ops]
+      properties:
+        ops:
+          type: array
+          minItems: 1
+          maxItems: 200
+          description: >-
+            1 to 200 ops, each as for `submitCanvasOp`, with `kind` one of `move`, `edit`,
+            `remove` or `reorder`. Their `id`s must be distinct.
+          items:
+            $ref: "#/components/schemas/CanvasOpRequest"
+    CanvasOpBatchResult:
+      type: object
+      required: [ops]
+      properties:
+        ops:
+          type: array
+          items:
+            $ref: "#/components/schemas/CanvasOpResult"
     CanvasOpResult:
       type: object
       required: [op, fresh]

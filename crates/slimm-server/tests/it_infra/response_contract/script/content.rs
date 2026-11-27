@@ -10,8 +10,8 @@ use uuid::Uuid;
 use super::content_channel_kinds::canvas_kind_calls;
 use super::read_state::read_state;
 use super::{
-    PNG, THUMBS_UP, canvas_export_call, canvas_more_calls, media_slot_calls, object_lock_calls,
-    overwrite_calls, role_calls, text,
+    PNG, THUMBS_UP, canvas_export_call, canvas_more_calls, canvas_read_calls, media_slot_calls,
+    object_lock_calls, overwrite_calls, role_calls, text,
 };
 use crate::response_contract::world::{Contract, Payload};
 
@@ -283,6 +283,28 @@ pub(super) async fn channel_calls(c: &mut Contract, root: &str, bob_id: &str) ->
         }),
     )
     .await;
+    // Exercises `CanvasOpBatch` and `CanvasOpBatchResult` with two kinds of op.
+    c.json(
+        "submitCanvasOpBatch",
+        "POST",
+        &format!("/channels/{board}/canvas/ops/batch"),
+        root,
+        json!({ "ops": [
+            {
+                "id": Uuid::now_v7().to_string(),
+                "kind": "move",
+                "object_id": first_object_id,
+                "x": 260.0, "y": 260.0, "w": 40.0, "h": 20.0,
+            },
+            {
+                "id": Uuid::now_v7().to_string(),
+                "kind": "reorder",
+                "object_id": first_object_id,
+                "z_index": 501,
+            },
+        ] }),
+    )
+    .await;
     // Both objects live again, so this page still carries what it had before.
     c.get(
         "listCanvasViewport",
@@ -297,6 +319,7 @@ pub(super) async fn channel_calls(c: &mut Contract, root: &str, bob_id: &str) ->
         root,
     )
     .await;
+    canvas_read_calls(c, root, &board, &first_object_id).await;
     media_slot_calls(c, root, &board, bob_id).await;
     object_lock_calls(c, root, &board).await;
     canvas_more_calls(c, root, &board).await;

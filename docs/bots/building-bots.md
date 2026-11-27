@@ -41,10 +41,42 @@ Authorization: Bearer slimbot_...
 ```
 
 Call `GET /me` first. It returns the bot's own id and its effective base permissions, which is the cheapest way to confirm the token works and to learn the id you will need to avoid answering yourself.
+`GET /me` also lists the bot's roles (`roles`, `role_ids`, `role_colors`), the same fields `GET /users/{userId}` gives for anyone.
+`GET /members/{userId}` is an alias of `GET /users/{userId}`.
+`GET /me/permissions` returns the bitmask plus `names`, the name of every set bit, so a client needs no bit table; add `?channel_id=` to resolve them in one channel (a channel you cannot view reads as zero).
 
 **Send a real `User-Agent`.** A deployment behind a CDN may refuse a default library user-agent before the request ever reaches slim-m, and what you get back is that CDN's 403 rather than anything from the API.
 Python's `urllib` is the common case: `Python-urllib/3.x` is blocked by Cloudflare's defaults, and the same call with any named user-agent succeeds.
 Name your bot there and the problem does not exist.
+
+## Working over plain HTTP, without a WebSocket
+
+An agent that signs in as a person, or a bot that never opens a socket, can do everything over REST.
+Three things differ from a socket client.
+
+**Refreshing.** `POST /auth/refresh` rotates the pair, and the access token it replaces keeps working for 30 seconds, so a request already in flight, or a second process sharing the session, does not fail when one of them refreshes.
+Signing out, removing the device, changing the password and a detected refresh-token replay still end it at once.
+
+**Telling a 401 apart.** The body keeps `error: "invalid credentials"` and adds a `code`.
+`token_expired` means the access token lapsed, so refresh it.
+`token_invalid` means it was never issued or has been revoked, so sign in again.
+`bad_credentials` is a sign-in that did not verify.
+The two token codes also send `WWW-Authenticate: Bearer error="invalid_token"`.
+
+**Being present.** Presence normally comes from a live socket, and `PUT /presence/activity` is held against one, so a client with none is accepted and forgotten.
+Send `PUT /presence/heartbeat` instead:
+
+```
+{ "status": "online", "activity": { "type": "playing", "title": "Chess" }, "ttl_seconds": 60 }
+```
+
+`status` is `online`, `away` or `dnd` (default `online`), `ttl_seconds` is 1 to 300 (default 60), and `activity` is optional.
+While the heartbeat is unexpired you read as that status with that activity to everyone who can see your presence, and a change or the expiry reaches live viewers like a socket connecting or closing.
+Send it again before the ttl runs out to stay present, and `DELETE /presence/heartbeat` ends it at once.
+A durable `away`, `dnd` or `hidden` choice outranks the status you send, and a socket and a heartbeat together read as present until both are gone.
+While a heartbeat is live, `PUT /presence/activity` applies to it too.
+
+`GET /presence?ids=...` needs at least one id: asking for none is a 400, so an empty list always means nobody you asked about is present.
 
 ## Receiving events
 
@@ -170,6 +202,34 @@ A connector that lost an end and a module tile whose module is not installed are
 A board past the export ceiling answers `409` with `{"code": "canvas_export_too_large"}`, and one already being exported answers `409` with `{"code": "canvas_export_busy"}`: wait and try again.
 Exports are limited to a few an hour.
 `/version` lists `canvas_export` in `capabilities` on a server that has it.
+
+### Reading a board over plain HTTP
+
+A client with no socket can follow and inspect a board with four reads.
+All of them need only `VIEW_CHANNEL`, the same as the viewport read, and answer `403` with `{"code": "canvas_off"}` on a channel with no board.
+
+- `GET /channels/{channelId}/canvas/ops?after_seq=N&wait=25` holds the request open until an op after `N` exists, then answers the usual `{ops, latest_seq, has_more, reset}`.
+  `wait` is whole seconds, clamped to 25 so a proxy or the server's own 30 second timeout never cuts it off.
+  A page that already has ops, and a `reset`, answer at once; running out of time answers the empty page, so loop with the `latest_seq` you got back.
+  A user may park only a few waits at once, and a further one answers `429`.
+- `GET /channels/{channelId}/canvas/objects/{objectId}` answers one live object in the viewport's shape, and `404` for an unknown, removed or other-board id.
+- `GET /channels/{channelId}/canvas/objects?ids=a,b,c` answers those live objects in the viewport's shape.
+  It takes at most 100 ids, leaves unknown or removed ones out, and replaces the rectangle: sending it with `min_x` and friends, `prev_*`, `after_seq` or `cursor_seq` is a `400`.
+- `GET /channels/{channelId}/canvas/summary` answers `{ "count": 12, "bounds": { "min_x": -40, "min_y": 0, "max_x": 900, "max_y": 600 }, "latest_seq": 31 }`.
+  `bounds` is the box around every live object and is `null` on an empty board, so a bot can pick empty space without paging the world.
+
+### Changing many objects at once
+
+`POST /channels/{channelId}/canvas/ops/batch` with `{ "ops": [ ... ] }` takes 1 to 200 ops, each exactly what `POST /channels/{channelId}/canvas/ops` takes for `move`, `edit`, `remove` or `reorder`.
+Tidying a board into columns is one request, and viewers get the moves one event at a time as if you had sent them singly.
+The batch is all or nothing: one refused op rolls everything back, and the error carries that op's zero-based `item_index` and an `item_code` such as `locked` or `not_found`.
+Every op needs its own UUIDv7 `id`, distinct within the batch, and retrying a whole batch answers with the stored ops (`fresh: false`) and sends nothing.
+A batch is charged by op count against the same budget as the place batch, and a timed-out member can still send a batch of removes.
+
+`edit` changes the props of a note, a text box, a connection, a shape or an image.
+A shape's and an image's props merge: a key you leave out keeps its value and `null` deletes it.
+The app draws a shape from `shape`, `flip_x` and `flip_y`, so a colour or a label you add is stored and sent on, and other clients may use it.
+An image's `attachment` cannot be edited; place a new image for a different picture.
 
 ## Member join events
 

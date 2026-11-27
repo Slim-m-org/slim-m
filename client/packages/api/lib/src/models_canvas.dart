@@ -220,3 +220,36 @@ class CanvasRect {
   final double maxX;
   final double maxY;
 }
+
+/// `GET /channels/{id}/canvas/summary`: how much is on the board and where.
+class CanvasSummary {
+  const CanvasSummary({
+    required this.count,
+    required this.bounds,
+    required this.latestSeq,
+  });
+
+  final int count;
+
+  /// The box around every live object; null for an empty board.
+  final CanvasRect? bounds;
+
+  /// A valid `after_seq` for the op feed.
+  final int latestSeq;
+
+  factory CanvasSummary.fromJson(Map<String, dynamic> json) {
+    final box = json['bounds'] as Map<String, dynamic>?;
+    return CanvasSummary(
+      count: json['count'] as int,
+      bounds: box == null
+          ? null
+          : CanvasRect(
+              minX: (box['min_x'] as num).toDouble(),
+              minY: (box['min_y'] as num).toDouble(),
+              maxX: (box['max_x'] as num).toDouble(),
+              maxY: (box['max_y'] as num).toDouble(),
+            ),
+      latestSeq: json['latest_seq'] as int,
+    );
+  }
+}

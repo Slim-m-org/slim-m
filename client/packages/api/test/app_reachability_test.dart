@@ -39,9 +39,23 @@ import 'package:slimm_test_support/source_gates.dart';
 /// Each of these is a real gap rather than a decision, except the first. They
 /// are listed so the gap is visible and counted, not so it is forgiven.
 const Map<String, String> _allowlist = {
+  'canvasObjectsById': 'reads by id for HTTP-only agents; the app holds the '
+      'region it paints and follows the op stream (2026-11-27)',
+  'canvasObject': 'one object by id for HTTP-only agents; the app already '
+      'holds every object it draws (2026-11-27)',
+  'canvasBoardSummary':
+      'board count and bounds for HTTP-only agents looking for '
+          'empty space; the app paints from the viewport (2026-11-27)',
   'placeCanvasObjects': 'the batch place for bots that draw hundreds of marks; '
       'the app commits one gesture at a time through placeCanvasObject '
       '(2026-11-03)',
+  'submitCanvasOpBatch': 'the batch move, edit, remove and reorder for bots that '
+      'tidy a board; the app sends one gesture at a time through submitCanvasOp '
+      '(2026-11-27)',
+  'heartbeatPresence': 'REST-only presence for bots and agents: the app holds '
+      'a WebSocket, which is its presence (2026-11-27)',
+  'endPresenceHeartbeat': 'the other half of heartbeatPresence, with the same '
+      'API-client-only audience (2026-11-27)',
   'getExport': 'one export by id, for API clients and scripts that follow a '
       'single job; the app holds at most one job per kind and polls the short '
       'list from listExports instead (2026-10-20)',
@@ -51,6 +65,10 @@ const Map<String, String> _allowlist = {
       'contract for third-party clients',
   'memberPermissions': 'bot accounts only: the server answers 403 to a '
       'person, so the app has no use for it (2026-10-18)',
+  'ownPermissions': 'for REST-only clients that cannot decode the bitmask; the '
+      'app reads the bitmask from Me and the channel route (2026-11-27)',
+  'getMember': 'the member-route alias of getUser, for REST-only clients; the '
+      'app resolves profiles through getUser (2026-11-27)',
   'getConnectorSelf': 'a connector\'s own token only: the server answers '
       '403 to a person, so the app has no use for it (2026-11-22)',
   'answerConnectorRun': 'a connector\'s own token only: it answers runs '

@@ -146,3 +146,24 @@ pub(super) async fn canvas_export_call(c: &mut Contract, root: &str, channel: &s
     )
     .await;
 }
+
+/// The reads an HTTP-only client uses: a waiting op read, one object, objects by id, and the summary.
+pub(super) async fn canvas_read_calls(c: &mut Contract, root: &str, channel: &str, object: &str) {
+    let base = format!("/channels/{channel}/canvas");
+    c.get(
+        "listCanvasOps",
+        &format!("{base}/ops?after_seq=0&wait=1"),
+        root,
+    )
+    .await;
+    c.get("getCanvasObject", &format!("{base}/objects/{object}"), root)
+        .await;
+    c.get(
+        "listCanvasViewport",
+        &format!("{base}/objects?ids={object}"),
+        root,
+    )
+    .await;
+    c.get("getCanvasSummary", &format!("{base}/summary"), root)
+        .await;
+}

@@ -22,7 +22,9 @@
 use sqlx::{Sqlite, SqliteConnection, Transaction};
 
 use super::dropped_refresh::dropped_refresh_denial;
-use super::sessions::{ACCESS_TTL_MS, IssuedTokens, REFRESH_TTL_MS, revoke_session_rows};
+use super::sessions::{
+    ACCESS_ROTATION_GRACE_MS, ACCESS_TTL_MS, IssuedTokens, REFRESH_TTL_MS, revoke_session_rows,
+};
 use super::{Store, now_ms};
 use crate::auth::{generate_secret, hash_secret};
 use crate::ids::{DeviceId, FamilyId, SessionId, UserId};
@@ -189,6 +191,8 @@ impl Store {
             return Ok(RefreshOutcome::Denied(RefreshDenial::Revoked));
         }
 
+        // A pending token rotating again replaces a chain someone else may hold, so none of it keeps a grace.
+        let superseding = claimed.successor_hash.is_some();
         retire_superseded_chain(&mut tx, claimed.successor_hash, now).await?;
         super::safety::touch_device(&mut tx, session.device_id, now).await?;
         if client_kind.is_some() || client_version.is_some() {
@@ -229,12 +233,25 @@ impl Store {
         )
         .execute(&mut *tx)
         .await?;
-        sqlx::query!(
-            "DELETE FROM access_tokens WHERE session_id = ?",
-            claimed.session_id
-        )
-        .execute(&mut *tx)
-        .await?;
+        if superseding {
+            sqlx::query!(
+                "DELETE FROM access_tokens WHERE session_id = ?",
+                claimed.session_id
+            )
+            .execute(&mut *tx)
+            .await?;
+        } else {
+            // A first rotation leaves earlier tokens briefly valid; every revocation path deletes them.
+            let grace_ends = now + ACCESS_ROTATION_GRACE_MS;
+            sqlx::query!(
+                "UPDATE access_tokens SET expires_at = MIN(expires_at, ?), confirms_refresh_hash = NULL
+                 WHERE session_id = ?",
+                grace_ends,
+                claimed.session_id
+            )
+            .execute(&mut *tx)
+            .await?;
+        }
         sqlx::query!(
             "INSERT INTO access_tokens (token_hash, session_id, user_id, device_id, issued_at, expires_at, confirms_refresh_hash)
              VALUES (?, ?, ?, ?, ?, ?, ?)",

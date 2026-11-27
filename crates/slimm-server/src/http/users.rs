@@ -54,6 +54,7 @@ pub fn routes() -> Router<AppState> {
         .route("/me", get(get_me).patch(update_me))
         .route("/users", get(list_users))
         .route("/users/{user_id}", get(get_user))
+        .route("/members/{user_id}", get(get_user))
         .route("/users/{user_id}/avatar", get(get_avatar))
         .route("/users/{user_id}/banner", get(get_banner))
         .layer(DefaultBodyLimit::max(BODY_LIMIT));
@@ -251,6 +252,10 @@ struct MeDto {
     /// composer on a missing SEND_MESSAGES bit needs no separate rule for
     /// being timed out; [`Self::timed_out_until`] is what says *why*.
     permissions: i64,
+    /// The caller's role names, ids and colours, exactly as [`UserDto`] has them.
+    roles: Vec<String>,
+    role_ids: Vec<String>,
+    role_colors: Vec<Option<i64>>,
     /// When the caller's own timeout lifts, or `null`. Present so the client
     /// can name what happened rather than leaving somebody with a disabled
     /// composer and no explanation.
@@ -348,6 +353,12 @@ async fn get_me(
     let permissions = state.store.base_permissions(ctx.user_id).await?;
     let timeout = state.store.member_timeout(ctx.user_id).await?;
     let visibility = state.store.presence_visibility(ctx.user_id).await?;
+    let held = state.store.roles_for_users(&[ctx.user_id]).await?;
+    let held = held
+        .into_iter()
+        .next()
+        .map(|(_, roles)| roles)
+        .unwrap_or_default();
     Ok(Json(MeDto {
         id: user.id.to_string(),
         username: user.username,
@@ -356,6 +367,9 @@ async fn get_me(
         avatar_updated_at: user.avatar_updated_at,
         banner_updated_at: user.banner_updated_at,
         permissions: permissions.bits(),
+        roles: held.iter().map(|role| role.name.clone()).collect(),
+        role_ids: held.iter().map(|role| role.id.to_string()).collect(),
+        role_colors: held.iter().map(|role| role.color).collect(),
         timed_out_until: timeout.as_ref().map(|t| t.until),
         timeout_reason: timeout.and_then(|t| t.reason),
         status_text: user.status_text,

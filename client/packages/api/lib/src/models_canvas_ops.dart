@@ -337,3 +337,45 @@ class CanvasOpSummary {
         createdAt: json['created_at'] as int,
       );
 }
+
+/// One op of [SlimmApiCanvas.submitCanvasOpBatch]: a `move`, `edit`, `remove` or `reorder`,
+/// carrying only the fields its [kind] needs.
+class CanvasOpInput {
+  const CanvasOpInput({
+    required this.id,
+    required this.kind,
+    this.objectIds,
+    this.objectId,
+    this.x,
+    this.y,
+    this.w,
+    this.h,
+    this.zIndex,
+    this.props,
+  });
+
+  /// A client-minted UUIDv7 and the op's idempotency key.
+  final String id;
+  final String kind;
+  final List<String>? objectIds;
+  final String? objectId;
+  final double? x;
+  final double? y;
+  final double? w;
+  final double? h;
+  final int? zIndex;
+  final Map<String, Object?>? props;
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'kind': kind,
+        if (objectIds != null) 'object_ids': objectIds,
+        if (objectId != null) 'object_id': objectId,
+        if (x != null) 'x': x,
+        if (y != null) 'y': y,
+        if (w != null) 'w': w,
+        if (h != null) 'h': h,
+        if (zIndex != null) 'z_index': zIndex,
+        if (props != null) 'props': props,
+      };
+}

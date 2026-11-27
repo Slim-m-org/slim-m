@@ -287,6 +287,9 @@ class Me {
     this.isOwner = false,
     this.topRolePosition,
     this.reportsRoleLadder = false,
+    this.roles = const [],
+    this.roleIds = const [],
+    this.roleColors = const [],
   });
 
   final String id;
@@ -299,6 +302,12 @@ class Me {
   /// The raw permission bitmask; see the server's `Permissions` type for what
   /// each bit means.
   final int permissions;
+
+  /// The caller's role names, ids and colours; same meaning and order as on
+  /// [UserProfile]. Empty from a server that predates them.
+  final List<String> roles;
+  final List<String> roleIds;
+  final List<int?> roleColors;
 
   /// Same meaning as [UserProfile.avatarUpdatedAt].
   final int? avatarUpdatedAt;
@@ -367,6 +376,37 @@ class Me {
         isOwner: json['is_owner'] as bool? ?? false,
         topRolePosition: json['top_role_position'] as int?,
         reportsRoleLadder: json.containsKey('is_owner'),
+        roles: _strings(json['roles']),
+        roleIds: _strings(json['role_ids']),
+        roleColors: ((json['role_colors'] as List<dynamic>?) ?? const [])
+            .map((c) => c as int?)
+            .toList(growable: false),
+      );
+}
+
+List<String> _strings(Object? json) => ((json as List<dynamic>?) ?? const [])
+    .map((v) => v as String)
+    .toList(growable: false);
+
+/// The caller's own resolved permissions: the bitmask and the name of every
+/// set bit, deployment-wide or in one channel.
+class OwnPermissions {
+  const OwnPermissions({
+    required this.permissions,
+    required this.names,
+    this.channelId,
+  });
+
+  final int permissions;
+  final List<String> names;
+
+  /// The channel the answer is scoped to; null for the deployment-wide one.
+  final String? channelId;
+
+  factory OwnPermissions.fromJson(Map<String, dynamic> json) => OwnPermissions(
+        permissions: json['permissions'] as int,
+        names: _strings(json['names']),
+        channelId: json['channel_id'] as String?,
       );
 }
 

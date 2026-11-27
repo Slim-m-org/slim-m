@@ -36,6 +36,9 @@ use crate::ids::{DeviceId, FamilyId, SessionId, UserId};
 /// Access tokens are short so a leaked one has a small window and the auth hot
 /// path stays a single indexed lookup.
 pub(super) const ACCESS_TTL_MS: i64 = 15 * 60 * 1000;
+
+/// How long the access token a rotation replaced keeps working.
+pub(super) const ACCESS_ROTATION_GRACE_MS: i64 = 30 * 1000;
 /// Refresh tokens are long-lived but device-bound and single-use per rotation.
 pub(super) const REFRESH_TTL_MS: i64 = 30 * 24 * 60 * 60 * 1000;
 /// Connect tickets exist only to bridge a REST auth into a WebSocket upgrade.
@@ -279,6 +282,19 @@ impl Store {
             device_id: row.device_id,
             connector: None,
         }))
+    }
+
+    /// Whether a token that failed [`Self::authenticate`] is one that lapsed, as opposed to
+    /// one never issued or since revoked, whose rows are gone.
+    pub async fn access_token_expired(&self, access_token: &str) -> anyhow::Result<bool> {
+        let hash = hash_secret(access_token);
+        let found = sqlx::query_scalar!(
+            r#"SELECT 1 AS "one!: i64" FROM access_tokens WHERE token_hash = ?"#,
+            hash
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(found.is_some())
     }
 
     /// Mints a single-use connect ticket from an already-authenticated session,

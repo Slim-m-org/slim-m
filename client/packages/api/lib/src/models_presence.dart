@@ -324,3 +324,20 @@ class CanvasBoardViewers {
   final String channelId;
   final List<CanvasViewer> viewers;
 }
+
+/// A recorded presence heartbeat: how long it holds the caller present, and until when.
+class PresenceHeartbeat {
+  const PresenceHeartbeat({required this.ttlSeconds, required this.expiresAt});
+
+  factory PresenceHeartbeat.fromJson(Map<String, dynamic> json) =>
+      PresenceHeartbeat(
+        ttlSeconds: json['ttl_seconds'] as int,
+        expiresAt: DateTime.fromMillisecondsSinceEpoch(
+          json['expires_at'] as int,
+          isUtc: true,
+        ),
+      );
+
+  final int ttlSeconds;
+  final DateTime expiresAt;
+}

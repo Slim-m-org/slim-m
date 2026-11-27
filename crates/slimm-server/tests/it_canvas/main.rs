@@ -4,6 +4,7 @@
 #[path = "../support/mod.rs"]
 mod support;
 
+mod canvas_agent_reads;
 mod canvas_batch;
 mod canvas_cursor_live;
 mod canvas_deleted_channel;

@@ -90,7 +90,7 @@ pub fn props_for(kind: Kind, text: u8) -> String {
     }
 }
 
-/// A note edit lays its keys over the stored props, so a key it omits keeps its value.
+/// A note, shape or image edit lays its keys over the stored props, so a key it omits keeps its value.
 fn merged_note_props(stored: &str, edit: &str) -> String {
     let mut merged: serde_json::Map<String, serde_json::Value> =
         serde_json::from_str(stored).expect("stored props are an object");
@@ -284,7 +284,7 @@ impl Oracle {
         if !moderator && o.author != step.writer {
             return fail(Fail::NotAuthorized);
         }
-        if o.kind != Kind::Note {
+        if !matches!(o.kind, Kind::Note | Kind::Shape | Kind::Image) {
             return fail(Fail::NotEditable);
         }
         if o.locked {

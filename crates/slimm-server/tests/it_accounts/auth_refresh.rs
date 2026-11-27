@@ -56,7 +56,7 @@ async fn with_alice() -> (Store, Auth, slimm_server::ids::UserId, support::TestD
 }
 
 #[tokio::test]
-async fn refresh_rotates_and_drops_the_old_access_token() {
+async fn refresh_rotates_and_the_old_access_token_lives_only_its_grace() {
     let (store, _auth, user_id, _guard) = with_alice().await;
     let original = store.open_session(user_id, "laptop").await.unwrap();
 
@@ -65,7 +65,7 @@ async fn refresh_rotates_and_drops_the_old_access_token() {
         _ => panic!("first refresh should rotate"),
     };
     assert_ne!(rotated.refresh_token, original.refresh_token);
-    // The new access token works; the old one was dropped in the same step.
+    // The new access token works.
     assert!(
         store
             .authenticate(&rotated.access_token)
@@ -73,12 +73,13 @@ async fn refresh_rotates_and_drops_the_old_access_token() {
             .unwrap()
             .is_some()
     );
+    // The old one lives on briefly, bounded by the grace.
     assert!(
         store
             .authenticate(&original.access_token)
             .await
             .unwrap()
-            .is_none()
+            .is_some()
     );
     // The new refresh token rotates again.
     assert!(matches!(

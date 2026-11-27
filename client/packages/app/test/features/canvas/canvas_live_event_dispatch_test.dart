@@ -298,6 +298,73 @@ void main() {
     expect(log.entries.single.actorId, isNull);
   });
 
+  test('a live edit redraws a shape from its primitive and flips', () {
+    document.applyPlaced(
+      const CanvasStrokeInput(
+        id: 's',
+        seq: 1,
+        zIndex: 1,
+        x: 0,
+        y: 0,
+        w: 100,
+        h: 60,
+        points: [],
+        width: 0,
+        colorKey: 'shape',
+        kind: CanvasObjectKind.shape,
+        shapeKind: CanvasShapeKind.line,
+      ),
+    );
+    sync.seedFromViewport(0);
+    dispatch(
+      const api.CanvasObjectEdited(
+        channelId: 'c1',
+        seq: 1,
+        opId: 'op-1',
+        objectId: 's',
+        props: {'shape': 'arrow', 'flip_x': true, 'color': 'red'},
+      ),
+    );
+
+    final shape = document.shapeOf('s');
+    expect(shape?.kind, CanvasShapeKind.arrow);
+    expect(shape?.flipX, isTrue);
+    expect(shape?.flipY, isFalse);
+    expect(log.entries.single.kind, CanvasActivityKind.edited);
+  });
+
+  test('a live edit of an image leaves it drawn as it was', () {
+    document.applyPlaced(
+      const CanvasStrokeInput(
+        id: 'i',
+        seq: 1,
+        zIndex: 1,
+        x: 0,
+        y: 0,
+        w: 100,
+        h: 60,
+        points: [],
+        width: 0,
+        colorKey: '',
+        kind: CanvasObjectKind.image,
+        attachmentId: 'abc',
+      ),
+    );
+    sync.seedFromViewport(0);
+    dispatch(
+      const api.CanvasObjectEdited(
+        channelId: 'c1',
+        seq: 1,
+        opId: 'op-1',
+        objectId: 'i',
+        props: {'attachment': 'abc', 'caption': 'hello'},
+      ),
+    );
+
+    expect(document.kindOf('i'), CanvasObjectKind.image);
+    expect(log.entries.single.kind, CanvasActivityKind.edited);
+  });
+
   test('an edit for a different channel changes nothing', () {
     document.applyPlaced(
       const CanvasStrokeInput(

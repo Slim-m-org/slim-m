@@ -272,6 +272,10 @@ fn its_own_fields(private: &Private, template: &str, (channel, message): (&str, 
         json!({"kind": "attachment", "id": "09".repeat(32)})
     } else if template == "/reports" {
         json!({"channel_id": null, "author_id": null})
+    } else if template.ends_with("/canvas/ops/batch") {
+        let op =
+            json!({"id": Uuid::now_v7().to_string(), "kind": "remove", "object_ids": [message]});
+        json!({"ops": [op]})
     } else if template.ends_with("/ephemeral-messages") {
         json!({"in_reply_to_id": message})
     } else {

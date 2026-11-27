@@ -214,7 +214,7 @@ String canvasShapeKindToWire(CanvasShapeKind kind) => switch (kind) {
   CanvasShapeKind.arrow => 'arrow',
 };
 
-/// Applies the props an `edit` wrote: a note takes its text, a text box its text, font step and colour.
+/// Applies the props an `edit` wrote: a note takes its text, a text box its text, font step and colour, a shape its primitive and flips.
 void applyEditedProps(
   CanvasDocument document,
   String objectId,
@@ -223,6 +223,18 @@ void applyEditedProps(
   if (document.edges.knows(objectId)) {
     // The frame carries the whole merged props, so a key it lacks was deleted.
     document.edges.replaceProps(objectId, props);
+    return;
+  }
+  if (document.kindOf(objectId) == CanvasObjectKind.shape) {
+    // A shape draws from these three keys only; any other prop is for other clients.
+    if (canvasShapeKindFromWire(props['shape']) case final kind?) {
+      document.setShape(
+        objectId,
+        kind: kind,
+        flipX: props['flip_x'] == true,
+        flipY: props['flip_y'] == true,
+      );
+    }
     return;
   }
   if (document.kindOf(objectId) != CanvasObjectKind.text) {

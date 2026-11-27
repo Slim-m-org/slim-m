@@ -29,7 +29,7 @@ use super::super::error::ApiError;
 use super::super::extract::{AuthedLimited, CANVAS, Json};
 use super::super::messages::parse_uuid;
 use super::canvas_write::canvas_access;
-use crate::hub::{CanvasEvent, Event};
+use crate::hub::{CanvasEvent, Event, Hub};
 use crate::ids::{CanvasObjectId, CanvasOpId, ChannelId, Seq, UserId};
 use crate::permissions::Permissions;
 use crate::store::{
@@ -67,6 +67,14 @@ pub(in crate::http) struct SubmitOpParams {
 }
 
 impl SubmitOpParams {
+    pub(super) fn id(&self) -> &str {
+        &self.id
+    }
+
+    pub(super) fn kind(&self) -> &str {
+        &self.kind
+    }
+
     fn has_geometry(&self) -> bool {
         self.x.is_some() || self.y.is_some() || self.w.is_some() || self.h.is_some()
     }
@@ -120,36 +128,7 @@ pub(in crate::http) async fn submit_op(
         .store
         .submit_canvas_op(channel_id, ctx.user_id, op_id, may_moderate, request)
         .await;
-    let outcome = match outcome {
-        Ok(outcome) => outcome,
-        Err(SubmitOpError::NotFound) => {
-            return Err(ApiError::NotFound("that id is not in this channel"));
-        }
-        Err(SubmitOpError::NotAuthorized) => return Err(ApiError::Forbidden),
-        Err(SubmitOpError::ChannelFull) => {
-            return Err(ApiError::Conflict(
-                "restoring this would exceed the canvas's object ceiling",
-            ));
-        }
-        Err(SubmitOpError::OutOfBounds) => {
-            return Err(ApiError::BadRequest(
-                "the object is outside the world or too large",
-            ));
-        }
-        Err(SubmitOpError::Locked) => {
-            return Err(ApiError::Conflict("that object is locked in place"));
-        }
-        Err(SubmitOpError::NotEditable) => {
-            return Err(ApiError::BadRequest(
-                "only a note, a text box or a connection can be edited",
-            ));
-        }
-        Err(SubmitOpError::EdgeLimit) => {
-            return Err(ApiError::Conflict("that object has too many connections"));
-        }
-        Err(SubmitOpError::BadProps(reason)) => return Err(ApiError::BadRequest(reason)),
-        Err(SubmitOpError::Internal(err)) => return Err(err.into()),
-    };
+    let outcome = outcome.map_err(submit_error_api)?;
 
     // No await between the commit and this call; see `ws::permission_cache`.
     if outcome.fresh && outcome.affected > 0 {
@@ -160,6 +139,27 @@ pub(in crate::http) async fn submit_op(
     }
 
     Ok((StatusCode::CREATED, Json(CanvasOpResultDto::from(outcome))))
+}
+
+/// The refusal a failed op answers with, for a single submit and each op of a batch alike.
+pub(super) fn submit_error_api(error: SubmitOpError) -> ApiError {
+    match error {
+        SubmitOpError::NotFound => ApiError::NotFound("that id is not in this channel"),
+        SubmitOpError::NotAuthorized => ApiError::Forbidden,
+        SubmitOpError::ChannelFull => {
+            ApiError::Conflict("restoring this would exceed the canvas's object ceiling")
+        }
+        SubmitOpError::OutOfBounds => {
+            ApiError::BadRequest("the object is outside the world or too large")
+        }
+        SubmitOpError::Locked => ApiError::Conflict("that object is locked in place"),
+        SubmitOpError::NotEditable => ApiError::BadRequest(
+            "only a note, a text box, a connection, a shape or an image can be edited",
+        ),
+        SubmitOpError::EdgeLimit => ApiError::Conflict("that object has too many connections"),
+        SubmitOpError::BadProps(reason) => ApiError::BadRequest(reason),
+        SubmitOpError::Internal(err) => err.into(),
+    }
 }
 
 impl From<SubmittedOp> for CanvasOpResultDto {
@@ -182,7 +182,7 @@ impl From<SubmittedOp> for CanvasOpResultDto {
 /// before touching its other fields: `object_ids`, `before_seq`, `target_op`,
 /// the move-specific fields, and `z_index` are each legal on only one of the
 /// five kinds this slice accepts.
-fn parse_request(params: SubmitOpParams) -> Result<CanvasOpRequest, ApiError> {
+pub(super) fn parse_request(params: SubmitOpParams) -> Result<CanvasOpRequest, ApiError> {
     let scoped_fields = params.kinds.is_some() || params.author_id.is_some();
     if !matches!(params.kind.as_str(), "clear_scoped") && scoped_fields {
         return Err(ApiError::BadRequest(
@@ -360,16 +360,23 @@ pub(in crate::http) fn publish(
     op_id: CanvasOpId,
     outcome: &SubmittedOp,
 ) {
+    publish_to(&state.hub, channel_id, op_id, outcome);
+}
+
+pub(super) fn publish_to(
+    hub: &Hub,
+    channel_id: ChannelId,
+    op_id: CanvasOpId,
+    outcome: &SubmittedOp,
+) {
     match outcome.kind.as_str() {
-        "remove" => state
-            .hub
-            .publish(Event::Canvas(CanvasEvent::ObjectsRemoved {
-                channel_id,
-                seq: Seq(outcome.seq),
-                op_id,
-                object_ids: outcome.touched_ids.clone(),
-            })),
-        "clear" => state.hub.publish(Event::Canvas(CanvasEvent::Cleared {
+        "remove" => hub.publish(Event::Canvas(CanvasEvent::ObjectsRemoved {
+            channel_id,
+            seq: Seq(outcome.seq),
+            op_id,
+            object_ids: outcome.touched_ids.clone(),
+        })),
+        "clear" => hub.publish(Event::Canvas(CanvasEvent::Cleared {
             channel_id,
             seq: Seq(outcome.seq),
             op_id,
@@ -378,20 +385,18 @@ pub(in crate::http) fn publish(
             spared_ids: restorable_ids(&outcome.spared_ids),
             spared_count: outcome.spared_ids.len() as i64,
         })),
-        "restore" => state
-            .hub
-            .publish(Event::Canvas(CanvasEvent::ObjectsRestored {
-                channel_id,
-                seq: Seq(outcome.seq),
-                op_id,
-                object_ids: restorable_ids(&outcome.touched_ids),
-            })),
+        "restore" => hub.publish(Event::Canvas(CanvasEvent::ObjectsRestored {
+            channel_id,
+            seq: Seq(outcome.seq),
+            op_id,
+            object_ids: restorable_ids(&outcome.touched_ids),
+        })),
         "move" => {
             // Both are set together on the fresh, effective path only; see `SubmittedOp::moved_to`.
             if let (Some((x, y, w, h)), Some(&object_id)) =
                 (outcome.moved_to, outcome.touched_ids.first())
             {
-                state.hub.publish(Event::Canvas(CanvasEvent::ObjectMoved {
+                hub.publish(Event::Canvas(CanvasEvent::ObjectMoved {
                     channel_id,
                     seq: Seq(outcome.seq),
                     op_id,
@@ -408,7 +413,7 @@ pub(in crate::http) fn publish(
             if let (Some(props), Some(&object_id)) =
                 (outcome.edited_props.clone(), outcome.touched_ids.first())
             {
-                state.hub.publish(Event::Canvas(CanvasEvent::ObjectEdited {
+                hub.publish(Event::Canvas(CanvasEvent::ObjectEdited {
                     channel_id,
                     seq: Seq(outcome.seq),
                     op_id,
@@ -422,15 +427,13 @@ pub(in crate::http) fn publish(
             if let (Some(z_index), Some(&object_id)) =
                 (outcome.reordered_to, outcome.touched_ids.first())
             {
-                state
-                    .hub
-                    .publish(Event::Canvas(CanvasEvent::ObjectReordered {
-                        channel_id,
-                        seq: Seq(outcome.seq),
-                        op_id,
-                        object_id,
-                        z_index,
-                    }));
+                hub.publish(Event::Canvas(CanvasEvent::ObjectReordered {
+                    channel_id,
+                    seq: Seq(outcome.seq),
+                    op_id,
+                    object_id,
+                    z_index,
+                }));
             }
         }
         _ => {}

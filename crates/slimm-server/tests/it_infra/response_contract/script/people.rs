@@ -25,6 +25,9 @@ pub(super) async fn profile_calls(c: &mut Contract, root: &str, admin_id: &str, 
     )
     .await;
     c.get("getUser", &format!("/users/{bob_id}"), root).await;
+    c.get("getMember", &format!("/members/{bob_id}"), root)
+        .await;
+    c.get("getOwnPermissions", "/me/permissions", root).await;
     c.get("listMembers", "/members?limit=50", root).await;
     c.get(
         "listPresence",
@@ -78,6 +81,21 @@ pub(super) async fn profile_calls(c: &mut Contract, root: &str, admin_id: &str, 
         "clearPresenceActivity",
         "DELETE",
         "/presence/activity",
+        root,
+    )
+    .await;
+    c.json(
+        "heartbeatPresence",
+        "PUT",
+        "/presence/heartbeat",
+        root,
+        json!({"status": "away", "ttl_seconds": 30}),
+    )
+    .await;
+    c.bare(
+        "endPresenceHeartbeat",
+        "DELETE",
+        "/presence/heartbeat",
         root,
     )
     .await;

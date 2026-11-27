@@ -6,10 +6,12 @@
 //! single-file version crossed the 500-line hard limit: `http_gate` is the
 //! route wired end to end, `feed` is everything below it.
 
+mod batch;
 mod clear_locks;
 mod clear_scope;
 mod convergence;
 mod edit;
+mod edit_kinds;
 mod emoji_objects;
 mod erased_bounds;
 mod export_feed;

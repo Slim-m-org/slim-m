@@ -417,6 +417,17 @@ void main() {
           api.listChannels, throwsA(isA<UnauthorizedException>()));
       expect(api.session.isSignedIn, isFalse);
     });
+
+    test('a 401 that names a code is still an unauthorized refusal', () async {
+      final api = SlimmApi(
+        baseUrl: _base,
+        session: SessionStore(tokens: _tokens()),
+        httpClient: MockClient((_) async => http.Response(
+            '{"error":"invalid credentials","code":"token_expired"}', 401)),
+      );
+      await expectLater(
+          api.listChannels, throwsA(isA<UnauthorizedException>()));
+    });
   });
 
   group('SessionStore.onChange', () {
