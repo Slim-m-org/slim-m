@@ -190,6 +190,7 @@ pub const EXEMPT_ROUTES: &[(&str, &str, &str)] = &[
     ),
     ("DELETE", "/notifications/schedule/snooze", OWN_DATA),
     ("DELETE", "/presence/activity", OWN_DATA),
+    ("DELETE", "/presence/heartbeat", OWN_DATA),
     ("DELETE", "/voice/transcripts/{transcript_id}", OWN_DATA),
     (
         "DELETE",
@@ -357,6 +358,7 @@ pub const EXEMPT_ROUTES: &[(&str, &str, &str)] = &[
     ),
     ("PUT", "/notifications/schedule/snooze", OWN_DATA),
     ("PUT", "/presence/activity", OWN_DATA),
+    ("PUT", "/presence/heartbeat", OWN_DATA),
     ("PUT", "/users/{user_id}/note", OWN_DATA),
     (
         "PUT",

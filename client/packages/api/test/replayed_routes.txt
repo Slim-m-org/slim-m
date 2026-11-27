@@ -38,6 +38,7 @@ DELETE /notifications/schedule/allowed-channels/$channelId
 DELETE /notifications/schedule/allowed-users/$userId
 DELETE /notifications/schedule/snooze
 DELETE /presence/activity
+DELETE /presence/heartbeat
 DELETE /push
 DELETE /roles/$roleId
 DELETE /roles/$roleId/module-permissions/$moduleId/$permKey
@@ -81,6 +82,7 @@ PUT /notifications/schedule/allowed-channels/$channelId
 PUT /notifications/schedule/allowed-users/$userId
 PUT /notifications/schedule/snooze
 PUT /presence/activity
+PUT /presence/heartbeat
 PUT /push
 PUT /push/lifecycle
 PUT /push/preference
