@@ -14,6 +14,10 @@ pub const MAX_TEXT_CHARS: usize = 500;
 /// The font steps a text box may name; the client maps each onto its type scale.
 pub const TEXT_SIZES: [&str; 3] = ["small", "medium", "large"];
 
+/// The range of a note's own `font_size`, in logical px at zoom 1; the client clamps to the same one.
+pub const MIN_NOTE_FONT_SIZE: f64 = 8.0;
+pub const MAX_NOTE_FONT_SIZE: f64 = 96.0;
+
 const MAX_COLOR_BYTES: usize = 32;
 
 /// A named colour key of identifier characters, or `#rrggbb`: the one rule for every canvas colour.
@@ -70,7 +74,7 @@ pub fn check_text_props(props: &Value) -> Result<(), &'static str> {
     Ok(())
 }
 
-/// Refuses note props that carry a known key of the wrong type; every other key, `font_size` included, passes.
+/// Refuses note props that carry a known key of the wrong type or range; every other key passes.
 ///
 /// Notes took any props before the style keys existed, so `text` is only required to be a string.
 pub fn check_note_props(props: &Value) -> Result<(), &'static str> {
@@ -85,6 +89,12 @@ pub fn check_note_props(props: &Value) -> Result<(), &'static str> {
     }
     if known("size").is_some_and(|v| !v.as_str().is_some_and(|s| TEXT_SIZES.contains(&s))) {
         return Err("props.size is not a known text size");
+    }
+    if known("font_size").is_some_and(|v| {
+        !v.as_f64()
+            .is_some_and(|n| (MIN_NOTE_FONT_SIZE..=MAX_NOTE_FONT_SIZE).contains(&n))
+    }) {
+        return Err("props.font_size must be a number from 8 to 96");
     }
     if known("fill_opacity").is_some_and(|v| {
         !v.as_f64()
@@ -135,6 +145,8 @@ mod tests {
     fn a_note_keeps_every_prop_an_older_client_sends() {
         for ok in [
             json!({"text": "a", "font_size": 14.0}),
+            json!({"text": "a", "font_size": 8, "size": "large"}),
+            json!({"text": "a", "font_size": null}),
             json!({"text": "a"}),
             json!({"text": "a", "color": "annotation", "unknown": [1]}),
             json!({"fill": null, "fill_opacity": null, "color": null, "size": null}),
@@ -155,6 +167,9 @@ mod tests {
             json!({"fill_opacity": -0.1}),
             json!({"fill_opacity": 1.5}),
             json!({"fill_opacity": "x"}),
+            json!({"font_size": 7.9}),
+            json!({"font_size": 96.1}),
+            json!({"font_size": "14"}),
         ] {
             assert!(check_note_props(&bad).is_err(), "{bad}");
         }

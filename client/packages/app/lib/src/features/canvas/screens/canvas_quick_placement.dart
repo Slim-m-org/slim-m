@@ -109,7 +109,6 @@ class CanvasQuickPlacement {
       h: box.height,
       props: {
         'text': text,
-        'font_size': fontSize,
         for (final entry in style.toWire().entries)
           if (entry.value != null) entry.key: entry.value,
       },

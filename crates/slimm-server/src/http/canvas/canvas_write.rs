@@ -142,10 +142,6 @@ pub(super) struct ValidatedPlace {
 }
 
 impl ValidatedPlace {
-    pub(super) fn is_edge(&self) -> bool {
-        self.kind == "edge"
-    }
-
     pub(super) fn request(&self) -> crate::store::PlaceRequest<'_> {
         crate::store::PlaceRequest {
             kind: &self.kind,
@@ -286,7 +282,7 @@ pub(super) async fn canvas_access(
     }
     require_open_surface(state, channel_id).await?;
     if !permissions.contains(Permissions::USE_CANVAS) {
-        return Err(ApiError::Forbidden);
+        return Err(ApiError::Lacks(Permissions::USE_CANVAS));
     }
     Ok(permissions)
 }
@@ -316,8 +312,11 @@ pub(in crate::http) async fn ensure_may_mark_screen(
         .store
         .permissions_in_channel(user_id, channel_id)
         .await?;
-    if !permissions.contains(Permissions::VIEW_CHANNEL.union(Permissions::USE_CANVAS)) {
+    if !permissions.contains(Permissions::VIEW_CHANNEL) {
         return Err(ApiError::Forbidden);
+    }
+    if !permissions.contains(Permissions::USE_CANVAS) {
+        return Err(ApiError::Lacks(Permissions::USE_CANVAS));
     }
     if state.store.timed_out_until(user_id).await?.is_some() {
         return Err(ApiError::Forbidden);

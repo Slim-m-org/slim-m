@@ -2,8 +2,10 @@
 //! A note's style props: validated on place and edit, merged on edit so an older client's
 //! text-only edit keeps the style (decision 0138).
 
-use axum::http::StatusCode;
+use axum::body::Body;
+use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
+use tower::ServiceExt;
 use uuid::Uuid;
 
 use crate::canvas_ops::fixtures::{
@@ -139,4 +141,72 @@ async fn null_deletes_a_key_and_key_order_never_makes_an_edit() {
     let reordered: Value = serde_json::from_str(r#"{"size":"small","text":"a"}"#).unwrap();
     let (_, body) = submit_op(&app, channel, &bob, edit_op(&id(), &object, reordered)).await;
     assert_eq!(body["op"]["affected"], 0, "{body}");
+}
+
+const BAD_FONT_SIZES: [&str; 6] = ["7.9", "96.1", "-12", "\"14\"", "true", "[14]"];
+
+async fn post_batch(
+    app: &axum::Router,
+    channel: impl std::fmt::Display,
+    token: &str,
+    note: Value,
+) -> StatusCode {
+    let request = Request::builder()
+        .method("POST")
+        .uri(format!("/channels/{channel}/canvas/objects/batch"))
+        .header("authorization", format!("Bearer {token}"))
+        .header("content-type", "application/json")
+        .body(Body::from(json!({ "objects": [note] }).to_string()))
+        .unwrap();
+    app.clone().oneshot(request).await.unwrap().status()
+}
+
+#[tokio::test]
+async fn a_note_font_size_is_checked_on_place_batch_place_and_edit() {
+    let (store, _guard) = new_store().await;
+    register(&store, "root").await;
+    let channel = general(&store).await;
+    let app = app(store.clone());
+    let (bob, _) = member(&store, "bob").await;
+    let (_, placed) = post_object(&app, channel, &bob, note_with(json!({ "text": "n" }))).await;
+    let object = placed["id"].as_str().unwrap().to_owned();
+
+    for raw in BAD_FONT_SIZES {
+        let bad: Value = serde_json::from_str(raw).unwrap();
+        let props = json!({ "text": "n", "font_size": bad });
+        let (status, body) = post_object(&app, channel, &bob, note_with(props.clone())).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "place {raw}: {body}");
+        let status = post_batch(&app, channel, &bob, note_with(props)).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "batch {raw}");
+        let edit = json!({ "font_size": bad });
+        let (status, body) = submit_op(&app, channel, &bob, edit_op(&id(), &object, edit)).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "edit {raw}: {body}");
+    }
+
+    for good in [json!(8), json!(24.5), json!(96)] {
+        let props = json!({ "text": "n", "font_size": good });
+        let (status, body) = post_object(&app, channel, &bob, note_with(props.clone())).await;
+        assert_eq!(status, StatusCode::CREATED, "place {good}: {body}");
+        let status = post_batch(&app, channel, &bob, note_with(props)).await;
+        assert_eq!(status, StatusCode::CREATED, "batch {good}");
+        let edit = json!({ "font_size": good });
+        let (status, body) = submit_op(&app, channel, &bob, edit_op(&id(), &object, edit)).await;
+        assert_eq!(status, StatusCode::CREATED, "edit {good}: {body}");
+    }
+}
+
+#[tokio::test]
+async fn a_null_font_size_deletes_it_on_edit() {
+    let (store, pool, _guard) = new_store_and_pool().await;
+    register(&store, "root").await;
+    let channel = general(&store).await;
+    let app = app(store.clone());
+    let (bob, _) = member(&store, "bob").await;
+    let props = json!({ "text": "n", "font_size": 30 });
+    let (_, placed) = post_object(&app, channel, &bob, note_with(props)).await;
+    let object = placed["id"].as_str().unwrap().to_owned();
+    let edit = edit_op(&id(), &object, json!({ "font_size": null }));
+    let (status, body) = submit_op(&app, channel, &bob, edit).await;
+    assert_eq!(status, StatusCode::CREATED, "{body}");
+    assert_eq!(props_of(&pool, &object).await, json!({ "text": "n" }));
 }

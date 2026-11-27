@@ -9,7 +9,7 @@ import 'package:slimm_voice_canvas/src/canvas_painters.dart';
 
 import 'support/canvas_painter_fixtures.dart';
 
-double _lineHeightOf({double w = 330, double h = 210}) {
+double _lineHeightOf({double w = 330, double h = 210, double? fontSize}) {
   final document = CanvasDocument()..setViewport(const Size(400, 400));
   addTearDown(document.dispose);
   document
@@ -27,6 +27,7 @@ double _lineHeightOf({double w = 330, double h = 210}) {
         colorKey: 'note',
         kind: CanvasObjectKind.note,
         text: 'hello',
+        fontSize: fontSize,
       ),
     )
     ..refresh();
@@ -56,6 +57,23 @@ void main() {
     expect(
       _lineHeightOf(w: 660, h: 210),
       closeTo(noteReferenceFontSize * noteLineHeight, 0.5),
+    );
+  });
+
+  test('a wide short note draws small without a font_size and at it with one',
+      () {
+    expect(
+      _lineHeightOf(w: 520, h: 96),
+      closeTo(96 * noteReferenceFontSize / noteReferenceHeight * noteLineHeight,
+          0.5),
+    );
+    expect(
+      _lineHeightOf(w: 520, h: 96, fontSize: 24),
+      closeTo(24 * noteLineHeight, 0.5),
+    );
+    expect(
+      _lineHeightOf(w: 100, h: 100, fontSize: 40),
+      closeTo(40 * noteLineHeight, 0.5),
     );
   });
 

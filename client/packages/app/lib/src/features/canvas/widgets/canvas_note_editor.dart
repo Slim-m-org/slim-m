@@ -141,7 +141,10 @@ class _CanvasNoteEditorState extends State<CanvasNoteEditor>
     final style =
         widget.document.noteStyleOf(_session.objectId) ??
         const CanvasNoteStyle();
-    return noteTextSizeOf(noteFontSizeFor(w, h), style);
+    return noteTextSizeOf(
+      noteBaseFontSize(w, h, widget.document.noteFontSizeOf(_session.objectId)),
+      style,
+    );
   }
 
   /// Grows the note to hold the raw text as it is typed; the commit grows it again to the rendered layout.
@@ -155,7 +158,13 @@ class _CanvasNoteEditorState extends State<CanvasNoteEditor>
       _session.controller.text,
       width: bounds.w,
       minHeight: bounds.h,
-      fontSize: noteTextSizeOf(noteFontSizeForWidth(bounds.w), style),
+      fontSize: noteTextSizeOf(
+        noteBaseFontSizeForWidth(
+          bounds.w,
+          widget.document.noteFontSizeOf(_session.objectId),
+        ),
+        style,
+      ),
     );
     if (box.height <= bounds.h) return;
     if (bounds.h != _session.grownHeight) _session.baseHeight = bounds.h;

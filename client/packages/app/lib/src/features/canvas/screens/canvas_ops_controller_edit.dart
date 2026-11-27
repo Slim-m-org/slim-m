@@ -215,7 +215,10 @@ extension CanvasOpsControllerEdit on CanvasOpsController {
       text,
       width: bounds.w,
       minHeight: bounds.h,
-      fontSize: noteTextSizeOf(noteFontSizeForWidth(bounds.w), style),
+      fontSize: noteTextSizeOf(
+        noteBaseFontSizeForWidth(bounds.w, document.noteFontSizeOf(objectId)),
+        style,
+      ),
       spans: noteSpans,
     );
     if (box.height <= bounds.h) return;

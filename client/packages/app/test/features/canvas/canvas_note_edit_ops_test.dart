@@ -25,21 +25,23 @@ http.Response _json(Object body, [int status = 200]) => http.Response(
   headers: {'content-type': 'application/json'},
 );
 
-CanvasStrokeInput _note(String id, String text) => CanvasStrokeInput(
-  id: id,
-  seq: 1,
-  zIndex: 1,
-  x: 100,
-  y: 100,
-  w: 120,
-  h: 80,
-  points: const [],
-  width: 0,
-  colorKey: 'note',
-  authorId: 'me',
-  kind: CanvasObjectKind.note,
-  text: text,
-);
+CanvasStrokeInput _note(String id, String text, {double? fontSize}) =>
+    CanvasStrokeInput(
+      id: id,
+      seq: 1,
+      zIndex: 1,
+      x: 100,
+      y: 100,
+      w: 120,
+      h: 80,
+      points: const [],
+      width: 0,
+      colorKey: 'note',
+      authorId: 'me',
+      kind: CanvasObjectKind.note,
+      text: text,
+      fontSize: fontSize,
+    );
 
 api.SlimmApi _client(Future<http.Response> Function(http.Request) handler) =>
     testApi(
@@ -153,6 +155,29 @@ void main() {
       expect(h.requests.single['object_id'], 'n');
       expect(h.requests.single['props'], {'text': 'second'});
       expect(h.ops.canUndo, isTrue);
+    });
+  });
+
+  test('an edit re-sends a stored font size and never invents one', () {
+    fakeAsync((async) {
+      final h = _Harness();
+      h.document
+        ..applyPlaced(_note('big', 'first', fontSize: 30))
+        ..refresh();
+
+      unawaited(h.ops.editNote('big', 'second'));
+      async.flushMicrotasks();
+      expect(h.requests.firstWhere((r) => r['kind'] == 'edit')['props'], {
+        'text': 'second',
+        'font_size': 30,
+      });
+
+      h.requests.clear();
+      unawaited(h.ops.editNote('n', 'second'));
+      async.flushMicrotasks();
+      expect(h.requests.firstWhere((r) => r['kind'] == 'edit')['props'], {
+        'text': 'second',
+      });
     });
   });
 

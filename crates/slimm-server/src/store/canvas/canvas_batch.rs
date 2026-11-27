@@ -3,7 +3,7 @@
 
 use super::{
     CanvasObject, PlaceError, PlaceRequest, Placement, Store, channel_key, fetch_object,
-    insert_place_op, next_canvas_seq, now_ms, valid_bounds,
+    insert_place_op, next_canvas_seq, now_ms, place_edge, valid_bounds,
 };
 use crate::ids::{CanvasObjectId, ChannelId, Seq, UserId};
 
@@ -52,6 +52,8 @@ impl Store {
     ///
     /// An item whose id is already placed in this channel answers with the stored row, so a
     /// retried batch returns what the first try wrote and fans out nothing for it.
+    /// An edge resolves against the board as the batch has built it so far, so its ends must
+    /// already be there or sit earlier in `items`.
     pub async fn place_canvas_objects(
         &self,
         channel_id: ChannelId,
@@ -83,6 +85,11 @@ impl Store {
         for (index, (item, found)) in items.iter().zip(existing).enumerate() {
             placed.push(match found {
                 Some(found) => found,
+                None if item.request.kind == "edge" => {
+                    place_edge(&mut tx, channel_id, author_id, item.id, &item.request)
+                        .await
+                        .map_err(at(index))?
+                }
                 None => insert_object(&mut tx, channel_id, author_id, item.id, &item.request)
                     .await
                     .map_err(at(index))?,

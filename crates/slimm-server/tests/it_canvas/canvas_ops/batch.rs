@@ -16,7 +16,7 @@ use crate::canvas_ops::fixtures::{
     post_object, register, remove, reorder_op, stroke,
 };
 
-async fn submit_batch(
+pub(super) async fn submit_batch(
     app: &Router,
     channel: ChannelId,
     token: &str,
@@ -47,7 +47,7 @@ async fn submit_batch(
     )
 }
 
-async fn place(app: &Router, channel: ChannelId, token: &str, body: Value) -> String {
+pub(super) async fn place(app: &Router, channel: ChannelId, token: &str, body: Value) -> String {
     let (status, placed) = post_object(app, channel, token, body).await;
     assert_eq!(status, StatusCode::CREATED, "{placed}");
     placed["id"].as_str().unwrap().to_owned()

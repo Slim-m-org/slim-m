@@ -145,7 +145,7 @@ pub(in crate::http) async fn submit_op(
 pub(super) fn submit_error_api(error: SubmitOpError) -> ApiError {
     match error {
         SubmitOpError::NotFound => ApiError::NotFound("that id is not in this channel"),
-        SubmitOpError::NotAuthorized => ApiError::Forbidden,
+        SubmitOpError::NotAuthorized => ApiError::Lacks(Permissions::MANAGE_CANVAS),
         SubmitOpError::ChannelFull => {
             ApiError::Conflict("restoring this would exceed the canvas's object ceiling")
         }
@@ -209,7 +209,7 @@ fn parse_remove(params: SubmitOpParams) -> Result<CanvasOpRequest, ApiError> {
         .ok_or(ApiError::BadRequest("remove needs object_ids"))?;
     if ids.is_empty() || ids.len() > MAX_REMOVE_IDS_PER_OP {
         return Err(ApiError::BadRequest(
-            "object_ids must hold between 1 and 64 ids",
+            "object_ids must hold between 1 and 64 ids; split a longer list across remove ops, a batch holds 200 ops",
         ));
     }
     let object_ids = ids

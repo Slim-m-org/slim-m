@@ -95,7 +95,10 @@ class ObjectPainter {
     }
     canvas.drawRRect(rounded.deflate(0.75), _noteStroke..color = fill);
     final text = stroke.text;
-    final fontSize = noteTextSizeOf(noteFontSizeFor(stroke.w, stroke.h), style);
+    final fontSize = noteTextSizeOf(
+      noteBaseFontSize(stroke.w, stroke.h, stroke.fontSize),
+      style,
+    );
     if (editing ||
         text == null ||
         text.isEmpty ||
@@ -362,6 +365,14 @@ double noteFontSizeFor(double w, double h) => math.min(
       noteFontSizeForWidth(w),
       h * noteReferenceFontSize / noteReferenceHeight,
     );
+
+/// A note's own `font_size` when it carries one, else the size its box implies.
+double noteBaseFontSize(double w, double h, double? own) =>
+    own ?? noteFontSizeFor(w, h);
+
+/// [noteBaseFontSize] for a layout that plans for the widest the text can be.
+double noteBaseFontSizeForWidth(double w, double? own) =>
+    own ?? noteFontSizeForWidth(w);
 
 /// The largest text size a note [w] wide can show, which a layout that must always fit plans for.
 double noteFontSizeForWidth(double w) =>
