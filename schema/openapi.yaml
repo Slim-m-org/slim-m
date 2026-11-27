@@ -8282,6 +8282,16 @@ paths:
         An id repeated inside one batch is a 400.
 
 
+        A `module` tile is placed on its own, not in a batch. An `edge`
+        may be, and is resolved in array order against the board as the batch
+        has built it so far: each end must be an object already on the board
+        or one placed earlier in the same batch, and every check a single
+        connection passes applies. An end that is missing, in another channel
+        or placed later in the batch is a 400 naming the edge's index, an end
+        of a kind a connection cannot attach to is a 400, and an object that
+        already has its maximum of connections is a 409.
+
+
         Objects take consecutive seqs in array order and each fans out as the
         same `object_placed` event a single place sends, in that order. Each
         `id` is an idempotency key as for a single place: a retried batch
@@ -8360,7 +8370,11 @@ paths:
         `submitCanvasOp` takes for `move`, `edit`, `remove` or `reorder` (any other `kind` is a
         400), and each checked the same way: `VIEW_CHANNEL` and `USE_CANVAS`, authorship or
         `MANAGE_CANVAS`, locks, bounds and props. A timeout refuses a batch holding anything but
-        `remove`, as it refuses those ops singly.
+        `remove`, as it refuses those ops singly. A `remove` op holds at most 64 ids, the same as
+        singly, so removing more is several remove ops in one batch (up to the 200-op cap).
+
+        A refusal for a missing permission is a 403 whose `missing` names the bit, such as
+        `["manage_canvas"]`.
 
 
         The batch is all or nothing: one refused op rolls everything back, and the response is
@@ -8509,7 +8523,9 @@ paths:
 
 
         `remove` names between 1 and 64 object ids and erases whichever of
-        them are still live. Removing your own object needs nothing further;
+        them are still live. The 64 holds inside `submitCanvasOpBatch` too,
+        where a batch of up to 200 ops can carry several removes: split a
+        longer list across remove ops. Removing your own object needs nothing further;
         removing anyone else's needs `MANAGE_CANVAS`. An id absent from this
         channel, or belonging to another one, is a 404 - one answer for both,
         so the route cannot be used to probe whether an id exists elsewhere.
@@ -15363,6 +15379,18 @@ components:
             The permission bits the caller lacked. Present only on the 403
             from a channel overwrite write that would grant bits the caller
             does not hold.
+        missing:
+          type: array
+          items:
+            type: string
+          description: >
+            The names of the permissions the caller lacked, such as
+            `manage_canvas` or `use_canvas`. Present only on a canvas 403
+            that is a missing permission: moving, editing, removing or
+            clearing someone else's object without `MANAGE_CANVAS`, or any
+            canvas write without `USE_CANVAS`. A canvas channel the caller
+            cannot view, a timeout and a lock leave it out. On a batch refusal
+            it sits beside `item_index`.
         item_index:
           type: integer
           format: int32

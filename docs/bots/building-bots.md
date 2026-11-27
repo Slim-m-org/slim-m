@@ -225,11 +225,27 @@ Tidying a board into columns is one request, and viewers get the moves one event
 The batch is all or nothing: one refused op rolls everything back, and the error carries that op's zero-based `item_index` and an `item_code` such as `locked` or `not_found`.
 Every op needs its own UUIDv7 `id`, distinct within the batch, and retrying a whole batch answers with the stored ops (`fresh: false`) and sends nothing.
 A batch is charged by op count against the same budget as the place batch, and a timed-out member can still send a batch of removes.
+A `remove` op holds at most 64 ids, in a batch as singly, so removing more is several remove ops in one batch (up to the 200-op cap).
 
 `edit` changes the props of a note, a text box, a connection, a shape or an image.
 A shape's and an image's props merge: a key you leave out keeps its value and `null` deletes it.
 The app draws a shape from `shape`, `flip_x` and `flip_y`, so a colour or a label you add is stored and sent on, and other clients may use it.
 An image's `attachment` cannot be edited; place a new image for a different picture.
+
+### Connections in a place batch
+
+`POST /channels/{channelId}/canvas/objects/batch` takes `kind: "edge"` objects.
+An edge resolves in array order against the board as the batch has built it, so each end is an object already on the board or one placed earlier in the same batch.
+Put the notes first and the arrows after them: an end that is missing, in another channel or later in the batch is a `400` that names the edge's index.
+An edge passes every check a single connection does, so an end that is a stroke is a `400` and an object with 64 connections already is a `409`.
+A module tile is still placed on its own.
+
+### Which permission was missing
+
+A canvas `403` for a missing permission carries `"missing": ["manage_canvas"]` next to `error`.
+It names `manage_canvas` for moving, editing, removing or clearing someone else's object (or clearing at all), and `use_canvas` for any canvas write by a member without it.
+In a batch it sits beside `item_index` and `item_code`.
+A channel you cannot view, a timeout and a locked object answer as before, with no `missing`.
 
 ## Member join events
 

@@ -161,7 +161,7 @@ async fn require_exporter(
         .ok_or(ApiError::NotFound("channel not found"))?;
     let permissions = ensure_may_draw(state, user_id, source_id).await?;
     if clear_source && !permissions.contains(Permissions::MANAGE_CANVAS) {
-        return Err(ApiError::Forbidden);
+        return Err(ApiError::Lacks(Permissions::MANAGE_CANVAS));
     }
     Ok(source.category_id)
 }

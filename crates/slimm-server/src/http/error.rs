@@ -39,6 +39,11 @@ pub(crate) enum ApiError {
     /// A write refused because it would grant permission bits the caller does
     /// not hold. Carries those bits so the client can name them.
     MissingPermissions(Permissions),
+    /// A refusal because the caller lacks these bits, named in the body's `missing`.
+    ///
+    /// Unlike [`ApiError::MissingPermissions`] it is not a grant escalation, so it leaves
+    /// `missing_permissions` unset and a client never reads it as "you cannot grant".
+    Lacks(Permissions),
     /// A refusal for a reason worth telling the caller, where "insufficient permissions" would mislead.
     ForbiddenBecause(&'static str),
     /// Like [`ApiError::ForbiddenBecause`], where a module supplied the reason.
@@ -68,6 +73,8 @@ pub(crate) enum ApiError {
         code: &'static str,
         /// Every refused entry, this one first, so a caller can fix them all in one go.
         items: Vec<RefusedItem>,
+        /// The bits this entry's refusal lacked, named in the body's `missing`.
+        missing: Option<Permissions>,
     },
     TooManyRequests,
     /// The rate limiter refused; says how long until the bucket has a token.
@@ -126,6 +133,9 @@ struct ErrorBody {
     /// Only [`ApiError::MissingPermissions`] sets this: the refused bits.
     #[serde(skip_serializing_if = "Option::is_none")]
     missing_permissions: Option<i64>,
+    /// Only [`ApiError::Lacks`] and an [`ApiError::AtItem`] built from one set this: the names of the bits the caller lacked.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    missing: Option<Vec<&'static str>>,
     /// Only [`ApiError::AtItem`] sets these two: the zero-based entry and why.
     #[serde(skip_serializing_if = "Option::is_none")]
     item_index: Option<usize>,
@@ -189,6 +199,12 @@ impl IntoResponse for ApiError {
             ApiError::MissingPermissions(bits) => Some(bits.bits()),
             _ => None,
         };
+        let missing = match &self {
+            ApiError::Lacks(bits) => Some(*bits),
+            ApiError::AtItem { missing, .. } => *missing,
+            _ => None,
+        }
+        .map(crate::permissions::names::names_of);
         let (item_index, item_code) = match &self {
             ApiError::AtItem { index, code, .. } => (Some(*index), Some(*code)),
             _ => (None, None),
@@ -206,7 +222,9 @@ impl IntoResponse for ApiError {
             ApiError::BadRequest(message) => (StatusCode::BAD_REQUEST, message.into()),
             ApiError::BadRequestDetail(message) => (StatusCode::BAD_REQUEST, message.into()),
             ApiError::Unauthorized => (StatusCode::UNAUTHORIZED, INVALID_CREDENTIALS.into()),
-            ApiError::Forbidden => (StatusCode::FORBIDDEN, "insufficient permissions".into()),
+            ApiError::Forbidden | ApiError::Lacks(_) => {
+                (StatusCode::FORBIDDEN, "insufficient permissions".into())
+            }
             ApiError::MissingPermissions(_) => (
                 StatusCode::FORBIDDEN,
                 "cannot grant a permission you do not hold".into(),
@@ -260,6 +278,7 @@ impl IntoResponse for ApiError {
                 error,
                 retry_after_seconds,
                 missing_permissions,
+                missing,
                 item_index,
                 item_code,
                 items,

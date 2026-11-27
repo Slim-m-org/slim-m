@@ -137,6 +137,10 @@ fn refused(OpBatchError { index, error }: OpBatchError) -> ApiError {
     };
     let (status, message) = match submit_error_api(error) {
         ApiError::NotFound(message) => (StatusCode::NOT_FOUND, message),
+        ApiError::Lacks(bits) => {
+            let message = "insufficient permissions";
+            return refusal(index, StatusCode::FORBIDDEN, code, message, Some(bits));
+        }
         ApiError::Forbidden => (StatusCode::FORBIDDEN, "insufficient permissions"),
         ApiError::BadRequest(message) => (StatusCode::BAD_REQUEST, message),
         ApiError::Conflict(message) => (StatusCode::CONFLICT, message),
@@ -146,6 +150,16 @@ fn refused(OpBatchError { index, error }: OpBatchError) -> ApiError {
 }
 
 fn at_item(index: usize, status: StatusCode, code: &'static str, message: &str) -> ApiError {
+    refusal(index, status, code, message, None)
+}
+
+fn refusal(
+    index: usize,
+    status: StatusCode,
+    code: &'static str,
+    message: &str,
+    missing: Option<Permissions>,
+) -> ApiError {
     let error = format!("op {index}: {message}");
     ApiError::AtItem {
         status,
@@ -153,6 +167,7 @@ fn at_item(index: usize, status: StatusCode, code: &'static str, message: &str) 
         index,
         code,
         items: vec![RefusedItem { index, code, error }],
+        missing,
     }
 }
 
