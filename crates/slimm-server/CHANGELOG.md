@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.118.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.117.0...server-v0.118.0) (2026-11-28)
+
+
+### Features
+
+* audit batch 2, session revocation, participant guard and identity proof ([#2479](https://github.com/Slim-m-org/slim-m/issues/2479)) ([ad4ddf2](https://github.com/Slim-m-org/slim-m/commit/ad4ddf25128422df0af0740d44424d0bcedceb09))
+* canvas channels, the canvas as a voice channel setting, viewer presence and export ([#2494](https://github.com/Slim-m-org/slim-m/issues/2494)) ([d3366ba](https://github.com/Slim-m-org/slim-m/commit/d3366bac4d65123eb626b8ecfcc4c9aeda8341ce))
+* canvas edges in a place batch, named missing permissions and a note font_size ([#2515](https://github.com/Slim-m-org/slim-m/issues/2515)) ([39d4646](https://github.com/Slim-m-org/slim-m/commit/39d46465c997ae2d254d8478633cd62e1e043eeb))
+* canvas multi-select, /tts, thread mentions, cross-device badges and the rest of the backlog ([#2508](https://github.com/Slim-m-org/slim-m/issues/2508)) ([4d99cdb](https://github.com/Slim-m-org/slim-m/commit/4d99cdbc6786b91212c77dfcd3c9d0265df6569b))
+* **canvas:** connections, in-place note editing with styles and Markdown, and Open canvas ([#2489](https://github.com/Slim-m-org/slim-m/issues/2489)) ([71a652d](https://github.com/Slim-m-org/slim-m/commit/71a652d62c445a7e26dbecaada70981fdb4853e9))
+* **client:** inline custom emoji, one Captions control, and call and thread notification fixes ([#2505](https://github.com/Slim-m-org/slim-m/issues/2505)) ([c601087](https://github.com/Slim-m-org/slim-m/commit/c601087d56a5a02f2e087aaff6e736dddd72489a))
+* **client:** tidier call dock, call bar controls and threads panel ([#2504](https://github.com/Slim-m-org/slim-m/issues/2504)) ([7763d4b](https://github.com/Slim-m-org/slim-m/commit/7763d4bd1f45ab37ec83c7c5e81c29ec09895733))
+* group dm powers, sharper image tiles, and pre-1.0 audit and polish fixes ([#2475](https://github.com/Slim-m-org/slim-m/issues/2475)) ([67a0823](https://github.com/Slim-m-org/slim-m/commit/67a08237e4b4e0f810d0500cb6dcdf2bfcfb670c))
+* keep the web client's refresh token in an HttpOnly cookie ([#2502](https://github.com/Slim-m-org/slim-m/issues/2502)) ([08444d0](https://github.com/Slim-m-org/slim-m/commit/08444d0123f0c8aec341f39596074c7749fd9af7))
+* **server:** canvas, auth and presence routes for plain http clients ([#2511](https://github.com/Slim-m-org/slim-m/issues/2511)) ([b0f26ea](https://github.com/Slim-m-org/slim-m/commit/b0f26ea6c5395d470e4689a72178c12b3e7d0131))
+* the canvas api stays on the board, and a touch drag pans first ([#2516](https://github.com/Slim-m-org/slim-m/issues/2516)) ([0441e52](https://github.com/Slim-m-org/slim-m/commit/0441e52717897d0087658983e49cf7f793605040))
+
+
+### Bug Fixes
+
+* audit batch 1, sign-in, permissions, socket and network hardening ([#2478](https://github.com/Slim-m-org/slim-m/issues/2478)) ([2be55ad](https://github.com/Slim-m-org/slim-m/commit/2be55adbc6620ce75dcc5f901da343e1653b9b4a))
+* audit batch 3, credentials, module hooks, attachments, gifs and invites ([#2480](https://github.com/Slim-m-org/slim-m/issues/2480)) ([c9b26c0](https://github.com/Slim-m-org/slim-m/commit/c9b26c017bfe9ba76679a0bf4197dc5dbaa2a6a9))
+* audit batch 4, text rules, module rights, uploads, deletion and push ([#2481](https://github.com/Slim-m-org/slim-m/issues/2481)) ([b82291a](https://github.com/Slim-m-org/slim-m/commit/b82291a448bfb3f2b9826d34f14b0a1c5f5b4a69))
+* audit batches 19, 20, 22 and 23, calls, tallies, client, server limits and packaging ([#2483](https://github.com/Slim-m-org/slim-m/issues/2483)) ([42b2e86](https://github.com/Slim-m-org/slim-m/commit/42b2e86ea6f0bd99a587c8850a794e40ff7064ad))
+* audit round 3, privacy, search, modules, client sessions and desktop ([#2486](https://github.com/Slim-m-org/slim-m/issues/2486)) ([c3fe07a](https://github.com/Slim-m-org/slim-m/commit/c3fe07a3fa7b45dc2eb0eccb1cc0c27b8c1d2bf1))
+* audit round 4, calls, desktop, phones, sync and deploy ([#2491](https://github.com/Slim-m-org/slim-m/issues/2491)) ([2542722](https://github.com/Slim-m-org/slim-m/commit/2542722a9f9cf64af20a09f57ccc571d9b3cb3a3))
+* canvas note bar, inline emoji, escape and dots, fullscreen annotate, thread mentions, photo metadata and flaky tests ([#2499](https://github.com/Slim-m-org/slim-m/issues/2499)) ([5c8b628](https://github.com/Slim-m-org/slim-m/commit/5c8b628e30027358fcecfc3e0bb97db266ab81f4))
+
 ## [0.117.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.116.0...server-v0.117.0) (2026-11-23)
 
 
