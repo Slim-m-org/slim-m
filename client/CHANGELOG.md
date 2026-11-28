@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.142.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.141.0...client-v0.142.0) (2026-11-28)
+
+
+### Features
+
+* canvas edges in a place batch, named missing permissions and a note font_size ([#2515](https://github.com/Slim-m-org/slim-m/issues/2515)) ([39d4646](https://github.com/Slim-m-org/slim-m/commit/39d46465c997ae2d254d8478633cd62e1e043eeb))
+* **client:** appear in the iOS share sheet ([#2514](https://github.com/Slim-m-org/slim-m/issues/2514)) ([5a030b9](https://github.com/Slim-m-org/slim-m/commit/5a030b97a818620bd7a3e2b30101c6bbb4af72e1))
+* **server:** canvas, auth and presence routes for plain http clients ([#2511](https://github.com/Slim-m-org/slim-m/issues/2511)) ([b0f26ea](https://github.com/Slim-m-org/slim-m/commit/b0f26ea6c5395d470e4689a72178c12b3e7d0131))
+* the canvas api stays on the board, and a touch drag pans first ([#2516](https://github.com/Slim-m-org/slim-m/issues/2516)) ([0441e52](https://github.com/Slim-m-org/slim-m/commit/0441e52717897d0087658983e49cf7f793605040))
+
 ## [0.141.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.140.0...client-v0.141.0) (2026-11-26)
 
 
