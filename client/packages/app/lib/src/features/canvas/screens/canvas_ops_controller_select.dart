@@ -91,7 +91,9 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
     required bool manageCanvas,
     required String? selfId,
     bool touch = false,
+    bool selectOnly = false,
   }) {
+    final before = document.selectedObjectId.value;
     if (_beginResize(world, manageCanvas, selfId, touch)) return;
     // Hidden by the board's clip, so a press on the letterbox selects nothing.
     if (!document.acceptsPlacementAt(world)) {
@@ -105,6 +107,8 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
     final id = hitTestTopmost(document, world, touch: touch, allowed: allowed);
     document.selectedObjectId.value = id;
     if (id == null || document.kindOf(id) == CanvasObjectKind.stroke) return;
+    // A finger's first press on an unselected object only selects it, so the drag can pan.
+    if (selectOnly && id != before) return;
     final bounds = document.objectBounds(id);
     if (bounds == null) return;
     _drag = _DragState(id, bounds.x, bounds.y, bounds.w, bounds.h, world);

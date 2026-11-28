@@ -269,6 +269,9 @@ class CanvasSelectGesture {
       manageCanvas: _manageCanvas,
       selfId: me?.id,
       touch: touch(),
+      selectOnly:
+          _tool() == CanvasTool.pan &&
+          _document.lastPointerKind == PointerDeviceKind.touch,
     );
     if (_ops.activeMove != null) return;
     // Nothing to move or resize under the pointer: a mouse draws a box, a finger pans or, held, draws one.
