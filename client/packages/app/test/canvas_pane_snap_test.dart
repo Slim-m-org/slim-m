@@ -3,6 +3,7 @@
 /// committed geometry lines up with a neighbour, and Alt moves freely.
 library;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
@@ -24,6 +25,7 @@ void main() {
     if (alt) await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
     final gesture = await tester.startGesture(
       screenFor(tester, const Offset(415, 15)),
+      kind: PointerDeviceKind.mouse,
     );
     await gesture.moveTo(screenFor(tester, const Offset(502, 17)));
     await gesture.up();

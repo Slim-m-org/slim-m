@@ -8,6 +8,7 @@
 /// 500-line hard limit.
 library;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:flutter_test/flutter_test.dart';
@@ -307,7 +308,10 @@ void main() {
       await tester.pump();
 
       final start = screenFor(tester, const Offset(415, 15));
-      final gesture = await tester.startGesture(start);
+      final gesture = await tester.startGesture(
+        start,
+        kind: PointerDeviceKind.mouse,
+      );
       await gesture.moveTo(screenFor(tester, const Offset(445, 35)));
       await gesture.up();
       await tester.pumpAndSettle();
@@ -342,7 +346,10 @@ void main() {
       await tester.pump();
 
       final start = screenFor(tester, const Offset(415, 15));
-      final gesture = await tester.startGesture(start);
+      final gesture = await tester.startGesture(
+        start,
+        kind: PointerDeviceKind.mouse,
+      );
       await gesture.moveTo(screenFor(tester, const Offset(445, 35)));
       await gesture.up();
       await tester.pumpAndSettle();
@@ -371,7 +378,10 @@ void main() {
       await tester.pump();
 
       final start = screenFor(tester, const Offset(415, 15));
-      final gesture = await tester.startGesture(start);
+      final gesture = await tester.startGesture(
+        start,
+        kind: PointerDeviceKind.mouse,
+      );
       await gesture.moveTo(screenFor(tester, const Offset(445, 35)));
       await gesture.up();
       await tester.pumpAndSettle();
@@ -450,7 +460,10 @@ void main() {
     await tester.pump();
 
     final start = screenFor(tester, const Offset(415, 15));
-    final gesture = await tester.startGesture(start);
+    final gesture = await tester.startGesture(
+      start,
+      kind: PointerDeviceKind.mouse,
+    );
     await gesture.moveTo(screenFor(tester, const Offset(445, 35)));
     await gesture.up();
     await tester.pumpAndSettle();
