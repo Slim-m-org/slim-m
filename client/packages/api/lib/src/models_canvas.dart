@@ -227,9 +227,13 @@ class CanvasSummary {
     required this.count,
     required this.bounds,
     required this.latestSeq,
+    this.board,
   });
 
   final int count;
+
+  /// The board every object must lie inside; null from a server that predates it.
+  final CanvasRect? board;
 
   /// The box around every live object; null for an empty board.
   final CanvasRect? bounds;
@@ -239,7 +243,16 @@ class CanvasSummary {
 
   factory CanvasSummary.fromJson(Map<String, dynamic> json) {
     final box = json['bounds'] as Map<String, dynamic>?;
+    final board = json['board'] as Map<String, dynamic>?;
     return CanvasSummary(
+      board: board == null
+          ? null
+          : CanvasRect(
+              minX: (board['min_x'] as num).toDouble(),
+              minY: (board['min_y'] as num).toDouble(),
+              maxX: (board['max_x'] as num).toDouble(),
+              maxY: (board['max_y'] as num).toDouble(),
+            ),
       count: json['count'] as int,
       bounds: box == null
           ? null

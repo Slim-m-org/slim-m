@@ -13,6 +13,7 @@ use crate::http::error::ApiError;
 use crate::http::extract::{AuthedLimited, CANVAS, Json};
 use crate::http::messages::parse_uuid;
 use crate::ids::{CanvasObjectId, ChannelId, UserId};
+use crate::store::{BOARD_MAX_X, BOARD_MAX_Y, BOARD_MIN_X, BOARD_MIN_Y};
 
 /// Most ids one `ids` read takes.
 pub(super) const MAX_IDS: usize = 100;
@@ -33,6 +34,8 @@ pub(super) struct CanvasSummaryDto {
     bounds: Option<BoundsDto>,
     /// The channel's canvas high-water mark, a valid `after_seq` for the op feed.
     latest_seq: i64,
+    /// The board every object must lie inside.
+    board: BoundsDto,
 }
 
 /// `GET /channels/{channel_id}/canvas/summary`.
@@ -53,6 +56,12 @@ pub(super) async fn summary(
             max_y: rect.max_y,
         }),
         latest_seq: summary.latest_seq,
+        board: BoundsDto {
+            min_x: BOARD_MIN_X,
+            min_y: BOARD_MIN_Y,
+            max_x: BOARD_MAX_X,
+            max_y: BOARD_MAX_Y,
+        },
     }))
 }
 

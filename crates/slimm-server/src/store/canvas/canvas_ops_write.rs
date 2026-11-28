@@ -198,6 +198,8 @@ pub enum SubmitOpError {
     /// `MAX_OBJECT_EXTENT`, or fall outside the bounded world - the same
     /// check a placement itself makes.
     OutOfBounds,
+    /// A `move` would leave the object outside the board it was not already stuck outside of.
+    OutsideBoard,
     /// An `edit` named an object of a kind that holds no editable props.
     NotEditable,
     /// An `edit` of a text box carried props that [`crate::canvas_text::check_text_props`] refuses.
@@ -213,6 +215,7 @@ impl From<PlaceError> for SubmitOpError {
     fn from(err: PlaceError) -> Self {
         match err {
             PlaceError::OutOfBounds => SubmitOpError::OutOfBounds,
+            PlaceError::OutsideBoard => SubmitOpError::OutsideBoard,
             // `move_canvas_object_query` only ever returns these two variants.
             other => SubmitOpError::Internal(anyhow::anyhow!("unexpected move error: {other:?}")),
         }
