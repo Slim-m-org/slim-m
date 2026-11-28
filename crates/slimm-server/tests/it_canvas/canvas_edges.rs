@@ -103,8 +103,14 @@ impl Rig {
         id.to_string()
     }
 
-    pub(crate) async fn quick_note(&self, x: f64) -> String {
-        self.quick("note", (x, 0.0, 100.0, 50.0), json!({ "text": "n" }))
+    /// A note on the `slot`th cell of a grid that fits the board, 24 to a row.
+    pub(crate) async fn quick_note(&self, slot: u32) -> String {
+        let (col, row) = (slot % 24, slot / 24);
+        let at = (
+            -900.0 + f64::from(col) * 120.0,
+            -500.0 + f64::from(row) * 80.0,
+        );
+        self.quick("note", (at.0, at.1, 100.0, 50.0), json!({ "text": "n" }))
             .await
     }
 
@@ -196,11 +202,11 @@ async fn an_edge_between_two_notes_stores_the_hull_the_server_derives() {
 async fn an_edge_may_leave_one_end_free_and_may_span_more_than_one_object_can() {
     let rig = rig().await;
     let a = rig.note(&rig.root, 0.0, 0.0).await;
-    let free = json!({ "x": 20_000.0, "y": 30_000.0 });
+    let free = json!({ "x": 2_000.0, "y": 1_500.0 });
     let (status, placed) = rig.place(&rig.root, edge(&id(), end(&a), free)).await;
     assert_eq!(status, StatusCode::CREATED, "{placed}");
-    assert_eq!(placed["w"].as_f64(), Some(20_000.0));
-    assert_eq!(placed["h"].as_f64(), Some(30_000.0));
+    assert_eq!(placed["w"].as_f64(), Some(2_000.0));
+    assert_eq!(placed["h"].as_f64(), Some(1_500.0));
 }
 
 #[tokio::test]

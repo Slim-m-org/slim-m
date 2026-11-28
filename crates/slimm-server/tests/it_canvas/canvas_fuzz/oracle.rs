@@ -4,7 +4,9 @@
 
 use std::collections::{HashMap, HashSet};
 
-use slimm_server::store::{MAX_OBJECT_EXTENT, WORLD_LIMIT};
+use slimm_server::store::{
+    BOARD_MAX_X, BOARD_MAX_Y, BOARD_MIN_X, BOARD_MIN_Y, MAX_OBJECT_EXTENT, WORLD_LIMIT,
+};
 
 use crate::canvas_fuzz::script::{Act, Bounds, Fence, Kind, Step};
 
@@ -14,6 +16,7 @@ pub enum Fail {
     NotAuthorized,
     ChannelFull,
     OutOfBounds,
+    OutsideBoard,
     NotEditable,
     Locked,
     Removed,
@@ -72,6 +75,15 @@ pub fn valid(b: Bounds) -> bool {
         && y >= -WORLD_LIMIT
         && x + w <= WORLD_LIMIT
         && y + h <= WORLD_LIMIT
+}
+
+/// Whether a box lies on the board, within the half unit the client allows.
+pub fn on_board(b: Bounds) -> bool {
+    let (x, y, w, h) = b;
+    x >= BOARD_MIN_X - 0.5
+        && y >= BOARD_MIN_Y - 0.5
+        && x + w <= BOARD_MAX_X + 0.5
+        && y + h <= BOARD_MAX_Y + 0.5
 }
 
 pub fn props_for(kind: Kind, text: u8) -> String {
@@ -187,6 +199,9 @@ impl Oracle {
                 if !valid(*b) {
                     return Err(Fail::OutOfBounds);
                 }
+                if !on_board(*b) && o.b != *b {
+                    return Err(Fail::OutsideBoard);
+                }
                 o.b = *b;
                 Ok(())
             }),
@@ -214,6 +229,9 @@ impl Oracle {
     fn place(&mut self, step: &Step, kind: Kind, b: Bounds, text: u8) -> Pred {
         if !valid(b) {
             return fail(Fail::OutOfBounds);
+        }
+        if !on_board(b) {
+            return fail(Fail::OutsideBoard);
         }
         if let Some(existing) = self.objs.get(&step.label) {
             if !existing.alive {

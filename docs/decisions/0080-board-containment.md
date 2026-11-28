@@ -34,4 +34,19 @@ The affordance loses nothing, every view stays identical because the clip is the
 - Only objects the client has fetched are counted; the viewport read does not reach far outside the board.
 - A stroke larger than the board cannot be brought in; it stays clipped and is not counted.
 - Cursors and selection handles are not clipped.
-- The server does not refuse out-of-board ops, so an old client's op still lands in the log; every current client clamps or clips it.
+- Until 2026-11-27 the server did not refuse out-of-board ops, so an old client's op still landed in the log; every current client clamps or clips it.
+  It now refuses them (see below), and content that was already outside still shows the "bring in" pill.
+
+## The API holds the board too (2026-11-27)
+
+The owner: "I think the api should respect canvas bounds at a minimum."
+A coding agent over HTTP had placed objects off the board, where every client hides them.
+The server now answers `400` to a place, a batch place, a `move` (single, in an ops batch, or as a resize) and a free edge end that leaves the board, with the same half-unit slack the client's `_trackOutside` allows.
+`board` on `GET canvas/summary` tells an HTTP client where the board is, and `docs/bots/building-bots.md` describes the rule.
+
+- A move whose result is inside the board is always accepted, which is how "bring in" works for old content outside; one that leaves it outside, or only partly nearer, is refused.
+- Edits that change no geometry, reorders, restores and removes never check bounds, and neither does a move to the box the object already has.
+- A stroke too large for the board is refused on place; one already that large may move on an axis only toward the board's middle or to the near edge, which is where the client leaves it.
+- Avatar and screen tiles are media slots, not objects, so they are untouched (0086); module tiles are placed on the board by the app and pass.
+- Undoing a bring-in moves the object back outside, so that undo is refused.
+- The server constant (`BOARD_*` in `canvas_geometry.rs`) is pinned to `canvasBoard` by `scripts/lib/test_client_canvas_limits_match_server.py`.

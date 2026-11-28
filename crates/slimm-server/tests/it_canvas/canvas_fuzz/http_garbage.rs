@@ -27,6 +27,8 @@ fn number(rng: &mut Rng, key: &str) -> Value {
         return match key {
             "w" | "h" => json!(1 + rng.below(500)),
             "z_index" | "before_seq" => json!(rng.below(60)),
+            "x" => json!(rng.range(-900, 2300)),
+            "y" => json!(rng.range(-500, 1100)),
             _ => json!(rng.range(-3000, 3000)),
         };
     }
@@ -285,7 +287,7 @@ async fn malformed_canvas_requests_never_answer_with_a_server_error() {
             }
         }
         assert!(
-            served > 20,
+            served > 10,
             "seed {seed}: only {served} requests were accepted ({histogram:?}), the generator is too hostile to test anything"
         );
         replay_matches_live(&store, channel)

@@ -190,11 +190,12 @@ pub use canvas::canvas_reads::CanvasSummary;
 pub use canvas::canvas_tile_scenes::{
     CANVAS_TILE_POINT, MODULE_TILE_KIND, ModuleTileRef, TileScene,
 };
-pub(crate) use canvas::valid_bounds;
 pub use canvas::{
-    CanvasObject, MAX_CANVAS_OBJECT_CAP, MAX_OBJECT_EXTENT, MAX_OBJECTS_PER_CHANNEL,
-    MIN_CANVAS_OBJECT_CAP, PlaceError, PlaceRequest, Placement, Rect, ViewportQuery, WORLD_LIMIT,
+    BOARD_MAX_X, BOARD_MAX_Y, BOARD_MIN_X, BOARD_MIN_Y, CanvasObject, EDGE_END_OUTSIDE_BOARD,
+    MAX_CANVAS_OBJECT_CAP, MAX_OBJECT_EXTENT, MAX_OBJECTS_PER_CHANNEL, MIN_CANVAS_OBJECT_CAP,
+    OUTSIDE_BOARD, PlaceError, PlaceRequest, Placement, Rect, ViewportQuery, WORLD_LIMIT,
 };
+pub(crate) use canvas::{board_holds_point, valid_bounds};
 pub use canvas_media_slots::{CanvasMediaSlot, MediaSlotError, MediaSlotKind};
 pub use canvas_object_locks::LockError;
 pub use canvas_ops::{

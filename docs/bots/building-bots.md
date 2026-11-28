@@ -217,6 +217,16 @@ All of them need only `VIEW_CHANNEL`, the same as the viewport read, and answer 
   It takes at most 100 ids, leaves unknown or removed ones out, and replaces the rectangle: sending it with `min_x` and friends, `prev_*`, `after_seq` or `cursor_seq` is a `400`.
 - `GET /channels/{channelId}/canvas/summary` answers `{ "count": 12, "bounds": { "min_x": -40, "min_y": 0, "max_x": 900, "max_y": 600 }, "latest_seq": 31 }`.
   `bounds` is the box around every live object and is `null` on an empty board, so a bot can pick empty space without paging the world.
+  It also carries `"board": { "min_x": -960, "min_y": -540, "max_x": 2880, "max_y": 1620 }`, the board every object must lie inside.
+
+### Staying on the board
+
+Every client hides what lies outside the board, so the server refuses a write that would put it there.
+A place, a batch place, a `move` (single or in a batch, and a resize is a move) and a free end of an edge answer `400` with `object must lie inside the board (-960,-540)-(2880,1620)` when the box is not wholly inside.
+In an ops batch the refusal has `item_code` `outside_board`, and in an object batch the error names the object's index.
+Read `board` from the summary rather than hard-coding the numbers.
+An object an older server left outside can still be moved onto the board; a `move` that leaves it outside is refused, and an `edit`, `reorder` or `remove` never checks where it lies.
+A stroke too large for the board is refused on place, and one already that large may only move toward the middle of the board or to its near edge.
 
 ### Changing many objects at once
 

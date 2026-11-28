@@ -43,10 +43,10 @@ async fn erasing_a_note_takes_its_edges_without_naming_them() {
 #[tokio::test]
 async fn the_remove_of_sixty_four_notes_with_edges_keeps_its_frame_at_sixty_four_ids() {
     let rig = rig().await;
-    let hub = rig.quick_note(0.0).await;
+    let hub = rig.quick_note(0).await;
     let mut notes = Vec::new();
     for i in 0..64 {
-        let n = rig.quick_note(200.0 + f64::from(i) * 120.0).await;
+        let n = rig.quick_note(1 + i).await;
         rig.quick_edge(&hub, &n).await.unwrap();
         notes.push(n);
     }
@@ -158,12 +158,12 @@ async fn a_locked_edge_refuses_an_edit_but_an_erase_of_its_end_still_takes_it() 
 #[tokio::test]
 async fn the_sixty_fifth_edge_on_one_object_is_refused() {
     let rig = rig().await;
-    let hub = rig.quick_note(0.0).await;
+    let hub = rig.quick_note(0).await;
     for i in 0..64 {
-        let n = rig.quick_note(200.0 + f64::from(i) * 120.0).await;
+        let n = rig.quick_note(1 + i).await;
         rig.quick_edge(&hub, &n).await.unwrap();
     }
-    let extra = rig.quick_note(5000.0).await;
+    let extra = rig.quick_note(65).await;
     let (status, body) = rig
         .place(&rig.root, edge(&id(), end(&hub), end(&extra)))
         .await;

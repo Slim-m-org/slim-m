@@ -8201,6 +8201,13 @@ paths:
         every cell of a client's spatial grid.
 
 
+        The box must also lie wholly inside the board (decision 0080), whose
+        edges `getCanvasSummary` returns as `board`: an object that does not
+        is a 400 naming the board. Every client hides what lies outside it. A
+        free end of an `edge` is held to the same board. A `stroke` that no
+        board could hold is refused too.
+
+
         `kind` is `stroke`, `image`, `note`, `shape`, `text`, `emoji`, `module` or `edge`. It is an allowlist
         rather than free text, because the kind decides how every client
         renders a row and an unknown one is a row nobody can draw and nobody
@@ -8277,7 +8284,7 @@ paths:
       description: >
         For bots that draw many marks. `objects` holds 1 to 200 entries, each
         exactly what `placeCanvasObject` takes and checked the same way (kind,
-        props size, extent, attachment, `VIEW_CHANNEL` and `USE_CANVAS`, and
+        props size, extent, the board, attachment, `VIEW_CHANNEL` and `USE_CANVAS`, and
         the timeout refusal). The batch is all or nothing: one invalid object
         is a 400 or 409 that names its index, and nothing is written. The
         canvas cap is checked against the whole batch in the same transaction.
@@ -8589,6 +8596,13 @@ paths:
         `MANAGE_CANVAS`. An id absent from this channel, or belonging to
         another one, is the same 404 `remove` gives; bounds outside the world
         or past the object-extent ceiling are the same 400 a placement gives.
+        The result must lie wholly inside the board (`board` of
+        `getCanvasSummary`), also a 400. An object an older server left
+        outside can be moved onto the board, and an `edit`, a `reorder`
+        or a `remove` is never refused for where an object lies. A stroke
+        larger than the board may only move toward the middle of the board
+        on that axis, or to its near edge. In a batch the refusal carries
+        `item_code` `outside_board`.
         An id naming an already-removed object is not an error: `affected` is
         0, the same as the other kinds' own not-quite-there answers below.
 
@@ -21323,8 +21337,20 @@ components:
 
     CanvasSummary:
       type: object
-      required: [count, bounds, latest_seq]
+      required: [count, bounds, latest_seq, board]
       properties:
+        board:
+          type: object
+          description: >-
+            The board every object must lie inside (decision 0080): a place, a
+            move or a resize, and a free edge end that would leave it is a 400.
+            The shared area the app opens on is the 0,0 to 1920,1080 box inside it.
+          required: [min_x, min_y, max_x, max_y]
+          properties:
+            min_x: { type: number, format: double }
+            min_y: { type: number, format: double }
+            max_x: { type: number, format: double }
+            max_y: { type: number, format: double }
         count:
           type: integer
           format: int64

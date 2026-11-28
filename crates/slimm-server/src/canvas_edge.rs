@@ -152,6 +152,21 @@ pub fn check_edge_props(props: &Value) -> Result<(), &'static str> {
     Ok(())
 }
 
+/// Refuses a free end that sits off the board, ignoring one `stored` already holds so an old
+/// edge can still be relabelled or have its other end moved.
+pub fn check_ends_on_board(props: &Value, stored: Option<&Value>) -> Result<(), &'static str> {
+    for key in ["from", "to"] {
+        let Ok(EdgeEnd::Free { x, y }) = parse_end(props.get(key)) else {
+            continue;
+        };
+        let unchanged = stored.is_some_and(|stored| stored.get(key) == props.get(key));
+        if !unchanged && !crate::store::board_holds_point(x, y) {
+            return Err(crate::store::EDGE_END_OUTSIDE_BOARD);
+        }
+    }
+    Ok(())
+}
+
 /// Merges an edit into stored props: an absent key keeps its value and `null` deletes it.
 pub fn merge_edge_props(stored: &Value, edit: &Value) -> Value {
     let mut merged = stored.as_object().cloned().unwrap_or_default();

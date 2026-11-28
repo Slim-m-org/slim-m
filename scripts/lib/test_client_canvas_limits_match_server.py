@@ -68,6 +68,47 @@ def read_server(path: str, name: str) -> float | None:
     return rust_value((SERVER / path).read_text(), name)
 
 
+BOARD_FILE = "voice_canvas/lib/src/canvas_board.dart"
+BOARD_EDGES = ("BOARD_MIN_X", "BOARD_MIN_Y", "BOARD_MAX_X", "BOARD_MAX_Y")
+
+
+def dart_board(source: str) -> tuple[float, ...] | None:
+    found = re.search(
+        r"\bconst Rect canvasBoard = Rect\.fromLTWH\(([^)]*)\);", strip_block_comments(source)
+    )
+    if not found:
+        return None
+    left, top, width, height = (float(v.replace("_", "")) for v in found.group(1).split(","))
+    return (left, top, left + width, top + height)
+
+
+def rust_board(source: str) -> tuple[float, ...] | None:
+    code = strip_rust_comments(source)
+    edges = []
+    for name in BOARD_EDGES:
+        found = re.search(rf"\bconst {name}: f64 = (-?[\d_.]+);", code)
+        if not found:
+            return None
+        edges.append(float(found.group(1).replace("_", "")))
+    return tuple(edges)
+
+
+class BoardMatchesServerTest(unittest.TestCase):
+    def test_the_server_board_is_the_client_board(self):
+        client = dart_board((CLIENT / BOARD_FILE).read_text())
+        server = rust_board((SERVER / "store/canvas/canvas_geometry.rs").read_text())
+        self.assertIsNotNone(client)
+        self.assertEqual(client, server)
+
+    def test_a_moved_edge_is_caught(self):
+        source = (SERVER / "store/canvas/canvas_geometry.rs").read_text()
+        moved = source.replace("BOARD_MAX_X: f64 = 2_880.0", "BOARD_MAX_X: f64 = 2_000.0")
+        self.assertNotEqual(rust_board(moved), dart_board((CLIENT / BOARD_FILE).read_text()))
+
+    def test_a_commented_out_edge_is_not_read(self):
+        self.assertEqual(rust_board("// const BOARD_MIN_X: f64 = 1.0;\n"), None)
+
+
 class ClientCanvasLimitsMatchServerTest(unittest.TestCase):
     def test_every_canvas_limit_agrees(self):
         self.assertEqual(mismatches(read_client, read_server), [])

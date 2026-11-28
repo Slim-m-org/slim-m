@@ -194,8 +194,8 @@ pub fn bounds(rng: &mut Rng, skip: &Skip) -> Bounds {
     if !skip.has("degenerate") && rng.chance(22) {
         return edge_bounds(rng, !skip.has("subnormal"));
     }
-    let x = rng.range(-3000, 3000) as f64 + rng.unit();
-    let y = rng.range(-3000, 3000) as f64 + rng.unit();
+    let x = rng.range(-950, 2300) as f64 + rng.unit();
+    let y = rng.range(-530, 1100) as f64 + rng.unit();
     (
         x,
         y,
