@@ -10,6 +10,25 @@ use crate::ids::ChannelId;
 /// decision), and an object outside it could never be reached by panning.
 pub const WORLD_LIMIT: f64 = 5_000_000.0;
 
+/// The board's edges in world units, the server twin of `canvasBoard` in
+/// `canvas_board.dart` (decision 0080); `board_matches_the_client_constants`
+/// pins the two together.
+pub const BOARD_MIN_X: f64 = -960.0;
+pub const BOARD_MIN_Y: f64 = -540.0;
+pub const BOARD_MAX_X: f64 = 2_880.0;
+pub const BOARD_MAX_Y: f64 = 1_620.0;
+
+/// What a write that leaves the board answers with; names [`BOARD_MIN_X`] to [`BOARD_MAX_Y`].
+pub const OUTSIDE_BOARD: &str = "object must lie inside the board (-960,-540)-(2880,1620)";
+
+/// What an edge whose free end leaves the board answers with.
+pub const EDGE_END_OUTSIDE_BOARD: &str =
+    "a free edge end must lie inside the board (-960,-540)-(2880,1620)";
+
+/// The slack the client's own containment check allows (`_trackOutside`), so
+/// float noise in a clamped box never counts as outside.
+const BOARD_SLACK: f64 = 0.5;
+
 /// Longest side one object may declare.
 ///
 /// The world alone is not a bound worth having here: a single object legally
@@ -64,9 +83,60 @@ pub(crate) fn valid_bounds(x: f64, y: f64, w: f64, h: f64) -> bool {
         && y + h <= WORLD_LIMIT
 }
 
+/// Whether a box lies wholly inside the board, with the client's half-unit slack.
+pub(crate) fn board_holds(x: f64, y: f64, w: f64, h: f64) -> bool {
+    x >= BOARD_MIN_X - BOARD_SLACK
+        && y >= BOARD_MIN_Y - BOARD_SLACK
+        && x + w <= BOARD_MAX_X + BOARD_SLACK
+        && y + h <= BOARD_MAX_Y + BOARD_SLACK
+}
+
+/// Whether a point lies on the board, with the same slack as [`board_holds`].
+pub(crate) fn board_holds_point(x: f64, y: f64) -> bool {
+    board_holds(x, y, 0.0, 0.0)
+}
+
+/// Whether one axis of a box, as `(start, length)`, may go from `from` to `to` against `[lo, hi]`.
+///
+/// Inside is always fine. A length no board can hold may sit where the client leaves it, on the
+/// near edge, or anywhere not further from the board's middle than it already is.
+fn axis_respects(from: (f64, f64), to: (f64, f64), (lo, hi): (f64, f64)) -> bool {
+    let inside =
+        |(start, len): (f64, f64)| start >= lo - BOARD_SLACK && start + len <= hi + BOARD_SLACK;
+    if inside(to) {
+        return true;
+    }
+    let oversized = to.1 > hi - lo + 2.0 * BOARD_SLACK;
+    let middle_off = |(start, len): (f64, f64)| (start + len / 2.0 - (lo + hi) / 2.0).abs();
+    oversized && ((to.0 - lo).abs() <= BOARD_SLACK || middle_off(to) <= middle_off(from))
+}
+
+/// Whether moving an object of `kind` from `from` to `to` respects the board.
+///
+/// A result inside the board always does, which is how "bring in" works for old content outside.
+/// A stroke larger than the board on an axis can never be brought in, so on that axis it may move
+/// only as `axis_respects` allows. Any other result outside is refused, except the unchanged box,
+/// which changes nothing.
+pub(crate) fn move_respects_board(
+    kind: &str,
+    from: (f64, f64, f64, f64),
+    to: (f64, f64, f64, f64),
+) -> bool {
+    if board_holds(to.0, to.1, to.2, to.3) || from == to {
+        return true;
+    }
+    kind == "stroke"
+        && axis_respects((from.0, from.2), (to.0, to.2), (BOARD_MIN_X, BOARD_MAX_X))
+        && axis_respects((from.1, from.3), (to.1, to.3), (BOARD_MIN_Y, BOARD_MAX_Y))
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{MAX_OBJECT_EXTENT, WORLD_LIMIT, channel_key, valid_bounds};
+    use super::{
+        BOARD_MAX_X, BOARD_MAX_Y, BOARD_MIN_X, BOARD_MIN_Y, EDGE_END_OUTSIDE_BOARD,
+        MAX_OBJECT_EXTENT, OUTSIDE_BOARD, WORLD_LIMIT, board_holds, board_holds_point, channel_key,
+        move_respects_board, valid_bounds,
+    };
     use crate::ids::ChannelId;
 
     #[test]
@@ -118,5 +188,99 @@ mod tests {
         let id = ChannelId::generate();
         assert_eq!(channel_key(id), channel_key(id));
         assert!((0..=0xFF_FFFF).contains(&channel_key(id)));
+    }
+
+    #[test]
+    fn the_refusal_text_names_the_board_constants() {
+        let corners = format!("({BOARD_MIN_X},{BOARD_MIN_Y})-({BOARD_MAX_X},{BOARD_MAX_Y})");
+        assert_eq!(
+            OUTSIDE_BOARD,
+            format!("object must lie inside the board {corners}")
+        );
+        assert_eq!(
+            EDGE_END_OUTSIDE_BOARD,
+            format!("a free edge end must lie inside the board {corners}")
+        );
+    }
+
+    /// The board is the shared area grown to twice its size around its centre (decision 0080).
+    #[test]
+    fn the_board_is_the_shared_area_doubled() {
+        assert_eq!(
+            (BOARD_MAX_X - BOARD_MIN_X, BOARD_MAX_Y - BOARD_MIN_Y),
+            (3840.0, 2160.0)
+        );
+        assert_eq!(
+            (BOARD_MIN_X + BOARD_MAX_X, BOARD_MIN_Y + BOARD_MAX_Y),
+            (1920.0, 1080.0)
+        );
+    }
+
+    #[test]
+    fn a_box_is_held_only_when_wholly_on_the_board() {
+        assert!(board_holds(0.0, 0.0, 100.0, 100.0));
+        assert!(board_holds(BOARD_MIN_X, BOARD_MIN_Y, 3840.0, 2160.0));
+        assert!(board_holds(BOARD_MIN_X - 0.5, 0.0, 10.0, 10.0));
+        assert!(!board_holds(BOARD_MIN_X - 0.6, 0.0, 10.0, 10.0));
+        assert!(!board_holds(2800.0, 0.0, 100.0, 10.0));
+        assert!(!board_holds(0.0, 1600.0, 10.0, 30.0));
+        assert!(board_holds_point(BOARD_MAX_X, BOARD_MAX_Y));
+        assert!(!board_holds_point(BOARD_MAX_X + 1.0, 0.0));
+    }
+
+    #[test]
+    fn a_move_onto_the_board_or_toward_it_is_allowed_only_when_it_lands_inside() {
+        let outside = (5000.0, 0.0, 100.0, 100.0);
+        assert!(move_respects_board(
+            "shape",
+            outside,
+            (0.0, 0.0, 100.0, 100.0)
+        ));
+        assert!(!move_respects_board(
+            "shape",
+            outside,
+            (4000.0, 0.0, 100.0, 100.0)
+        ));
+        assert!(!move_respects_board(
+            "shape",
+            (0.0, 0.0, 10.0, 10.0),
+            outside
+        ));
+        assert!(move_respects_board("shape", outside, outside));
+    }
+
+    #[test]
+    fn an_oversized_stroke_may_move_toward_the_middle_or_to_the_near_edge_only() {
+        let huge = (-500.0, 0.0, 6000.0, 100.0);
+        assert!(move_respects_board(
+            "stroke",
+            huge,
+            (-1500.0, 0.0, 6000.0, 100.0)
+        ));
+        assert!(move_respects_board(
+            "stroke",
+            huge,
+            (BOARD_MIN_X, 0.0, 6000.0, 100.0)
+        ));
+        assert!(!move_respects_board(
+            "stroke",
+            huge,
+            (0.0, 0.0, 6000.0, 100.0)
+        ));
+        assert!(!move_respects_board(
+            "stroke",
+            huge,
+            (-500.0, 5000.0, 6000.0, 100.0)
+        ));
+        assert!(!move_respects_board(
+            "shape",
+            huge,
+            (-1500.0, 0.0, 6000.0, 100.0)
+        ));
+        assert!(!move_respects_board(
+            "stroke",
+            (0.0, 0.0, 10.0, 10.0),
+            (5000.0, 0.0, 10.0, 10.0)
+        ));
     }
 }

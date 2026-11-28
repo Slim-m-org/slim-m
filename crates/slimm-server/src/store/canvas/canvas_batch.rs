@@ -2,8 +2,8 @@
 //! Placing many objects in one transaction, and the steps the single place shares with it.
 
 use super::{
-    CanvasObject, PlaceError, PlaceRequest, Placement, Store, channel_key, fetch_object,
-    insert_place_op, next_canvas_seq, now_ms, place_edge, valid_bounds,
+    CanvasObject, PlaceError, PlaceRequest, Placement, Store, board_holds, channel_key,
+    fetch_object, insert_place_op, next_canvas_seq, now_ms, place_edge, valid_bounds,
 };
 use crate::ids::{CanvasObjectId, ChannelId, Seq, UserId};
 
@@ -30,6 +30,9 @@ impl Store {
         let (x, y, w, h) = request.bounds;
         if !valid_bounds(x, y, w, h) {
             return Err(PlaceError::OutOfBounds);
+        }
+        if !board_holds(x, y, w, h) {
+            return Err(PlaceError::OutsideBoard);
         }
         let Some(sha256) = request.attachment else {
             return Ok(());

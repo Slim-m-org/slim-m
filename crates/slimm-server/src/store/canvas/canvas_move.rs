@@ -12,7 +12,8 @@
 use sqlx::SqliteExecutor;
 
 use super::super::Store;
-use super::{PlaceError, valid_bounds};
+use super::canvas_ops_write::SubmitOpError;
+use super::{PlaceError, move_respects_board, valid_bounds};
 use crate::ids::{CanvasObjectId, ChannelId, UserId};
 
 impl Store {
@@ -50,6 +51,21 @@ impl Store {
         .await?;
         Ok(row.is_some_and(|r| !r.locked && (may_moderate || r.author_id == Some(user))))
     }
+}
+
+/// Refuses a move to a box outside the world, or off the board it was not already stuck off.
+pub(super) fn check_move(
+    kind: &str,
+    from: (f64, f64, f64, f64),
+    to: (f64, f64, f64, f64),
+) -> Result<(), SubmitOpError> {
+    if !valid_bounds(to.0, to.1, to.2, to.3) {
+        return Err(SubmitOpError::OutOfBounds);
+    }
+    if !move_respects_board(kind, from, to) {
+        return Err(SubmitOpError::OutsideBoard);
+    }
+    Ok(())
 }
 
 /// Moves or resizes a live object, over either the pool or a caller's own

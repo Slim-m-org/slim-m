@@ -12,7 +12,7 @@ use sqlx::QueryBuilder;
 use super::canvas_edges::{
     cascade_erase, cascades_of, edges_to_skip, hull_of, refresh_hulls, set_hull,
 };
-use super::canvas_move::move_canvas_object_query;
+use super::canvas_move::{check_move, move_canvas_object_query};
 use super::canvas_object_locks::locked_among;
 use super::canvas_ops_write::SubmitOpError;
 use crate::ids::{CanvasObjectId, CanvasOpId, ChannelId, UserId};
@@ -39,6 +39,7 @@ struct ObjectAuth {
     kind: String,
     author_id: Option<UserId>,
     is_dead: bool,
+    bounds: (f64, f64, f64, f64),
     /// The exact moment this object was last soft-deleted, or `None` if
     /// live. Distinct from [`Self::is_dead`], which only asks *whether*: a
     /// `remove` restore has to ask *because of which removal*, or it can
@@ -106,8 +107,7 @@ pub(in crate::store) async fn apply_remove(
 /// already settled, since that reasoning was always about a caller's own
 /// object racing its own removal, never about a foreign one.
 ///
-/// Bounds are validated inside [`move_canvas_object_query`] itself, the same
-/// check a placement makes, so this never duplicates it. And since this runs
+/// The world's bounds and the board are checked by [`check_move`]. Since this runs
 /// inside the caller's own write transaction, nothing can remove `object_id`
 /// between the dead-check above and the update below - single-writer is what
 /// makes a `false` result here mean the row vanished by some path this module
@@ -137,6 +137,7 @@ pub(in crate::store) async fn apply_move(
     if found.is_dead {
         return Ok(("move", 0, Vec::new(), None));
     }
+    check_move(&found.kind, found.bounds, bounds)?;
     let moved = move_canvas_object_query(&mut **tx, object_id, bounds).await?;
     if !moved {
         return Ok(("move", 0, Vec::new(), None));
@@ -455,7 +456,7 @@ async fn fetch_objects_for_op(
     let mut found = std::collections::HashMap::with_capacity(ids.len());
     for chunk in ids.chunks(RESTORE_UNDELETE_BATCH) {
         let mut builder = QueryBuilder::new(
-            "SELECT id, kind, author_id, deleted_at FROM canvas_objects WHERE channel_id = ",
+            "SELECT id, kind, author_id, deleted_at, x, y, w, h FROM canvas_objects WHERE channel_id = ",
         );
         builder.push_bind(channel_id);
         builder.push(" AND id IN (");
@@ -471,12 +472,19 @@ async fn fetch_objects_for_op(
             let kind: String = row.try_get("kind")?;
             let author_id: Option<UserId> = row.try_get("author_id")?;
             let deleted_at: Option<i64> = row.try_get("deleted_at")?;
+            let bounds = (
+                row.try_get("x")?,
+                row.try_get("y")?,
+                row.try_get("w")?,
+                row.try_get("h")?,
+            );
             found.insert(
                 id,
                 ObjectAuth {
                     kind,
                     author_id,
                     is_dead: deleted_at.is_some(),
+                    bounds,
                     deleted_at,
                 },
             );
@@ -491,7 +499,8 @@ async fn fetch_object_for_op(
     id: CanvasObjectId,
 ) -> Result<Option<ObjectAuth>, sqlx::Error> {
     let row = sqlx::query!(
-        r#"SELECT kind AS "kind!", author_id AS "author_id: UserId", deleted_at AS "deleted_at: i64"
+        r#"SELECT kind AS "kind!", author_id AS "author_id: UserId", deleted_at AS "deleted_at: i64",
+                  x AS "x!: f64", y AS "y!: f64", w AS "w!: f64", h AS "h!: f64"
            FROM canvas_objects WHERE id = ? AND channel_id = ?"#,
         id,
         channel_id
@@ -502,6 +511,7 @@ async fn fetch_object_for_op(
         kind: r.kind,
         author_id: r.author_id,
         is_dead: r.deleted_at.is_some(),
+        bounds: (r.x, r.y, r.w, r.h),
         deleted_at: r.deleted_at,
     }))
 }

@@ -242,7 +242,12 @@ async fn the_index_over_reports_and_the_exact_test_cleans_up() {
     let author = store.create_user("ann", "Ann").await.unwrap().id;
     // Far enough out that one float32 step is a quarter of a pixel, and placed
     // between two of them so storing the bounds has to round outwards.
-    place(&store, channel, author, (4_000_000.6, 0.0, 0.0, 0.0)).await;
+    let id = place(&store, channel, author, (0.0, 0.0, 0.0, 0.0)).await;
+    // Old content can sit far outside the board; the raw move reaches it without the board rule.
+    store
+        .move_canvas_object(id, (4_000_000.6, 0.0, 0.0, 0.0))
+        .await
+        .unwrap();
 
     let candidates = sqlx::query_scalar::<_, i64>(
         "SELECT count(*) FROM canvas_rtree

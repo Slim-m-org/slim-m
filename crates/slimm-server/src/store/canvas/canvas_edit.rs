@@ -116,7 +116,13 @@ pub(in crate::store) async fn apply_edit(
         });
     }
     if found.kind == "edge" {
-        next = write_edge(tx, channel_id, object_id, &parse(&next)?).await?;
+        next = write_edge(
+            tx,
+            channel_id,
+            object_id,
+            (&parse(&found.props)?, &parse(&next)?),
+        )
+        .await?;
     }
     sqlx::query!(
         "UPDATE canvas_object_props SET props = ? WHERE object_id = ?",
@@ -137,9 +143,11 @@ async fn write_edge(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     channel_id: ChannelId,
     edge_id: CanvasObjectId,
-    merged: &serde_json::Value,
+    (stored, merged): (&serde_json::Value, &serde_json::Value),
 ) -> Result<String, SubmitOpError> {
     crate::canvas_edge::check_edge_props(merged).map_err(SubmitOpError::BadProps)?;
+    crate::canvas_edge::check_ends_on_board(merged, Some(stored))
+        .map_err(SubmitOpError::BadProps)?;
     let text = serde_json::to_string(merged)
         .map_err(|_| SubmitOpError::BadProps("canvas props must be an object"))?;
     if text.len() > crate::canvas_text::MAX_PROPS_BYTES {

@@ -129,6 +129,7 @@ fn refused(OpBatchError { index, error }: OpBatchError) -> ApiError {
         SubmitOpError::NotAuthorized => "forbidden",
         SubmitOpError::ChannelFull => "channel_full",
         SubmitOpError::OutOfBounds => "out_of_bounds",
+        SubmitOpError::OutsideBoard => "outside_board",
         SubmitOpError::NotEditable => "not_editable",
         SubmitOpError::BadProps(_) => "invalid",
         SubmitOpError::Locked => "locked",

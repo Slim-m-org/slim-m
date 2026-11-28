@@ -31,10 +31,13 @@ use crate::ids::{CanvasObjectId, ChannelId, Seq, UserId};
 
 // Geometry lives in `canvas_geometry`; re-exported so every existing path holds.
 pub use self::canvas_geometry::{
+    BOARD_MAX_X, BOARD_MAX_Y, BOARD_MIN_X, BOARD_MIN_Y, EDGE_END_OUTSIDE_BOARD,
     MAX_CANVAS_OBJECT_CAP, MAX_OBJECT_EXTENT, MAX_OBJECTS_PER_CHANNEL, MIN_CANVAS_OBJECT_CAP,
-    WORLD_LIMIT,
+    OUTSIDE_BOARD, WORLD_LIMIT,
 };
-pub(crate) use self::canvas_geometry::{channel_key, valid_bounds};
+pub(crate) use self::canvas_geometry::{
+    board_holds, board_holds_point, channel_key, move_respects_board, valid_bounds,
+};
 
 pub(super) mod canvas_audit;
 pub(super) mod canvas_batch;
@@ -120,6 +123,8 @@ pub enum PlaceError {
     /// The object's bounds are not finite, have negative extent, exceed
     /// [`MAX_OBJECT_EXTENT`], or fall outside the bounded world.
     OutOfBounds,
+    /// The object does not lie wholly inside the board.
+    OutsideBoard,
     /// This channel's canvas already holds [`MAX_OBJECTS_PER_CHANNEL`].
     ChannelFull,
     /// An `image` object named an attachment that was never uploaded, was

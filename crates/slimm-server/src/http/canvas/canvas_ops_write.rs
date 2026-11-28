@@ -152,6 +152,7 @@ pub(super) fn submit_error_api(error: SubmitOpError) -> ApiError {
         SubmitOpError::OutOfBounds => {
             ApiError::BadRequest("the object is outside the world or too large")
         }
+        SubmitOpError::OutsideBoard => ApiError::BadRequest(crate::store::OUTSIDE_BOARD),
         SubmitOpError::Locked => ApiError::Conflict("that object is locked in place"),
         SubmitOpError::NotEditable => ApiError::BadRequest(
             "only a note, a text box, a connection, a shape or an image can be edited",

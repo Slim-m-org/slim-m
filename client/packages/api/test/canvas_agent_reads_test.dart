@@ -88,6 +88,7 @@ void main() {
         'count': 2,
         'latest_seq': 5,
         'bounds': {'min_x': -1, 'min_y': 2.5, 'max_x': 30, 'max_y': 40},
+        'board': {'min_x': -960, 'min_y': -540, 'max_x': 2880, 'max_y': 1620},
       },
       (_) {},
     ).canvasBoardSummary('c1');
@@ -95,11 +96,14 @@ void main() {
     expect(full.latestSeq, 5);
     expect(full.bounds!.minX, -1.0);
     expect(full.bounds!.maxY, 40.0);
+    expect(full.board!.minX, -960.0);
+    expect(full.board!.maxY, 1620.0);
 
     final empty = await _api(
       {'count': 0, 'latest_seq': 0, 'bounds': null},
       (_) {},
     ).canvasBoardSummary('c1');
     expect(empty.bounds, isNull);
+    expect(empty.board, isNull);
   });
 }

@@ -49,6 +49,7 @@ pub fn map_submit(r: Result<SubmittedOp, SubmitOpError>) -> Result<Got, Fail> {
         Err(SubmitOpError::NotAuthorized) => Err(Fail::NotAuthorized),
         Err(SubmitOpError::ChannelFull) => Err(Fail::ChannelFull),
         Err(SubmitOpError::OutOfBounds) => Err(Fail::OutOfBounds),
+        Err(SubmitOpError::OutsideBoard) => Err(Fail::OutsideBoard),
         Err(SubmitOpError::NotEditable) => Err(Fail::NotEditable),
         Err(SubmitOpError::Locked) => Err(Fail::Locked),
         Err(SubmitOpError::EdgeLimit) => Err(Fail::Internal("edge limit".to_owned())),
@@ -68,6 +69,7 @@ pub fn map_place(r: Result<Placement, PlaceError>) -> Result<Got, Fail> {
         }),
         Err(PlaceError::Removed) => Err(Fail::Removed),
         Err(PlaceError::OutOfBounds) => Err(Fail::OutOfBounds),
+        Err(PlaceError::OutsideBoard) => Err(Fail::OutsideBoard),
         Err(PlaceError::ChannelFull) => Err(Fail::ChannelFull),
         Err(other) => Err(Fail::Internal(format!("{other:?}"))),
     }

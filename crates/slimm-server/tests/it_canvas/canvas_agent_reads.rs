@@ -38,6 +38,16 @@ async fn get(app: &Router, uri: &str, token: &str) -> (StatusCode, Value) {
     )
 }
 
+/// `GET /channels/{channel}/canvas/{path}` as the rig's root user.
+pub(crate) async fn get_json(rig: &crate::canvas_edges::Rig, path: &str) -> (StatusCode, Value) {
+    get(
+        &rig.app,
+        &format!("/channels/{}/canvas/{path}", rig.channel),
+        &rig.root,
+    )
+    .await
+}
+
 fn objects_uri(channel: ChannelId, query: &str) -> String {
     format!("/channels/{channel}/canvas/objects?{query}")
 }
@@ -401,16 +411,16 @@ async fn the_summary_counts_and_bounds_only_live_objects() {
     let app = app(store);
     place_box(&app, channel, &token, (-100.0, 20.0, 30.0, 40.0)).await;
     place_box(&app, channel, &token, (50.0, -70.0, 200.0, 10.0)).await;
-    let far = place_box(&app, channel, &token, (3000.0, 4000.0, 5.0, 5.0)).await;
-    place_box(&app, other, &token, (-9000.0, -9000.0, 1.0, 1.0)).await;
+    let far = place_box(&app, channel, &token, (2000.0, 1000.0, 5.0, 5.0)).await;
+    place_box(&app, other, &token, (-900.0, -500.0, 1.0, 1.0)).await;
 
     let (_, body) = get(&app, &summary_uri(channel), &token).await;
     assert_eq!(body["count"], 3);
     assert_eq!(body["latest_seq"], 3);
     assert_eq!(body["bounds"]["min_x"], -100.0);
     assert_eq!(body["bounds"]["min_y"], -70.0);
-    assert_eq!(body["bounds"]["max_x"], 3005.0);
-    assert_eq!(body["bounds"]["max_y"], 4005.0);
+    assert_eq!(body["bounds"]["max_x"], 2005.0);
+    assert_eq!(body["bounds"]["max_y"], 1005.0);
 
     let (status, _) = submit_op(&app, channel, &token, remove(&id(), &[&far])).await;
     assert_eq!(status, StatusCode::CREATED);

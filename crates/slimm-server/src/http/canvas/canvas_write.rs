@@ -177,6 +177,8 @@ pub(super) fn validate_place(params: PlaceParams) -> Result<ValidatedPlace, ApiE
     // The server derives an edge's box from its ends, so the placeholder only has to be valid.
     let bounds = if params.kind == "edge" {
         crate::canvas_edge::check_edge_props(&params.props).map_err(ApiError::BadRequest)?;
+        crate::canvas_edge::check_ends_on_board(&params.props, None)
+            .map_err(ApiError::BadRequest)?;
         (0.0, 0.0, 0.0, 0.0)
     } else {
         (params.x, params.y, params.w, params.h)
@@ -210,6 +212,7 @@ pub(super) fn place_error_api(error: PlaceError) -> ApiError {
         PlaceError::OutOfBounds => {
             ApiError::BadRequest("the object is outside the world or too large")
         }
+        PlaceError::OutsideBoard => ApiError::BadRequest(crate::store::OUTSIDE_BOARD),
         PlaceError::ChannelFull => ApiError::Conflict("this canvas is full"),
         PlaceError::IdConflict => ApiError::Conflict("canvas object id already used"),
         PlaceError::Removed => ApiError::Conflict("that object was removed"),
